@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<head><meta charset="utf-8"><title>...</title>
+<script>"use strict";
+(function(){
+
+function onmessage(event) {
+    event.data.split('\n').forEach(function(str,j){
+        var el = JSON.parse(str);
+        console.log(el);
+    })
+}
+
+var eventSource;
+
+function isStateClosed(v){ return v === 2 }
+
+function iter(){
+    if(eventSource){
+        if(isStateClosed(eventSource.readyState)){
+            eventSource.close();
+            eventSource = null;
+        }
+    }
+    if(!eventSource){
+        eventSource = new EventSource("http://localhost:5556/sse");
+        eventSource.onmessage = onmessage;
+    }
+}
+
+setInterval(iter,5000);
+iter();
+
+})()
+</script>
+</head>
