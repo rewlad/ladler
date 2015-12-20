@@ -174,74 +174,65 @@ object Bytes {
 
 class SSEConnection(server: SSEServer, skt: Socket) {
   private lazy val out = skt.getOutputStream
-  private lazy val serialExecutor = new SerialExecutor(server.pool)
   lazy val connectionId = util.UUID.randomUUID.toString
-  def send(event: String, data: String) = serialExecutor{
+  private def send(event: String, data: String) = {
     val pdata = data.replaceAllLiterally("\n","\ndata: ")
     out.write(Bytes(s"event: $event\ndata: $data\n\n"))
     out.flush()
   }
-  def start() = {
-    //server.pool.scheduleAtFixedRate(ToRunnable(keepAlive()),10,10,TimeUnit.SECONDS)
-    serialExecutor{
-      val allowOrigin =
-        server.allowOrigin.map(v=>s"Access-Control-Allow-Origin: $v\n").getOrElse("")
-      out.write(Bytes(s"HTTP/1.1 200 OK\nContent-Type: text/event-stream\n$allowOrigin\n"))
-    }
+  lazy val scheduled =
+    server.pool.scheduleAtFixedRate(ToRunnable(frame()),0,server.framePeriod,TimeUnit.MILLISECONDS)
+  private lazy val connected = {
+    val allowOrigin =
+      server.allowOrigin.map(v=>s"Access-Control-Allow-Origin: $v\n").getOrElse("")
+    out.write(Bytes(s"HTTP/1.1 200 OK\nContent-Type: text/event-stream\n$allowOrigin\n"))
     send("connect",connectionId)
+    // prolongLife
   }
-  private var endOfLife: Option[Long] = None
+  private var endOfLife: Long = 0
+  private def frame() = {
+    connected
+    if(System.currentTimeMillis() < endOfLife) throw new Exception("endOfLife")
+    // ping
+    ???
+  }
+  def close() = out.close()
   def ping() = {
+
     //if(System.currentTimeMillis() < endOfLife.get) send("ping")
   }
-  //def close() = out.close()
 }
 
 
 
-class SSEServer(port: Int, val pool: ScheduledExecutorService, val allowOrigin: Option[String]) {
+class SSEServer(port: Int, val pool: ScheduledExecutorService, val allowOrigin: Option[String], val framePeriod: Int) {
   private var connectionById = Map[String,SSEConnection]()
   private def register(connection: SSEConnection) = synchronized{
     connectionById = connectionById + (connection.connectionId → connection)
   }
-  def unregister(connection: SSEConnection) = synchronized {
+  private def unregister(connection: SSEConnection) = synchronized {
     connectionById = connectionById - connection.connectionId
   }
-  private def desktops: List[Desktop] = ???
-  def keepAlive(connectionId: String) = {
-
-  }
-  private def keepAlive() = synchronized {
-    val currentTime = System.currentTimeMillis()
+  private def purge() = synchronized {
     connectionById.valuesIterator.foreach{ connection =>
-      //if(currentTime < connection.endOfLife )
-
+      if(connection.scheduled.isDone){
+        unregister(connection)
+        connection.close()
+      }
     }
   }
-  /* = synchronized{
-    desktops.map(_.connectionId).flatMap(connectionById.get).foreach{ connection ⇒
-      connection.pingWOAnswerCount
-    }
-  }*/
-  private def ping(connection: SSEConnection): Unit =
-    connection.send("ping",connection.connectionId)
+
   def start() = {
     val serverSocket = new ServerSocket(port) //todo toClose
-    pool.scheduleAtFixedRate(ToRunnable(keepAlive()),10,10,TimeUnit.SECONDS)
-
+    pool.scheduleAtFixedRate(ToRunnable(purge()),0,5,TimeUnit.SECONDS) //todo toClose, trace?
     println("ready")
     while(true){
       val skt = serverSocket.accept()
       println("connected")
-
       val connection = new SSEConnection(this, skt)
       register(connection)
-      connection.start()
-
-
-      //pool.execute()
+      connection.scheduled
     }
-
   }
 }
 
@@ -253,7 +244,7 @@ object Test0 extends App {
   server.createContext("/", new MyHandler())
   server.start()
 
-  new SSEServer(5556,pool,Some("*")).start()
+  new SSEServer(5556,pool,Some("*"),20).start()
 
 }
 
@@ -277,8 +268,19 @@ object Test1 extends App {
   pool.scheduleAtFixedRate(ToRunnable{
     println(s"b:${bCount.incrementAndGet()}")
     if(bCount.get==8){
-      throw new Exception("b failed")
+      throw new Exception("b failed") // will not run next time
     }
   },200,1000,TimeUnit.MILLISECONDS)
 }
 
+object Test2 extends App {
+  val pool = Executors.newScheduledThreadPool(5)
+  val aCount = new AtomicInteger(0)
+  val aFuture: ScheduledFuture[_] = pool.scheduleAtFixedRate(ToRunnable{
+    println(s"a:${aCount.incrementAndGet()}")
+    if(aCount.get==3) throw new Exception("b failed") // aFuture.isDone 'll be true after that
+  },100,1000,TimeUnit.MILLISECONDS)
+  pool.scheduleAtFixedRate(ToRunnable{
+    println(s"${aFuture.isCancelled}:${aFuture.isDone}")
+  },200,1000,TimeUnit.MILLISECONDS)
+}
