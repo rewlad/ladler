@@ -48,7 +48,7 @@ trait SenderOfConnection extends ComponentOfConnection {
 }
 
 /////
-class CloseOfConnection(components: ComponentsOfConnection) extends ComponentOfConnection {
+class CloseOfConnection extends ComponentOfConnection {
   private var closeStarted = false
   private var toClose: List[()=>Unit] = Nil
   def openClose[C](instance: =>C)(open: C=>Unit)(close: C=>Unit) = {
