@@ -67,7 +67,7 @@ checkReconnect();
 var dataToShow
 function sseShow(event){
     // console.log((new Date).getTime() % 10000,event.data % 100)
-    dataToShow = event.data
+    dataToShow = event.data + " " + connectionKeyState + " " + sessionKey(()=>{})
 }
 function animationFrame(){
     document.body.textContent = dataToShow
