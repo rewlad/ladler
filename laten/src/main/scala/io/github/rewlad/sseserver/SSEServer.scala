@@ -6,31 +6,24 @@ import java.util
 import java.util.concurrent.{ScheduledFuture, ScheduledExecutorService,
 TimeUnit}
 
+import io.github.rewlad.sseserver.ConnectionRegistry.Message
+
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
 ////
 
-trait ComponentOfConnection
-trait ConnectionFactory {
-  protected def connectionConstructors: List[ComponentsOfConnection=>ComponentOfConnection] = Nil
-  def createConnection() = new ComponentsOfConnection(connectionConstructors)
-}
-class ComponentsOfConnection(
-  connectionConstructors: List[ComponentsOfConnection=>ComponentOfConnection]
-) {
-  private lazy val list: List[ComponentOfConnection] =
-    connectionConstructors.map(_(this))
-  private lazy val byClassName =
-    mutable.Map[String,List[ComponentOfConnection]]() ++
-      list.groupBy(_.getClass.getName)
-  def list[C<:ComponentOfConnection](implicit ct: ClassTag[C]): List[C] = {
+trait Component
+class Context(create: Context=>List[Component]) {
+  private lazy val components = create(this)
+  private lazy val byClassName = mutable.Map[String,List[Component]]() // ++ list.groupBy(_.getClass.getName)
+  def list[C<:Component](implicit ct: ClassTag[C]): List[C] = {
     val cl = ct.runtimeClass
-    byClassName.getOrElseUpdate(cl.getName, list.filter(cl.isInstance))
+    byClassName.getOrElseUpdate(cl.getName, components.filter(cl.isInstance))
       .asInstanceOf[List[C]]
   }
-  def apply[C<:ComponentOfConnection](implicit ct: ClassTag[C]) = Single(list[C])
+  def apply[C<:Component](implicit ct: ClassTag[C]) = Single(list[C])
 }
 
 ////
@@ -39,8 +32,36 @@ sealed trait LifeStatus
 case object OpenableLifeStatus extends LifeStatus
 class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
 case object ClosingLifeStatus extends LifeStatus
-case object ClosedLifeStatus extends LifeStatus
+class LifeTime extends Component {
+  protected var status: LifeStatus = OpenableLifeStatus
+  def setup[C](create: =>C)(close: C=>Unit): C = status match {
+    case st: OpenLifeStatus =>
+      val res = create
+      status = new OpenLifeStatus((()=>close(res)) :: st.toClose)
+      res
+    case st => throw new Exception(s"$st")
+  }
+  def open() = status match {
+    case OpenableLifeStatus => status = new OpenLifeStatus(Nil)
+    case st => throw new Exception(s"$st")
+  }
+  def close() = status match {
+    case st: OpenLifeStatus =>
+      status = ClosingLifeStatus
+      DoClose(st.toClose)
+    case _ => ()
+  }
+}
+object DoClose {
+  def apply(toClose: List[()=>Unit]): Unit = toClose match {
+    case Nil => ()
+    case head :: tail => try head() finally apply(tail)
+  }
+}
 
+
+////
+/*
 class LifeState[V](lifeTime: LifeTime, create: ()=>V, open: V=>Unit, close: V=>Unit) {
   private var state: Option[V] = None
   def apply(): V = {
@@ -55,59 +76,24 @@ class LifeState[V](lifeTime: LifeTime, create: ()=>V, open: V=>Unit, close: V=>U
     res
   }
 }
-
-abstract class LifeTime(protected var status: LifeStatus, closedStatus: LifeStatus) extends ComponentOfConnection {
-  def add[C](close: ()=>Unit) = status match {
-    case st: OpenLifeStatus => status = new OpenLifeStatus(close :: st.toClose)
-    case st => throw new Exception(s"$st")
-  }
-  def close() = status match {
-    case st: OpenLifeStatus =>
-      status = ClosingLifeStatus
-      try DoClose(st.toClose) finally status = closedStatus
-    case _ => ()
-  }
-  def doWith[T](body: =>T): T = status match {
-    case OpenableLifeStatus =>
-      status = new OpenLifeStatus(Nil)
-      try body finally close()
-    case st => throw new Exception(s"$st")
-  }
+object WithLifeTime {
+  def apply[T](lifeTime: LifeTime)(body: =>T): T = try
+    lifeTime.open()
+    body
+  finally lifeTime.close()
 }
-class ConnectionLifeTime extends LifeTime(new OpenLifeStatus(Nil), ClosedLifeStatus)
-// class TxLifeTime extends LifeTime(OpenableLifeStatus, OpenableLifeStatus)
+
 object ConnectionState {
-  def apply[C](ctx: ComponentsOfConnection)(create: =>C)(open: C=>Unit = _=>())(close: C=>Unit = _=>()) =
+  def apply[C](ctx: Context)(create: =>C)(open: C=>Unit = _=>())(close: C=>Unit = _=>()) =
     new LifeState[C](ctx[ConnectionLifeTime], ()=>create, open, close)
 }
+*/
 
 
 
-/////
-class CloseOfConnection extends ComponentOfConnection {
-  private var closeStarted = false
-  private var toClose: List[()=>Unit] = Nil
-  def openClose[C](instance: =>C)(open: C=>Unit)(close: C=>Unit) = {
-    if(closeStarted) throw new Exception("closing")
-    val res = instance
-    toClose = (()=>close(res)) :: toClose
-    open(res)
-    res
-  }
-  def close() = if(!closeStarted){
-    closeStarted = true
-    DoClose(toClose)
-  }
-}
 
-object DoClose {
-  def apply(toClose: List[()=>Unit]): Unit = toClose match {
-    case Nil => ()
-    case head :: tail => try head() finally apply(tail)
-  }
-}
 
-/////
+
 
 class OncePer(period: Long, action: ()=>Unit) {
   private var nextTime = 0L
@@ -120,112 +106,96 @@ class OncePer(period: Long, action: ()=>Unit) {
   }
 }
 
-trait FrameHandlerOfConnection extends ComponentOfConnection {
-  def frame(): Unit
-}
 
-trait SenderOfConnection extends ComponentOfConnection {
+
+trait SenderOfConnection extends Component {
   def send(event: String, data: String): Unit
 }
 
 ////
 
-trait IdOfConnectionFactory extends ConnectionFactory {
-  private lazy val connectionRegistry = new ConnectionRegistry
-  override protected def connectionConstructors =
-    (new IdOfConnection(_, connectionRegistry)) ::
-    super.connectionConstructors
+trait FrameHandler extends Component {
+  def frame(messageOption: Option[ConnectionRegistry.Message]): Unit
 }
+class ReceiverOfConnection(ctx: Context, registry: ConnectionRegistry) extends Component {
+  private def createConnectionKey =
+    Setup(util.UUID.randomUUID.toString)(registry.store(_)=this)
+  lazy val connectionKey =
+    ctx[LifeTime].setup(createConnectionKey)(registry.store.remove(_))
 
-sealed trait IdStatus
-case object NewIdStatus extends IdStatus
-case class GeneratedIdStatus(value: String) extends IdStatus
-case object ClosedIdStatus extends IdStatus
-
-class IdOfConnection(components: ComponentsOfConnection, registry: ConnectionRegistry)
-  extends ComponentOfConnection with AutoCloseable
-{
-  private var status: IdStatus = NewIdStatus
-  def get: String = status match {
-    case NewIdStatus => Setup(util.UUID.randomUUID.toString){ v =>
-      status = GeneratedIdStatus(v)
-    }
-    case GeneratedIdStatus(v) => v
-    case ClosedIdStatus => throw new Exception("closed")
-  }
-  def close() = status match {
-    case NewIdStatus => status = ClosedIdStatus
-    case GeneratedIdStatus(v) =>
-      registry.remove(v)
-      status = ClosedIdStatus
-    case ClosedIdStatus => ()
-  }
+  private lazy val incoming = new util.ArrayDeque[ConnectionRegistry.Message]
+  def poll(): Option[ConnectionRegistry.Message] =
+    incoming.synchronized(Option(incoming.poll()))
+  def add(message: ConnectionRegistry.Message) =
+    incoming.synchronized(incoming.add(message))
 }
-
+object ConnectionRegistry {
+  type Message = Map[String,String]
+}
 class ConnectionRegistry {
-  lazy val data = TrieMap[String, ComponentsOfConnection]()
-  def update(key: String, components: ComponentsOfConnection) =
-    data(key) = components
-  def remove(key: String) = data.remove(key)
+  lazy val store = TrieMap[String, ReceiverOfConnection]()
+  def send(bnd: ConnectionRegistry.Message) =
+    store(bnd("X-r-connection")).add(bnd)
 }
 
 /////
-
-trait KeepAliveOfConnectionFactory extends IdOfConnectionFactory {
-  override def connectionConstructors =
-    (new KeepAliveOfConnection(_)) ::
-    super.connectionConstructors
-}
 
 sealed trait PingStatus
 case object NewPingStatus extends PingStatus
 case object WaitingPingStatus extends PingStatus
-case object OKPingStatus extends PingStatus
+case class OKPingStatus(sessionKey: String) extends PingStatus
 
-class KeepAliveOfConnection(components: ComponentsOfConnection) extends FrameHandlerOfConnection {
-  lazy val sender = components(classOf[SenderOfConnection])
-  lazy val connectionId = components(classOf[IdOfConnection]).get
+class KeepAlive(ctx: Context) extends FrameHandler {
   var status: PingStatus = NewPingStatus
-  lazy val frame = new OncePer(5000, () => status match {
-    case NewPingStatus =>
-      sender.send("connect",connectionId)
-      status = WaitingPingStatus
-    case OKPingStatus =>
-      sender.send("ping",connectionId)
-      status = WaitingPingStatus
+  private def command = status match {
+    case NewPingStatus => "connect"
+    case _: OKPingStatus => "ping"
     case WaitingPingStatus => throw new Exception("endOfLife")
+  }
+  private lazy val periodicFrame = new OncePer(5000, () => {
+    ctx[SenderOfConnection].send(command,ctx[ReceiverOfConnection].connectionKey)
+    status = WaitingPingStatus
   })
+  def frame(messageOption: Option[Message]) = {
+    messageOption.foreach{ message =>
+      if(message.get("X-r-action").exists(_=="pong"))
+        status = OKPingStatus(message("X-r-session"))
+    }
+    periodicFrame()
+  }
 }
 
 /////
 
-class FrameGeneratorOfConnection(
-  components: ComponentsOfConnection,
+class FrameGenerator(
+  ctx: Context,
   pool: ScheduledExecutorService,
   framePeriod: Long,
   purgePeriod: Long
-) extends ComponentOfConnection with AutoCloseable {
-  private lazy val mainFuture = pool.scheduleAtFixedRate(ToRunnable{
-    components.list(classOf[FrameHandlerOfConnection]).foreach(_.frame())
-  },0,framePeriod,TimeUnit.MILLISECONDS)
-  private lazy val watchFuture: ScheduledFuture[_] = pool.scheduleAtFixedRate(ToRunnable{
-    if(mainFuture.isDone) DoClose(components.list(classOf[AutoCloseable]))
-  },0,purgePeriod,TimeUnit.MILLISECONDS)
-  def started = watchFuture
-  def close() = watchFuture.cancel(false)
+) extends Component {
+  private def schedule(period: Long, body: =>Unit) =
+    pool.scheduleAtFixedRate(ToRunnable(Trace(body)),0,period,TimeUnit.MILLISECONDS)
+  private def setup(future: ScheduledFuture[_]) =
+    ctx[LifeTime].setup(future)(_.cancel(false))
+  private def frameAll() = {
+    val message = ctx[ReceiverOfConnection].poll()
+    ctx.list[FrameHandler].foreach(_.frame(message))
+  }
+  private lazy val mainFuture = setup(schedule(framePeriod, frameAll()))
+  private def checkCloseAll() = if(mainFuture.isDone) ctx[LifeTime].close()
+  private lazy val watchFuture = setup(schedule(purgePeriod, checkCloseAll()))
+  def started = (mainFuture,watchFuture)
 }
-
-
 
 /////
 
-class SSESenderOfConnection(server: SSEServer, skt: Socket)
-  extends SenderOfConnection with AutoCloseable
+class SSESender(ctx: Context, allowOriginOption: Option[String], socket: Socket)
+  extends SenderOfConnection
 {
-  private lazy val out = skt.getOutputStream
+  private lazy val out = ctx[LifeTime].setup(socket.getOutputStream)(_.close())
   private lazy val connected = {
     val allowOrigin =
-      server.allowOrigin.map(v=>s"Access-Control-Allow-Origin: $v\n").getOrElse("")
+      allowOriginOption.map(v=>s"Access-Control-Allow-Origin: $v\n").getOrElse("")
     out.write(Bytes(s"HTTP/1.1 200 OK\nContent-Type: text/event-stream\n$allowOrigin\n"))
   }
   def send(event: String, data: String) = {
@@ -234,44 +204,29 @@ class SSESenderOfConnection(server: SSEServer, skt: Socket)
     out.write(Bytes(s"event: $event\ndata: $escapedData\n\n"))
     out.flush()
   }
-  def close() = out.close()
 }
 
+////
 
+trait SSEServer {
+  def sseAllowOrigin: Option[String]
+  def ssePort: Int
+  def sseConnectionComponents(ctx: Context): List[Component]
+  def connectionRegistry: ConnectionRegistry
 
-class SSEServer(
-  port: Int,
-  val pool: ScheduledExecutorService,
-  val allowOrigin: Option[String],
-  val framePeriod: Int,
-  val purgePeriod: Int
-) {
-  private var connectionById = Map[String,SSEConnection]()
-  private def register(connection: SSEConnection) = synchronized{
-    connectionById = connectionById + (connection.connectionId → connection)
+  def createConnection(socket: Socket) = {
+    val ctx = new Context(ctx =>
+      new LifeTime() :: new KeepAlive(ctx) ::
+      new ReceiverOfConnection(ctx, connectionRegistry) ::
+      new SSESender(ctx, sseAllowOrigin, socket) :: sseConnectionComponents(ctx)
+    )
+    ctx[LifeTime].open()
+    ctx[LifeTime].setup(socket)(_.close())
+    ctx[FrameGenerator].started
   }
-  private def unregister(connection: SSEConnection) = synchronized {
-    connectionById = connectionById - connection.connectionId
-  }
-  private def purge() = synchronized {
-    connectionById.valuesIterator.foreach{ connection =>
-      if(connection.scheduled.isDone){
-        unregister(connection)
-        connection.close()
-      }
-    }
-  }
-
   def start() = {
-    val serverSocket = new ServerSocket(port) //todo toClose
-    pool.scheduleAtFixedRate(ToRunnable(purge()),0,5,TimeUnit.SECONDS) //todo toClose, trace?
+    val serverSocket = new ServerSocket(ssePort) //todo toClose
     println("ready")
-    while(true){
-      val skt = serverSocket.accept()
-      println("connected")
-      val connection = new SSEConnection(this, skt)
-      register(connection)
-      connection.scheduled
-    }
+    while(true) createConnection(serverSocket.accept())
   }
 }

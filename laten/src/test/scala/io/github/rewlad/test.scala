@@ -3,13 +3,19 @@ package io.github.rewlad
 
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.InetSocketAddress
+import java.nio.file.{Files, Paths}
+import java.util
 import java.util.concurrent._
 
-import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
-import io.github.rewlad.sseserver.SSEServer
+import com.sun.net.httpserver.{Headers, HttpExchange, HttpHandler, HttpServer}
+import io.github.rewlad.sseserver.ConnectionRegistry.Message
+import io.github.rewlad.sseserver._
 
 import org.scalastuff.json.JsonParser
 
+import scala.collection.{Map, mutable}
+
+/*
 class MyHandler extends HttpHandler {
   def handle(t: HttpExchange) = {
     val bufferedReader = new BufferedReader(new InputStreamReader(t.getRequestBody,"UTF-8"))
@@ -26,17 +32,7 @@ class MyHandler extends HttpHandler {
     os.close()
   }
 }
+*/
 
 
 
-object Test0 extends App {
-  val pool = Executors.newScheduledThreadPool(5)
-
-  val server = HttpServer.create(new InetSocketAddress(5557),0)
-  server.setExecutor(pool)
-  server.createContext("/", new MyHandler())
-  server.start()
-
-  new SSEServer(5556,pool,Some("*"),20).start()
-
-}
