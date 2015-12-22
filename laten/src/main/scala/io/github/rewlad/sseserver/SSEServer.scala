@@ -8,6 +8,9 @@ TimeUnit}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.reflect.ClassTag
+
+////
 
 trait ComponentOfConnection
 trait ConnectionFactory {
@@ -22,30 +25,63 @@ class ComponentsOfConnection(
   private lazy val byClassName =
     mutable.Map[String,List[ComponentOfConnection]]() ++
       list.groupBy(_.getClass.getName)
-  def list[C<:ComponentOfConnection](cl: Class[C]): List[C] =
+  def list[C<:ComponentOfConnection](implicit ct: ClassTag[C]): List[C] = {
+    val cl = ct.runtimeClass
     byClassName.getOrElseUpdate(cl.getName, list.filter(cl.isInstance))
       .asInstanceOf[List[C]]
-  def apply[C<:ComponentOfConnection](cl: Class[C]): C = Single(list[C](cl))
+  }
+  def apply[C<:ComponentOfConnection](implicit ct: ClassTag[C]) = Single(list[C])
 }
 
-class OncePer(period: Long, action: ()=>Unit) {
-  private var nextTime = 0L
-  def apply() = {
-    val time = System.currentTimeMillis
-    if(nextTime < time) {
-      nextTime = time + period
-      action()
-    }
+////
+
+sealed trait LifeStatus
+case object OpenableLifeStatus extends LifeStatus
+class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
+case object ClosingLifeStatus extends LifeStatus
+case object ClosedLifeStatus extends LifeStatus
+
+class LifeState[V](lifeTime: LifeTime, create: ()=>V, open: V=>Unit, close: V=>Unit) {
+  private var state: Option[V] = None
+  def apply(): V = {
+    if(state.isEmpty) state = Some(setup())
+    state.get
+  }
+  private def setup(): V = {
+    lifeTime.add(() => state = None)
+    val res = create()
+    lifeTime.add(() => close(res))
+    open(res)
+    res
   }
 }
 
-trait FrameHandlerOfConnection extends ComponentOfConnection {
-  def frame(): Unit
+abstract class LifeTime(protected var status: LifeStatus, closedStatus: LifeStatus) extends ComponentOfConnection {
+  def add[C](close: ()=>Unit) = status match {
+    case st: OpenLifeStatus => status = new OpenLifeStatus(close :: st.toClose)
+    case st => throw new Exception(s"$st")
+  }
+  def close() = status match {
+    case st: OpenLifeStatus =>
+      status = ClosingLifeStatus
+      try DoClose(st.toClose) finally status = closedStatus
+    case _ => ()
+  }
+  def doWith[T](body: =>T): T = status match {
+    case OpenableLifeStatus =>
+      status = new OpenLifeStatus(Nil)
+      try body finally close()
+    case st => throw new Exception(s"$st")
+  }
+}
+class ConnectionLifeTime extends LifeTime(new OpenLifeStatus(Nil), ClosedLifeStatus)
+// class TxLifeTime extends LifeTime(OpenableLifeStatus, OpenableLifeStatus)
+object ConnectionState {
+  def apply[C](ctx: ComponentsOfConnection)(create: =>C)(open: C=>Unit = _=>())(close: C=>Unit = _=>()) =
+    new LifeState[C](ctx[ConnectionLifeTime], ()=>create, open, close)
 }
 
-trait SenderOfConnection extends ComponentOfConnection {
-  def send(event: String, data: String): Unit
-}
+
 
 /////
 class CloseOfConnection extends ComponentOfConnection {
@@ -72,6 +108,27 @@ object DoClose {
 }
 
 /////
+
+class OncePer(period: Long, action: ()=>Unit) {
+  private var nextTime = 0L
+  def apply() = {
+    val time = System.currentTimeMillis
+    if(nextTime < time) {
+      nextTime = time + period
+      action()
+    }
+  }
+}
+
+trait FrameHandlerOfConnection extends ComponentOfConnection {
+  def frame(): Unit
+}
+
+trait SenderOfConnection extends ComponentOfConnection {
+  def send(event: String, data: String): Unit
+}
+
+////
 
 trait IdOfConnectionFactory extends ConnectionFactory {
   private lazy val connectionRegistry = new ConnectionRegistry
