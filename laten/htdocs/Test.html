@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Server Clock</title>
+<script>
+"use strict";
+
+function TestShow(){
+    var dataToShow
+
+    function show(event){
+        // console.log((new Date).getTime() % 10000,event.data % 100)
+        dataToShow = event.data + " " + connectionKeyState + " " + sessionKey(()=>{})
+    }
+    function animationFrame(){
+        document.body.textContent = dataToShow
+        requestAnimationFrame(animationFrame)
+    }
+
+    requestAnimationFrame(animationFrame)
+
+    return ({show})
+}
+
+(function(){
+    const keepAlive = KeepAlive()
+    const testShow = TestShow()
+    SSEConnection("http://localhost:5556/sse",[keepAlive,testShow])
+})()
+</script>
+</head>
+<body></body>
+</html>
