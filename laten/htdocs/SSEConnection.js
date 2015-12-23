@@ -17,7 +17,7 @@ function SSEConnection(address,handlers){
         if(!eventSource){
             console.log("new EventSource")
             eventSource = new EventSource(address);
-            handlers.forEach(handlerMap => {
+            handlers.forEach(function(handlerMap){
                 for(var k in handlerMap)
                     eventSource.addEventListener(k, handlerMap[k])
             })

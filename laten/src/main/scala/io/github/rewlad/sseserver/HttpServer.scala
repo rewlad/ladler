@@ -20,19 +20,19 @@ class StaticHandler() extends HttpHandler {
 
 class ConnectionHandler(connectionRegistry: ConnectionRegistry) extends HttpHandler {
   def handle(httpExchange: HttpExchange) = Trace{ try {
-    val headers: ReceiverOfConnection.Message =
-      httpExchange.getRequestHeaders.asScala.mapValues(l=>Single(l.asScala.toList)).toMap
-    connectionRegistry.send(headers)
+    val message =
+      ReceivedMessage(httpExchange.getRequestHeaders.asScala.mapValues(l=>Single(l.asScala.toList)).toMap)
+    connectionRegistry.send(message)
     httpExchange.sendResponseHeaders(200, 0)
   } finally httpExchange.close() }
 }
 
 abstract class RHttpServer {
-  def port: Int
+  def httpPort: Int
   def pool: Executor
   def connectionRegistry: ConnectionRegistry
   def start() = {
-    val server = HttpServer.create(new InetSocketAddress(port),0)
+    val server = HttpServer.create(new InetSocketAddress(httpPort),0)
     server.setExecutor(pool)
     server.createContext("/", new StaticHandler)
     server.createContext("/connection", new ConnectionHandler(connectionRegistry))

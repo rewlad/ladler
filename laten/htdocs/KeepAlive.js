@@ -19,15 +19,17 @@ function KeepAlive(){
     function connect(event) {
         console.log("conn: "+event.data)
         connectionKeyState = event.data
-        sessionKey(()=>sessionStorage.setItem("sessionKey", getConnectionKey(never)))
-        getLoadKey(()=>{ loadKeyState = getConnectionKey(never) })
+        sessionKey(function(){ sessionStorage.setItem("sessionKey", getConnectionKey(never)) })
+        getLoadKey(function(){ loadKeyState = getConnectionKey(never) })
         localStorage.setItem(loadKeyForSession(), getLoadKey(never))
         pong()
     }
     function ping(event) {
         console.log("ping: "+event.data)
-        if(localStorage.getItem(loadKeyForSession()) !== getLoadKey(never)) window.close() // tab was refreshed/duplicated
-        if(getConnectionKey(never) === event.data) pong() // was not reconnected
+        if(localStorage.getItem(loadKeyForSession()) !== getLoadKey(never)) { // tab was refreshed/duplicated
+            sessionStorage.clear()
+            location.reload()
+        } else if(getConnectionKey(never) === event.data) pong() // was not reconnected
     }
 
     return ({connect,ping})

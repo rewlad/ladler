@@ -1,16 +1,13 @@
 package io.github.rewlad.sseserver
 
-trait SenderOfConnection extends Component {
+trait SenderOfConnection {
   def send(event: String, data: String): Unit
 }
-trait ReceiverOfConnection extends Component {
+trait ReceiverOfConnection {
   def connectionKey: String
-  def messageOption: Option[ReceiverOfConnection.Message]
-  def poll(): Unit
+  def poll(): Option[ReceivedMessage]
 }
-object ReceiverOfConnection {
-  type Message = Map[String,String]
-}
-trait FrameHandler extends Component {
-  def frame(): Unit
+case class ReceivedMessage(value: Map[String,String])
+trait FrameHandler {
+  def frame(messageOption: Option[ReceivedMessage]): Unit
 }

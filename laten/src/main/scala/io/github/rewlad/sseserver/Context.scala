@@ -3,6 +3,7 @@ package io.github.rewlad.sseserver
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
+/*
 trait Component
 class Context(create: Context=>List[Component]) {
   private lazy val components = create(this)
@@ -14,14 +15,14 @@ class Context(create: Context=>List[Component]) {
   }
   def apply[C<:Component](implicit ct: ClassTag[C]) = Single(list[C])
 }
-
+*/
 ////
 
 sealed trait LifeStatus
 case object OpenableLifeStatus extends LifeStatus
 class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
 case object ClosingLifeStatus extends LifeStatus
-class LifeTime extends Component {
+class LifeTime {
   protected var status: LifeStatus = OpenableLifeStatus
   def setup[C](create: =>C)(close: C=>Unit): C = status match {
     case st: OpenLifeStatus =>

@@ -16,7 +16,7 @@ case object NewPingStatus extends PingStatus
 case object WaitingPingStatus extends PingStatus
 case class OKPingStatus(sessionKey: String) extends PingStatus
 
-class KeepAlive(ctx: Context) extends FrameHandler {
+class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) extends FrameHandler {
   var status: PingStatus = NewPingStatus
   private def command = status match {
     case NewPingStatus => "connect"
@@ -24,13 +24,13 @@ class KeepAlive(ctx: Context) extends FrameHandler {
     case WaitingPingStatus => throw new Exception("endOfLife")
   }
   private lazy val periodicFrame = new OncePer(5000, () => {
-    ctx[SenderOfConnection].send(command,ctx[ReceiverOfConnection].connectionKey)
+    sender.send(command,receiver.connectionKey)
     status = WaitingPingStatus
   })
-  def frame() = {
-    ctx[ReceiverOfConnection].messageOption.foreach{ message =>
-      if(message.get("X-r-action").exists(_=="pong"))
-        status = OKPingStatus(message("X-r-session"))
+  def frame(messageOption: Option[ReceivedMessage]) = {
+    messageOption.foreach{ message =>
+      if(message.value.get("X-r-action").exists(_=="pong"))
+        status = OKPingStatus(message.value("X-r-session"))
     }
     periodicFrame()
   }

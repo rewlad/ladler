@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Server Clock</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <script src="SSEConnection.js"></script>
+    <script src="KeepAlive.js"></script>
 <script>
 "use strict";
 
@@ -11,7 +14,7 @@ function TestShow(){
 
     function show(event){
         // console.log((new Date).getTime() % 10000,event.data % 100)
-        dataToShow = event.data + " " + connectionKeyState + " " + sessionKey(()=>{})
+        dataToShow = event.data //+ " " + connectionKeyState + " " + sessionKey(function(){})
     }
     function animationFrame(){
         document.body.textContent = dataToShow
