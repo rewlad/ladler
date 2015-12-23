@@ -8,7 +8,7 @@ import java.util
 import java.util.concurrent._
 
 import com.sun.net.httpserver.{Headers, HttpExchange, HttpHandler, HttpServer}
-import io.github.rewlad.sseserver.ConnectionRegistry.Message
+
 import io.github.rewlad.sseserver._
 
 import org.scalastuff.json.JsonParser

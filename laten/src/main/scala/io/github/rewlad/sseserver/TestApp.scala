@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 
 class TestFrameHandler(ctx: Context) extends FrameHandler {
   private var prevTime: Long = 0L
-  def frame(messageOption: Option[ConnectionRegistry.Message]): Unit = {
+  def frame(): Unit = {
     if(true){
       val time: Long = System.currentTimeMillis
       ctx[SenderOfConnection].send("show",s"$time")

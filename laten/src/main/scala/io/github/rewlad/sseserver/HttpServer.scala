@@ -20,7 +20,7 @@ class StaticHandler() extends HttpHandler {
 
 class ConnectionHandler(connectionRegistry: ConnectionRegistry) extends HttpHandler {
   def handle(httpExchange: HttpExchange) = Trace{ try {
-    val headers: ConnectionRegistry.Message =
+    val headers: ReceiverOfConnection.Message =
       httpExchange.getRequestHeaders.asScala.mapValues(l=>Single(l.asScala.toList)).toMap
     connectionRegistry.send(headers)
     httpExchange.sendResponseHeaders(200, 0)

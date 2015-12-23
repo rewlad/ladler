@@ -27,8 +27,8 @@ class KeepAlive(ctx: Context) extends FrameHandler {
     ctx[SenderOfConnection].send(command,ctx[ReceiverOfConnection].connectionKey)
     status = WaitingPingStatus
   })
-  def frame(messageOption: Option[ConnectionRegistry.Message]) = {
-    messageOption.foreach{ message =>
+  def frame() = {
+    ctx[ReceiverOfConnection].messageOption.foreach{ message =>
       if(message.get("X-r-action").exists(_=="pong"))
         status = OKPingStatus(message("X-r-session"))
     }

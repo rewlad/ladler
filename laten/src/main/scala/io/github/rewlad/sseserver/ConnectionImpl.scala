@@ -10,16 +10,16 @@ class ReceiverOfConnectionImpl(ctx: Context, registry: ConnectionRegistry) exten
   lazy val connectionKey =
     ctx[LifeTime].setup(createConnectionKey)(registry.store.remove(_))
 
-  private lazy val incoming = new util.ArrayDeque[ConnectionRegistry.Message]
-  def poll(): Option[ConnectionRegistry.Message] =
-    incoming.synchronized(Option(incoming.poll()))
-  def add(message: ConnectionRegistry.Message) =
+  private lazy val incoming = new util.ArrayDeque[ReceiverOfConnection.Message]
+  var messageOption: Option[ReceiverOfConnection.Message] = None
+  def poll() = incoming.synchronized(messageOption = Option(incoming.poll()))
+  def add(message: ReceiverOfConnection.Message) =
     incoming.synchronized(incoming.add(message))
 }
 
 class ConnectionRegistry {
   lazy val store = TrieMap[String, ReceiverOfConnectionImpl]()
-  def send(bnd: ConnectionRegistry.Message) =
+  def send(bnd: ReceiverOfConnection.Message) =
     store(bnd("X-r-connection")).add(bnd)
 }
 
@@ -36,8 +36,8 @@ class FrameGenerator(
   private def setup(future: ScheduledFuture[_]) =
     ctx[LifeTime].setup(future)(_.cancel(false))
   private def frameAll() = {
-    val message = ctx[ReceiverOfConnection].poll()
-    ctx.list[FrameHandler].foreach(_.frame(message))
+    ctx[ReceiverOfConnection].poll()
+    ctx.list[FrameHandler].foreach(_.frame())
   }
   private lazy val mainFuture = setup(schedule(framePeriod, frameAll()))
   private def checkCloseAll() = if(mainFuture.isDone) ctx[LifeTime].close()

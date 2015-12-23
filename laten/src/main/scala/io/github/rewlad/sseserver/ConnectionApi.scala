@@ -5,11 +5,12 @@ trait SenderOfConnection extends Component {
 }
 trait ReceiverOfConnection extends Component {
   def connectionKey: String
-  def poll(): Option[ConnectionRegistry.Message]
+  def messageOption: Option[ReceiverOfConnection.Message]
+  def poll(): Unit
 }
-object ConnectionRegistry {
+object ReceiverOfConnection {
   type Message = Map[String,String]
 }
 trait FrameHandler extends Component {
-  def frame(messageOption: Option[ConnectionRegistry.Message]): Unit
+  def frame(): Unit
 }
