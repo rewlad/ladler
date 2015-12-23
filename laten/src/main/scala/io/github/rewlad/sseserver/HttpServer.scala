@@ -11,7 +11,7 @@ class StaticHandler() extends HttpHandler {
   def handle(httpExchange: HttpExchange) = Trace{ try {
     println(httpExchange.getRequestURI.getPath)
     val Mask = """(/[a-zA-Z0-9]+\.(html|js))""".r
-    val Mask(fileName) = httpExchange.getRequestURI.getPath
+    val Mask(fileName,_) = httpExchange.getRequestURI.getPath
     val bytes = Files.readAllBytes(Paths.get(s"htdocs$fileName"))
     httpExchange.sendResponseHeaders(200, bytes.length)
     httpExchange.getResponseBody.write(bytes)
