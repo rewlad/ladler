@@ -3,33 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <title>React Basic</title>
-    <script src="https://fb.me/react-0.14.3.js"></script>
-    <script src="https://fb.me/react-dom-0.14.3.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script>
+    <!--script src="react-0.14.3.js"-->
+    <script src="react-with-addons-0.14.3.js"></script>
+    <script src="react-dom-0.14.3.js"></script>
+    <!--script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.23/browser.min.js"></script-->
 </head>
 <body>
 <div id="example"></div>
-<script type="text/babel">
-"use strict";
+<script>
+"use strict";//type="text/babel"
 
-var HelloWorld = React.createClass({
+var Input = React.createClass({
+  getInitialState: function() {
+    return {value: this.props.defaultValue };
+  },
+  handleChange: function(event) {
+    this.setState({value: event.target.value});
+  },
   render: function() {
-    return (
-      <p>
-        Hello, <input type="text" placeholder="Your name here" />!
-        It is {this.props.date.toTimeString()}
-      </p>
-    );
+    return React.createElement("span",null,
+        React.createElement("input",{value: this.state.value, onChange: this.handleChange }),
+        this.state.value
+    )
   }
 });
 
-setInterval(function() {
-  ReactDOM.render(
-    <HelloWorld date={new Date()} />,
+
+var HelloWorld = React.createClass({
+  mixins: [React.addons.PureRenderMixin],
+  getInitialState: function() {
+    return { k: "A" };
+  },
+  handleBtA: function(event) { this.setState({k:"A"}) },
+  handleBtB: function(event) { this.setState({k:"B"}) },
+  handleBtDummy: function(event) { this.setState({}) },
+  render: function() {
+    return React.createElement("p",null,
+        (this.props.date - new Date()),
+        " ",
+        this.state.k,
+        React.createElement(Input,{ defaultValue: this.state.k, key: this.state.k }),
+        React.createElement("input",{ type:"button", onClick: this.handleBtA, value:"A" }),
+        React.createElement("input",{ type:"button", onClick: this.handleBtB, value:"B" }),
+        React.createElement("input",{ type:"button", onClick: this.handleBtDummy, value:"Dummy" })
+    )
+  }
+});
+
+
+ReactDOM.render(
+    React.createElement(HelloWorld,{date:new Date()}),
     document.getElementById('example')
-  );
-}, 500);
+);
+
 
 </script>
 </body>
 </html>
+

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>React Traverse</title>
+    <!--script src="react-with-addons-0.14.3.js"></script-->
+    <!--script src="react-dom-0.14.3.js"></script-->
+    <script src="https://fb.me/react-with-addons-0.14.3.min.js"></script>
+    <script src="https://fb.me/react-dom-0.14.3.min.js"></script>
+</head>
+<body>
+<div id="example"></div>
+<script>
+"use strict";
+
+const Traverse = React.createClass({
+    mixins: [React.addons.PureRenderMixin],
+    render: function() {
+        const props = this.props
+        const type = props.typeStr.toLowerCase() === props.typeStr ?
+            props.typeStr : window[props.typeStr] || never()
+        const childKeys = props.incoming["chl"]
+        const childElements = !childKeys ? null : childKeys.map(function(keyAndType){
+            //console.log("createElementT: "+keyAndType)
+            return React.createElement(Traverse, {
+                key: keyAndType,
+                typeStr: keyAndType.substring(keyAndType.lastIndexOf(":")+1),
+                incoming: props.incoming[keyAndType]
+            })
+        })
+        //console.log("createElementR: "+type)
+        return React.createElement(type, props.incoming["at"], childElements)
+    }
+})
+
+const TestState = React.createClass({
+    customInitialState: function(value) {
+        const rows = { "chl": [] }
+        for(var j = 0; j<50; j++) {
+            rows["chl"].push(j+":tr")
+            const cells = rows[j+":tr"] = { "chl": [] }
+            for(var i = 0; i<50; i++) {
+                cells["chl"].push(i+":td")
+                cells[i+":td"] = {
+                    "chl" : [":input"],
+                    ":input": {
+                        "at": {
+                            "type": "button",
+                            "value": value
+                        }
+                    }
+                }
+            }
+        }
+        return {
+            seed: value,
+            incoming: {
+                "chl": [":tbody"],
+                ":tbody": rows
+            }
+        }
+    },
+    getInitialState: function() {
+        return this.customInitialState(1)
+    },
+    componentDidMount: function() {
+        /*setInterval(function(){
+            console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+
+            this.setState({
+                incoming: React.addons.update(this.state.incoming,{
+                    ":tbody": {
+                        "10:tr": {
+                            "10:td": {
+                                ":input": {
+                                    "at": {
+                                        "value": {
+                                            "$set": (new Date() % 10000)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            })
+        }.bind(this), 100)*/
+    },
+    render: function() {
+        return React.createElement(Traverse,{ typeStr: "table", incoming: this.state.incoming })
+    }
+})
+
+const rootComponent = ReactDOM.render(
+    React.createElement(TestState,null),
+    document.getElementById('example')
+);
+
+document.body.onclick = function(ev){
+    rootComponent.setState(rootComponent.customInitialState(rootComponent.state.seed+1))
+}
+
+</script>
+</body>
+</html>

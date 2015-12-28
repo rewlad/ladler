@@ -10,7 +10,7 @@ import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 class StaticHandler() extends HttpHandler {
   def handle(httpExchange: HttpExchange) = Trace{ try {
     println(httpExchange.getRequestURI.getPath)
-    val Mask = """(/[a-zA-Z0-9]+\.(html|js))""".r
+    val Mask = """(/[a-zA-Z0-9\-\.]+\.(html|js))""".r // disable ".."; add content type
     val Mask(fileName,_) = httpExchange.getRequestURI.getPath
     val bytes = Files.readAllBytes(Paths.get(s"htdocs$fileName"))
     httpExchange.sendResponseHeaders(200, bytes.length)
