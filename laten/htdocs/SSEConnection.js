@@ -1,6 +1,6 @@
 "use strict";
 
-function SSEConnection(address,handlers){
+function SSEConnection(address,handlers,reconnectTimeout){
     var eventSource
     var closedCount = 0
 
@@ -9,7 +9,7 @@ function SSEConnection(address,handlers){
         if(eventSource){
             closedCount = isStateClosed(eventSource.readyState) ? closedCount + 1 : 0
             if(closedCount > 0) console.log("closedCount: "+closedCount)
-            if(closedCount > 5){
+            if(closedCount > reconnectTimeout){
                 eventSource.close();
                 eventSource = null;
             }
@@ -18,8 +18,10 @@ function SSEConnection(address,handlers){
             console.log("new EventSource")
             eventSource = new EventSource(address);
             handlers.forEach(function(handlerMap){
-                for(var k in handlerMap)
-                    eventSource.addEventListener(k, handlerMap[k])
+                for(let k in handlerMap)
+                    eventSource.addEventListener(k, function(event){
+                        handlerMap[k](event.data)
+                    })
             })
         }
     }

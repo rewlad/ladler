@@ -29,7 +29,7 @@ function TestShow(){
 (function(){
     const keepAlive = KeepAlive()
     const testShow = TestShow()
-    SSEConnection("http://localhost:5556/sse",[keepAlive,testShow])
+    SSEConnection("http://localhost:5556/sse",[keepAlive,testShow],5)
 })()
 </script>
 </head>

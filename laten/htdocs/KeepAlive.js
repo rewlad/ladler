@@ -16,20 +16,20 @@ function KeepAlive(){
     function getLoadKey(orDo){ return loadKeyState || orDo() }
     function loadKeyForSession(){ return "loadKeyForSession-" + sessionKey(never) }
     function getConnectionKey(orDo){ return connectionKeyState || orDo() }
-    function connect(event) {
-        console.log("conn: "+event.data)
-        connectionKeyState = event.data
+    function connect(data) {
+        console.log("conn: "+data)
+        connectionKeyState = data
         sessionKey(function(){ sessionStorage.setItem("sessionKey", getConnectionKey(never)) })
         getLoadKey(function(){ loadKeyState = getConnectionKey(never) })
         localStorage.setItem(loadKeyForSession(), getLoadKey(never))
         pong()
     }
-    function ping(event) {
-        console.log("ping: "+event.data)
+    function ping(data) {
+        console.log("ping: "+data)
         if(localStorage.getItem(loadKeyForSession()) !== getLoadKey(never)) { // tab was refreshed/duplicated
             sessionStorage.clear()
             location.reload()
-        } else if(getConnectionKey(never) === event.data) pong() // was not reconnected
+        } else if(getConnectionKey(never) === data) pong() // was not reconnected
     }
 
     return ({connect,ping})
