@@ -18,10 +18,11 @@ function SSEConnection(address,handlers,reconnectTimeout){
             console.log("new EventSource")
             eventSource = new EventSource(address);
             handlers.forEach(function(handlerMap){
-                for(let k in handlerMap)
-                    eventSource.addEventListener(k, function(event){
-                        handlerMap[k](event.data)
+                Object.keys(handlerMap).forEach(function(handlerName){
+                    eventSource.addEventListener(handlerName, function(event){
+                        handlerMap[handlerName](event.data)
                     })
+                })
             })
         }
     }

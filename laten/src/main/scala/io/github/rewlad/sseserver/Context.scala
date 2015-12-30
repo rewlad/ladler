@@ -1,23 +1,5 @@
 package io.github.rewlad.sseserver
 
-import scala.collection.mutable
-import scala.reflect.ClassTag
-
-/*
-trait Component
-class Context(create: Context=>List[Component]) {
-  private lazy val components = create(this)
-  private lazy val byClassName = mutable.Map[String,List[Component]]() // ++ list.groupBy(_.getClass.getName)
-  def list[C<:Component](implicit ct: ClassTag[C]): List[C] = {
-    val cl = ct.runtimeClass
-    byClassName.getOrElseUpdate(cl.getName, components.filter(cl.isInstance))
-      .asInstanceOf[List[C]]
-  }
-  def apply[C<:Component](implicit ct: ClassTag[C]) = Single(list[C])
-}
-*/
-////
-
 sealed trait LifeStatus
 case object OpenableLifeStatus extends LifeStatus
 class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
@@ -50,6 +32,23 @@ object DoClose {
   }
 }
 
+/*
+import scala.collection.mutable
+import scala.reflect.ClassTag
+
+trait Component
+class Context(create: Context=>List[Component]) {
+  private lazy val components = create(this)
+  private lazy val byClassName = mutable.Map[String,List[Component]]() // ++ list.groupBy(_.getClass.getName)
+  def list[C<:Component](implicit ct: ClassTag[C]): List[C] = {
+    val cl = ct.runtimeClass
+    byClassName.getOrElseUpdate(cl.getName, components.filter(cl.isInstance))
+      .asInstanceOf[List[C]]
+  }
+  def apply[C<:Component](implicit ct: ClassTag[C]) = Single(list[C])
+}
+*/
+////
 
 ////
 /*

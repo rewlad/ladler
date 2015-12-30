@@ -13,13 +13,13 @@ function VDom(rootNativeElement){
                 const incoming = props.incoming[key]
                 return React.createElement(Traverse, {key, typeStr, incoming})
             })
-            canst attributes = props.incoming["at"] ||
+            const attributes = !props.incoming ? null : props.incoming["at"] ||
                 (props.incoming["chl"] ? null : props.incoming)
             return React.createElement(type, attributes, childElements)
         }
     })
     const RootComponent = React.createClass({
-        getInitialState: function() { return { typeStr: "div" } }
+        getInitialState: function() { return { typeStr: "div" } },
         render: function() { return React.createElement(Traverse,this.state) }
     })
     const rootVirtualElement = React.createElement(RootComponent,null)
