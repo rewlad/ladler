@@ -1,7 +1,55 @@
 package io.github.rewlad.sseserver
 
-trait Key { def toStringKey: String }
-sealed trait Value
+import java.util
+
+trait Element {
+  def key: Int
+  def elementType: String
+  def childElements: Array[Element]
+  def appendToJson(builder: JsonBuilder): Unit
+}
+
+object Diff {
+  def sameKeys(previous: Array[Element], current: Array[Element]): Boolean = {
+    if(previous.length != current.length) return false
+    var j = current.length - 1
+    while(j >= 0){
+      if(previous(j).key != current(j).key) return false
+      if(previous(j).elementType != current(j).elementType) return false
+      j -= 1
+    }
+    true
+  }
+  def apply(previous: Array[Element], current: Array[Element]) = {
+    if(sameKeys(previous,current)){}
+
+    val previousPairs = previous.map(e=>(e.elementType,e.key)->e)
+    val previousMap = previousPairs.toMap
+    val currentPairs = current.map(e=>(e.elementType,e.key)->e)
+    val currentMap = currentPairs.toMap
+    val del = previousPairs.filter{ case(k,_) => !currentMap.contains(k) }
+    val upd = currentPairs.flatMap{ case(k,e) =>
+      Diff(previousMap.get(k), e).map(k->_)
+    }
+
+  }
+  def apply(previous: Option[Element], current: Element): Option[Element] =
+    if(previous.isEmpty) set(current) else {
+
+
+
+
+
+
+
+
+    }
+
+}
+
+
+
+
 
 case class MapValue(value: Map[Key,Value]) extends Value
 case class OrderValue(value: Seq[Key]) extends Value
