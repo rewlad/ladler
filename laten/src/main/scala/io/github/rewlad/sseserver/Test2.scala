@@ -7,30 +7,35 @@ object Attr {
 }
 case class SimpleElementKey(elementType: String, key: Int) extends ElementKey
 object Tag {
-  def apply(tagName: String, key: Int, attributes: Map[Key,Value], elements: Seq[(ElementKey,MapValue)]): (ElementKey,MapValue) =
-    SimpleElementKey(tagName,key) -> Children(attributes,elements)
+  def apply(tagName: String, key: Int, elements: List[(ElementKey,MapValue)]): (ElementKey,MapValue) =
+    SimpleElementKey(tagName,key) -> MapValue(Children(elements))
+
+  def button(key: Int, value: String): (ElementKey,MapValue) =
+    SimpleElementKey("input",key) -> MapValue(
+      (SimpleAttributeKey("type")->StringValue("button")) ::
+      (SimpleAttributeKey("value")->StringValue(value)) :: Nil
+    )
 }
 
+
+
 class Test2FrameHandler(sender: SenderOfConnection) extends FrameHandler {
-  private var prevVDom: Option[Value] = None
+  private var prevVDom: MapValue = MapValue(Nil)
   def generateDom = {
   //lazy val generateDom = {
     val size = 100
-    Children(Map(), Seq(
-      Tag("table", 0, Map(), (1 to size).map(trIndex =>
-        Tag("tr", trIndex, Map(), (1 to size).map(tdIndex =>
-          Tag("td", tdIndex, Map(), Seq(
-            Tag("input", 0, Map(
-              Attr("type","button"),
-              Attr("value",
-                if(trIndex==25 && tdIndex==25)
-                  s"${System.currentTimeMillis / 100}"
-                else s"$trIndex/$tdIndex"
-              )
-            ), Nil)
-          ))
-        ))
-      ))
+    MapValue(Children(
+      Tag("table", 0, (1 to size).map(trIndex =>
+        Tag("tr", trIndex, (1 to size).map(tdIndex =>
+          Tag("td", tdIndex,
+            Tag.button(0,
+              if(trIndex==25 && tdIndex==25)
+                s"${System.currentTimeMillis / 100}"
+              else s"$trIndex/$tdIndex"
+            ) :: Nil
+          )
+        ).toList)
+      ).toList) :: Nil
     ))
   }
 
@@ -41,7 +46,7 @@ class Test2FrameHandler(sender: SenderOfConnection) extends FrameHandler {
       val builder = new JsonBuilderImpl
       ToJson(builder,diff)
       sender.send("showDiff",builder.toString)
-      prevVDom = Some(vDom)
+      prevVDom = vDom
       println(builder.toString)
     }
     println(s"out ${Thread.currentThread.getId}")

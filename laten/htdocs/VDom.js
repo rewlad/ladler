@@ -26,7 +26,7 @@ function VDom(rootNativeElement){
     const rootComponent = ReactDOM.render(rootVirtualElement, rootNativeElement)
     function showDiff(data){
         const diff = JSON.parse(data)
-        const incoming = React.addons.update(rootComponent.state.incoming, diff)
+        const incoming = React.addons.update(rootComponent.state.incoming||{}, diff)
         rootComponent.setState({incoming})
     }
     return ({showDiff})
