@@ -1,14 +1,26 @@
 package io.github.rewlad.sseserver
 
-trait Key { def toStringKey: String }
-sealed trait Value
+trait ToJson {
+  def appendJson(builder: JsonBuilder): Unit
+}
+trait Key extends ToJson
+trait Value extends ToJson
 
-case class MapValue(value: List[(Key,Value)]) extends Value
-case class OrderValue(value: Seq[Key]) extends Value
-case class StringValue(value: String) extends Value
+///
 
-
-object DoSetKey extends Key { def toStringKey = "$set" }
+case class MapValue(value: List[(Key,Value)]) extends Value {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    value.foreach{ case(k,v) =>
+      k.appendJson(builder)
+      v.appendJson(builder)
+    }
+    builder.end()
+  }
+}
+object DoSetKey extends Key {
+  def appendJson(builder: JsonBuilder) = builder.append("$set")
+}
 object Diff {
   private def key(l: List[(Key,Value)]) = l.head._1
   private def value(l: List[(Key,Value)]) = l.head._2
@@ -43,35 +55,32 @@ object Diff {
   }
 }
 
-object AttributesKey extends Key { def toStringKey = "at" }
-object ChildOrderKey extends Key { def toStringKey = "chl" }
+///
 abstract class ElementKey extends Key {
   def key: Int
   def elementType: String
-  def toStringKey = s"$key:$elementType"
+  def appendJson(builder: JsonBuilder) = builder.append(s"$key:$elementType")
+}
+object ChildOrderKey extends Key {
+  def appendJson(builder: JsonBuilder) = builder.append("chl")
+}
+case class ChildOrderValue(value: List[ElementKey]) extends Value {
+  def appendJson(builder: JsonBuilder) = {
+    if(value.size != value.distinct.size)
+      throw new Exception(s"duplicate keys: $value")
+
+    builder.startArray()
+    value.foreach(k => k.appendJson(builder))
+    builder.end()
+  }
 }
 object Children {
-  def apply(elements: List[(ElementKey,MapValue)]): List[(Key,Value)] = {
-    val ordered = elements.map(_._1)
-    /*if(ordered.size != ordered.distinct.size)
-      throw new Exception(s"duplicate keys: $ordered")*/
-    (ChildOrderKey -> OrderValue(ordered)) :: elements
-  }
+  def apply(elements: List[(ElementKey,Value)]): List[(Key,Value)] =
+    (ChildOrderKey -> ChildOrderValue(elements.map(_._1))) :: elements
 }
 
-object ToJson {
-  def apply(builder: JsonBuilder, value: Value): Unit = value match {
-    case StringValue(v) => builder.append(v)
-    case MapValue(v) =>
-      builder.startObject()
-      v.toArray.map{ case(k,vv) => (k.toStringKey, vv) }.sortBy(_._1).foreach{ case(k,vv) =>
-        builder.append(k)
-        apply(builder, vv)
-      }
-      builder.end()
-    case OrderValue(v) =>
-      builder.startArray()
-      v.foreach(k => builder.append(k.toStringKey))
-      builder.end()
-  }
+///
+
+object AttributesKey extends Key {
+  def appendJson(builder: JsonBuilder) = builder.append("at")
 }

@@ -1,34 +1,37 @@
 package io.github.rewlad.sseserver
 
-case class SimpleAttributeKey(toStringKey: String) extends Key
-object Attr {
-  def apply(key: String, value: String) =
-    SimpleAttributeKey(key) -> StringValue(value)
+case class TableKey(key: Int) extends ElementKey { def elementType = "table" }
+case class TrKey(key: Int) extends ElementKey { def elementType = "tr" }
+case class TdKey(key: Int) extends ElementKey { def elementType = "td" }
+case class InputKey(key: Int) extends ElementKey { def elementType = "input" }
+case class ButtonAttributes(value: String) extends Value {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("type")
+    builder.append("button")
+    builder.append("value")
+    builder.append(value)
+    builder.end()
+  }
 }
-case class SimpleElementKey(elementType: String, key: Int) extends ElementKey
 object Tag {
-  def apply(tagName: String, key: Int, elements: List[(ElementKey,MapValue)]): (ElementKey,MapValue) =
-    SimpleElementKey(tagName,key) -> MapValue(Children(elements))
-
-  def button(key: Int, value: String): (ElementKey,MapValue) =
-    SimpleElementKey("input",key) -> MapValue(
-      (SimpleAttributeKey("type")->StringValue("button")) ::
-      (SimpleAttributeKey("value")->StringValue(value)) :: Nil
-    )
+  def table(key: Int, children: List[(TrKey,Value)]) = TableKey(key) -> MapValue(Children(children))
+  def tr(key: Int, children: List[(TdKey,Value)]) = TrKey(key) -> MapValue(Children(children))
+  def td(key: Int, children: List[(ElementKey,Value)]) = TdKey(key) -> MapValue(Children(children))
+  def button(key: Int, value: String) = InputKey(key) -> ButtonAttributes(value)
 }
-
-
 
 class Test2FrameHandler(sender: SenderOfConnection) extends FrameHandler {
   private var prevVDom: MapValue = MapValue(Nil)
   def generateDom = {
   //lazy val generateDom = {
+    import Tag._
     val size = 100
     MapValue(Children(
-      Tag("table", 0, (1 to size).map(trIndex =>
-        Tag("tr", trIndex, (1 to size).map(tdIndex =>
-          Tag("td", tdIndex,
-            Tag.button(0,
+      table(0, (1 to size).map(trIndex =>
+        tr(trIndex, (1 to size).map(tdIndex =>
+          td(tdIndex,
+            button(0,
               if(trIndex==25 && tdIndex==25)
                 s"${System.currentTimeMillis / 100}"
               else s"$trIndex/$tdIndex"
@@ -44,7 +47,7 @@ class Test2FrameHandler(sender: SenderOfConnection) extends FrameHandler {
     val vDom = generateDom
     Diff(prevVDom, vDom).foreach{ diff =>
       val builder = new JsonBuilderImpl
-      ToJson(builder,diff)
+      diff.appendJson(builder)
       sender.send("showDiff",builder.toString)
       prevVDom = vDom
       println(builder.toString)
