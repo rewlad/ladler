@@ -14,7 +14,8 @@ function config(kind,name) {
                 exclude: /(node_modules|bower_components)/,
                 loader: "babel",
                 query: {
-                    plugins: ["transform-es2015-modules-commonjs"]
+                    presets: ['es2015']
+                    //plugins: ["transform-es2015-modules-commonjs","transform-es2015-literals"]
                 }
             }
         ]},

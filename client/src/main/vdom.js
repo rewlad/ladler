@@ -6,12 +6,12 @@ import update          from 'react/lib/update'
 
 const Traverse = React.createClass({
     mixins: [PureRenderMixin],
-    render: function() {
+    render(){
         const props = this.props
         const type = props.typeStr.toLowerCase() === props.typeStr ?
             props.typeStr : window[props.typeStr] || never()
         const childKeys = !props.incoming ? null : props.incoming["chl"]
-        const childElements = !childKeys ? null : childKeys.map(function(key){
+        const childElements = !childKeys ? null : childKeys.map(key => {
             const typeStr = key.substring(key.lastIndexOf(":")+1)
             const incoming = props.incoming[key]
             return React.createElement(Traverse, {key, typeStr, incoming})
@@ -23,8 +23,8 @@ const Traverse = React.createClass({
 })
 
 const RootComponent = React.createClass({
-    getInitialState: function() { return { typeStr: "div" } },
-    render: function() { return React.createElement(Traverse,this.state) }
+    getInitialState(){ return { typeStr: "div" } },
+    render(){ return React.createElement(Traverse,this.state) }
 })
 
 export default function VDom(parentElement){

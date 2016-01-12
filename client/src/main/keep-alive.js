@@ -17,8 +17,8 @@ function getConnectionKey(orDo){ return connectionKeyState || orDo() }
 function connect(data) {
     console.log("conn: "+data)
     connectionKeyState = data
-    sessionKey(function(){ sessionStorage.setItem("sessionKey", getConnectionKey(never)) })
-    getLoadKey(function(){ loadKeyState = getConnectionKey(never) })
+    sessionKey(() => sessionStorage.setItem("sessionKey", getConnectionKey(never)))
+    getLoadKey(() => { loadKeyState = getConnectionKey(never) })
     localStorage.setItem(loadKeyForSession(), getLoadKey(never))
     pong()
 }

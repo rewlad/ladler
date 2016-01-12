@@ -16,13 +16,13 @@ export default function SSEConnection(address,handlers,reconnectTimeout){
         if(!eventSource){
             console.log("new EventSource")
             eventSource = new EventSource(address);
-            handlers.forEach(function(handlerMap){
-                Object.keys(handlerMap).forEach(function(handlerName){
-                    eventSource.addEventListener(handlerName, function(event){
-                        handlerMap[handlerName](event.data)
-                    })
-                })
-            })
+            handlers.forEach(
+                handlerMap => Object.keys(handlerMap).forEach(
+                    handlerName => eventSource.addEventListener(handlerName, 
+                        event => handlerMap[handlerName](event.data)
+                    )
+                )
+            )
         }
     }
 
