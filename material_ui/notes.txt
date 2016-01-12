@@ -2,3 +2,5 @@
 npm install
 npm run-script build
 
+debug, production, watch:
+./node_modules/.bin/webpack -dpw
