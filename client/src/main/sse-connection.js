@@ -1,6 +1,5 @@
-"use strict";
 
-function SSEConnection(address,handlers,reconnectTimeout){
+export default function SSEConnection(address,handlers,reconnectTimeout){
     var eventSource
     var closedCount = 0
 

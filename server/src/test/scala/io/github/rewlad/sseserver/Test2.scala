@@ -1,5 +1,7 @@
 package io.github.rewlad.sseserver
 
+import java.nio.file.Paths
+
 case class TableKey(key: Int) extends ElementKey { def elementType = "table" }
 case class TrKey(key: Int) extends ElementKey { def elementType = "tr" }
 case class TdKey(key: Int) extends ElementKey { def elementType = "td" }
@@ -56,16 +58,19 @@ class Test2FrameHandler(sender: SenderOfConnection) extends FrameHandler {
   }
 }
 
-object Test2App extends App {
-  new SSERHttpServer {
+object TestBigApp extends App {
+  val server = new SSERHttpServer {
     def threadCount = 5
     def allowOrigin = Some("*")
     def ssePort = 5556
     def httpPort = 5557
     def framePeriod = 20
     def purgePeriod = 2000
+    def staticRoot = Paths.get("../client/build/test")
     def createFrameHandlerOfConnection(sender: SenderOfConnection) =
       new Test2FrameHandler(sender)
-  }.start()
+  }
+  server.start()
+  println(s"SEE: http://127.0.0.1:${server.httpPort}/app.html")
 }
 

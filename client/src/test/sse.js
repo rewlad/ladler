@@ -1,13 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Server Clock</title>
-    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-    <script src="SSEConnection.js"></script>
-    <script src="KeepAlive.js"></script>
-<script>
+
 "use strict";
+
+import SSEConnection from "../main/sse-connection"
+import KeepAlive     from "../main/keep-alive"
 
 function TestShow(){
     var dataToShow
@@ -26,12 +21,4 @@ function TestShow(){
     return ({show})
 }
 
-(function(){
-    const keepAlive = KeepAlive()
-    const testShow = TestShow()
-    SSEConnection("http://localhost:5556/sse",[keepAlive,testShow],5)
-})()
-</script>
-</head>
-<body></body>
-</html>
+SSEConnection("http://localhost:5556/sse",[KeepAlive(),TestShow()],5)

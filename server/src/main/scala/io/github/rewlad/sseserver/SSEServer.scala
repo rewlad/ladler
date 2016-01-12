@@ -2,6 +2,7 @@
 package io.github.rewlad.sseserver
 
 import java.net.{ServerSocket, Socket}
+import java.nio.file.Path
 import java.util.concurrent.{Executors, ScheduledExecutorService, Executor}
 
 class SSESender(lifeTime: LifeTime, allowOriginOption: Option[String], socket: Socket)
@@ -58,6 +59,7 @@ abstract class SSEServer {
 abstract class SSERHttpServer extends SSEServer {
   def httpPort: Int
   def threadCount: Int
+  def staticRoot: Path
 
   lazy val pool = Executors.newScheduledThreadPool(threadCount)
   lazy val connectionRegistry = new ConnectionRegistry
@@ -67,6 +69,7 @@ abstract class SSERHttpServer extends SSEServer {
       def httpPort = SSERHttpServer.this.httpPort
       def pool = SSERHttpServer.this.pool
       def connectionRegistry = SSERHttpServer.this.connectionRegistry
+      def staticRoot = SSERHttpServer.this.staticRoot
     }.start()
   }
 }

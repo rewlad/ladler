@@ -1,6 +1,14 @@
 
+cd client
+
 npm install
 npm run-script build
 
 debug, production, watch:
 ./node_modules/.bin/webpack -dpw
+
+
+cd server
+
+sbt 'test:runMain io.github.rewlad.sseserver.TestSSE'
+sbt 'test:runMain io.github.rewlad.sseserver.TestBigApp'
