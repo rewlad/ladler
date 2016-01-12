@@ -2,7 +2,10 @@
 "use strict";
 
 import SSEConnection from "../main/sse-connection"
-import KeepAlive     from "../main/keep-alive"
-import VDom          from "../main/vdom"
+import Feedback      from "../main/feedback"
+import Update        from "../main/vdom-update"
 
-SSEConnection("http://localhost:5556/sse",[KeepAlive(),VDom(document.body)],5)
+SSEConnection("http://localhost:5556/sse",[
+    Feedback.receivers,
+    Update(VDom.render(document.body))
+],5)
