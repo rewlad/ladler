@@ -5,8 +5,7 @@ import VDom   from "./vdom-render"
 
 const valueHandlers = {
     "default": (obj,key,value,path) => {
-        const typePos = key.lastIndexOf(":") + 1
-        if(typePos > 0) setup(value, [key,path])
+        if(VDom.typePos(key) > 0) setup(value, [key,path])
     },
     "$set": (obj,key,value,path) => setup(value,path),
     "sendChange": (obj,key,value,path) => {
