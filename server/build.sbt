@@ -1,0 +1,1 @@
+libraryDependencies += "org.scalastuff" %% "json-parser" % "2.0.2"
