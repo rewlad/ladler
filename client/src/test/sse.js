@@ -2,7 +2,7 @@
 "use strict";
 
 import SSEConnection from "../main/sse-connection"
-import KeepAlive     from "../main/keep-alive"
+import Feedback      from "../main/feedback"
 
 function TestShow(){
     var dataToShow
@@ -21,4 +21,5 @@ function TestShow(){
     return ({show})
 }
 
-SSEConnection("http://localhost:5556/sse",[KeepAlive(),TestShow()],5)
+const receivers = [Feedback.receivers, TestShow()]
+SSEConnection("http://localhost:5556/sse",receivers,5)
