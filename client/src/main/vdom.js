@@ -4,43 +4,47 @@ import ReactDOM        from 'react-dom'
 import PureRenderMixin from 'react/lib/ReactComponentWithPureRenderMixin'
 import update          from 'react/lib/update'
 
-export default function VDom(parentElement, componentClasses, transforms){
-    function typePos(key){ return key.lastIndexOf(":") + 1 }
+export default function VDom(parentElement, transforms){
     const Traverse = React.createClass({
         mixins: [PureRenderMixin],
         render(){
             const props = this.props
-            const type = componentClasses[props.typeStr] || props.typeStr
-            const childKeys = !props.incoming ? null : props.incoming["chl"]
-            const childElements = !childKeys ? null : childKeys.map(key => {
-                const typeStr = key.substring(key.lastIndexOf(":")+1)
-                const incoming = props.incoming[key]
-                return React.createElement(Traverse, {key, typeStr, incoming})
-            })
-            const attributes = !props.incoming ? null : props.incoming["at"] ||
-                (props.incoming["chl"] ? null : props.incoming)
-            console.log(type, attributes)
-            return React.createElement(type, attributes, childElements)
+            const childElements = !props.chl ? null : 
+                props.chl.map(key => React.createElement(Traverse, props[key]))
+            console.log(props)
+            return React.createElement(props.tp, props.at || props, childElements)
         }
     })
+    
+    var incoming = { tp: "div" }, tempDiff
+    function getMergedState(){ 
+        return { merged: tempDiff ? update(incoming,tempDiff) : incoming } 
+    }
     const RootComponent = React.createClass({
-        getInitialState(){ return { typeStr: "div" } },
-        render(){ return React.createElement(Traverse,this.state) }
+        mixins: [PureRenderMixin],
+        getInitialState(){ return getMergedState() },
+        render(){ return React.createElement(Traverse,this.state.merged) }
     })
-    function setup(ctx) {
+    function setTempDiff(diff){
+        tempDiff = diff
+        rootComponent.setState(getMergedState())
+    }
+    function typePos(key){ return key.lastIndexOf(":") + 1 }
+    function setupIncomingDiff(ctx) {
         Object.keys(ctx.value).forEach(key => {
             const value = ctx.value[key]
             if(transforms[key]) ctx.value[key] = transforms[key]({ value, parent: ctx })
-            else if(typePos(key) > 0) setup({ key, value, parent: ctx })
-            else if(key === "$set") setup({ value, parent: ctx })
+            else if(typePos(key) > 0) setupIncomingDiff({ key, value, parent: ctx })
+            else if(key === "$set") setupIncomingDiff({ value, parent: ctx })
         })
     }
     function showDiff(data){
         const diff = JSON.parse(data)
-        setup({ value: diff })
-        const incoming = update(rootComponent.state.incoming||{}, diff)
-        rootComponent.setState({incoming})
+        setupIncomingDiff({ value: diff, setTempDiff })
+        incoming = update(incoming, diff)
+        rootComponent.setState(getMergedState())
     }
+    
     const rootNativeElement = document.createElement("div")
     parentElement.appendChild(rootNativeElement)
     const rootVirtualElement = React.createElement(RootComponent,null)

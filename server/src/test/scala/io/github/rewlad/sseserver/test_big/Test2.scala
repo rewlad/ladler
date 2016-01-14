@@ -9,14 +9,13 @@ case class TrKey(key: Int) extends ElementKey { def elementType = "tr" }
 case class TdKey(key: Int) extends ElementKey { def elementType = "td" }
 case class InputKey(key: Int) extends ElementKey { def elementType = "input" }
 case class ButtonAttributes(value: String) extends AttributesValue {
-  def appendJson(builder: JsonBuilder) = {
+  def appendJson(builder: JsonBuilder) =
     builder.startObject()
-    builder.append("type")
-    builder.append("button")
-    builder.append("value")
-    builder.append(value)
-    builder.end()
-  }
+      .append("tp").append("")
+      .append("key").append("")
+      .append("type").append("button")
+      .append("value").append(value)
+    .end()
   def handleMessage(message: ReceivedMessage): Unit = ()
 }
 object Tag {

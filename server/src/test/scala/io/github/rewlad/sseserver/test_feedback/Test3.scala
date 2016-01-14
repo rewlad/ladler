@@ -11,6 +11,8 @@ abstract class ButtonAttributes extends AttributesValue {
   def onClick(): Unit
   def appendJson(builder: JsonBuilder) =
     builder.startObject()
+      .append("tp").append("")
+      .append("key").append("")
       .append("type").append("button")
       .append("value").append(caption)
       .append("onClick").append("send")
@@ -27,6 +29,8 @@ case class ResetButtonAttributes(prop: StrProp) extends ButtonAttributes {
 case class InputTextAttributes(value: String, prop: StrProp) extends AttributesValue {
   def appendJson(builder: JsonBuilder) =
     builder.startObject()
+      .append("tp").append("")
+      .append("key").append("")
       .append("type").append("text")
       .append("value").append(value)
       .append("onChange").append("send")
