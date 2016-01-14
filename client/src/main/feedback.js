@@ -25,10 +25,13 @@ function ping(data) {
         location.reload()
     } else if(getConnectionKey(never) === data) pong() // was not reconnected
 }
-
-export const receivers = {connect,ping}
-export function send(headers){
+function send(headers){
     headers["X-r-connection"] = getConnectionKey(never)
     headers["X-r-session"] = sessionKey(never)
     fetch("/connection",{method:"post",headers})
+}
+
+export default function(){
+    const receivers = {connect,ping}
+    return ({receivers,send}) 
 }

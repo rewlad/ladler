@@ -48,7 +48,7 @@ class JsonBuilderImpl(result: StringBuilder = new StringBuilder) extends JsonBui
     if(objectNeedsValue) throw new Exception("objectNeedsKey")
     this
   }
-  def append(value: String): Unit = {
+  def append(value: String) = {
     startElement()
     result.append('"')
     var j = 0

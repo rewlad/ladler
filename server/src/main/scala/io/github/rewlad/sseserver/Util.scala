@@ -6,6 +6,10 @@ object Bytes {
   def apply(content: String) = content.getBytes(UTF_8)
 }
 
+object UTF8String {
+  def apply(data: Array[Byte]) = new String(data,UTF_8)
+}
+
 object ToRunnable {
   def apply(f: => Unit) = new Runnable() { def run() { f } }
 }

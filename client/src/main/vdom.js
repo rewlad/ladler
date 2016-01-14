@@ -19,6 +19,7 @@ export default function VDom(parentElement, componentClasses, transforms){
             })
             const attributes = !props.incoming ? null : props.incoming["at"] ||
                 (props.incoming["chl"] ? null : props.incoming)
+            console.log(type, attributes)
             return React.createElement(type, attributes, childElements)
         }
     })

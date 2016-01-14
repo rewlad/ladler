@@ -1,6 +1,7 @@
 package io.github.rewlad.sseserver.test_feedback
 
 import java.nio.file.Paths
+import java.util.Base64
 
 import io.github.rewlad.sseserver._
 
@@ -31,7 +32,8 @@ case class InputTextAttributes(value: String, prop: StrProp) extends AttributesV
       .append("onChange").append("send")
     .end()
   def handleMessage(message: ReceivedMessage) = ActionOf(message) match {
-    case "change" => prop.set(message.value("X-r-vdom-value"))
+    case "change" =>
+      prop.set(UTF8String(Base64.getDecoder.decode(message.value("X-r-vdom-value-base64"))))
   }
 }
 
@@ -75,21 +77,24 @@ class ReactiveVDom(sender: SenderOfConnection){
     }
     prevVDom = vDom
   }
-  private def find(pairs: List[(Key,Value)], path: List[String]): Value = pairs match {
-    case (key:ElementKey,value) :: _ if key.jsonKey == path.head => value match {
-      case m: MapValue => find(m.value, path.tail)
-      case v if path.isEmpty => v
-    }
-    case _ :: pairsTail => find(pairsTail, path)
-  }
+  private def find(mapValue: MapValue, path: List[String]): Value =
+    mapValue.value.collectFirst{
+      case (key:ElementKey,value) if key.jsonKey == path.head => value
+    }.collect{
+      case m: MapValue => find(m, path.tail)
+      case v if path.tail.isEmpty => v
+    }.getOrElse(
+      throw new Exception(s"path ($path) was not found in branch ($mapValue) ")
+    )
+
   def dispatch(messageOption: Option[ReceivedMessage]) =
-    for(message <- messageOption; path <- message.value.get("X-r-vdom-path"))
-      find(prevVDom.value, path.split("/").toList) match {
-        case v: AttributesValue => v.handleMessage(message)
-      }
+    for(message <- messageOption; path <- message.value.get("X-r-vdom-path")){
+      println(s"path ($path)")
+      val "" :: parts = path.split("/").toList
+      val attrs = find(prevVDom, parts) match { case v: AttributesValue => v }
+      attrs.handleMessage(message)
+    }
 }
-
-
 
 class TestFrameHandler(sender: SenderOfConnection, model: TestModel) extends FrameHandler {
   private lazy val modelChanged = new VersionObserver(()=>model.version.toString)
