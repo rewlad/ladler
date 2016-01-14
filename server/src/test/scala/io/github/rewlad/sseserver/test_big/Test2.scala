@@ -1,12 +1,14 @@
-package io.github.rewlad.sseserver
+package io.github.rewlad.sseserver.test_big
 
 import java.nio.file.Paths
+
+import io.github.rewlad.sseserver._
 
 case class TableKey(key: Int) extends ElementKey { def elementType = "table" }
 case class TrKey(key: Int) extends ElementKey { def elementType = "tr" }
 case class TdKey(key: Int) extends ElementKey { def elementType = "td" }
 case class InputKey(key: Int) extends ElementKey { def elementType = "input" }
-case class ButtonAttributes(value: String) extends Value {
+case class ButtonAttributes(value: String) extends AttributesValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("type")
@@ -15,6 +17,7 @@ case class ButtonAttributes(value: String) extends Value {
     builder.append(value)
     builder.end()
   }
+  def handleMessage(message: ReceivedMessage): Unit = ()
 }
 object Tag {
   def table(key: Int, children: List[(TrKey,Value)]) = TableKey(key) -> MapValue(Children(children))
@@ -23,7 +26,7 @@ object Tag {
   def button(key: Int, value: String) = InputKey(key) -> ButtonAttributes(value)
 }
 
-class Test2FrameHandler(sender: SenderOfConnection) extends FrameHandler {
+class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
   private var prevVDom: MapValue = MapValue(Nil)
   def generateDom = {
   //lazy val generateDom = {
@@ -58,7 +61,7 @@ class Test2FrameHandler(sender: SenderOfConnection) extends FrameHandler {
   }
 }
 
-object TestBigApp extends App {
+object TestApp extends App {
   val server = new SSERHttpServer {
     def threadCount = 5
     def allowOrigin = Some("*")
@@ -68,7 +71,7 @@ object TestBigApp extends App {
     def purgePeriod = 2000
     def staticRoot = Paths.get("../client/build/test")
     def createFrameHandlerOfConnection(sender: SenderOfConnection) =
-      new Test2FrameHandler(sender)
+      new TestFrameHandler(sender)
   }
   server.start()
   println(s"SEE: http://127.0.0.1:${server.httpPort}/app.html")

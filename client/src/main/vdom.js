@@ -26,13 +26,12 @@ export default function VDom(parentElement, componentClasses, transforms){
         getInitialState(){ return { typeStr: "div" } },
         render(){ return React.createElement(Traverse,this.state) }
     })
-    const passKeys = { $set: 1, "at": 1 }
     function setup(ctx) {
         Object.keys(ctx.value).forEach(key => {
             const value = ctx.value[key]
             if(transforms[key]) ctx.value[key] = transforms[key]({ value, parent: ctx })
             else if(typePos(key) > 0) setup({ key, value, parent: ctx })
-            else if(passKeys[key]) setup({ value, parent: ctx })
+            else if(key === "$set") setup({ value, parent: ctx })
         })
     }
     function showDiff(data){

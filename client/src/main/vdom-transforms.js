@@ -7,6 +7,10 @@ export default function FeedbackVDomEvent(feedback){
         "X-r-vdom-path": ctxToPath(ctx),
         "X-r-vdom-value": event.target.value
     })
-    const transforms = {onChange}
+    const onClick = ctx => event => if(ctx.value === "send") feedback.send({
+        "X-r-action": "click",
+        "X-r-vdom-path": ctxToPath(ctx)
+    })
+    const transforms = {onChange,onClick}
     return ({transforms})
 }

@@ -59,7 +59,8 @@ object Diff {
 abstract class ElementKey extends Key {
   def key: Int
   def elementType: String
-  def appendJson(builder: JsonBuilder) = builder.append(s"$key:$elementType")
+  def jsonKey = s"$key:$elementType"
+  def appendJson(builder: JsonBuilder) = builder.append(jsonKey)
 }
 object ChildOrderKey extends Key {
   def appendJson(builder: JsonBuilder) = builder.append("chl")
@@ -83,4 +84,7 @@ object Children {
 
 object AttributesKey extends Key {
   def appendJson(builder: JsonBuilder) = builder.append("at")
+}
+trait AttributesValue extends Value {
+  def handleMessage(message: ReceivedMessage): Unit
 }

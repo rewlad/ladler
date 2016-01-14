@@ -32,19 +32,21 @@ class JsonBuilderImpl(result: StringBuilder = new StringBuilder) extends JsonBui
     stateStack = (stateStack | nonEmpty) ^ oddElementCount
   }
 
-  private def start(flags: Long, c: Char): Unit = {
+  private def start(flags: Long, c: Char): JsonBuilder = {
     startElement()
     push(flags)
     result.append(c)
+    this
   }
   def startArray() = start(0L, '[')
   def startObject() = start(isObject, '{')
-  def end(): Unit = {
+  def end() = {
     if(objectNeedsValue) throw new Exception("objectNeedsValue")
     result.append(if(is(isObject)) '}' else ']')
     pop()
     endElement()
     if(objectNeedsValue) throw new Exception("objectNeedsKey")
+    this
   }
   def append(value: String): Unit = {
     startElement()
@@ -60,6 +62,7 @@ class JsonBuilderImpl(result: StringBuilder = new StringBuilder) extends JsonBui
     }
     result.append('"')
     endElement()
+    this
   }
   override def toString = result.toString
 }

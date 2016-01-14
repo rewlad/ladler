@@ -29,9 +29,13 @@ class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) exte
   })
   def frame(messageOption: Option[ReceivedMessage]) = {
     messageOption.foreach{ message =>
-      if(message.value.get("X-r-action").exists(_=="pong"))
+      if(ActionOf(message) == "pong")
         status = OKPingStatus(message.value("X-r-session"))
     }
     periodicFrame()
   }
+}
+
+object ActionOf {
+  def apply(message: ReceivedMessage) = message.value.getOrElse("X-r-action","")
 }

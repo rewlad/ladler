@@ -1,15 +1,13 @@
 
 "use strict";
 
-import MergeHandlers from "../main/handlers"
 import SSEConnection from "../main/sse-connection"
 import Feedback      from "../main/feedback"
-import VDom          from "../main/vdom-render"
-import Update        from "../main/vdom-update"
+import VDom          from "../main/vdom"
+import FeedbackVDomEvent from "../main/vdom-transforms"
 
 const componentClasses = {}
-const transformers = MergeHandlers([])
-const vdom = VDom(document.body, componentClasses, transformers)
-const receivers = [Feedback.receivers, Update(vdom)]
-    
+const transforms = FeedbackVDomEvent(Feedback).transforms
+const vdom = VDom(document.body, componentClasses, transforms)
+const receivers = [Feedback.receivers, vdom.receivers]
 SSEConnection("http://localhost:5556/sse", receivers, 5)
