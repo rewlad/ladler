@@ -26,23 +26,25 @@ trait OfTable
 trait OfTr
 
 object Tag {
-  def table(key: Int, children: List[Child[OfTable]]) =
-    Child[OfDiv](key, WithChildren[OfTable](TableElement,children))
-  def tr(key: Int, children: List[Child[OfTr]]) =
-    Child[OfTable](key, WithChildren(TrElement,children))
-  def td(key: Int, children: List[Child[OfDiv]]) =
-    Child[OfTr](key, WithChildren(TdElement,children))
+  def root(children: List[ChildPair[OfDiv]]) =
+    Child(0, DivElement, children)
+  def table(key: Int, children: List[ChildPair[OfTable]]) =
+    Child[OfDiv](key, TableElement, children)
+  def tr(key: Int, children: List[ChildPair[OfTr]]) =
+    Child[OfTable](key, TrElement, children)
+  def td(key: Int, children: List[ChildPair[OfDiv]]) =
+    Child[OfTr](key, TdElement, children)
   def button(key: Int, value: String) =
     Child[OfDiv](key, ButtonElement(value))
 }
 
 class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
-  private var prevVDom: MapValue = MapValue(Nil)
+  private lazy val reactiveVDom = new ReactiveVDom(sender)
   def generateDom = {
   //lazy val generateDom = {
     import Tag._
     val size = 100
-    WithChildren(DivElement,
+    root(
       table(0, (1 to size).map(trIndex =>
         tr(trIndex, (1 to size).map(tdIndex =>
           td(tdIndex,
@@ -59,14 +61,7 @@ class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
 
   def frame(messageOption: Option[ReceivedMessage]): Unit = {
     println(s"in  ${Thread.currentThread.getId}")
-    val vDom = generateDom
-    Diff(prevVDom, vDom).foreach{ diff =>
-      val builder = new JsonBuilderImpl
-      diff.appendJson(builder)
-      sender.send("showDiff",builder.toString)
-      prevVDom = vDom
-      println(builder.toString)
-    }
+    reactiveVDom.diffAndSend(generateDom.value)
     println(s"out ${Thread.currentThread.getId}")
   }
 }
