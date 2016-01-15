@@ -4,25 +4,36 @@ import java.nio.file.Paths
 
 import io.github.rewlad.sseserver._
 
-case class TableKey(key: Int) extends ElementKey { def elementType = "table" }
-case class TrKey(key: Int) extends ElementKey { def elementType = "tr" }
-case class TdKey(key: Int) extends ElementKey { def elementType = "td" }
-case class InputKey(key: Int) extends ElementKey { def elementType = "input" }
-case class ButtonAttributes(value: String) extends AttributesValue {
-  def appendJson(builder: JsonBuilder) =
-    builder.startObject()
-      .append("tp").append("")
-      .append("key").append("")
+abstract class SimpleElement extends ElementValue {
+  def appendJsonAttributes(builder: JsonBuilder) = ()
+  def handleMessage(message: ReceivedMessage) = Never()
+}
+object DivElement extends SimpleElement { def elementType = "div" }
+object TableElement extends SimpleElement { def elementType = "table" }
+object TrElement extends SimpleElement { def elementType = "tr" }
+object TdElement extends SimpleElement { def elementType = "td" }
+
+case class ButtonElement(value: String) extends ElementValue {
+  def elementType = "input"
+  def appendJsonAttributes(builder: JsonBuilder) = builder
       .append("type").append("button")
       .append("value").append(value)
-    .end()
-  def handleMessage(message: ReceivedMessage): Unit = ()
+  def handleMessage(message: ReceivedMessage): Unit = Never()
 }
+
+trait OfDiv
+trait OfTable
+trait OfTr
+
 object Tag {
-  def table(key: Int, children: List[(TrKey,Value)]) = TableKey(key) -> MapValue(Children(children))
-  def tr(key: Int, children: List[(TdKey,Value)]) = TrKey(key) -> MapValue(Children(children))
-  def td(key: Int, children: List[(ElementKey,Value)]) = TdKey(key) -> MapValue(Children(children))
-  def button(key: Int, value: String) = InputKey(key) -> ButtonAttributes(value)
+  def table(key: Int, children: List[Child[OfTable]]) =
+    Child[OfDiv](key, WithChildren[OfTable](TableElement,children))
+  def tr(key: Int, children: List[Child[OfTr]]) =
+    Child[OfTable](key, WithChildren(TrElement,children))
+  def td(key: Int, children: List[Child[OfDiv]]) =
+    Child[OfTr](key, WithChildren(TdElement,children))
+  def button(key: Int, value: String) =
+    Child[OfDiv](key, ButtonElement(value))
 }
 
 class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
@@ -31,7 +42,7 @@ class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
   //lazy val generateDom = {
     import Tag._
     val size = 100
-    MapValue(Children(
+    WithChildren(DivElement,
       table(0, (1 to size).map(trIndex =>
         tr(trIndex, (1 to size).map(tdIndex =>
           td(tdIndex,
@@ -43,7 +54,7 @@ class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
           )
         ).toList)
       ).toList) :: Nil
-    ))
+    )
   }
 
   def frame(messageOption: Option[ReceivedMessage]): Unit = {

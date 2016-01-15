@@ -5,40 +5,51 @@ import java.util.Base64
 
 import io.github.rewlad.sseserver._
 
-case class InputKey(key: Int) extends ElementKey { def elementType = "input" }
-abstract class ButtonAttributes extends AttributesValue {
+abstract class ButtonElement extends ElementValue {
+  def elementType = "input"
   def caption: String
   def onClick(): Unit
-  def appendJson(builder: JsonBuilder) =
-    builder.startObject()
-      .append("tp").append("")
-      .append("key").append("")
+  def appendJsonAttributes(builder: JsonBuilder) = builder
       .append("type").append("button")
       .append("value").append(caption)
       .append("onClick").append("send")
-    .end()
+
   def handleMessage(message: ReceivedMessage) = ActionOf(message) match {
     case "click" => onClick()
   }
 }
-case class ResetButtonAttributes(prop: StrProp) extends ButtonAttributes {
+case class ResetButtonElement(prop: StrProp) extends ButtonElement {
   def caption = "Reset"
   def onClick() = prop.set("")
 }
 
-case class InputTextAttributes(value: String, prop: StrProp) extends AttributesValue {
-  def appendJson(builder: JsonBuilder) =
-    builder.startObject()
-      .append("tp").append("")
-      .append("key").append("")
-      .append("type").append("text")
-      .append("value").append(value)
-      .append("onChange").append("send")
-    .end()
+case class InputTextElement(value: String, prop: StrProp, deferSend: Boolean) extends ElementValue {
+  def elementType = "input"
+  def appendJsonAttributes(builder: JsonBuilder) = {
+    builder.append("type").append("text")
+    builder.append("value").append(value)
+    if(deferSend){
+      builder.append("onChange").append("local")
+      builder.append("onBlur").append("send")
+    } else builder.append("onChange").append("send")
+  }
+
   def handleMessage(message: ReceivedMessage) = ActionOf(message) match {
     case "change" =>
       prop.set(UTF8String(Base64.getDecoder.decode(message.value("X-r-vdom-value-base64"))))
   }
+}
+
+object WrappingElement extends ElementValue {
+  def elementType = "span"
+  def appendJsonAttributes(builder: JsonBuilder) = ()
+  def handleMessage(message: ReceivedMessage) = Never()
+}
+case class TextContentElement(content: String) extends ElementValue {
+  def elementType = "span"
+  def appendJsonAttributes(builder: JsonBuilder) =
+    builder.append("content").append(content)
+  def handleMessage(message: ReceivedMessage) = Never()
 }
 
 trait StrProp {
@@ -54,9 +65,16 @@ case class TestModel() extends StrProp {
   def set(value: String): Unit = synchronized{ _value = value; _version += 1 }
 }
 
+trait ChildOfDiv
 object Tag {
-  def resetButton(key: Int, prop: StrProp) = InputKey(key) -> ResetButtonAttributes(prop)
-  def inputText(key: Int, prop: StrProp) = InputKey(key) -> InputTextAttributes(prop.get, prop)
+  def resetButton(key: Int, prop: StrProp) =
+    Child[ChildOfDiv](key, ResetButtonElement(prop))
+  def inputText(key: Int, label: String, prop: StrProp, deferSend: Boolean) =
+    Child[ChildOfDiv](key, WithChildren(WrappingElement,
+      Child[ChildOfDiv](0, TextContentElement(label)) ::
+      Child[ChildOfDiv](1, InputTextElement(prop.get, prop, deferSend: Boolean)) ::
+      Nil
+    ))
 }
 
 class VersionObserver(version: ()=>String) {
@@ -83,7 +101,7 @@ class ReactiveVDom(sender: SenderOfConnection){
   }
   private def find(mapValue: MapValue, path: List[String]): Value =
     mapValue.value.collectFirst{
-      case (key:ElementKey,value) if key.jsonKey == path.head => value
+      case pair if pair.jsonKey == path.head => pair.value
     }.collect{
       case m: MapValue => find(m, path.tail)
       case v if path.tail.isEmpty => v
@@ -95,7 +113,7 @@ class ReactiveVDom(sender: SenderOfConnection){
     for(message <- messageOption; path <- message.value.get("X-r-vdom-path")){
       println(s"path ($path)")
       val "" :: parts = path.split("/").toList
-      val attrs = find(prevVDom, parts) match { case v: AttributesValue => v }
+      val attrs = find(prevVDom, parts) match { case v: ElementValue => v }
       attrs.handleMessage(message)
     }
 }
@@ -105,9 +123,11 @@ class TestFrameHandler(sender: SenderOfConnection, model: TestModel) extends Fra
   private lazy val reactiveVDom = new ReactiveVDom(sender)
   def generateDom = {
     import Tag._
-    MapValue(Children(
-      inputText(0,model) :: inputText(1,model) :: resetButton(2,model) :: Nil
-    ))
+    WithChildren(WrappingElement,
+      inputText(0, "send on change", model, deferSend=false) ::
+        inputText(1, "send on blur", model, deferSend=true) ::
+        resetButton(2,model) :: Nil
+    )
   }
   def frame(messageOption: Option[ReceivedMessage]): Unit = {
     reactiveVDom.dispatch(messageOption)

@@ -30,3 +30,7 @@ object Trace {
     case e: Throwable => e.printStackTrace(); throw e
   }
 }
+
+object Never{
+  def apply():Nothing = throw new Exception("Never Here")
+}
