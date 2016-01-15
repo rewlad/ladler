@@ -31,33 +31,28 @@ class VersionObserver(version: ()=>String) {
 }
 
 class ReactiveVDom(sender: SenderOfConnection){
-  private var prevVDom: Option[Pair] = None
-  def diffAndSend(vDom: Pair) = {
+  private var prevVDom: Value = WasNoValue
+  def diffAndSend(vDom: Value) = {
     Diff(prevVDom, vDom).foreach { diff =>
       val builder = new JsonBuilderImpl
-      MapValue(diff :: Nil).appendJson(builder)
-
-
+      diff.appendJson(builder)
       sender.send("showDiff", builder.toString)
       println(builder.toString)
     }
-    prevVDom = Some(vDom)
+    prevVDom = vDom
   }
-  private def find(pairs: List[Pair], path: List[String]): Value =
-    pairs.collectFirst{
-      case pair if pair.jsonKey == path.head => pair.value
-    }.collect{
-      case m: MapValue => find(m.value, path.tail)
-      case v if path.tail.isEmpty => v
-    }.getOrElse(
-      throw new Exception(s"path ($path) was not found in branch ($pairs) ")
-    )
-
+  private def find(value: Value, path: List[String]): Option[Value] =
+    if(path.isEmpty) Some(value) else Some(value).collect{
+      case m: MapValue => m.value.collectFirst{
+        case pair if pair.jsonKey == path.head => find(pair.value, path.tail)
+      }.flatten
+    }.flatten
   def dispatch(messageOption: Option[ReceivedMessage]) =
     for(message <- messageOption; path <- message.value.get("X-r-vdom-path")){
       println(s"path ($path)")
       val "" :: parts = path.split("/").toList
-      val attrs = find(prevVDom.get :: Nil, parts) match { case v: ElementValue => v }
-      attrs.handleMessage(message)
+      find(prevVDom, parts).collect{ case v: ElementValue => v }
+        .getOrElse(throw new Exception(s"path ($path) was not found in ($prevVDom) "))
+        .handleMessage(message)
     }
 }
