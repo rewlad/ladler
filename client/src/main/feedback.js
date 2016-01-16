@@ -3,7 +3,11 @@ var loadKeyState, connectionKeyState;
 
 function never(){ throw new Exception() }
 function pong(){
-    send({"X-r-action": "pong"})
+    send({
+        "X-r-action": "pong", 
+        "X-r-session": sessionKey(never),
+        "X-r-location-hash": location.hash.substr(1)
+    })
     console.log("pong")
 }
 function sessionKey(orDo){ return sessionStorage.getItem("sessionKey") || orDo() }
@@ -16,6 +20,7 @@ function connect(data) {
     sessionKey(() => sessionStorage.setItem("sessionKey", getConnectionKey(never)))
     getLoadKey(() => { loadKeyState = getConnectionKey(never) })
     localStorage.setItem(loadKeyForSession(), getLoadKey(never))
+    window.onhashchange = () => pong()
     pong()
 }
 function ping(data) {
@@ -27,7 +32,6 @@ function ping(data) {
 }
 function send(headers){
     headers["X-r-connection"] = getConnectionKey(never)
-    headers["X-r-session"] = sessionKey(never)
     fetch("/connection",{method:"post",headers})
 }
 
