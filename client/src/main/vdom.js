@@ -9,37 +9,49 @@ export default function VDom(parentElement, transforms, getTempDiff){
         mixins: [PureRenderMixin],
         render(){
             const props = this.props
-            const childElements = !props.chl ? null : 
-                props.chl.map(key => React.createElement(Traverse, props[key]))
-            const attributes = props.at || props
-            console.log(props)
-            return React.createElement(attributes.tp, attributes, childElements || attributes.content)
+            const content = 
+                props.chl ? props.chl.map(key => React.createElement(Traverse, props[key])) :
+                props.at.content || null
+            return React.createElement(props.at.tp, props.at, content)
         }
     })
     
-    var incoming = { tp: "div" }
+    var incoming = null
+    const diffOk = (data,diff) => diff && Object.keys(diff).every(
+        key => key === "$set" || (key in data) && diffOk(data[key], diff[key])
+    )
     function getMergedState(){
         const tempDiff = getTempDiff()
-        return { merged: tempDiff ? update(incoming,tempDiff) : incoming } 
+        const ok = diffOk(incoming,tempDiff)
+        console.log(incoming,tempDiff,ok)
+        const merged = ok ? update(incoming,tempDiff) : incoming
+        return ({merged})
     }
-    function updateMergedState(){ rootComponent.setState(getMergedState()) }
+    function updateMergedState(){
+        const state = getMergedState()
+        rootComponent.setState(state) 
+    }
     const RootComponent = React.createClass({
         mixins: [PureRenderMixin],
         getInitialState(){ return getMergedState() },
-        render(){ return React.createElement(Traverse,this.state.merged) }
+        render(){ 
+            return this.state.merged ? 
+                React.createElement(Traverse,this.state.merged) : 
+                React.createElement("div",null)
+        }
     })
     function setupIncomingDiff(ctx) {
         Object.keys(ctx.value).forEach(key => {
             const value = ctx.value[key]
             if(transforms[key]) ctx.value[key] = transforms[key]({ value, parent: ctx })
-            else if(key.substring(0,1)===":") setupIncomingDiff({ key, value, parent: ctx })
+            else if(key.substring(0,1)===":" || key === "at") setupIncomingDiff({ key, value, parent: ctx })
             else if(key === "$set") setupIncomingDiff({ value, parent: ctx })
         })
     }
     function showDiff(data){
         const diff = JSON.parse(data)
         setupIncomingDiff({ value: diff, updateMergedState })
-        incoming = update(incoming, diff)
+        incoming = update(incoming || {}, diff)
         updateMergedState()
     }
     

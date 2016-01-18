@@ -19,10 +19,10 @@ object Input {
     }
 }
 
-class VersionObserver(version: ()=>String) {
+class VersionObserver {
   private var prevVer: Option[String] = None
-  def thenDo(f: =>Unit): Unit = {
-    val nextVer = Some(version())
+  def apply(version: String)(f: =>Unit): Unit = {
+    val nextVer = Some(version)
     if(prevVer.isEmpty || prevVer != nextVer){
       f
       prevVer = nextVer

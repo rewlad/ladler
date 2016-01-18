@@ -17,14 +17,9 @@ export default function InputChanges(sender){
         "X-r-action": "change",
         "X-r-vdom-value-base64": btoa(unescape(encodeURIComponent(value)))
     })
-    
-    const update = 
-        ctx => ctx.updateMergedState ? ctx.updateMergedState() : update(ctx.parent)
     const set = (ctx,v) => {
         eventCtx = ctx
         value = v
-        update(eventCtx)
     }
-    
     return {getDiff,set,send}
 }

@@ -20,14 +20,17 @@ case class ChildOrderValue(value: List[Long]) extends Value { //priv
 }
 
 object Child { //pub
-  def apply[C](key: Long, theElement: ElementValue) = ChildPair[C](key, theElement)
+  def apply[C](key: Long, theElement: ElementValue) = ChildPair[C](key, MapValue(
+    TheKeyPair :: TheElementPair(theElement) ::
+    Nil
+  ))
   def apply[C](
     key: Long,
     theElement: ElementValue,
     elements: List[ChildPair[_]]
   ): ChildPair[C] = ChildPair[C](key, MapValue(
-    TheElementPair(theElement) ::
-      ChildOrderPair(ChildOrderValue(elements.map(_.key))) :: elements
+    TheKeyPair :: TheElementPair(theElement) ::
+    ChildOrderPair(ChildOrderValue(elements.map(_.key))) :: elements
   ))
 }
 object LongJsonKey { def apply(key: Long) = s":$key" }
@@ -38,6 +41,17 @@ case class ChildPair[C](key: Long, value: Value) extends Pair { //pub
     case _ => false
   }
   def withValue(value: Value) = copy(value=value)
+}
+
+object EmptyStringValue extends Value {
+  def appendJson(builder: JsonBuilder) = builder.append("")
+}
+
+object TheKeyPair extends Pair {
+  def jsonKey = "key"
+  def sameKey(other: Pair) = this == other
+  def value = EmptyStringValue
+  def withValue(value: Value) = Never()
 }
 
 case class TheElementPair(value: Value) extends Pair { //priv
@@ -55,7 +69,6 @@ abstract class ElementValue extends Value { //pub
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
       .append("tp").append(elementType)
-      .append("key").append("")
     appendJsonAttributes(builder)
     builder.end()
   }
