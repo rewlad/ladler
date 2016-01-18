@@ -16,3 +16,8 @@ PATH=/web/_data/jdk/bin:$PATH sbt 'test:runMain io.github.rewlad.sseserver.test_
 
     not "babel-plugin-transform-es2015-literals": "^6.3.13",
     "babel-plugin-transform-es2015-modules-commonjs": "~6.4.0",
+    
+    
+    import { Grid, Row, Column } from 'react-bootstrap';
+    
+    [ 'prop_' + (() => 42)() ]: 42

@@ -56,5 +56,5 @@ object TestApp extends App {
       new TestFrameHandler(sender, models)
   }
   server.start()
-  println(s"SEE: http://127.0.0.1:${server.httpPort}/app.html")
+  println(s"SEE: http://127.0.0.1:${server.httpPort}/react-app.html")
 }
