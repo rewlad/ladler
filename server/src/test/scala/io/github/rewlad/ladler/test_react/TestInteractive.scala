@@ -1,6 +1,4 @@
-package io.github.rewlad.sseserver.test_react
-
-import io.github.rewlad.sseserver.WasNoValue
+package io.github.rewlad.ladler.test_react
 
 class FieldModel extends Model with StrProp {
   private var _value: String = ""

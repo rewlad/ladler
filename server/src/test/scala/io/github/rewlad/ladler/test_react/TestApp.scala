@@ -1,8 +1,10 @@
-package io.github.rewlad.sseserver.test_react
+package io.github.rewlad.ladler.test_react
 
 import java.nio.file.Paths
 
-import io.github.rewlad.sseserver._
+import io.github.rewlad.ladler.server.{SSERHttpServer, ReceivedMessage,
+FrameHandler, SenderOfConnection}
+import io.github.rewlad.ladler.vdom.{ReactiveVDom, VersionObserver, Value}
 
 trait Model
 trait View {

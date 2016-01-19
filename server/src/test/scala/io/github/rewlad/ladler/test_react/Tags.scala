@@ -1,6 +1,9 @@
-package io.github.rewlad.sseserver.test_react
+package io.github.rewlad.ladler.test_react
 
-import io.github.rewlad.sseserver._
+import io.github.rewlad.ladler.server.{ActionOf, ReceivedMessage}
+import io.github.rewlad.ladler.util.Never
+import io.github.rewlad.ladler.vdom._
+
 
 abstract class SimpleElement extends ElementValue {
   def appendJsonAttributes(builder: JsonBuilder) = ()

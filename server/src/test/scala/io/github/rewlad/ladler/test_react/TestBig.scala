@@ -1,4 +1,4 @@
-package io.github.rewlad.sseserver.test_react
+package io.github.rewlad.ladler.test_react
 
 class BigView(models: List[Model]) extends View {
   lazy val modelVersion = s"${System.currentTimeMillis / 100}"
