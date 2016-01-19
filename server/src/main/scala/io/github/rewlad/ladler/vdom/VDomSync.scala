@@ -2,8 +2,7 @@ package io.github.rewlad.ladler.vdom
 
 import java.util.Base64
 
-import io.github.rewlad.ladler.server.{SenderOfConnection, ActionOf,
-ReceivedMessage}
+import io.github.rewlad.ladler.connection_api.ReceivedMessage
 import io.github.rewlad.ladler.util.UTF8String
 
 
@@ -15,13 +14,8 @@ object Input {
       builder.append("onBlur").append("send")
     } else builder.append("onChange").append("send")
   }
-  def changedValueFromMessage(message: ReceivedMessage, onChange: String=>Unit): Boolean =
-    ActionOf(message) match {
-      case "change" =>
-        onChange(UTF8String(Base64.getDecoder.decode(message.value("X-r-vdom-value-base64"))))
-        true
-      case _ => false
-    }
+  def changedValue(message: ReceivedMessage) =
+    UTF8String(Base64.getDecoder.decode(message.value("X-r-vdom-value-base64")))
 }
 
 class VersionObserver {
@@ -35,29 +29,19 @@ class VersionObserver {
   }
 }
 
-class ReactiveVDom(sender: SenderOfConnection){
-  private var prevVDom: Value = WasNoValue
-  def diffAndSend(vDom: Value) = {
-    Diff(prevVDom, vDom).foreach { diff =>
-      val builder = new JsonBuilderImpl
-      diff.appendJson(builder)
-      sender.send("showDiff", builder.toString)
-      println(builder.toString)
-    }
-    prevVDom = vDom
-  }
+object Dispatch {
   private def find(value: Value, path: List[String]): Option[Value] =
     if(path.isEmpty) Some(value) else Some(value).collect{
-      case m: MapValue => m.value.collectFirst{
+      case m: MapValue => m.pairs.collectFirst{
         case pair if pair.jsonKey == path.head => find(pair.value, path.tail)
       }.flatten
     }.flatten
-  def dispatch(messageOption: Option[ReceivedMessage]) =
+  def apply(vDom: Value, messageOption: Option[ReceivedMessage]) =
     for(message <- messageOption; path <- message.value.get("X-r-vdom-path")){
       println(s"path ($path)")
       val "" :: parts = path.split("/").toList
-      find(prevVDom, parts).collect{ case v: ElementValue => v }
-        .getOrElse(throw new Exception(s"path ($path) was not found in ($prevVDom) "))
+      find(vDom, parts).collect{ case v: MessageHandler => v }
+        .getOrElse(throw new Exception(s"path ($path) was not found in ($vDom) "))
         .handleMessage(message)
     }
 }

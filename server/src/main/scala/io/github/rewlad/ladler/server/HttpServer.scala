@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 import java.nio.file.{Path, Files}
 import java.util.concurrent.Executor
 import com.sun.net.httpserver.{HttpServer, HttpExchange, HttpHandler}
+import io.github.rewlad.ladler.connection_api.ReceivedMessage
 import io.github.rewlad.ladler.util.{Single, Trace}
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter

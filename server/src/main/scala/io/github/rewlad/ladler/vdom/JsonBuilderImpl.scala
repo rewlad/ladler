@@ -1,5 +1,13 @@
 package io.github.rewlad.ladler.vdom
 
+object JsonToString {
+  def apply(value: Value): String = {
+    val builder = new JsonBuilderImpl()
+    value.appendJson(builder)
+    builder.result.toString
+  }
+}
+
 private object JsonBuilderImpl {
   val oddElementCount = 0x1L
   val nonEmpty        = 0x2L
@@ -8,7 +16,7 @@ private object JsonBuilderImpl {
   val maxStateCount   = 21 // 21*3=63
 }
 
-class JsonBuilderImpl(result: StringBuilder = new StringBuilder) extends JsonBuilder {
+class JsonBuilderImpl(val result: StringBuilder = new StringBuilder) extends JsonBuilder {
   import JsonBuilderImpl._
   private var stateStack: Long = 0L
   private var stateCount = 1
@@ -64,5 +72,4 @@ class JsonBuilderImpl(result: StringBuilder = new StringBuilder) extends JsonBui
     endElement()
     this
   }
-  override def toString = result.toString
 }

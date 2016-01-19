@@ -2,9 +2,11 @@ package io.github.rewlad.ladler.test_react
 
 import java.nio.file.Paths
 
-import io.github.rewlad.ladler.server.{SSERHttpServer, ReceivedMessage,
-FrameHandler, SenderOfConnection}
-import io.github.rewlad.ladler.vdom.{ReactiveVDom, VersionObserver, Value}
+import io.github.rewlad.ladler.connection_api.{ReceivedMessage,
+SenderOfConnection}
+import io.github.rewlad.ladler.server.{SSEHttpServer,
+FrameHandler}
+import io.github.rewlad.ladler.vdom._
 
 trait Model
 trait View {
@@ -30,7 +32,7 @@ class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends 
   private var hashForView = ""
 
   def frame(messageOption: Option[ReceivedMessage]): Unit = {
-    reactiveVDom.dispatch(messageOption)
+    Dispatch(reactiveVDom.prevVDom, messageOption)
     for(message <- messageOption; hash <- message.value.get("X-r-location-hash"))
       hashForView = hash
     val view = hashForView match {
@@ -46,7 +48,7 @@ class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends 
 
 object TestApp extends App {
   val models = new FieldModel :: Nil
-  val server = new SSERHttpServer {
+  val server = new SSEHttpServer {
     def threadCount = 5
     def allowOrigin = Some("*")
     def ssePort = 5556

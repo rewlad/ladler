@@ -4,7 +4,7 @@ sealed trait LifeStatus
 case object OpenableLifeStatus extends LifeStatus
 class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
 case object ClosingLifeStatus extends LifeStatus
-class LifeTime {
+class LifeCycleImpl extends LifeCycle {
   protected var status: LifeStatus = OpenableLifeStatus
   def setup[C](create: =>C)(close: C=>Unit): C = status match {
     case st: OpenLifeStatus =>

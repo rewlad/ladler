@@ -3,11 +3,13 @@ package io.github.rewlad.ladler.server
 import java.util
 import java.util.concurrent.{ScheduledFuture, TimeUnit, ScheduledExecutorService}
 
+
+import io.github.rewlad.ladler.connection_api.ReceivedMessage
 import io.github.rewlad.ladler.util.{Trace, ToRunnable, Setup}
 
 import scala.collection.concurrent.TrieMap
 
-class ReceiverOfConnectionImpl(lifeTime: LifeTime, registry: ConnectionRegistry) extends ReceiverOfConnection {
+class ReceiverOfConnectionImpl(lifeTime: LifeCycle, registry: ConnectionRegistryImpl) extends ReceiverOfConnection {
   private def createConnectionKey = Setup(util.UUID.randomUUID.toString){ k =>
     registry.store(k) = this
     println(s"connection   register: $k")
@@ -24,7 +26,9 @@ class ReceiverOfConnectionImpl(lifeTime: LifeTime, registry: ConnectionRegistry)
     incoming.synchronized(incoming.add(message))
 }
 
-class ConnectionRegistry {
+
+
+class ConnectionRegistryImpl extends ConnectionRegistry {
   lazy val store = TrieMap[String, ReceiverOfConnectionImpl]()
   def send(bnd: ReceivedMessage) =
     store(bnd.value("X-r-connection")).add(bnd)
@@ -33,7 +37,7 @@ class ConnectionRegistry {
 /////
 
 class FrameGenerator(
-  lifeTime: LifeTime,
+  lifeTime: LifeCycle,
   receiver: ReceiverOfConnection,
   pool: ScheduledExecutorService,
   framePeriod: Long,

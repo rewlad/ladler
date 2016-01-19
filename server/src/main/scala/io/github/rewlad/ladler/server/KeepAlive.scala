@@ -1,5 +1,8 @@
 package io.github.rewlad.ladler.server
 
+import io.github.rewlad.ladler.connection_api.{ReceivedMessage, ActionOf,
+SenderOfConnection}
+
 class OncePer(period: Long, action: ()=>Unit) {
   private var nextTime = 0L
   def apply() = {
@@ -36,6 +39,3 @@ class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) exte
   }
 }
 
-object ActionOf {
-  def apply(message: ReceivedMessage) = message.value.getOrElse("X-r-action","")
-}

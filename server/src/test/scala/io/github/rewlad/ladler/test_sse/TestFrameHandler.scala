@@ -1,6 +1,8 @@
 package io.github.rewlad.ladler.test_sse
 
-import io.github.rewlad.ladler.server.{FrameHandler, ReceivedMessage, SenderOfConnection}
+import io.github.rewlad.ladler.connection_api.{ReceivedMessage,
+SenderOfConnection}
+import io.github.rewlad.ladler.server.FrameHandler
 
 class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
   private var prevTime: Long = 0L
