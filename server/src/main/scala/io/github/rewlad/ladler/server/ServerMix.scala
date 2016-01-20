@@ -4,8 +4,6 @@ import java.net.Socket
 import java.nio.file.Path
 import java.util.concurrent.Executors
 
-import io.github.rewlad.ladler.connection_api.SenderOfConnection
-
 abstract class SSEHttpServer {
   def httpPort: Int
   def threadCount: Int

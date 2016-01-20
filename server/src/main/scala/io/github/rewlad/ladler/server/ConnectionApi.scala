@@ -2,6 +2,10 @@ package io.github.rewlad.ladler.server
 
 import io.github.rewlad.ladler.connection_api.ReceivedMessage
 
+trait SenderOfConnection {
+  def send(event: String, data: String): Unit
+}
+
 trait ReceiverOfConnection {
   def connectionKey: String
   def poll(): Option[ReceivedMessage]

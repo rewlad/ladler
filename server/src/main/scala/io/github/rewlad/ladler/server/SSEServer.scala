@@ -4,7 +4,6 @@ package io.github.rewlad.ladler.server
 import java.net.{ServerSocket, Socket}
 import java.util.concurrent.ScheduledExecutorService
 
-import io.github.rewlad.ladler.connection_api.SenderOfConnection
 import io.github.rewlad.ladler.util.{ToRunnable, Bytes}
 
 class SSESender(lifeTime: LifeCycle, allowOriginOption: Option[String], socket: Socket)

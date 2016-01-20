@@ -2,10 +2,9 @@ package io.github.rewlad.ladler.test_react
 
 import java.nio.file.Paths
 
-import io.github.rewlad.ladler.connection_api.{ReceivedMessage,
-SenderOfConnection}
+import io.github.rewlad.ladler.connection_api.ReceivedMessage
 import io.github.rewlad.ladler.server.{SSEHttpServer,
-FrameHandler}
+FrameHandler,SenderOfConnection}
 import io.github.rewlad.ladler.vdom._
 
 trait Model
@@ -28,11 +27,11 @@ class IndexView extends View {
 
 class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends FrameHandler {
   private lazy val modelChanged = new VersionObserver
-  private lazy val reactiveVDom = new ReactiveVDom(sender)
+  private lazy val diff = new DiffImpl(MapValueImpl)
   private var hashForView = ""
 
   def frame(messageOption: Option[ReceivedMessage]): Unit = {
-    Dispatch(reactiveVDom.prevVDom, messageOption)
+    Dispatch(diff.prevVDom, messageOption)
     for(message <- messageOption; hash <- message.value.get("X-r-location-hash"))
       hashForView = hash
     val view = hashForView match {
@@ -41,7 +40,7 @@ class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends 
       case _  => new IndexView
     }
     modelChanged(view.modelVersion){
-      reactiveVDom.diffAndSend(view.generateDom)
+      diff.diff(view.generateDom).foreach(d=>sender.send("showDiff", JsonToString(d)))
     }
   }
 }

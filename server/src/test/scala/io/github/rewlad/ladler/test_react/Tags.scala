@@ -71,6 +71,7 @@ trait OfTable
 trait OfTr
 
 object Tag {
+  private object Child extends ChildPairFactory(MapValueImpl)
   def root(children: List[ChildPair[OfDiv]]) =
     Child(0, WrappingElement, children).value
   def resetButton(key: Int, prop: StrProp) =

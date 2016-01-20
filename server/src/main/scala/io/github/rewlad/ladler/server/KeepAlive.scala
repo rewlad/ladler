@@ -1,7 +1,6 @@
 package io.github.rewlad.ladler.server
 
-import io.github.rewlad.ladler.connection_api.{ReceivedMessage, ActionOf,
-SenderOfConnection}
+import io.github.rewlad.ladler.connection_api.{ReceivedMessage, ActionOf}
 
 class OncePer(period: Long, action: ()=>Unit) {
   private var nextTime = 0L

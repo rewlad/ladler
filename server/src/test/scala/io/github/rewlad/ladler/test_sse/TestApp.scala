@@ -2,8 +2,7 @@ package io.github.rewlad.ladler.test_sse
 
 import java.nio.file.Paths
 
-import io.github.rewlad.ladler.connection_api.SenderOfConnection
-import io.github.rewlad.ladler.server.SSEHttpServer
+import io.github.rewlad.ladler.server.{SenderOfConnection, SSEHttpServer}
 
 object TestApp extends App {
   val server = new SSEHttpServer {
