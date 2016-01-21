@@ -1,8 +1,8 @@
-package ee.cone.base.lmdb
+package ee.cone.base.db
 
 import java.util.UUID
 import ee.cone.base.util.Never
-import ee.cone.base.lmdb.LMTypes._
+import ee.cone.base.db.LMTypes._
 
 object LMTypes {
   type LMKey = Array[Byte]

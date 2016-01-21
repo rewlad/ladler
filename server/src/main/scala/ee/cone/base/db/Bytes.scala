@@ -1,4 +1,4 @@
-package ee.cone.base.lmdb
+package ee.cone.base.db
 
 import java.nio.charset.StandardCharsets._
 

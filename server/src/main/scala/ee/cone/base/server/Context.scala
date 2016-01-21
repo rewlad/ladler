@@ -7,7 +7,7 @@ case object ClosingLifeStatus extends LifeStatus
 class LifeCycleImpl extends LifeCycle {
   protected var status: LifeStatus = OpenableLifeStatus
   def setup[C](create: =>C)(close: C=>Unit): C = status match {
-    case st: OpenLifeStatus =>
+    case st: OpenLifeStatus => // we must not create until status is ok
       val res = create
       status = new OpenLifeStatus((()=>close(res)) :: st.toClose)
       res
@@ -31,6 +31,45 @@ object DoClose {
     case head :: tail => try head() finally apply(tail)
   }
 }
+/*
+object ToClose {
+  def apply[T](f: LifeCycle=>T): T = {
+    val lifeCycle = new LifeCycleImpl
+    try f(lifeCycle) finally lifeCycle.close()
+  }
+}
+
+
+class A {
+  private lazy val tHolder = new ThreadLocal[Option[LifeCycle]] {
+    override def initialValue() = None
+  }
+  def doTx[T](f: =>T): T = ToClose{ lifeCycle =>
+    if (tHolder.get.nonEmpty) throw new Exception("nested tx not supported")
+    lifeCycle.setup(tHolder)(_.remove())
+    tHolder.set(Some(lifeCycle))
+    f
+  }
+  def apply() = tHolder.get.get
+}
+
+class CacheOnce[C](calculate: ()=>C) {
+  lazy val value = calculate()
+  def apply(): C = value
+}
+
+class Cache[C](lifeCycle: ()=>LifeCycle, calculate: ()=>C) {
+  private var value: Option[C] = None
+  def apply(): C = {
+    if(value.isEmpty)
+      value = lifeCycle().setup(Option(calculate()))(_ => value = None)
+    value.get
+  }
+}
+*/
+
+
+
 
 /*
 import scala.collection.mutable
