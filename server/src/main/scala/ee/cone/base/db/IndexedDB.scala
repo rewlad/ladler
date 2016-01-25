@@ -40,7 +40,7 @@ class ImplIndexingTx(tx: RawTx, attrCalcInfo: AttrCalcInfo) extends IndexingTx {
     tx.set(key, LMFact.value(value, valueSrcId))
     index(objId, attrId, value, on=true)
     for(prototypes <- attrCalcInfo.protoByAttrId.get(attrId); prototype <- prototypes)
-      prototype.makeACopy.apply(objId)
+      prototype.recalculate(objId)
     true
   }
 }
@@ -77,17 +77,21 @@ class AttrCalcInfo(attrInfoList: List[AttrInfo]) {
   }.sorted.mkString(","))
 }
 
-/*NoGEN*/ trait DBAttrCalc extends AttrCalc {
+/*NoGEN*/ trait DBHas {
   def db: IndexingTx
   def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != LMRemoved
 }
 
 /******************************************************************************/
 
-/*NoGEN*/ trait PreCommitCalc extends AttrCalc {
+trait PreCommitCalcContext {
   def preCommitCalcCollector: PreCommitCalcCollector
+}
+
+abstract class PreCommitCalc(context: PreCommitCalcContext) extends AttrCalc {
+  import context._
   lazy val objIds = mutable.SortedSet[Long]()
-  def apply(objId: Long) = preCommitCalcCollector.same(this).objIds += objId
+  def recalculate(objId: Long) = preCommitCalcCollector.same(this).objIds += objId
   def apply(): Unit
 }
 
@@ -98,5 +102,23 @@ class AttrCalcInfo(attrInfoList: List[AttrInfo]) {
     calcQueue.enqueue(calc)
     calc
   })
-  def applyAll(): Unit = while (calcQueue.nonEmpty) calcQueue.dequeue().apply()
+  def applyAll(): Unit = while (calcQueue.nonEmpty) calcQueue.dequeue().apply()/*
+  abstract class PreCommitCalc extends AttrCalc {
+    lazy val objIds = mutable.SortedSet[Long]()
+    def apply(objId: Long) = same(this).objIds += objId
+    def apply(): Unit
+  }*/
 }
+
+/*class PreCommitCalcCollector {
+  private val calcQueue = mutable.Queue[()=>Unit]()
+  def applyAll(): Unit = while (calcQueue.nonEmpty) calcQueue.dequeue().apply()
+  def aggregate(onPreCommit: Seq[Long]=>Unit): Long=>Unit = {
+    val objIds = mutable.SortedSet[Long]()
+    calcQueue.enqueue(()=>onPreCommit(objIds.toSeq))
+    objId => objIds += objId
+  }
+  abstract class PreCommitCalc extends AttrCalc {
+    def apply(objId: Long) = ???
+  }
+}*/

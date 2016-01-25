@@ -12,9 +12,8 @@ object LMTypes {
 
 trait AttrInfo
 trait AttrCalc extends AttrInfo {
-  def makeACopy: AttrCalc
   def version: UUID
-  def apply(objId: Long): Unit
+  def recalculate(objId: Long): Unit
   def affectedByAttrIds: List[Long]
 }
 
@@ -36,3 +35,8 @@ case object NotFoundStatus extends SeekStatus {
   def value = Never()
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+trait ValidateFailReaction {
+  def apply(objId: Long, comment: String): Unit
+}

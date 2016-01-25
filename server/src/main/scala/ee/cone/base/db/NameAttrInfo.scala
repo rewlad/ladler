@@ -37,6 +37,8 @@ case class SearchAttrInfo(
 
 object RelSideAttrInfoList {
   def apply(
+    sysAttrCalcFactory: SysAttrCalcFactory,
+    sysPreCommitCheckFactory: SysPreCommitCheckFactory,
     relSideAttrInfo: List[NameAttrInfo], typeAttrId: Long,
     relTypeAttrInfo: List[NameAttrInfo]
   ): List[AttrInfo] = relSideAttrInfo.flatMap{ propInfo ⇒
@@ -45,19 +47,24 @@ object RelSideAttrInfoList {
     val relTypeAttrIdToComposedAttrId =
       relComposedAttrInfo.map{ i ⇒ i.labelOpt.get.attrId.toString → i.attrId }.toMap
     val indexedAttrIds = relTypeAttrIdToComposedAttrId.values.toSet
-    val calc = TypeIndexAttrCalc(
+    val calc = sysAttrCalcFactory.createTypeIndexAttrCalc(
       typeAttrId, propInfo.attrId,
-      relTypeAttrIdToComposedAttrId, indexedAttrIds,
-      IgnoreValidateFailReaction()
+      relTypeAttrIdToComposedAttrId, indexedAttrIds
+      //IgnoreValidateFailReaction()
     )
-    calc :: SearchAttrInfo(None, Some(propInfo)) :: relComposedAttrInfo :::
-      RefIntegrityPreCommitCheckList(typeAttrId, propInfo.attrId, ThrowValidateFailReaction())
+    val integrity = sysPreCommitCheckFactory.createRefIntegrityPreCommitCheckList(
+      typeAttrId, propInfo.attrId/*, ThrowValidateFailReaction()*/
+    )
+    calc :: SearchAttrInfo(None, Some(propInfo)) :: relComposedAttrInfo ::: integrity
+
   }
 }
 object LabelPropIndexAttrInfoList {
-  def apply(labelInfo: NameAttrInfo, propInfo: NameAttrInfo): List[AttrInfo] = {
+  def apply(sysAttrCalcFactory: SysAttrCalcFactory, labelInfo: NameAttrInfo, propInfo: NameAttrInfo): List[AttrInfo] = {
     val searchInfo = SearchAttrInfo(Some(labelInfo), Some(propInfo))
-    val calc = LabelIndexAttrCalc(labelInfo.attrId, propInfo.attrId, searchInfo.attrId)
+    val calc = sysAttrCalcFactory.createLabelIndexAttrCalc(
+      labelInfo.attrId, propInfo.attrId, searchInfo.attrId
+    )
     calc :: searchInfo :: Nil
   }
 }
