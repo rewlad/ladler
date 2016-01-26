@@ -25,9 +25,9 @@ case class LabelIndexAttrCalc(labelAttrId: Long, propAttrId: Long, indexedAttrId
   extends AttrCalc
 {
   import context._
-  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != LMRemoved
+  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != DBRemoved
   def version = UUID.fromString("1afd3999-46ac-4da3-84a6-17d978f7e032")
   def affectedByAttrIds = labelAttrId :: propAttrId :: Nil
   def recalculate(objId: Long) = db(objId, indexedAttrId) =
-    if(!dbHas(objId, labelAttrId)) LMRemoved else db(objId, propAttrId)
+    if(!dbHas(objId, labelAttrId)) DBRemoved else db(objId, propAttrId)
 }

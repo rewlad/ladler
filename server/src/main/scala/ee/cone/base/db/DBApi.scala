@@ -2,11 +2,11 @@ package ee.cone.base.db
 
 import java.util.UUID
 import ee.cone.base.util.Never
-import ee.cone.base.db.LMTypes._
+import ee.cone.base.db.Types._
 
-object LMTypes {
-  type LMKey = Array[Byte]
-  type LMRawValue = Array[Byte]
+object Types {
+  type RawKey = Array[Byte]
+  type RawValue = Array[Byte]
   type ValueSrcId = Long
 }
 
@@ -18,18 +18,18 @@ trait AttrCalc extends AttrInfo {
 }
 
 trait RawTx {
-  def set(key: LMKey, value: LMRawValue): Unit
-  def get(key: LMKey): LMRawValue
+  def set(key: RawKey, value: RawValue): Unit
+  def get(key: RawKey): RawValue
   def seekNext(): Unit
-  def seek(from: LMKey): Unit
+  def seek(from: RawKey): Unit
   def peek: SeekStatus
 }
 
 trait SeekStatus {
-  def key: LMKey
-  def value: LMRawValue
+  def key: RawKey
+  def value: RawValue
 }
-class KeyStatus(val key: LMKey, val value: LMRawValue) extends SeekStatus
+class KeyStatus(val key: RawKey, val value: RawValue) extends SeekStatus
 case object NotFoundStatus extends SeekStatus {
   def key = Never()
   def value = Never()
@@ -41,14 +41,14 @@ case object NotFoundStatus extends SeekStatus {
 
 trait IndexSearch {
   def apply(objId: Long): List[Long]
-  def apply(attrId: Long, value: LMValue): List[Long]
+  def apply(attrId: Long, value: DBValue): List[Long]
 }
 
 trait IndexingTx {
-  def apply(objId: Long, attrId: Long): LMValue
-  def update(objId: Long, attrId: Long, value: LMValue): Unit
+  def apply(objId: Long, attrId: Long): DBValue
+  def update(objId: Long, attrId: Long, value: DBValue): Unit
   def isOriginal = 1L
-  def set(objId: Long, attrId: Long, value: LMValue, valueSrcId: ValueSrcId): Boolean
+  def set(objId: Long, attrId: Long, value: DBValue, valueSrcId: ValueSrcId): Boolean
 }
 
 // DDL
@@ -90,27 +90,27 @@ class SysPreCommitCheckContext(
 // raw converters
 
 trait RawFactConverter {
-  def key(objId: Long, attrId: Long): LMKey
-  def keyWithoutAttrId(objId: Long): LMKey
-  def keyHeadOnly: LMKey
-  def value(value: LMValue, valueSrcId: ValueSrcId): LMRawValue
-  def valueFromBytes(b: LMRawValue, check: Option[ValueSrcId⇒Boolean]): LMValue
-  def keyFromBytes(key: LMKey): (Long,Long)
+  def key(objId: Long, attrId: Long): RawKey
+  def keyWithoutAttrId(objId: Long): RawKey
+  def keyHeadOnly: RawKey
+  def value(value: DBValue, valueSrcId: ValueSrcId): RawValue
+  def valueFromBytes(b: RawValue, check: Option[ValueSrcId⇒Boolean]): DBValue
+  def keyFromBytes(key: RawKey): (Long,Long)
 }
 trait RawIndexConverter {
-  def key(attrId: Long, value: LMValue, objId: Long): LMKey
-  def keyWithoutObjId(attrId: Long, value: LMValue): LMKey
-  def value(on: Boolean): LMRawValue
+  def key(attrId: Long, value: DBValue, objId: Long): RawKey
+  def keyWithoutObjId(attrId: Long, value: DBValue): RawKey
+  def value(on: Boolean): RawValue
 }
 trait RawKeyMatcher {
-  def matchPrefix(keyPrefix: LMKey, key: LMKey): Boolean
-  def lastId(keyPrefix: LMKey, key: LMKey): Long
+  def matchPrefix(keyPrefix: RawKey, key: RawKey): Boolean
+  def lastId(keyPrefix: RawKey, key: RawKey): Long
 }
 
-// LMValue
+// DBValue
 
-sealed abstract class LMValue
-case object LMRemoved extends LMValue
-case class LMStringValue(value: String) extends LMValue
-case class LMLongValue(value: Long) extends LMValue
-case class LMLongPairValue(valueA: Long, valueB: Long) extends LMValue
+sealed abstract class DBValue
+case object DBRemoved extends DBValue
+case class DBStringValue(value: String) extends DBValue
+case class DBLongValue(value: Long) extends DBValue
+case class DBLongPairValue(valueA: Long, valueB: Long) extends DBValue

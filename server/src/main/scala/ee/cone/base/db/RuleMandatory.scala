@@ -13,7 +13,7 @@ case class MandatoryPreCommitCheck(condAttrId: Long, mandatoryAttrId: Long)
   extends AttrCalc
 {
   import context._
-  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != LMRemoved
+  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != DBRemoved
   def version = UUID.fromString("ed748474-04e0-4ff7-89a1-be8a95aa743c")
   def affectedByAttrIds = condAttrId :: mandatoryAttrId :: Nil
   def recalculate(objId: Long) = add(objId)

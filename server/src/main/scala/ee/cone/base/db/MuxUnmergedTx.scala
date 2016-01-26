@@ -2,25 +2,25 @@
 package ee.cone.base.db
 
 import ee.cone.base.util.{UInt, Never}
-import ee.cone.base.db.LMTypes._
+import ee.cone.base.db.Types._
 
 import scala.collection.immutable.SortedMap
 
 class EmptyUnmergedTx extends RawTx {
-  def set(key: LMKey, value: LMRawValue) = Never()
-  def get(key: LMKey) = Never()
+  def set(key: RawKey, value: RawValue) = Never()
+  def get(key: RawKey) = Never()
   def peek = NotFoundStatus
-  def seek(from: LMKey) = ()
+  def seek(from: RawKey) = ()
   def seekNext() = ()
 }
 
 class NonEmptyUnmergedTx extends RawTx {
   var peek: SeekStatus = NotFoundStatus
-  var data = SortedMap[LMKey, LMRawValue]()(UnsignedBytesOrdering)
-  private var iterator: Iterator[(LMKey, LMRawValue)] = VoidKeyIterator
-  def set(key: LMKey, value: LMRawValue) = data = data + (key -> value)
-  def get(key: LMKey) = data(key)
-  def seek(from: LMKey) = {
+  var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
+  private var iterator: Iterator[(RawKey, RawValue)] = VoidKeyIterator
+  def set(key: RawKey, value: RawValue) = data = data + (key -> value)
+  def get(key: RawKey) = data(key)
+  def seek(from: RawKey) = {
     iterator = data.from(from).iterator
     seekNext()
   }
@@ -33,11 +33,11 @@ class NonEmptyUnmergedTx extends RawTx {
 
 class MuxUnmergedTx(var unmerged: RawTx, merged: RawTx) extends RawTx {
   var peek: SeekStatus = NotFoundStatus
-  def get(key: LMKey): LMRawValue = unmerged match {
+  def get(key: RawKey): RawValue = unmerged match {
     case tx: NonEmptyUnmergedTx ⇒ tx.data.getOrElse(key,merged.get(key))
     case _ ⇒ merged.get(key)
   }
-  def set(key: LMKey, value: LMRawValue): Unit = {
+  def set(key: RawKey, value: RawValue): Unit = {
     unmerged match {
       case tx: NonEmptyUnmergedTx ⇒ ()
       case _ ⇒ unmerged = new NonEmptyUnmergedTx
@@ -60,7 +60,7 @@ class MuxUnmergedTx(var unmerged: RawTx, merged: RawTx) extends RawTx {
       case _ ⇒ ()
     }
   }
-  def seek(from: LMKey) = {
+  def seek(from: RawKey) = {
     unmerged.seek(from)
     merged.seek(from)
     chooseMin()
@@ -72,7 +72,7 @@ class MuxUnmergedTx(var unmerged: RawTx, merged: RawTx) extends RawTx {
   }
 }
 
-object VoidKeyIterator extends Iterator[(LMKey, LMRawValue)] {
+object VoidKeyIterator extends Iterator[(RawKey, RawValue)] {
   def hasNext = false
   def next() = Never()
 }

@@ -4,66 +4,66 @@ package ee.cone.base.db
 import java.nio.charset.StandardCharsets.UTF_8
 
 import ee.cone.base.util.{LongFits, UInt, Bytes, Never}
-import ee.cone.base.db.LMTypes._
+import ee.cone.base.db.Types._
 
 // converters //////////////////////////////////////////////////////////////////
 
 object RawFactConverterImpl extends RawFactConverter {
   val `head` = 0L
-  def key(objId: Long, attrId: Long): LMKey =
+  def key(objId: Long, attrId: Long): RawKey =
     key(objId, attrId, hasObjId=true, hasAttrId=true)
-  def keyWithoutAttrId(objId: Long): LMKey =
+  def keyWithoutAttrId(objId: Long): RawKey =
     key(objId, 0, hasObjId=true, hasAttrId=false)
-  def keyHeadOnly: LMKey =
+  def keyHeadOnly: RawKey =
     key(0, 0, hasObjId=false, hasAttrId=false)
-  private def key(objId: Long, attrId: Long, hasObjId: Boolean, hasAttrId: Boolean): LMKey = {
-    val exHead = LMBytes.toWrite(`head`).at(0)
+  private def key(objId: Long, attrId: Long, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
+    val exHead = CompactBytes.toWrite(`head`).at(0)
     exHead.write(`head`, if(!hasObjId) exHead.alloc(0) else {
-      val exObjId = LMBytes.toWrite(objId).after(exHead)
+      val exObjId = CompactBytes.toWrite(objId).after(exHead)
       exObjId.write(objId, if(!hasAttrId) exObjId.alloc(0) else {
-        val exAttrId = LMBytes.toWrite(attrId).after(exObjId)
+        val exAttrId = CompactBytes.toWrite(attrId).after(exObjId)
         exAttrId.write(attrId, exAttrId.alloc(0))
       })
     })
   }
-  def value(value: LMValue, valueSrcId: ValueSrcId): LMRawValue = {
-    if(value == LMRemoved) return Array[Byte]()
-    val exchangeSrcId = LMBytes.toWrite(valueSrcId)
+  def value(value: DBValue, valueSrcId: ValueSrcId): RawValue = {
+    if(value == DBRemoved) return Array[Byte]()
+    val exchangeSrcId = CompactBytes.toWrite(valueSrcId)
     val b = RawValueConverter.allocWrite(0,value,exchangeSrcId.size)
     exchangeSrcId.atTheEndOf(b).write(valueSrcId, b)
   }
-  def valueFromBytes(b: LMRawValue, check: Option[ValueSrcId⇒Boolean]): LMValue = {
-    if(b.length==0) return LMRemoved
-    val exchangeA = LMBytes.toReadAt(b,0)
-    val exchangeB = LMBytes.toReadAfter(b,exchangeA)
-    val exchangeC = LMBytes.toReadAfter(b,exchangeB).checkIsLastIn(b)
-    if(check.nonEmpty && !check.get(exchangeC.readLong(b))) LMRemoved else exchangeA.head match {
-      case LMBytes.`strHead` if exchangeB.isSplitter => LMStringValue(exchangeA.readString(b))
-      case _ if exchangeB.isSplitter => LMLongValue(exchangeA.readLong(b))
-      case _ => LMLongPairValue(exchangeA.readLong(b), exchangeB.readLong(b))
+  def valueFromBytes(b: RawValue, check: Option[ValueSrcId⇒Boolean]): DBValue = {
+    if(b.length==0) return DBRemoved
+    val exchangeA = CompactBytes.toReadAt(b,0)
+    val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
+    val exchangeC = CompactBytes.toReadAfter(b,exchangeB).checkIsLastIn(b)
+    if(check.nonEmpty && !check.get(exchangeC.readLong(b))) DBRemoved else exchangeA.head match {
+      case CompactBytes.`strHead` if exchangeB.isSplitter => DBStringValue(exchangeA.readString(b))
+      case _ if exchangeB.isSplitter => DBLongValue(exchangeA.readLong(b))
+      case _ => DBLongPairValue(exchangeA.readLong(b), exchangeB.readLong(b))
     }
   }
-  def keyFromBytes(key: LMKey): (Long,Long) = {
-    val exHead = LMBytes.toReadAt(key, 0)
+  def keyFromBytes(key: RawKey): (Long,Long) = {
+    val exHead = CompactBytes.toReadAt(key, 0)
     if(exHead.readLong(key) != `head`) Never()
-    val exObjId = LMBytes.toReadAfter(key, exHead)
-    val exAttrId = LMBytes.toReadAfter(key, exObjId).checkIsLastIn(key)
+    val exObjId = CompactBytes.toReadAfter(key, exHead)
+    val exAttrId = CompactBytes.toReadAfter(key, exObjId).checkIsLastIn(key)
     (exObjId.readLong(key), exAttrId.readLong(key))
   }
 }
 
 object RawIndexConverterImpl extends RawIndexConverter {
   val `head` = 1L
-  def key(attrId: Long, value: LMValue, objId: Long): LMKey =
+  def key(attrId: Long, value: DBValue, objId: Long): RawKey =
     key(attrId, value, objId, hasObjId=true)
-  def keyWithoutObjId(attrId: Long, value: LMValue): LMKey =
+  def keyWithoutObjId(attrId: Long, value: DBValue): RawKey =
     key(attrId, value, 0, hasObjId=false)
-  private def key(attrId: Long, value: LMValue, objId: Long, hasObjId: Boolean): LMKey = {
-    val exHead = LMBytes.toWrite(`head`).at(0)
-    val exAttrId = LMBytes.toWrite(attrId).after(exHead)
+  private def key(attrId: Long, value: DBValue, objId: Long, hasObjId: Boolean): RawKey = {
+    val exHead = CompactBytes.toWrite(`head`).at(0)
+    val exAttrId = CompactBytes.toWrite(attrId).after(exHead)
     val valuePos = exAttrId.nextPos
     exHead.write(`head`, exAttrId.write(attrId,if(hasObjId){
-      val absExObjId = LMBytes.toWrite(objId)
+      val absExObjId = CompactBytes.toWrite(objId)
       val res = RawValueConverter.allocWrite(valuePos, value, absExObjId.size)
       val exObjId = absExObjId.atTheEndOf(res)
       exObjId.write(objId, res)
@@ -73,7 +73,7 @@ object RawIndexConverterImpl extends RawIndexConverter {
   }
   def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {
     val value = 1L
-    val exchangeA = LMBytes.toWrite(value).at(0)
+    val exchangeA = CompactBytes.toWrite(value).at(0)
     val b = exchangeA.alloc(0)
     exchangeA.write(value,b)
     b
@@ -82,20 +82,20 @@ object RawIndexConverterImpl extends RawIndexConverter {
 
 object RawValueConverter {
   protected def splitterB(exchangeA: LongByteExchange, spaceAfter: Int): Array[Byte] = {
-    val exchangeB = LMBytes.`splitter`.after(exchangeA)
+    val exchangeB = CompactBytes.`splitter`.after(exchangeA)
     exchangeA.writeHead(exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
   }
-  def allocWrite(spaceBefore: Int, dbValue: LMValue, spaceAfter: Int): Array[Byte] = dbValue match {
-    case l: LMLongValue =>
-      val exchangeA = LMBytes.toWrite(l.value).at(spaceBefore)
+  def allocWrite(spaceBefore: Int, dbValue: DBValue, spaceAfter: Int): Array[Byte] = dbValue match {
+    case l: DBLongValue =>
+      val exchangeA = CompactBytes.toWrite(l.value).at(spaceBefore)
       exchangeA.write(l.value, splitterB(exchangeA,spaceAfter))
-    case ll: LMLongPairValue =>
-      val exchangeA = LMBytes.toWrite(ll.valueA).at(spaceBefore)
-      val exchangeB = LMBytes.toWrite(ll.valueB).after(exchangeA)
+    case ll: DBLongPairValue =>
+      val exchangeA = CompactBytes.toWrite(ll.valueA).at(spaceBefore)
+      val exchangeB = CompactBytes.toWrite(ll.valueB).after(exchangeA)
       exchangeA.write(ll.valueA, exchangeB.write(ll.valueB, exchangeB.alloc(spaceAfter)))
-    case s: LMStringValue =>
+    case s: DBStringValue =>
       val src = Bytes(s.value)
-      val exchangeA = LMBytes.toWrite(src).at(spaceBefore)
+      val exchangeA = CompactBytes.toWrite(src).at(spaceBefore)
       exchangeA.write(src, splitterB(exchangeA,spaceAfter))
     case _ => Never()
   }
@@ -116,10 +116,10 @@ object BytesSame {
 }
 
 object RawKeyMatcherImpl extends RawKeyMatcher {
-  def matchPrefix(keyPrefix: LMKey, key: LMKey): Boolean =
+  def matchPrefix(keyPrefix: RawKey, key: RawKey): Boolean =
     BytesSame.part(keyPrefix, key, keyPrefix.length)
-  def lastId(keyPrefix: LMKey, key: LMKey): Long =
-    LMBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key).readLong(key)
+  def lastId(keyPrefix: RawKey, key: RawKey): Long =
+    CompactBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key).readLong(key)
 }
 
 // bytes ///////////////////////////////////////////////////////////////////////
@@ -175,7 +175,7 @@ class LongByteExchange private (val value: Long) extends AnyVal {
   final def atTheEndOf(b: Array[Byte]) = at(b.length - size)
 
   final def readLong(b: Array[Byte]): Long = {
-    LMBytes.checkLongInfo(head)
+    CompactBytes.checkLongInfo(head)
     var i = pos + 1
     val to = nextPos
     var l: Long = init
@@ -197,19 +197,19 @@ class LongByteExchange private (val value: Long) extends AnyVal {
   }
 
   final def write(src: Array[Byte], dst: Array[Byte]): Array[Byte] = {
-    if(src.length != size - LMBytes.headSize) Never()
-    System.arraycopy(src, 0, dst, pos + LMBytes.headSize, src.length)
+    if(src.length != size - CompactBytes.headSize) Never()
+    System.arraycopy(src, 0, dst, pos + CompactBytes.headSize, src.length)
     writeHead(dst)
   }
   final def readString(b: Array[Byte]): String =
-    new String(b, pos + LMBytes.headSize, size - LMBytes.headSize, UTF_8)
+    new String(b, pos + CompactBytes.headSize, size - CompactBytes.headSize, UTF_8)
 
   final def writeHead(dst: Array[Byte]): Array[Byte] = {
     dst(pos) = head.toByte
     dst
   }
 
-  final def isSplitter = LMBytes.`splitterHead` == head
+  final def isSplitter = CompactBytes.`splitterHead` == head
 
   final def checkIsLastIn(b: Array[Byte]): LongByteExchange = {
     if(b.length != nextPos) Never()
@@ -220,7 +220,7 @@ class LongByteExchange private (val value: Long) extends AnyVal {
 }
 
 
-object LMBytes {
+object CompactBytes {
   final def headSize = 1
 
   private def minVarSize = headSize + 1

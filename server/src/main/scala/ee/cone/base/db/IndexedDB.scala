@@ -5,7 +5,7 @@ import scala.collection.mutable
 
 import ee.cone.base.util.{Bytes, HexDebug, MD5}
 
-import ee.cone.base.db.LMTypes._
+import ee.cone.base.db.Types._
 
 class ImplIndexingTx(
   rawFactConverter: RawFactConverter,
@@ -13,18 +13,18 @@ class ImplIndexingTx(
   tx: RawTx,
   attrCalcInfo: AttrCalcInfo
 ) extends IndexingTx {
-  private def index(objId: Long, attrId: Long, value: LMValue, on: Boolean): Unit =
-    if(attrCalcInfo.indexed(attrId) && value != LMRemoved)
+  private def index(objId: Long, attrId: Long, value: DBValue, on: Boolean): Unit =
+    if(attrCalcInfo.indexed(attrId) && value != DBRemoved)
       tx.set(rawIndexConverter.key(attrId, value, objId), rawIndexConverter.value(on))
 
-  def apply(objId: Long, attrId: Long): LMValue =
+  def apply(objId: Long, attrId: Long): DBValue =
     rawFactConverter.valueFromBytes(tx.get(rawFactConverter.key(objId, attrId)), None)
 
-  def update(objId: Long, attrId: Long, value: LMValue): Unit =
+  def update(objId: Long, attrId: Long, value: DBValue): Unit =
     set(objId, attrId, value, isCalculated)
 
   private def isCalculated = 2L
-  def set(objId: Long, attrId: Long, value: LMValue, valueSrcId: ValueSrcId): Boolean = {
+  def set(objId: Long, attrId: Long, value: DBValue, valueSrcId: ValueSrcId): Boolean = {
     val key = rawFactConverter.key(objId, attrId)
     val matchOrDie: Option[ValueSrcId⇒Boolean] =
       Some(wasValueSrcId⇒if(valueSrcId == wasValueSrcId) true else
@@ -43,12 +43,12 @@ class ImplIndexingTx(
   }
 }
 
-case class ExtractedFact(objId: Long, attrId: Long, value: LMValue)
+case class ExtractedFact(objId: Long, attrId: Long, value: DBValue)
 class Replay(db: IndexingTx) {
   private lazy val changedOriginalSet = mutable.SortedSet[(Long,Long)]()
   def set(facts: List[ExtractedFact]): Unit =
     facts.foreach(fact⇒set(fact.objId, fact.attrId, fact.value))
-  def set(objId: Long, attrId: Long, value: LMValue): Unit =
+  def set(objId: Long, attrId: Long, value: DBValue): Unit =
     if(db.set(objId, attrId, value, db.isOriginal))
       changedOriginalSet += ((objId,attrId))
   def changedOriginalFacts: List[ExtractedFact] = changedOriginalSet.map{

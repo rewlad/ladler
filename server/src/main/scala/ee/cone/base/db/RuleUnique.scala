@@ -13,7 +13,7 @@ case class UniqueAttrCalc(uniqueAttrId: Long)
   def affectedByAttrIds = uniqueAttrId :: Nil
   def recalculate(objId: Long) = {
     val uniqueValue = db(objId, uniqueAttrId)
-    if(uniqueValue != LMRemoved) {
+    if(uniqueValue != DBRemoved) {
       val objIds = indexSearch(uniqueAttrId, uniqueValue)
       if (objIds.length != 1)
         fail(objId, "uniqueAttr value must be unique!")

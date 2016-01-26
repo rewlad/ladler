@@ -46,10 +46,10 @@ case class TypeIndexAttrCalc(
   def affectedByAttrIds = typeAttrId :: propAttrId :: Nil
   def recalculate(objId: Long) = {
     indexSearch(objId)
-      .foreach(attrId => if(indexedAttrIds(attrId)) db(objId, attrId) = LMRemoved)
+      .foreach(attrId => if(indexedAttrIds(attrId)) db(objId, attrId) = DBRemoved)
     (db(objId, typeAttrId), db(objId, propAttrId)) match {
-      case (_,LMRemoved) | (LMRemoved,_) => ()
-      case (LMStringValue(typeIdStr),value) =>
+      case (_,DBRemoved) | (DBRemoved,_) => ()
+      case (DBStringValue(typeIdStr),value) =>
         val attrIdOpt: Option[Long] = relTypeIdToAttrId.get(typeIdStr)
         if(attrIdOpt.isEmpty) fail(objId, "never here")
         else db(objId, attrIdOpt.get) = value
@@ -62,13 +62,13 @@ abstract class RefIntegrityPreCommitCheck(context: SysPreCommitCheckContext)
   extends AttrCalc
 {
   import context._
-  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != LMRemoved
+  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != DBRemoved
   protected def typeAttrId: Long
   protected def toAttrId: Long
   protected def checkAll(objIds: Seq[Long]): Unit
   protected def check(objId: Long) = db(objId, toAttrId) match {
-    case LMRemoved ⇒ ()
-    case LMLongValue(toObjId) if dbHas(toObjId, typeAttrId) ⇒ ()
+    case DBRemoved ⇒ ()
+    case DBLongValue(toObjId) if dbHas(toObjId, typeAttrId) ⇒ ()
     case v => fail(objId, s"attr $toAttrId should refer to valid object, but $v found")
   }
   def recalculate(objId: Long) = add(objId)
@@ -84,7 +84,7 @@ case class TypeRefIntegrityPreCommitCheck(typeAttrId: Long, toAttrId: Long)
   def version = UUID.fromString("b2232ecf-734c-4cfa-a88f-78b066a01cd3")
   def affectedByAttrIds = typeAttrId :: Nil
   private def referredBy(objId: Long): List[Long] =
-    indexSearch(toAttrId, new LMLongValue(objId))
+    indexSearch(toAttrId, new DBLongValue(objId))
   protected def checkAll(objIds: Seq[Long]) =
     objIds.flatMap(referredBy).foreach(check)
 }
