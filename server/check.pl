@@ -2,7 +2,7 @@
 use strict;
 use utf8;
 
-my $src_prefix = "src/main/scala/io/github/rewlad/ladler/";
+my $src_prefix = "src/main/scala/ee/cone/base/";
 
 my $check = sub{
     my($in)=@_;

@@ -5,7 +5,7 @@ import ee.cone.base.db.LMTypes._
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
-/*NoGEN*/ trait KeyPrefixMatcher {
+trait KeyPrefixMatcher {
   protected def feed(keyPrefix: LMKey, ks: KeyStatus): Boolean
   protected def execute(tx: RawTx, keyPrefix: LMKey): Unit = {
     tx.seek(keyPrefix)
@@ -16,15 +16,15 @@ import ee.cone.base.db.LMTypes._
   }
 }
 
-/*NoGEN*/ trait IndexSearch {
-  def apply(objId: Long): List[Long]
-  def apply(attrId: Long, value: LMValue): List[Long]
-}
-
-class ImplIndexSearch(tx: RawTx) extends IndexSearch with KeyPrefixMatcher {
-  def apply(objId: Long) = select(LMFact.keyWithoutAttrId(objId))
+class ImplIndexSearch(
+  rawFactConverter: RawFactConverter,
+  rawIndexConverter: RawIndexConverter,
+  matcher: RawKeyMatcher,
+  tx: RawTx
+) extends IndexSearch with KeyPrefixMatcher {
+  def apply(objId: Long) = select(rawFactConverter.keyWithoutAttrId(objId))
   def apply(attrId: Long, value: LMValue) =
-    select(LMIndex.keyWithoutObjId(attrId,value))
+    select(rawIndexConverter.keyWithoutObjId(attrId,value))
   private var result: List[Long] = Nil
   private def select(key: LMKey): List[Long] = {
     result = Nil
@@ -32,21 +32,23 @@ class ImplIndexSearch(tx: RawTx) extends IndexSearch with KeyPrefixMatcher {
     result.reverse
   }
   protected def feed(keyPrefix: LMKey, ks: KeyStatus): Boolean = {
-    if(!LMKey.matchPrefix(keyPrefix, ks.key)){ return false }
-    result = LMKey.lastId(keyPrefix, ks.key) :: result
+    if(!matcher.matchPrefix(keyPrefix, ks.key)){ return false }
+    result = matcher.lastId(keyPrefix, ks.key) :: result
     true
   }
 }
 
-class AllOriginalFactExtractor(to: IndexingTx) extends KeyPrefixMatcher {
+class AllOriginalFactExtractor(
+  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: IndexingTx
+) extends KeyPrefixMatcher {
   private lazy val checkValueSrcId: Option[ValueSrcId⇒Boolean] =
     Some(valueSrcId ⇒ valueSrcId == to.isOriginal)
-  def from(tx: RawTx) = execute(tx, LMFact.keyHeadOnly)
+  def from(tx: RawTx) = execute(tx, rawFactConverter.keyHeadOnly)
   protected def feed(keyPrefix: LMKey, ks: KeyStatus): Boolean = {
-    if(!LMKey.matchPrefix(keyPrefix, ks.key)){ return false }
-    val value = LMFact.valueFromBytes(ks.value, checkValueSrcId)
+    if(!matcher.matchPrefix(keyPrefix, ks.key)){ return false }
+    val value = rawFactConverter.valueFromBytes(ks.value, checkValueSrcId)
     if(value == LMRemoved){ return true }
-    val(objId,attrId) = LMFact.keyFromBytes(ks.key)
+    val(objId,attrId) = rawFactConverter.keyFromBytes(ks.key)
     to.set(objId, attrId, value, to.isOriginal)
     true
   }

@@ -1,20 +1,20 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.util.Never
+import ee.cone.base.util.{UInt, Never}
 import ee.cone.base.db.LMTypes._
 
 import scala.collection.immutable.SortedMap
 
-/*NoGEN*/ class EmptyUnmergedTx extends RawTx {
-  override def set(key: LMKey, value: LMRawValue) = Never()
-  override def get(key: LMKey) = Never()
-  override def peek = NotFoundStatus
-  override def seek(from: LMKey) = ()
-  override def seekNext() = ()
+class EmptyUnmergedTx extends RawTx {
+  def set(key: LMKey, value: LMRawValue) = Never()
+  def get(key: LMKey) = Never()
+  def peek = NotFoundStatus
+  def seek(from: LMKey) = ()
+  def seekNext() = ()
 }
 
-/*NoGEN*/ class NonEmptyUnmergedTx extends RawTx {
+class NonEmptyUnmergedTx extends RawTx {
   var peek: SeekStatus = NotFoundStatus
   var data = SortedMap[LMKey, LMRawValue]()(UnsignedBytesOrdering)
   private var iterator: Iterator[(LMKey, LMRawValue)] = VoidKeyIterator
@@ -75,4 +75,18 @@ class MuxUnmergedTx(var unmerged: RawTx, merged: RawTx) extends RawTx {
 object VoidKeyIterator extends Iterator[(LMKey, LMRawValue)] {
   def hasNext = false
   def next() = Never()
+}
+
+object UnsignedBytesOrdering extends math.Ordering[Array[Byte]] {
+  def compare(a: Array[Byte], b: Array[Byte]): Int = {
+    val default = java.lang.Integer.compare(a.length,b.length)
+    val len = Math.min(a.length,b.length)
+    var i = 0
+    while(i < len){
+      val d = java.lang.Integer.compare(UInt(a,i), UInt(b,i))
+      if(d != 0) return d
+      i += 1
+    }
+    default
+  }
 }

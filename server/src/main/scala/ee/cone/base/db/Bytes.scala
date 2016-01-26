@@ -1,8 +1,107 @@
+
 package ee.cone.base.db
 
-import java.nio.charset.StandardCharsets._
+import java.nio.charset.StandardCharsets.UTF_8
 
-import ee.cone.base.util.{UInt, Never}
+import ee.cone.base.util.{LongFits, UInt, Bytes, Never}
+import ee.cone.base.db.LMTypes._
+
+// converters //////////////////////////////////////////////////////////////////
+
+object RawFactConverterImpl extends RawFactConverter {
+  val `head` = 0L
+  def key(objId: Long, attrId: Long): LMKey =
+    key(objId, attrId, hasObjId=true, hasAttrId=true)
+  def keyWithoutAttrId(objId: Long): LMKey =
+    key(objId, 0, hasObjId=true, hasAttrId=false)
+  def keyHeadOnly: LMKey =
+    key(0, 0, hasObjId=false, hasAttrId=false)
+  private def key(objId: Long, attrId: Long, hasObjId: Boolean, hasAttrId: Boolean): LMKey = {
+    val exHead = LMBytes.toWrite(`head`).at(0)
+    exHead.write(`head`, if(!hasObjId) exHead.alloc(0) else {
+      val exObjId = LMBytes.toWrite(objId).after(exHead)
+      exObjId.write(objId, if(!hasAttrId) exObjId.alloc(0) else {
+        val exAttrId = LMBytes.toWrite(attrId).after(exObjId)
+        exAttrId.write(attrId, exAttrId.alloc(0))
+      })
+    })
+  }
+  def value(value: LMValue, valueSrcId: ValueSrcId): LMRawValue = {
+    if(value == LMRemoved) return Array[Byte]()
+    val exchangeSrcId = LMBytes.toWrite(valueSrcId)
+    val b = RawValueConverter.allocWrite(0,value,exchangeSrcId.size)
+    exchangeSrcId.atTheEndOf(b).write(valueSrcId, b)
+  }
+  def valueFromBytes(b: LMRawValue, check: Option[ValueSrcId⇒Boolean]): LMValue = {
+    if(b.length==0) return LMRemoved
+    val exchangeA = LMBytes.toReadAt(b,0)
+    val exchangeB = LMBytes.toReadAfter(b,exchangeA)
+    val exchangeC = LMBytes.toReadAfter(b,exchangeB).checkIsLastIn(b)
+    if(check.nonEmpty && !check.get(exchangeC.readLong(b))) LMRemoved else exchangeA.head match {
+      case LMBytes.`strHead` if exchangeB.isSplitter => LMStringValue(exchangeA.readString(b))
+      case _ if exchangeB.isSplitter => LMLongValue(exchangeA.readLong(b))
+      case _ => LMLongPairValue(exchangeA.readLong(b), exchangeB.readLong(b))
+    }
+  }
+  def keyFromBytes(key: LMKey): (Long,Long) = {
+    val exHead = LMBytes.toReadAt(key, 0)
+    if(exHead.readLong(key) != `head`) Never()
+    val exObjId = LMBytes.toReadAfter(key, exHead)
+    val exAttrId = LMBytes.toReadAfter(key, exObjId).checkIsLastIn(key)
+    (exObjId.readLong(key), exAttrId.readLong(key))
+  }
+}
+
+object RawIndexConverterImpl extends RawIndexConverter {
+  val `head` = 1L
+  def key(attrId: Long, value: LMValue, objId: Long): LMKey =
+    key(attrId, value, objId, hasObjId=true)
+  def keyWithoutObjId(attrId: Long, value: LMValue): LMKey =
+    key(attrId, value, 0, hasObjId=false)
+  private def key(attrId: Long, value: LMValue, objId: Long, hasObjId: Boolean): LMKey = {
+    val exHead = LMBytes.toWrite(`head`).at(0)
+    val exAttrId = LMBytes.toWrite(attrId).after(exHead)
+    val valuePos = exAttrId.nextPos
+    exHead.write(`head`, exAttrId.write(attrId,if(hasObjId){
+      val absExObjId = LMBytes.toWrite(objId)
+      val res = RawValueConverter.allocWrite(valuePos, value, absExObjId.size)
+      val exObjId = absExObjId.atTheEndOf(res)
+      exObjId.write(objId, res)
+    }else{
+      RawValueConverter.allocWrite(valuePos, value, 0)
+    }))
+  }
+  def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {
+    val value = 1L
+    val exchangeA = LMBytes.toWrite(value).at(0)
+    val b = exchangeA.alloc(0)
+    exchangeA.write(value,b)
+    b
+  }
+}
+
+object RawValueConverter {
+  protected def splitterB(exchangeA: LongByteExchange, spaceAfter: Int): Array[Byte] = {
+    val exchangeB = LMBytes.`splitter`.after(exchangeA)
+    exchangeA.writeHead(exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
+  }
+  def allocWrite(spaceBefore: Int, dbValue: LMValue, spaceAfter: Int): Array[Byte] = dbValue match {
+    case l: LMLongValue =>
+      val exchangeA = LMBytes.toWrite(l.value).at(spaceBefore)
+      exchangeA.write(l.value, splitterB(exchangeA,spaceAfter))
+    case ll: LMLongPairValue =>
+      val exchangeA = LMBytes.toWrite(ll.valueA).at(spaceBefore)
+      val exchangeB = LMBytes.toWrite(ll.valueB).after(exchangeA)
+      exchangeA.write(ll.valueA, exchangeB.write(ll.valueB, exchangeB.alloc(spaceAfter)))
+    case s: LMStringValue =>
+      val src = Bytes(s.value)
+      val exchangeA = LMBytes.toWrite(src).at(spaceBefore)
+      exchangeA.write(src, splitterB(exchangeA,spaceAfter))
+    case _ => Never()
+  }
+}
+
+// matching ////////////////////////////////////////////////////////////////////
 
 object BytesSame {
   def part(a: Array[Byte], b: Array[Byte], len: Int): Boolean = {
@@ -16,32 +115,17 @@ object BytesSame {
   }
 }
 
-object UnsignedBytesOrdering extends math.Ordering[Array[Byte]] {
-  def compare(a: Array[Byte], b: Array[Byte]): Int = {
-    val default = java.lang.Integer.compare(a.length,b.length)
-    val len = Math.min(a.length,b.length)
-    var i = 0
-    while(i < len){
-      val d = java.lang.Integer.compare(UInt(a,i), UInt(b,i))
-      if(d != 0) return d
-      i += 1
-    }
-    default
-  }
+object RawKeyMatcherImpl extends RawKeyMatcher {
+  def matchPrefix(keyPrefix: LMKey, key: LMKey): Boolean =
+    BytesSame.part(keyPrefix, key, keyPrefix.length)
+  def lastId(keyPrefix: LMKey, key: LMKey): Long =
+    LMBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key).readLong(key)
 }
+
+// bytes ///////////////////////////////////////////////////////////////////////
 
 object BytesToBits {
   def apply(v: Int) = java.lang.Byte.SIZE * v
-}
-
-object LongFits {
-  def apply(value: Long, sz: Int, isUnsigned: Boolean, offset: Int): Long = {
-    if (sz <= 0 || sz > java.lang.Long.SIZE) Never()
-    val bitUnSize = java.lang.Long.SIZE - sz // << 64 does not work
-    val touchedValue = if(isUnsigned) (value << bitUnSize) >>> bitUnSize else (value << bitUnSize) >> bitUnSize
-    if (value != touchedValue) Never()
-    value << offset
-  }
 }
 
 object LongByteExchange {
@@ -62,7 +146,7 @@ object LongByteExchange {
   def apply(array: Array[Long], index: Int) = new LongByteExchange(array(index))
 }
 
-/*NoGEN*/ class LongByteExchange private (val value: Long) extends AnyVal {
+class LongByteExchange private (val value: Long) extends AnyVal {
   import LongByteExchange._
 
   private def headMask = 0xFF

@@ -3,21 +3,9 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-object IgnoreValidateFailReaction extends ValidateFailReaction {
-  def apply(objId: Long, comment: String): Unit = ()
-}
-
-object ThrowValidateFailReaction extends ValidateFailReaction {
-  def apply(objId: Long, comment: String): Unit = throw new Exception(s"ObjId: $objId: $comment")
-}
-
-class UniqueAttrCalcFactory(sysAttrCalcFactory: SysAttrCalcFactory){
-  def apply(uniqueAttrId: Long) = UniqueAttrCalc(uniqueAttrId)(sysAttrCalcFactory)
-}
-
 //uniqueAttrId must be indexed
 case class UniqueAttrCalc(uniqueAttrId: Long)
-  (context: SysAttrCalcFactory)
+  (context: SysAttrCalcContext)
   extends AttrCalc with IndexAttrInfo
 {
   import context._
@@ -33,4 +21,3 @@ case class UniqueAttrCalc(uniqueAttrId: Long)
   }
   def attrId: Long = uniqueAttrId
 }
-

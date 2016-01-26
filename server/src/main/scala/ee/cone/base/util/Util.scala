@@ -1,6 +1,7 @@
 package ee.cone.base.util
 
 import java.nio.charset.StandardCharsets.UTF_8
+import java.security.MessageDigest
 
 object Bytes {
   def apply(content: String) = content.getBytes(UTF_8)
@@ -35,6 +36,12 @@ object Never{
   def apply():Nothing = throw new Exception("Never Here")
 }
 
-object UInt {
-  def apply(b: Array[Byte], pos: Int) = b(pos) & 0xFF
+object LongFits {
+  def apply(value: Long, sz: Int, isUnsigned: Boolean, offset: Int): Long = {
+    if (sz <= 0 || sz > java.lang.Long.SIZE) Never()
+    val bitUnSize = java.lang.Long.SIZE - sz // << 64 does not work
+    val touchedValue = if(isUnsigned) (value << bitUnSize) >>> bitUnSize else (value << bitUnSize) >> bitUnSize
+    if (value != touchedValue) Never()
+    value << offset
+  }
 }

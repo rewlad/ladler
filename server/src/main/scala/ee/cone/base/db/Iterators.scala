@@ -14,4 +14,3 @@ class BlockIterator(actorId: Int, iterator: Iterator[Int]) extends Iterator[Long
   def next(): Long = LongMix(actorId, iterator.next())
   def hasNext = iterator.hasNext
 }
-

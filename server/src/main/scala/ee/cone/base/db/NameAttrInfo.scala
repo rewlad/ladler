@@ -1,6 +1,8 @@
 package ee.cone.base.db
 
-import ee.cone.base.util.Never
+import ee.cone.base.util.{LongFits, Never}
+
+import scala.collection.mutable
 
 object AttrIdCompose { // do not use for original facts
   def hexSz = 4
@@ -10,65 +12,36 @@ object AttrIdCompose { // do not use for original facts
       LongFits(b,idSz, isUnsigned = true, 0)
 }
 
-/*NoGEN*/ trait BaseNameAttrInfo extends AttrInfo {
-  def attrId: Long
-  def nameOpt: Option[String]
-}
 case class NoNameAttrInfo(attrId: Long) extends BaseNameAttrInfo {
   def nameOpt = None
 }
-case class NameAttrInfo(attrId: Long, name: String) extends BaseNameAttrInfo {
+
+case class NameAttrInfoImpl(attrId: Long, name: String) extends NameAttrInfo {
   lazy val nameOpt = Some(name)
 }
-case class SearchAttrInfo(
+
+case class SearchAttrInfoImpl(
   labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]
-) extends BaseNameAttrInfo with IndexAttrInfo {
+) extends SearchAttrInfo with IndexAttrInfo {
   def attrId = composedInfo.attrId
   def nameOpt = composedInfo.nameOpt
   private lazy val composedInfo: BaseNameAttrInfo = (labelOpt,propOpt) match {
     case (None,Some(info)) ⇒ info
     case (Some(info),None) ⇒ info
-    case (Some(NameAttrInfo(labelAttrId,_)),Some(NameAttrInfo(propAttrId,_))) ⇒
+    case (Some(NameAttrInfoImpl(labelAttrId,_)),Some(NameAttrInfoImpl(propAttrId,_))) ⇒
       NoNameAttrInfo(AttrIdCompose(labelAttrId,propAttrId))
     case (None,None) ⇒ Never()
   }
   lazy val keyForValue: String = propOpt.orElse(labelOpt).flatMap(_.nameOpt).get
+  def labelAttrId = labelOpt.get.attrId
 }
 
-object RelSideAttrInfoList {
-  def apply(
-    sysAttrCalcFactory: SysAttrCalcFactory,
-    sysPreCommitCheckFactory: SysPreCommitCheckFactory,
-    relSideAttrInfo: List[NameAttrInfo], typeAttrId: Long,
-    relTypeAttrInfo: List[NameAttrInfo]
-  ): List[AttrInfo] = relSideAttrInfo.flatMap{ propInfo ⇒
-    val relComposedAttrInfo =
-      relTypeAttrInfo.map(i⇒SearchAttrInfo(Some(i), Some(propInfo)))
-    val relTypeAttrIdToComposedAttrId =
-      relComposedAttrInfo.map{ i ⇒ i.labelOpt.get.attrId.toString → i.attrId }.toMap
-    val indexedAttrIds = relTypeAttrIdToComposedAttrId.values.toSet
-    val calc = sysAttrCalcFactory.createTypeIndexAttrCalc(
-      typeAttrId, propInfo.attrId,
-      relTypeAttrIdToComposedAttrId, indexedAttrIds
-      //IgnoreValidateFailReaction()
-    )
-    val integrity = sysPreCommitCheckFactory.createRefIntegrityPreCommitCheckList(
-      typeAttrId, propInfo.attrId/*, ThrowValidateFailReaction()*/
-    )
-    calc :: SearchAttrInfo(None, Some(propInfo)) :: relComposedAttrInfo ::: integrity
-
+class PreCommitCalcCollectorImpl extends PreCommitCalcCollector {
+  private var calcList: List[()=>Unit] = Nil
+  def recalculateAll(): Unit = calcList.reverseIterator.foreach(_.apply())
+  def apply(thenDo: Seq[Long]=>Unit): Long=>Unit = {
+    val objIds = mutable.SortedSet[Long]()
+    calcList = (()=>thenDo(objIds.toSeq)) :: calcList
+    objId => objIds += objId
   }
-}
-object LabelPropIndexAttrInfoList {
-  def apply(sysAttrCalcFactory: SysAttrCalcFactory, labelInfo: NameAttrInfo, propInfo: NameAttrInfo): List[AttrInfo] = {
-    val searchInfo = SearchAttrInfo(Some(labelInfo), Some(propInfo))
-    val calc = sysAttrCalcFactory.createLabelIndexAttrCalc(
-      labelInfo.attrId, propInfo.attrId, searchInfo.attrId
-    )
-    calc :: searchInfo :: Nil
-  }
-}
-object LabelIndexAttrInfoList {
-  def apply(labelInfo: NameAttrInfo): List[AttrInfo] =
-    SearchAttrInfo(Some(labelInfo), None) :: Nil
 }
