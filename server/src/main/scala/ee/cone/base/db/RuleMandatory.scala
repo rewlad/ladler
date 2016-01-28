@@ -2,10 +2,10 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-class MutualMandatoryPreCommitCheckList(context: SysPreCommitCheckContext) {
-  def apply(aAttrId: Long, bAttrId: Long): List[AttrCalc] =
-    MandatoryPreCommitCheck(aAttrId, bAttrId)(context) ::
-    MandatoryPreCommitCheck(bAttrId, aAttrId)(context) :: Nil
+class MandatoryPreCommitCheckList(context: SysPreCommitCheckContext) {
+  def apply(condAttrId: Long, mandatoryAttrId: Long, mutual: Boolean): List[AttrCalc] =
+    MandatoryPreCommitCheck(condAttrId, mandatoryAttrId)(context) ::
+      (if(mutual) MandatoryPreCommitCheck(mandatoryAttrId, condAttrId)(context) :: Nil else Nil)
 }
 
 case class MandatoryPreCommitCheck(condAttrId: Long, mandatoryAttrId: Long)

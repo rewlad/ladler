@@ -2,6 +2,10 @@ package ee.cone.base.db
 
 import java.util.UUID
 
+class DeleteAttrCalcList(context: SysAttrCalcContext) {
+  def apply(typeAttrId: Long) = DeleteAttrCalc(typeAttrId)(context) :: Nil
+}
+
 case class DeleteAttrCalc(typeAttrId: Long)(context: SysAttrCalcContext) extends AttrCalc {
   import context._
   private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != DBRemoved

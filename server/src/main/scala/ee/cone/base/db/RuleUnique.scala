@@ -3,6 +3,10 @@ package ee.cone.base.db
 
 import java.util.UUID
 
+class UniqueAttrCalcList(context: SysAttrCalcContext) {
+  def apply(uniqueAttrId: Long) = UniqueAttrCalc(uniqueAttrId)(context) :: Nil
+}
+
 //uniqueAttrId must be indexed
 case class UniqueAttrCalc(uniqueAttrId: Long)
   (context: SysAttrCalcContext)
@@ -16,7 +20,7 @@ case class UniqueAttrCalc(uniqueAttrId: Long)
     if(uniqueValue != DBRemoved) {
       val objIds = indexSearch(uniqueAttrId, uniqueValue)
       if (objIds.length != 1)
-        fail(objId, "uniqueAttr value must be unique!")
+        fail(objId, s"$uniqueAttrId value must be unique!")
     }
   }
   def attrId: Long = uniqueAttrId

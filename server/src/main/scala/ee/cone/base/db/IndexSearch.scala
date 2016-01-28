@@ -16,7 +16,7 @@ trait KeyPrefixMatcher {
   }
 }
 
-class ImplIndexSearch(
+class IndexSearchImpl(
   rawFactConverter: RawFactConverter,
   rawIndexConverter: RawIndexConverter,
   matcher: RawKeyMatcher,

@@ -7,7 +7,7 @@ import ee.cone.base.util.{Bytes, HexDebug, MD5}
 
 import ee.cone.base.db.Types._
 
-class ImplIndexingTx(
+class IndexingTxImpl(
   rawFactConverter: RawFactConverter,
   rawIndexConverter: RawIndexConverter,
   tx: RawTx,

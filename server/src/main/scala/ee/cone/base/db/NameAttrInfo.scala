@@ -20,6 +20,11 @@ case class NameAttrInfoImpl(attrId: Long, name: String) extends NameAttrInfo {
   lazy val nameOpt = Some(name)
 }
 
+object SearchAttrInfoFactoryImpl extends SearchAttrInfoFactory {
+  def apply(labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]) =
+    SearchAttrInfoImpl(labelOpt, propOpt)
+}
+
 case class SearchAttrInfoImpl(
   labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]
 ) extends SearchAttrInfo with IndexAttrInfo {
