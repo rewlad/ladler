@@ -2,6 +2,10 @@ package ee.cone.base.test_react
 
 import java.nio.file.Paths
 
+import ee.cone.base.connection_api.ReceivedMessage
+import ee.cone.base.server._
+import ee.cone.base.vdom._
+
 trait Model
 trait View {
   def modelVersion: String

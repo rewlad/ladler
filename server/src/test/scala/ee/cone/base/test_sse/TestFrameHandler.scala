@@ -1,5 +1,8 @@
 package ee.cone.base.test_sse
 
+import ee.cone.base.connection_api.ReceivedMessage
+import ee.cone.base.server._
+
 class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
   private var prevTime: Long = 0L
   def frame(messageOption: Option[ReceivedMessage]): Unit = {

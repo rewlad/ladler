@@ -2,7 +2,8 @@ package ee.cone.base.test_sse
 
 import java.nio.file.Paths
 
-import ee.cone.base.test_sse.TestFrameHandler
+import ee.cone.base.server.{SenderOfConnection, SSEHttpServer}
+
 
 object TestApp extends App {
   val server = new SSEHttpServer {

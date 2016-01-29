@@ -9,6 +9,6 @@ npm install
 
 
 cd server
-PATH=/web/_data/jdk/bin:$PATH sbt 'test:runMain io.github.rewlad.ladler.test_sse.TestApp'
-PATH=/web/_data/jdk/bin:$PATH sbt 'test:runMain io.github.rewlad.ladler.test_react.TestApp'
+PATH=/web/_data/jdk/bin:$PATH sbt 'test:runMain ee.cone.base.test_sse.TestApp'
+PATH=/web/_data/jdk/bin:$PATH sbt 'test:runMain ee.cone.base.test_react.TestApp'
 ```

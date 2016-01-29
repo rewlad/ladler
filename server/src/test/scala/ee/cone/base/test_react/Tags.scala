@@ -1,5 +1,9 @@
 package ee.cone.base.test_react
 
+import ee.cone.base.connection_api._
+import ee.cone.base.util.Never
+import ee.cone.base.vdom._
+
 
 abstract class SimpleElement extends ElementValue {
   def appendJsonAttributes(builder: JsonBuilder) = ()
