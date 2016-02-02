@@ -29,19 +29,28 @@ class VersionObserver {
   }
 }
 
-object Dispatch {
+class Dispatch {
+  var vDom: Value = WasNoValue
+  var hashForView = ""
   private def find(value: Value, path: List[String]): Option[Value] =
     if(path.isEmpty) Some(value) else Some(value).collect{
       case m: MapValue => m.pairs.collectFirst{
         case pair if pair.jsonKey == path.head => find(pair.value, path.tail)
       }.flatten
     }.flatten
-  def apply(vDom: Value, messageOption: Option[ReceivedMessage]) =
-    for(message <- messageOption; path <- message.value.get("X-r-vdom-path")){
+  def apply(messageOption: Option[ReceivedMessage]) = {
+    for(message <- messageOption; path <- message.value.get("X-r-vdom-path")) {
       println(s"path ($path)")
       val "" :: parts = path.split("/").toList
-      find(vDom, parts).collect{ case v: MessageHandler => v }
+      find(vDom, parts).collect { case v: MessageHandler => v }
         .getOrElse(throw new Exception(s"path ($path) was not found in ($vDom) "))
         .handleMessage(message)
+      vDom = WasNoValue
     }
+    for(message <- messageOption; hash <- message.value.get("X-r-location-hash"))
+      if(hash != hashForView) {
+        hashForView = hash
+        vDom = WasNoValue
+      }
+  }
 }

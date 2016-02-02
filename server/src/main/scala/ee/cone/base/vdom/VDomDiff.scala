@@ -13,8 +13,8 @@ object WasNoValue extends Value {
 
 class DiffImpl(createMapValue: List[VPair]=>MapValue) extends Diff {
   var prevVDom: Value = WasNoValue
-  def diff(vDom: Value): Option[MapValue] =
-    Setup(diff(prevVDom, vDom)){ _ => prevVDom = vDom }
+  def diff(vDom: Value): Option[MapValue] = if(prevVDom eq vDom) None
+    else Setup(diff(prevVDom, vDom)){ _ => prevVDom = vDom }
   private def set(value: Value) = Some(createMapValue(DoSetPair(value)::Nil))
   def diff(prevValue: Value, currValue: Value): Option[MapValue] = prevValue match {
     case p: MapValue => currValue match {

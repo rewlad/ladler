@@ -16,7 +16,7 @@ trait AttrCalc extends AttrInfo {
   def affectedByAttrIds: List[Long]
 }
 
-trait RawTx {
+trait RawIndex {
   def set(key: RawKey, value: RawValue): Unit
   def get(key: RawKey): RawValue
   def seekNext(): Unit

@@ -27,10 +27,11 @@ class IndexView extends View {
 class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends FrameHandler {
   private lazy val modelChanged = new VersionObserver
   private lazy val diff = new DiffImpl(MapValueImpl)
+  private lazy val dispatch = new Dispatch
   private var hashForView = ""
 
   def frame(messageOption: Option[ReceivedMessage]): Unit = {
-    Dispatch(diff.prevVDom, messageOption)
+    dispatch(messageOption)
     for(message <- messageOption; hash <- message.value.get("X-r-location-hash"))
       hashForView = hash
     val view = hashForView match {
@@ -39,7 +40,8 @@ class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends 
       case _  => new IndexView
     }
     modelChanged(view.modelVersion){
-      diff.diff(view.generateDom).foreach(d=>sender.send("showDiff", JsonToString(d)))
+      dispatch.vDom = view.generateDom
+      diff.diff(dispatch.vDom).foreach(d=>sender.send("showDiff", JsonToString(d)))
     }
   }
 }

@@ -1,29 +1,42 @@
 package ee.cone.base.db
 
-class DefaultMixedTx(rawTx: RawTx/*T*/, attrInfoList: List[AttrInfo]) {
-  lazy val lazyAttrInfoList = attrInfoList
-  //lazy val attrCalcExecutor = new AttrCalcExecutor(lazyAttrInfoList)
-  lazy val attrCalcInfo = new AttrInfoRegistry(lazyAttrInfoList)
+class MixedInnerIndex(
+  factHead: Long, indexHead: Long, rawIndex: RawIndex/*T*/, indexed: Long=>Boolean
+){
+  lazy val rawFactConverter = new RawFactConverterImpl(factHead, 0/*T:valueSrcId*/)
+  private lazy val rawIndexConverter = new RawIndexConverterImpl(indexHead)
+  lazy val innerIndex =
+    new InnerIndex(rawFactConverter, rawIndexConverter, rawIndex, indexed)
+  lazy val indexSearch =
+    new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
+}
 
-  private lazy val valueSrcId = 0/*T*/
-  private lazy val rawFactConverter = new RawFactConverterImpl(0L, valueSrcId)
-  private lazy val rawIndexConverter = new RawIndexConverterImpl(1L)
+class MixedUnmergedEventDBContext(rawIndex: RawIndex, indexed: Long=>Boolean){
+  private lazy val eventInnerIndex =
+    new MixedInnerIndex(0L, 1L, rawIndex, indexed)
+  lazy val eventIndex =
+    new AppendOnlyIndex(eventInnerIndex.innerIndex)
+
+}
+
+class MixedReadModelContext(attrInfoList: =>List[AttrInfo], rawIndex: RawIndex) {
+  private lazy val lazyAttrInfoList = attrInfoList
+  private lazy val attrCalcExecutor = new AttrCalcExecutor(lazyAttrInfoList)
+  private lazy val attrCalcInfo = new AttrInfoRegistry(lazyAttrInfoList)
+
+  /*private lazy val muxIndex =
+    new MuxUnmergedIndex(new EmptyUnmergedIndex, rawIndex)*/
   private lazy val innerIndex =
-    new InnerIndex(rawFactConverter, rawIndexConverter, rawTx, attrCalcInfo.indexed)
-  private lazy val index = new AppendOnlyIndex(innerIndex)
-  private lazy val indexSearch =
-    new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawTx)
-
-
-
+    new MixedInnerIndex(2L, 3L, rawIndex, attrCalcInfo.indexed)
+  private lazy val index =
+    new RewritableTriggeringIndex(innerIndex.innerIndex, attrCalcExecutor)
 
   private lazy val preCommitCalcCollector = new PreCommitCalcCollectorImpl
   private lazy val sysAttrCalcContext =
-    new SysAttrCalcContext(index, indexSearch, ThrowValidateFailReaction/*IgnoreValidateFailReaction*/)
+    new SysAttrCalcContext(index, innerIndex.indexSearch, ThrowValidateFailReaction/*IgnoreValidateFailReaction*/)
   private lazy val sysPreCommitCheckContext =
-    new SysPreCommitCheckContext(index, indexSearch, preCommitCalcCollector, ThrowValidateFailReaction)
-  lazy val labelIndexAttrInfoList =
-    new LabelIndexAttrInfoList(SearchAttrInfoFactoryImpl)
+    new SysPreCommitCheckContext(index, innerIndex.indexSearch, preCommitCalcCollector, ThrowValidateFailReaction)
+  lazy val labelIndexAttrInfoList = new LabelIndexAttrInfoList(SearchAttrInfoFactoryImpl)
   lazy val labelPropIndexAttrInfoList =
     new LabelPropIndexAttrInfoList(sysAttrCalcContext, SearchAttrInfoFactoryImpl)
   lazy val relSideAttrInfoList =

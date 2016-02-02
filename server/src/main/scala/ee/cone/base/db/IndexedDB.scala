@@ -6,7 +6,7 @@ import ee.cone.base.util.{Never, Bytes, MD5}
 class InnerIndex(
   rawFactConverter: RawFactConverter,
   rawIndexConverter: RawIndexConverter,
-  tx: RawTx,
+  tx: RawIndex,
   indexed: Long=>Boolean
 ) extends Index {
   def update(objId: Long, attrId: Long, value: DBValue, on: Boolean): Unit =

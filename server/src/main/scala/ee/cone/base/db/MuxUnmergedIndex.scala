@@ -6,7 +6,7 @@ import ee.cone.base.db.Types._
 
 import scala.collection.immutable.SortedMap
 
-class EmptyUnmergedTx extends RawTx {
+class EmptyUnmergedIndex extends RawIndex {
   def set(key: RawKey, value: RawValue) = Never()
   def get(key: RawKey) = Never()
   def peek = NotFoundStatus
@@ -14,7 +14,7 @@ class EmptyUnmergedTx extends RawTx {
   def seekNext() = ()
 }
 
-class NonEmptyUnmergedTx extends RawTx {
+class NonEmptyUnmergedIndex extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
   var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
   private var iterator: Iterator[(RawKey, RawValue)] = VoidKeyIterator
@@ -31,16 +31,16 @@ class NonEmptyUnmergedTx extends RawTx {
   }
 }
 
-class MuxUnmergedTx(var unmerged: RawTx, merged: RawTx) extends RawTx {
+class MuxUnmergedIndex(var unmerged: RawIndex, merged: RawIndex) extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
   def get(key: RawKey): RawValue = unmerged match {
-    case tx: NonEmptyUnmergedTx ⇒ tx.data.getOrElse(key,merged.get(key))
+    case tx: NonEmptyUnmergedIndex ⇒ tx.data.getOrElse(key,merged.get(key))
     case _ ⇒ merged.get(key)
   }
   def set(key: RawKey, value: RawValue): Unit = {
     unmerged match {
-      case tx: NonEmptyUnmergedTx ⇒ ()
-      case _ ⇒ unmerged = new NonEmptyUnmergedTx
+      case tx: NonEmptyUnmergedIndex ⇒ ()
+      case _ ⇒ unmerged = new NonEmptyUnmergedIndex
     }
     unmerged.set(key, value)
   }
@@ -49,7 +49,7 @@ class MuxUnmergedTx(var unmerged: RawTx, merged: RawTx) extends RawTx {
     val d = java.lang.Boolean.compare(!a.isInstanceOf[KeyStatus], !b.isInstanceOf[KeyStatus])
     if(d==0) UnsignedBytesOrdering.compare(a.key, b.key) else d
   }
-  private def skipSame(tx: RawTx) = tx.peek match {
+  private def skipSame(tx: RawIndex) = tx.peek match {
     case p: KeyStatus if compare(peek, p)==0 ⇒ tx.seekNext()
     case _ ⇒ ()
   }

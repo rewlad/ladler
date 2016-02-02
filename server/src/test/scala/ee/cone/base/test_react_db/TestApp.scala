@@ -5,7 +5,7 @@ import java.nio.file.Paths
 import scala.collection.immutable.SortedMap
 
 import ee.cone.base.connection_api.ReceivedMessage
-import ee.cone.base.db.{RawTx, UnsignedBytesOrdering, NonEmptyUnmergedTx}
+import ee.cone.base.db.{RawIndex, UnsignedBytesOrdering, NonEmptyUnmergedIndex}
 import ee.cone.base.db.Types.{RawValue, RawKey}
 import ee.cone.base.server._
 import ee.cone.base.vdom._
@@ -36,32 +36,43 @@ class TestFrameHandler(
 ) extends FrameHandler {
   //private lazy val modelChanged = new VersionObserver
   private lazy val diff = new DiffImpl(MapValueImpl)
-  //private var hashForView = ""
+  private lazy val dispatch = new Dispatch
+  private lazy val periodicRedraw = new OncePer(1000, redraw)
 
-
+  def redraw(): Unit = {/*
+    if(unmergedReadModelIndex.nonEmpty && unmergedReadModelIndex.get.baseVersion < sharedIndex.version)
+      unmergedReadModelIndex = None
+    */
+  }
 
   def frame(messageOption: Option[ReceivedMessage]): Unit = {
-    Dispatch(diff.prevVDom, messageOption)
+    dispatch(messageOption) // can reset full context
+    if(dispatch.vDom == WasNoValue) redraw() else periodicRedraw() // ?dispatch.vDom if fail?
+    diff.diff(dispatch.vDom)
+      .foreach(d => sender.send("showDiff", JsonToString(d)))
+  }
+}
+
     /*
-    for(message <- messageOption; hash <- message.value.get("X-r-location-hash"))
-      hashForView = hash
+
     val view = hashForView match {
       case "big" => new BigView(models)
       case "interactive" => new InteractiveView(models)
       case _  => new IndexView
     }
     modelChanged(view.modelVersion){
-      diff.diff(view.generateDom).foreach(d=>sender.send("showDiff", JsonToString(d)))
+      dispatch.vDom = view.generateDom
+
     }*/
-  }
-}
+
+
 
 
 
 class TestEnv {
   var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
-  def withTx[T](rw: Boolean)(f: RawTx=>T):T = {
-    val tx = new NonEmptyUnmergedTx
+  def withTx[T](rw: Boolean)(f: RawIndex=>T):T = {
+    val tx = new NonEmptyUnmergedIndex
     if(rw){
       data.synchronized{
         tx.data = data

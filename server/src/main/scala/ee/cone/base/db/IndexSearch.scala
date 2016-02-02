@@ -7,7 +7,7 @@ import ee.cone.base.db.Types._
 
 trait KeyPrefixMatcher {
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean
-  protected def execute(tx: RawTx, keyPrefix: RawKey): Unit = {
+  protected def execute(tx: RawIndex, keyPrefix: RawKey): Unit = {
     tx.seek(keyPrefix)
     while(tx.peek match {
       case ks: KeyStatus if feed(keyPrefix, ks) ⇒ tx.seekNext(); true
@@ -16,11 +16,27 @@ trait KeyPrefixMatcher {
   }
 }
 
-class IndexSearchImpl(
+/*
+class InnerIndexSearch(
   rawFactConverter: RawFactConverter,
   rawIndexConverter: RawIndexConverter,
   matcher: RawKeyMatcher,
   tx: RawTx
+) {
+  private var selectKey = Array[Byte]()
+  private def seek(key: RawKey) = { selectKey = key; tx.seek(key) }
+  def seek(): Unit = seek(rawFactConverter.keyHeadOnly)
+  def seek(objId: Long): Unit = seek(rawFactConverter.keyWithoutAttrId(objId))
+  def seek(attrId: Long, value: DBValue): Unit =
+    seek(rawIndexConverter.keyWithoutObjId(attrId,value))
+}
+*/
+
+class IndexSearchImpl(
+  rawFactConverter: RawFactConverter,
+  rawIndexConverter: RawIndexConverter,
+  matcher: RawKeyMatcher,
+  tx: RawIndex
 ) extends IndexSearch with KeyPrefixMatcher {
   def apply(objId: Long) = select(rawFactConverter.keyWithoutAttrId(objId))
   def apply(attrId: Long, value: DBValue) =
@@ -41,7 +57,7 @@ class IndexSearchImpl(
 class AllOriginalFactExtractor(
   rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: Index
 ) extends KeyPrefixMatcher {
-  def from(tx: RawTx) = execute(tx, rawFactConverter.keyHeadOnly)
+  def from(tx: RawIndex) = execute(tx, rawFactConverter.keyHeadOnly)
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
     if(!matcher.matchPrefix(keyPrefix, ks.key)){ return false }
     val(objId,attrId) = rawFactConverter.keyFromBytes(ks.key)
