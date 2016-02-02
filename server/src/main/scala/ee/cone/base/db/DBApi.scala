@@ -7,7 +7,6 @@ import ee.cone.base.db.Types._
 object Types {
   type RawKey = Array[Byte]
   type RawValue = Array[Byte]
-  type ValueSrcId = Long
 }
 
 trait AttrInfo
@@ -44,11 +43,9 @@ trait IndexSearch {
   def apply(attrId: Long, value: DBValue): List[Long]
 }
 
-trait IndexingTx {
+trait Index {
   def apply(objId: Long, attrId: Long): DBValue
   def update(objId: Long, attrId: Long, value: DBValue): Unit
-  def isOriginal = 1L
-  def set(objId: Long, attrId: Long, value: DBValue, valueSrcId: ValueSrcId): Boolean
 }
 
 // DDL
@@ -71,7 +68,7 @@ trait SearchAttrInfoFactory {
 }
 
 class SysAttrCalcContext (
-  val db: IndexingTx,
+  val db: Index,
   val indexSearch: IndexSearch,
   val fail: ValidateFailReaction // fail'll probably do nothing in case of outdated rel type
 )
@@ -81,7 +78,7 @@ trait PreCommitCalcCollector {
   def apply(thenDo: Seq[Long]=>Unit): Long=>Unit
 }
 class SysPreCommitCheckContext(
-  val db: IndexingTx,
+  val db: Index,
   val indexSearch: IndexSearch,
   val preCommitCalcCollector: PreCommitCalcCollector,
   val fail: ValidateFailReaction
@@ -93,8 +90,8 @@ trait RawFactConverter {
   def key(objId: Long, attrId: Long): RawKey
   def keyWithoutAttrId(objId: Long): RawKey
   def keyHeadOnly: RawKey
-  def value(value: DBValue, valueSrcId: ValueSrcId): RawValue
-  def valueFromBytes(b: RawValue, check: Option[ValueSrcId⇒Boolean]): DBValue
+  def value(value: DBValue): RawValue
+  def valueFromBytes(b: RawValue): DBValue
   def keyFromBytes(key: RawKey): (Long,Long)
 }
 trait RawIndexConverter {

@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.util.{LongFits, Never}
+import ee.cone.base.util.{Bytes, MD5, LongFits, Never}
 
 import scala.collection.mutable
 
@@ -50,3 +50,33 @@ class PreCommitCalcCollectorImpl extends PreCommitCalcCollector {
     objId => objIds += objId
   }
 }
+
+////
+
+class AttrInfoRegistry(attrInfoList: List[AttrInfo]) {
+  lazy val indexed: Set[Long] =
+    attrInfoList.collect { case i: IndexAttrInfo ⇒ i.attrId }.toSet
+  lazy val version = MD5(Bytes(attrInfoList.collect {
+    case i: IndexAttrInfo ⇒
+      //println(s"ai: ${i.attrId.toString}")
+      i.attrId.toString
+    case i: AttrCalc ⇒
+      //println(s"acc:${i.version}:$i")
+      s"${i.version}:$i"
+  }.sorted.mkString(",")))
+}
+
+/*
+case class ExtractedFact(objId: Long, attrId: Long, value: DBValue)
+class Replay(db: IndexingTx) {
+  private lazy val changedOriginalSet = mutable.SortedSet[(Long,Long)]()
+  def set(facts: List[ExtractedFact]): Unit =
+    facts.foreach(fact⇒set(fact.objId, fact.attrId, fact.value))
+  def set(objId: Long, attrId: Long, value: DBValue): Unit =
+    if(db.set(objId, attrId, value, db.isOriginal))
+      changedOriginalSet += ((objId,attrId))
+  def changedOriginalFacts: List[ExtractedFact] = changedOriginalSet.map{
+    case (objId, attrId) ⇒ ExtractedFact(objId, attrId, db(objId, attrId))
+  }.toList
+}
+*/

@@ -21,9 +21,9 @@ object Hex {
   }
 }
 
-object HexDebug {
+/*object HexDebug {
   def apply(i: Long) = "0x%04x".format(i)
-}
+}*/
 
 object MD5 {
   def apply(bytes: Array[Byte]): String = Hex(MessageDigest.getInstance("MD5").digest(bytes))

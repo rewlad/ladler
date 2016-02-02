@@ -39,17 +39,13 @@ class IndexSearchImpl(
 }
 
 class AllOriginalFactExtractor(
-  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: IndexingTx
+  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: Index
 ) extends KeyPrefixMatcher {
-  private lazy val checkValueSrcId: Option[ValueSrcId⇒Boolean] =
-    Some(valueSrcId ⇒ valueSrcId == to.isOriginal)
   def from(tx: RawTx) = execute(tx, rawFactConverter.keyHeadOnly)
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
     if(!matcher.matchPrefix(keyPrefix, ks.key)){ return false }
-    val value = rawFactConverter.valueFromBytes(ks.value, checkValueSrcId)
-    if(value == DBRemoved){ return true }
     val(objId,attrId) = rawFactConverter.keyFromBytes(ks.key)
-    to.set(objId, attrId, value, to.isOriginal)
+    to(objId, attrId) = rawFactConverter.valueFromBytes(ks.value) // original
     true
   }
 }
