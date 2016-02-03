@@ -38,8 +38,8 @@ class Dispatch {
         case pair if pair.jsonKey == path.head => find(pair.value, path.tail)
       }.flatten
     }.flatten
-  def apply(messageOption: Option[ReceivedMessage]) = {
-    for(message <- messageOption; path <- message.value.get("X-r-vdom-path")) {
+  def apply(message: ReceivedMessage) = {
+    for(path <- message.value.get("X-r-vdom-path")) {
       println(s"path ($path)")
       val "" :: parts = path.split("/").toList
       find(vDom, parts).collect { case v: MessageHandler => v }
@@ -47,10 +47,9 @@ class Dispatch {
         .handleMessage(message)
       vDom = WasNoValue
     }
-    for(message <- messageOption; hash <- message.value.get("X-r-location-hash"))
-      if(hash != hashForView) {
-        hashForView = hash
-        vDom = WasNoValue
-      }
+    for(hash <- message.value.get("X-r-location-hash") if hash != hashForView) {
+      hashForView = hash
+      vDom = WasNoValue
+    }
   }
 }

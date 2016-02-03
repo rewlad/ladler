@@ -18,8 +18,11 @@ class ReceiverOfConnectionImpl(lifeTime: LifeCycle, registry: ConnectionRegistry
   }
 
   private lazy val incoming = new util.ArrayDeque[ReceivedMessage]
-  def poll(): Option[ReceivedMessage] =
-    incoming.synchronized(Option(incoming.poll()))
+  private def pollInner(): List[ReceivedMessage] = Option(incoming.poll()) match {
+    case None => Nil
+    case Some(m) => m :: pollInner()
+  }
+  def poll(): List[ReceivedMessage] = incoming.synchronized(pollInner())
   def add(message: ReceivedMessage) =
     incoming.synchronized(incoming.add(message))
 }

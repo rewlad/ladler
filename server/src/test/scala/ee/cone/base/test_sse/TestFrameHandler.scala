@@ -5,7 +5,7 @@ import ee.cone.base.server._
 
 class TestFrameHandler(sender: SenderOfConnection) extends FrameHandler {
   private var prevTime: Long = 0L
-  def frame(messageOption: Option[ReceivedMessage]): Unit = {
+  def frame(messages: List[ReceivedMessage]): Unit = {
     if(true){
       val time: Long = System.currentTimeMillis
       sender.send("show",s"$time")

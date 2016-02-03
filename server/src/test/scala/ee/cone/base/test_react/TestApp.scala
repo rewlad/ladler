@@ -30,10 +30,12 @@ class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends 
   private lazy val dispatch = new Dispatch
   private var hashForView = ""
 
-  def frame(messageOption: Option[ReceivedMessage]): Unit = {
-    dispatch(messageOption)
-    for(message <- messageOption; hash <- message.value.get("X-r-location-hash"))
-      hashForView = hash
+  def frame(messages: List[ReceivedMessage]): Unit = {
+    for(message <- messages){
+      dispatch(message)
+      for(hash <- message.value.get("X-r-location-hash")) hashForView = hash
+    }
+
     val view = hashForView match {
       case "big" => new BigView(models)
       case "interactive" => new InteractiveView(models)

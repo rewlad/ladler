@@ -29,6 +29,15 @@ class IndexView extends View {
   }
 }
 */
+
+class AAA {
+  def get = """<a></a>"""
+  classOf[AAA].getName
+}
+
+
+
+
 class TestFrameHandler(
   sender: SenderOfConnection,
   unmergedEventDB: TestEnv,
@@ -45,8 +54,8 @@ class TestFrameHandler(
     */
   }
 
-  def frame(messageOption: Option[ReceivedMessage]): Unit = {
-    dispatch(messageOption) // can reset full context
+  def frame(messages: List[ReceivedMessage]): Unit = {
+    for(message <- messages) dispatch(message) // can reset full context
     if(dispatch.vDom == WasNoValue) redraw() else periodicRedraw() // ?dispatch.vDom if fail?
     diff.diff(dispatch.vDom)
       .foreach(d => sender.send("showDiff", JsonToString(d)))

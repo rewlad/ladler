@@ -4,6 +4,8 @@ import java.net.Socket
 import java.nio.file.Path
 import java.util.concurrent.Executors
 
+import ee.cone.base.connection_api.ReceivedMessage
+
 abstract class SSEHttpServer {
   def httpPort: Int
   def threadCount: Int
@@ -21,9 +23,9 @@ abstract class SSEHttpServer {
     val keepAlive = new KeepAlive(receiver, sender)
     val frameHandler = createFrameHandlerOfConnection(sender)
     def handleFrame() = {
-      val messageOption = receiver.poll()
-      keepAlive.frame(messageOption)
-      frameHandler.frame(messageOption)
+      val messages = receiver.poll()
+      keepAlive.frame(messages)
+      frameHandler.frame(messages)
     }
     val generator =
       new FrameGenerator(lifeTime, receiver, pool, framePeriod, purgePeriod, handleFrame)

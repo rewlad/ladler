@@ -8,11 +8,11 @@ trait SenderOfConnection {
 
 trait ReceiverOfConnection {
   def connectionKey: String
-  def poll(): Option[ReceivedMessage]
+  def poll(): List[ReceivedMessage]
 }
 
 trait FrameHandler {
-  def frame(messageOption: Option[ReceivedMessage]): Unit
+  def frame(messages: List[ReceivedMessage]): Unit
 }
 
 trait LifeCycle {

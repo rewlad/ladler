@@ -29,8 +29,8 @@ class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) exte
     sender.send(command,receiver.connectionKey)
     status = WaitingPingStatus
   })
-  def frame(messageOption: Option[ReceivedMessage]) = {
-    messageOption.foreach{ message =>
+  def frame(messages: List[ReceivedMessage]) = {
+    messages.foreach{ message =>
       if(ActionOf(message) == "pong")
         status = OKPingStatus(message.value("X-r-session"))
     }
