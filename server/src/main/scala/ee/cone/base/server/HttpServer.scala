@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 import java.nio.file.{Path, Files}
 import java.util.concurrent.Executor
 import com.sun.net.httpserver.{HttpServer, HttpExchange, HttpHandler}
-import ee.cone.base.connection_api.ReceivedMessage
+import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.util.{Single, Trace}
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
@@ -23,7 +23,7 @@ class StaticHandler(staticRoot: Path) extends HttpHandler {
 class ConnectionHandler(connectionRegistry: ConnectionRegistry) extends HttpHandler {
   def handle(httpExchange: HttpExchange) = Trace{ try {
     val message =
-      ReceivedMessage(httpExchange.getRequestHeaders.asScala.mapValues(l=>Single(l.asScala.toList)).toMap)
+      DictMessage(httpExchange.getRequestHeaders.asScala.mapValues(l=>Single(l.asScala.toList)).toMap)
     connectionRegistry.send(message)
     httpExchange.sendResponseHeaders(200, 0)
   } finally httpExchange.close() }

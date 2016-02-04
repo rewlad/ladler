@@ -4,7 +4,7 @@ import java.net.Socket
 import java.nio.file.Path
 import java.util.concurrent.Executors
 
-import ee.cone.base.connection_api.ReceivedMessage
+import ee.cone.base.connection_api.Message
 
 abstract class SSEHttpServer {
   def httpPort: Int
@@ -14,21 +14,18 @@ abstract class SSEHttpServer {
   def ssePort: Int
   def framePeriod: Long
   def purgePeriod: Long
-  def createFrameHandlerOfConnection(sender: SenderOfConnection): FrameHandler
+  def createMessageReceiverOfConnection(sender: SenderOfConnection): ReceiverOf[Message]
 
   private def createConnection(socket: Socket): Unit = {
     val lifeTime = new LifeCycleImpl()
     val receiver = new ReceiverOfConnectionImpl(lifeTime, connectionRegistry)
     val sender = new SSESender(lifeTime, allowOrigin, socket)
     val keepAlive = new KeepAlive(receiver, sender)
-    val frameHandler = createFrameHandlerOfConnection(sender)
-    def handleFrame() = {
-      val messages = receiver.poll()
-      keepAlive.frame(messages)
-      frameHandler.frame(messages)
-    }
+    val frameHandler = createMessageReceiverOfConnection(sender)
+    val transmitter =
+      new ActivateReceivers(receiver, keepAlive :: frameHandler :: Nil)
     val generator =
-      new FrameGenerator(lifeTime, receiver, pool, framePeriod, purgePeriod, handleFrame)
+      new FrameGenerator(lifeTime, pool, framePeriod, purgePeriod, transmitter)
     lifeTime.open()
     lifeTime.setup(socket)(_.close())
     generator.started

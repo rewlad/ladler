@@ -14,7 +14,7 @@ object TableElement extends SimpleElement { def elementType = "table" }
 object TrElement extends SimpleElement { def elementType = "tr" }
 object TdElement extends SimpleElement { def elementType = "td" }
 
-abstract class ButtonElement extends ElementValue with MessageHandler {
+abstract class ButtonElement extends ElementValue with MessageTransformer {
   def elementType = "input"
   def caption: String
   def onClick(): Unit
@@ -23,8 +23,8 @@ abstract class ButtonElement extends ElementValue with MessageHandler {
     .append("value").append(caption)
     .append("onClick").append("send")
 
-  def handleMessage(message: ReceivedMessage) = ActionOf(message) match {
-    case "click" => onClick()
+  def receive = {
+    case OnClick() => onClick()
   }
 }
 case class VoidButtonElement(caption: String) extends ButtonElement {
@@ -35,15 +35,14 @@ case class ResetButtonElement(prop: StrProp) extends ButtonElement {
   def onClick() = prop.set("")
 }
 
-case class InputTextElement(value: String, prop: StrProp, deferSend: Boolean) extends ElementValue with MessageHandler {
+case class InputTextElement(value: String, prop: StrProp, deferSend: Boolean) extends ElementValue with MessageTransformer {
   def elementType = "input"
   def appendJsonAttributes(builder: JsonBuilder) = {
     builder.append("type").append("text")
     Input.appendJsonAttributes(builder, value, deferSend)
   }
-  def onChange(value: String): Unit = prop.set(value)
-  def handleMessage(message: ReceivedMessage) = ActionOf(message) match {
-    case "change" => onChange(Input.changedValue(message))
+  def transformMessage = {
+    case OnChange(v) => //prop.set(v)
     case _ => Never()
   }
 }

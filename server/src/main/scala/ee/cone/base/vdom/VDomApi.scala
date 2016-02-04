@@ -1,6 +1,6 @@
 package ee.cone.base.vdom
 
-import ee.cone.base.connection_api.ReceivedMessage
+import ee.cone.base.connection_api.Message
 
 trait JsonBuilder {
   def startArray(): JsonBuilder
@@ -28,8 +28,4 @@ trait MapValue extends Value {
 
 trait Diff {
   def diff(prevValue: Value, currValue: Value): Option[MapValue]
-}
-
-trait MessageHandler {
-  def handleMessage(message: ReceivedMessage): Unit
 }

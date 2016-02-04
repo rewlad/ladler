@@ -1,6 +1,6 @@
 package ee.cone.base.server
 
-import ee.cone.base.connection_api.ReceivedMessage
+import ee.cone.base.connection_api.{Message, DictMessage}
 
 trait SenderOfConnection {
   def send(event: String, data: String): Unit
@@ -8,11 +8,6 @@ trait SenderOfConnection {
 
 trait ReceiverOfConnection {
   def connectionKey: String
-  def poll(): List[ReceivedMessage]
-}
-
-trait FrameHandler {
-  def frame(messages: List[ReceivedMessage]): Unit
 }
 
 trait LifeCycle {
@@ -22,5 +17,9 @@ trait LifeCycle {
 }
 
 trait ConnectionRegistry {
-  def send(bnd: ReceivedMessage): Unit
+  def send(bnd: DictMessage): Unit
 }
+
+case object PeriodicMessage extends Message
+
+trait ReceiverOf[M] { def receive: PartialFunction[M,Unit] }

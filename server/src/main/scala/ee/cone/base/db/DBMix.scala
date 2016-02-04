@@ -1,5 +1,5 @@
 package ee.cone.base.db
-
+/*
 class MixedInnerIndex(
   factHead: Long, indexHead: Long, rawIndex: RawIndex/*T*/, indexed: Long=>Boolean
 ){
@@ -7,8 +7,8 @@ class MixedInnerIndex(
   private lazy val rawIndexConverter = new RawIndexConverterImpl(indexHead)
   lazy val innerIndex =
     new InnerIndex(rawFactConverter, rawIndexConverter, rawIndex, indexed)
-  lazy val indexSearch =
-    new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
+  /*lazy val indexSearch =
+    new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)*/
 }
 
 class MixedUnmergedEventDBContext(rawIndex: RawIndex, indexed: Long=>Boolean){
@@ -46,6 +46,7 @@ class MixedReadModelContext(attrInfoList: =>List[AttrInfo], rawIndex: RawIndex) 
   lazy val uniqueAttrCalcList = new UniqueAttrCalcList(sysAttrCalcContext)
   lazy val deleteAttrCalcList = new DeleteAttrCalcList(sysAttrCalcContext)
 }
+*/
 
 /*
 connection

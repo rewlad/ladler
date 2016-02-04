@@ -14,7 +14,7 @@ object TestApp extends App {
     def framePeriod = 20
     def purgePeriod = 2000
     def staticRoot = Paths.get("../client/build/test")
-    def createFrameHandlerOfConnection(sender: SenderOfConnection) =
+    def createMessageReceiverOfConnection(sender: SenderOfConnection) =
       new TestFrameHandler(sender)
   }
   server.start()

@@ -2,7 +2,7 @@ package ee.cone.base.test_react
 
 import java.nio.file.Paths
 
-import ee.cone.base.connection_api.ReceivedMessage
+import ee.cone.base.connection_api.{ReceiverOf, DictMessage}
 import ee.cone.base.server._
 import ee.cone.base.vdom._
 
@@ -24,27 +24,26 @@ class IndexView extends View {
   }
 }
 
-class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends FrameHandler {
+class TestFrameHandler(sender: SenderOfConnection, models: List[Model]) extends ReceiverOf {
   private lazy val modelChanged = new VersionObserver
   private lazy val diff = new DiffImpl(MapValueImpl)
   private lazy val dispatch = new Dispatch
   private var hashForView = ""
 
-  def frame(messages: List[ReceivedMessage]): Unit = {
-    for(message <- messages){
+  def receive = {
+    case message@DictMessage(mv) =>
       dispatch(message)
-      for(hash <- message.value.get("X-r-location-hash")) hashForView = hash
-    }
-
-    val view = hashForView match {
-      case "big" => new BigView(models)
-      case "interactive" => new InteractiveView(models)
-      case _  => new IndexView
-    }
-    modelChanged(view.modelVersion){
-      dispatch.vDom = view.generateDom
-      diff.diff(dispatch.vDom).foreach(d=>sender.send("showDiff", JsonToString(d)))
-    }
+      for(hash <- mv.get("X-r-location-hash")) hashForView = hash
+    case PeriodicMessage =>
+      val view = hashForView match {
+        case "big" => new BigView(models)
+        case "interactive" => new InteractiveView(models)
+        case _  => new IndexView
+      }
+      modelChanged(view.modelVersion){
+        dispatch.vDom = view.generateDom
+        diff.diff(dispatch.vDom).foreach(d=>sender.send("showDiff", JsonToString(d)))
+      }
   }
 }
 
@@ -58,7 +57,7 @@ object TestApp extends App {
     def framePeriod = 20
     def purgePeriod = 2000
     def staticRoot = Paths.get("../client/build/test")
-    def createFrameHandlerOfConnection(sender: SenderOfConnection) =
+    def createMessageReceiverOfConnection(sender: SenderOfConnection) =
       new TestFrameHandler(sender, models)
   }
   server.start()

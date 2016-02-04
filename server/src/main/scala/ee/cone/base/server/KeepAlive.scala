@@ -1,6 +1,6 @@
 package ee.cone.base.server
 
-import ee.cone.base.connection_api.{ReceivedMessage, ActionOf}
+import ee.cone.base.connection_api.{Message, DictMessage}
 
 class OncePer(period: Long, action: ()=>Unit) {
   private var nextTime = 0L
@@ -18,7 +18,7 @@ case object NewPingStatus extends PingStatus
 case object WaitingPingStatus extends PingStatus
 case class OKPingStatus(sessionKey: String) extends PingStatus
 
-class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) extends FrameHandler {
+class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) extends ReceiverOf[Message] {
   var status: PingStatus = NewPingStatus
   private def command = status match {
     case NewPingStatus => "connect"
@@ -29,12 +29,10 @@ class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) exte
     sender.send(command,receiver.connectionKey)
     status = WaitingPingStatus
   })
-  def frame(messages: List[ReceivedMessage]) = {
-    messages.foreach{ message =>
-      if(ActionOf(message) == "pong")
-        status = OKPingStatus(message.value("X-r-session"))
-    }
-    periodicFrame()
+  def receive = {
+    case DictMessage(mv) =>
+      mv.get("X-r-session").foreach(sessionKey => status = OKPingStatus(sessionKey))
+    case PeriodicMessage => periodicFrame()
   }
 }
 

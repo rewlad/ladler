@@ -54,14 +54,18 @@ class IndexSearchImpl(
   }
 }
 
-class AllOriginalFactExtractor(
+class AllFactExtractor(
   rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: Index
+)(
+  whileKeyPrefix: RawKey = rawFactConverter.keyHeadOnly
 ) extends KeyPrefixMatcher {
   def from(tx: RawIndex) = execute(tx, rawFactConverter.keyHeadOnly)
+  def from(tx: RawIndex, objId: Long) =
+    execute(tx, rawFactConverter.keyWithoutAttrId(objId))
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
-    if(!matcher.matchPrefix(keyPrefix, ks.key)){ return false }
+    if(!matcher.matchPrefix(whileKeyPrefix, ks.key)){ return false }
     val(objId,attrId) = rawFactConverter.keyFromBytes(ks.key)
-    to(objId, attrId) = rawFactConverter.valueFromBytes(ks.value) // original
+    to(objId, attrId) = rawFactConverter.valueFromBytes(ks.value)
     true
   }
 }
