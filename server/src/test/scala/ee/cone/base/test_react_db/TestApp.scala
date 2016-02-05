@@ -1,7 +1,8 @@
 package ee.cone.base.test_react_db
 
 import java.nio.file.Paths
-import ee.cone.base.util.Setup
+import java.util.concurrent.locks.ReentrantLock
+import ee.cone.base.util.{Never, Setup}
 import scala.collection.immutable.SortedMap
 
 import ee.cone.base.connection_api.{DictMessage, Message}
@@ -54,6 +55,7 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
 
   ???
 }*/
+  def mainTx: DBAppliedTx
   lazy val vDom = new Cached[Value] { () =>
 
     ???
@@ -65,8 +67,8 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
   }
   private var vDomDeferReset = false
   lazy val lifeCycle = connection.context.lifeCycle.sub()
-  lazy val eventFactConverter = new RawFactConverterImpl(DBLayers.eventFacts, 0L)
-  lazy val dbEvents = new DBEvents(connection.tempDB, lifeCycle, eventFactConverter)
+  //lazy val eventFactConverter = new RawFactConverterImpl(DBLayers.eventFacts, 0L)
+  lazy val dbEventList = new DBEventList(lifeCycle, connection.tempDB, rw=true, connection.sessionId, mainTx)
 
   def transformMessage(path: List[String], message: DictMessage): Message = {
     val node = ResolveValue(vDom(), path)
@@ -79,7 +81,7 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
   def receive = {
     case message@WithVDomPath(path) => receive(transformMessage(path, message))
     case ev@DBEvent(data) =>
-      dbEvents.add(ev)
+      dbEventList.add(ev)
       vDom.reset()
     // non-db events here, vDomDeferReset = true
     // hash
@@ -97,53 +99,115 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
 }
 
 
-class DBEventTx(rawIndex: RawIndex, session: DBLongPairValue, mainTx: DBEventTx/*not really*/) {
-  private lazy val rawFactConverter = new RawFactConverterImpl(DBLayers.eventFacts, 0L)
-  private lazy val rawIndexConverter = new RawIndexConverterImpl(DBLayers.eventIndex)
-  private lazy val indexed = Set[Long](SysAttrId.session)
-  private lazy val innerFactIndex = new InnerFactIndex(rawFactConverter, rawIndex)
-  private lazy val innerIndexIndex = new InnerIndexIndex(rawIndexConverter, rawIndex, indexed)
-  private lazy val attrCalcExecutor = new AttrCalcExecutor(Nil)
-  lazy val db = new RewritableTriggeringIndex(innerFactIndex, innerIndexIndex, attrCalcExecutor)
-  private lazy val search = new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
-  lazy val seq = new ObjIdSequence(innerFactIndex, SysAttrId.lastObjId)
 
-  private def delete(objId: Long) =
+class DBDelete(db: Index, search: IndexSearch) {
+  def apply(objId: Long) =
     search(objId).foreach{ attrId => db(objId, attrId) = DBRemoved }
+}
+
+class TxContext {
+  def rawTx: RawTx
+  class TxLayerContext(level: Long) {
+    private lazy val rawIndex = rawTx.rawIndex
+    private lazy val rawFactConverter =
+      new RawFactConverterImpl(level*2, 0L)
+    private lazy val rawIndexConverter =
+      new RawIndexConverterImpl(level*2+1)
+    private lazy val indexed = Set[Long](SysAttrId.sessionId) /*!!!*/
+    private lazy val innerFactIndex =
+      new InnerFactIndex(rawFactConverter, rawIndex)
+    private lazy val innerIndexIndex =
+      new InnerIndexIndex(rawIndexConverter, rawIndex, indexed)
+    private lazy val attrCalcExecutor = new AttrCalcExecutor(Nil)
+    protected lazy val db =
+      new RewritableTriggeringIndex(innerFactIndex, innerIndexIndex, attrCalcExecutor)
+    protected lazy val search =
+      new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
+    protected lazy val seq = new ObjIdSequence(innerFactIndex, SysAttrId.lastObjId)
+    protected lazy val delete = new DBDelete(db, search)
+  }
+  class EventTxLayerContext extends TxLayerContext(1L)
+  class TempEventTxLayerContext(main: MainEventTxLayer) extends EventTxLayerContext {
+    private lazy val dbEvents = new TempEventTxLayer(db, search, seq, delete, main)
+  }
+  class MainEventTxLayerContext extends EventTxLayerContext {
+    lazy val applied = new MainEventTxLayer(db, search)
+  }
+
+
+}
+
+class MainEventTxLayer(db: Index, search: IndexSearch) {
+  def isApplied(tempEventId: Long): Boolean =
+    search(SysAttrId.tempEventId, DBLongValue(tempEventId)).nonEmpty
+  ???
+}
+
+class TempEventTxLayer(
+  db: Index, search: IndexSearch, seq: ObjIdSequence, delete: DBDelete,
+  main: MainEventTxLayer
+){
   private def loadEvent(objId: Long) =
     DBEvent(search(objId).map(attrId => (attrId, db(objId, attrId))))
-  private def isApplied(eventObjId: Long) =
-    mainTx.search(SysAttrId.origEventObjId, DBLongValue(eventObjId)).nonEmpty
-  def purgeAndLoad: List[DBEvent] = {
-    val (past, future) = search(SysAttrId.session, session).partition(isApplied)
-    past.foreach(delete)
-    future.map(loadEvent)
-  }
-  def add(ev: DBEvent) = {
+
+  def purgeAndLoad(sessionKey: String): SessionState =
+    if(sessionKey.isEmpty) SessionState(loaded=true, DBRemoved, Nil)
+    else search(SysAttrId.sessionKey, DBStringValue(sessionKey)) match {
+      case Nil =>
+        val objId = seq.inc()
+        db(objId, SysAttrId.sessionKey) = DBStringValue(sessionKey)
+        val sessionId = DBLongValue(objId)
+        SessionState(loaded=true, sessionId, Nil)
+      case objId :: Nil =>
+        val sessionId = DBLongValue(objId)
+        val (past, future) =
+          search(SysAttrId.sessionId, sessionId).partition(main.isApplied)
+        past.foreach(delete(_))
+        SessionState(loaded=true, sessionId, future.map(loadEvent))
+    }
+
+  def add(state: SessionState, ev: DBEvent): SessionState = {
+    if(state.sessionId == DBRemoved) Never()
     val objId = seq.inc()
-    db(objId, SysAttrId.session) = session
+    db(objId, SysAttrId.sessionId) = state.sessionId
     ev.data.foreach { case (attrId, value) => db(objId, attrId) = value }
+    state.copy(eventList = ev :: state.eventList)
   }
 }
 
-class DBEventList(env: TestEnv, txLifeCycle: LifeCycle, session: DBLongPairValue, mainTx: DBEventTx/*not really*/){
-  private var list: Option[List[DBEvent]] = None
-  private def rwTx[T](f: DBEventTx=>T): T = env.rwTx(txLifeCycle) { rawIndex =>
-    f(new DBEventTx(rawIndex, session, mainTx))
+case class SessionState(loaded: Boolean, sessionId: DBValue, eventList: List[DBEvent])
+class MutableSessionState(
+  lifeCycle: LifeCycle, env: TestEnv, rw: Boolean, sessionKey: String,
+  createTxContext: (RawTx,)=>TxContext
+){
+  private var state = SessionState(loaded=false, DBRemoved, Nil)
+  private def withTx(f: DBEventTx=>Unit): Unit = lifeCycle.sub{ mTxLifeCycle =>
+    val rawTx = env.createTx(lifeCycle, rw)
+    val txContext = createTxContext
+    f(new DBEventTx(rawTx, mainTx))
+    rawTx.commit()
   }
-  def get = {
-    if(list.isEmpty) list = Option(rwTx(_.purgeAndLoad))
-    list.get
-  }
-  def add(ev: DBEvent): Unit = rwTx{ tx =>
-    list = Option(ev :: list.getOrElse(tx.purgeAndLoad))
-    add(ev)
+  private def loaded() =
+    if(!state.loaded) withTx{ tx => state = tx.purgeAndLoad(sessionKey) }
+  def get = { loaded(); state }
+  def add(ev: DBEvent): Unit = {
+    loaded()
+    withTx{ tx => state = tx.add(state, ev) }
   }
 }
 
-
-
-
+/*
+class SysProps(db: Index, indexSearch: IndexSearch) {
+  class Prop(attrId: Long) {
+    def apply(objId: Long) = db(objId, attrId)
+    def update(objId: Long, value: DBValue) = db(objId, attrId) = value
+    def search(value: DBValue) = indexSearch(attrId, value)
+  }
+  lazy val lastObjId      = new Prop(0x01)
+  lazy val sessionId      = new Prop(0x02)
+  lazy val appliedId      = new Prop(0x03)
+}
+*/
 
 
 case object ResetTxMessage extends Message
@@ -164,8 +228,9 @@ class ObjIdSequence(db: Index, seqAttrId: Long) {
 
 object SysAttrId {
   def lastObjId      = 0x01
-  def session        = 0x02
-  def origEventObjId = 0x03
+  def sessionId      = 0x02
+  def sessionKey     = 0x03
+  def tempEventId    = 0x04
 }
 
 object DBLayers {
@@ -187,21 +252,40 @@ class TestConnection(
   def receive = tx().receive
 }
 
-class TestEnv {
-  var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
-  def roTx(lifeCycle: LifeCycle): RawIndex =
-    Setup(new NonEmptyUnmergedIndex) { tx =>
-      data.synchronized {
-        tx.data = data
-      }
+/*
+app
+connection
+snapshot / ro Tx
+frame / message handling
+mTx / rw Tx
+*/
+
+class RawTx(val rawIndex: RawIndex, val commit: ()=>Unit)
+trait DBEnv {
+  def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
+}
+
+class TestEnv extends DBEnv {
+  private var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
+  private lazy val lock = new ReentrantLock
+  private def createRawIndex() = Setup(new NonEmptyUnmergedIndex) { i =>
+    synchronized {
+      i.data = data
     }
-  def rwTx[T](lifeCycle: LifeCycle)(f: RawIndex => T): T = data.synchronized {
-    val tx = new NonEmptyUnmergedIndex
-    tx.data = data
-    val res = f(tx)
-    data = tx.data
-    res
   }
+  def createTx(txLifeCycle: LifeCycle, rw: Boolean) =
+    if(!rw) new RawTx(createRawIndex(), () => ())
+    else txLifeCycle.setup {
+      lock.lock()
+      val index = createRawIndex()
+      def commit() = {
+        if(!lock.isHeldByCurrentThread) Never()
+        synchronized {
+          data = index.data
+        }
+      }
+      new RawTx(index, commit)
+    }(_ => lock.unlock())
 }
 
 object TestApp extends App {
