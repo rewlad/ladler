@@ -1,9 +1,9 @@
 package ee.cone.base.test_sse
 
-import ee.cone.base.connection_api.{ReceiverOf, DictMessage}
+import ee.cone.base.connection_api.Message
 import ee.cone.base.server._
 
-class TestFrameHandler(sender: SenderOfConnection) extends ReceiverOf {
+class TestFrameHandler(sender: SenderOfConnection) extends ReceiverOf[Message] {
   private var prevTime: Long = 0L
   def receive = {
     case PeriodicMessage =>

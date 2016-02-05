@@ -6,6 +6,8 @@ import java.util.concurrent.Executors
 
 import ee.cone.base.connection_api.Message
 
+class ContextOfConnection(val sender: SenderOfConnection, val lifeCycle: LifeCycle)
+
 abstract class SSEHttpServer {
   def httpPort: Int
   def threadCount: Int
@@ -14,14 +16,15 @@ abstract class SSEHttpServer {
   def ssePort: Int
   def framePeriod: Long
   def purgePeriod: Long
-  def createMessageReceiverOfConnection(sender: SenderOfConnection): ReceiverOf[Message]
+  def createMessageReceiverOfConnection(context: ContextOfConnection): ReceiverOf[Message]
 
   private def createConnection(socket: Socket): Unit = {
     val lifeTime = new LifeCycleImpl()
     val receiver = new ReceiverOfConnectionImpl(lifeTime, connectionRegistry)
     val sender = new SSESender(lifeTime, allowOrigin, socket)
     val keepAlive = new KeepAlive(receiver, sender)
-    val frameHandler = createMessageReceiverOfConnection(sender)
+    val context = new ContextOfConnection(sender, lifeTime)
+    val frameHandler = createMessageReceiverOfConnection(context)
     val transmitter =
       new ActivateReceivers(receiver, keepAlive :: frameHandler :: Nil)
     val generator =

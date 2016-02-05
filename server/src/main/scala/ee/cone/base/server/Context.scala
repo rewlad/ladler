@@ -1,5 +1,7 @@
 package ee.cone.base.server
 
+import ee.cone.base.util.Setup
+
 sealed trait LifeStatus
 case object OpenableLifeStatus extends LifeStatus
 class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
@@ -23,6 +25,11 @@ class LifeCycleImpl extends LifeCycle {
       DoClose(st.toClose)
     case _ => ()
   }
+  def sub() = setup(new LifeCycleImpl)(_.close())
+  def sub[R](f: LifeCycle=>R) = {
+    val c = sub()
+    try c.open(); f(c) finally c.close()
+  }
 }
 
 object DoClose {
@@ -31,6 +38,7 @@ object DoClose {
     case head :: tail => try head() finally apply(tail)
   }
 }
+
 /*
 object ToClose {
   def apply[T](f: LifeCycle=>T): T = {
@@ -38,7 +46,6 @@ object ToClose {
     try f(lifeCycle) finally lifeCycle.close()
   }
 }
-
 
 class A {
   private lazy val tHolder = new ThreadLocal[Option[LifeCycle]] {

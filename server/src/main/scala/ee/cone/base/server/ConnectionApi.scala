@@ -14,6 +14,8 @@ trait LifeCycle {
   def setup[C](create: =>C)(close: C=>Unit): C
   def open(): Unit
   def close(): Unit
+  def sub(): LifeCycle
+  def sub[R](f: LifeCycle=>R): R
 }
 
 trait ConnectionRegistry {

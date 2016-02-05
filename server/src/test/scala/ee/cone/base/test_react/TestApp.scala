@@ -57,8 +57,8 @@ object TestApp extends App {
     def framePeriod = 20
     def purgePeriod = 2000
     def staticRoot = Paths.get("../client/build/test")
-    def createMessageReceiverOfConnection(sender: SenderOfConnection) =
-      new TestFrameHandler(sender, models)
+    def createMessageReceiverOfConnection(context: ContextOfConnection) =
+      new TestFrameHandler(context.sender, models)
   }
   server.start()
   println(s"SEE: http://127.0.0.1:${server.httpPort}/react-app.html")
