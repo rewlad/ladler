@@ -35,11 +35,12 @@ trait ListResult[T] extends KeyPrefixMatcher {
 }
 
 class ListObjIdsByValueImpl(
-  rawIndexConverter: RawIndexConverter,
+  rawIndexConverter: RawSearchConverter,
   val matcher: RawKeyMatcher,
-  val tx: RawIndex
-) extends ListObjIdsByValue with ListResult[ObjId] {
-  def apply(attrId: AttrId, value: DBValue) =
+  val tx: RawIndex,
+  attrId: AttrId
+) extends AttrIndex[DBValue,List[ObjId]] with ListResult[ObjId] {
+  def apply(value: DBValue) =
     select(rawIndexConverter.keyWithoutObjId(attrId,value))
   protected def lastIdFromLong(id: Long) = new ObjId(id)
 }
@@ -48,13 +49,13 @@ class ListAttrIdsByObjIdImpl(
   rawFactConverter: RawFactConverter,
   val matcher: RawKeyMatcher,
   val tx: RawIndex
-) extends ListAttrIdsByObjId with ListResult[AttrId] {
+) extends AttrIndex[ObjId,List[AttrId]] with ListResult[AttrId] {
   def apply(objId: ObjId) = select(rawFactConverter.keyWithoutAttrId(objId))
   protected def lastIdFromLong(id: Long) = new AttrId(id)
 }
 
 class AllFactExtractor(
-  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: Index
+  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: UpdatableAttrIndex
 )(
   whileKeyPrefix: RawKey = rawFactConverter.keyHeadOnly
 ) extends KeyPrefixMatcher {
@@ -64,7 +65,7 @@ class AllFactExtractor(
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
     if(!matcher.matchPrefix(whileKeyPrefix, ks.key)){ return false }
     val(objId,attrId) = ??? //rawFactConverter.keyFromBytes(ks.key)
-    to(objId, attrId) = rawFactConverter.valueFromBytes(ks.value)
+    ??? //to(objId, attrId) = rawFactConverter.valueFromBytes(ks.value)
     true
   }
 }

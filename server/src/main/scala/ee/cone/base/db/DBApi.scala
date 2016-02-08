@@ -39,23 +39,14 @@ case object NotFoundStatus extends SeekStatus {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// DML
+// DML/DDL
 
-trait ListObjIdsByValue {
-  def apply(attrId: AttrId, value: DBValue): List[ObjId]
+trait AttrIndex[From,To] {
+  def apply(from: From): To
 }
-
-trait ListAttrIdsByObjId {
-  def apply(objId: ObjId): List[AttrId]
+trait UpdatableAttrIndex[Value] extends AttrIndex[ObjId,Value] {
+  def update(objId: ObjId, value: Value): Unit
 }
-
-
-trait Index {
-  def apply(objId: ObjId, attrId: AttrId): DBValue
-  def update(objId: ObjId, attrId: AttrId, value: DBValue): Unit
-}
-
-// DDL
 
 trait ValidateFailReaction {
   def apply(objId: ObjId, comment: String): Unit
@@ -74,39 +65,34 @@ trait SearchAttrInfoFactory {
   def apply(labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]): SearchAttrInfo
 }
 
-class SysAttrCalcContext (
-  val db: Index,
-  val listObjIdsByValue: ListObjIdsByValue,
-  val listAttrIdsByObjId: ListAttrIdsByObjId,
-  val fail: ValidateFailReaction // fail'll probably do nothing in case of outdated rel type
-)
-
 trait PreCommitCalcCollector {
   def recalculateAll(): Unit
   def apply(thenDo: Seq[ObjId]=>Unit): ObjId=>Unit
 }
-class SysPreCommitCheckContext(
-  val db: Index,
-  val listObjIdsByValue: ListObjIdsByValue,
-  val preCommitCalcCollector: PreCommitCalcCollector,
-  val fail: ValidateFailReaction
-)
-
-case class AttrUpdate(attrId: AttrId, indexed: Boolean, rewritable: Boolean, calcList: List[AttrCalc])
 
 // raw converters
+trait RawValueOuterConverter[Value] {
+  def toRaw(spaceBefore: Int, value: Value, spaceAfter: Int): RawValue
+  def fromRaw(rawValue: RawValue): Value
+}/*
+trait RawValueOuterConverter[Value] {
 
-trait RawFactConverter {
+}*/
+
+trait RawValueConverter[Value,ValueA,ValueB] extends ToRawValueOuterConverter[Value] {
+  protected def valueFromRaw(valueA: ValueA, valueB: ValueB): Value
+  protected def valueToRaw(value: Value): RawValue
+  protected def valueAllocWrite(spaceBefore: Int, value: Value, spaceAfter: Int): RawValue
+  protected def valueAllocWrite(spaceBefore: Int, valueA: ValueA, valueB: ValueB, spaceAfter: Int): RawValue
+}
+trait RawFactConverter[Value] {
   def key(objId: ObjId, attrId: AttrId): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
-  def value(value: DBValue): RawValue
-  def valueFromBytes(b: RawValue): DBValue
-  //def keyFromBytes(key: RawKey): (ObjId,AttrId)
 }
-trait RawIndexConverter {
-  def key(attrId: AttrId, value: DBValue, objId: ObjId): RawKey
-  def keyWithoutObjId(attrId: AttrId, value: DBValue): RawKey
+trait RawSearchConverter[Value] {
+  def key(attrId: AttrId, value: Value, objId: ObjId): RawKey
+  def keyWithoutObjId(attrId: AttrId, value: Value): RawKey
   def value(on: Boolean): RawValue
 }
 trait RawKeyMatcher {

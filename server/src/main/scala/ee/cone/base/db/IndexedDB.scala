@@ -3,26 +3,26 @@ package ee.cone.base.db
 
 import ee.cone.base.util.Never
 
-class IndexImpl(
-  rawFactConverter: RawFactConverter, rawIndexConverter: RawIndexConverter,
-  tx: RawIndex, attrUpdates: AttrId=>AttrUpdate
-) extends Index {
-  def apply(objId: ObjId, attrId: AttrId): DBValue =
+class AttrIndexImpl(
+  rawFactConverter: RawFactConverter, rawIndexConverter: RawSearchConverter, tx: RawIndex,
+  attrId: AttrId, rewritable: Boolean, indexed: Boolean, calcList: ()=>List[AttrCalc]
+) extends UpdatableAttrIndex[DBValue] {
+  def apply(objId: ObjId): DBValue =
     rawFactConverter.valueFromBytes(tx.get(rawFactConverter.key(objId, attrId)))
-  def update(objId: ObjId, attrId: AttrId, value: DBValue): Unit = {
-    val wasValue = apply(objId, attrId)
+  def update(objId: ObjId, value: DBValue): Unit = {
+    val wasValue = apply(objId)
     if (value == wasValue) { return }
-    val attrUpdate = attrUpdates(attrId)
-    if(!attrUpdate.rewritable && wasValue != DBRemoved) Never()
-    Inner(objId, attrId, wasValue) = false
-    Inner(objId, attrId) = value
-    if(attrUpdate.indexed) Inner(objId, attrId, value) = true
-    for(calc <- attrUpdate.calcList) calc.recalculate(objId)
+
+    if(!rewritable && wasValue != DBRemoved) Never()
+    Inner(objId, wasValue) = false
+    Inner(objId) = value
+    if(indexed) Inner(objId, value) = true
+    for(calc <- calcList()) calc.recalculate(objId)
   }
   private object Inner {
-    def update(objId: ObjId, attrId: AttrId, value: DBValue): Unit =
+    def update(objId: ObjId, value: DBValue): Unit =
       tx.set(rawFactConverter.key(objId, attrId), rawFactConverter.value(value))
-    def update(objId: ObjId, attrId: AttrId, value: DBValue, on: Boolean): Unit =
+    def update(objId: ObjId, value: DBValue, on: Boolean): Unit =
       if(value != DBRemoved)
         tx.set(rawIndexConverter.key(attrId, value, objId), rawIndexConverter.value(on))
   }
