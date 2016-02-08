@@ -16,22 +16,6 @@ trait KeyPrefixMatcher {
   }
 }
 
-/*
-class InnerIndexSearch(
-  rawFactConverter: RawFactConverter,
-  rawIndexConverter: RawIndexConverter,
-  matcher: RawKeyMatcher,
-  tx: RawTx
-) {
-  private var selectKey = Array[Byte]()
-  private def seek(key: RawKey) = { selectKey = key; tx.seek(key) }
-  def seek(): Unit = seek(rawFactConverter.keyHeadOnly)
-  def seek(objId: Long): Unit = seek(rawFactConverter.keyWithoutAttrId(objId))
-  def seek(attrId: Long, value: DBValue): Unit =
-    seek(rawIndexConverter.keyWithoutObjId(attrId,value))
-}
-*/
-
 class IndexSearchImpl(
   rawFactConverter: RawFactConverter,
   rawIndexConverter: RawIndexConverter,
@@ -69,3 +53,19 @@ class AllFactExtractor(
     true
   }
 }
+
+/*
+class InnerIndexSearch(
+  rawFactConverter: RawFactConverter,
+  rawIndexConverter: RawIndexConverter,
+  matcher: RawKeyMatcher,
+  tx: RawTx
+) {
+  private var selectKey = Array[Byte]()
+  private def seek(key: RawKey) = { selectKey = key; tx.seek(key) }
+  def seek(): Unit = seek(rawFactConverter.keyHeadOnly)
+  def seek(objId: Long): Unit = seek(rawFactConverter.keyWithoutAttrId(objId))
+  def seek(attrId: Long, value: DBValue): Unit =
+    seek(rawIndexConverter.keyWithoutObjId(attrId,value))
+}
+*/

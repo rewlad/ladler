@@ -8,7 +8,8 @@ import ee.cone.base.db.Types._
 
 // converters //////////////////////////////////////////////////////////////////
 
-class RawFactConverterImpl(head: Long, var valueSrcId: Long) extends RawFactConverter {
+class RawFactConverterImpl(var valueSrcId: Long) extends RawFactConverter {
+  def head = 0L
   def key(objId: Long, attrId: Long): RawKey =
     key(objId, attrId, hasObjId=true, hasAttrId=true)
   def keyWithoutAttrId(objId: Long): RawKey =
@@ -51,7 +52,8 @@ class RawFactConverterImpl(head: Long, var valueSrcId: Long) extends RawFactConv
   }
 }
 
-class RawIndexConverterImpl(head: Long) extends RawIndexConverter {
+class RawIndexConverterImpl extends RawIndexConverter {
+  def head = 1L
   def key(attrId: Long, value: DBValue, objId: Long): RawKey =
     key(attrId, value, objId, hasObjId=true)
   def keyWithoutObjId(attrId: Long, value: DBValue): RawKey =

@@ -84,6 +84,8 @@ class SysPreCommitCheckContext(
   val fail: ValidateFailReaction
 )
 
+case class AttrUpdate(attrId: Long, indexed: Boolean, rewritable: Boolean, calcList: List[AttrCalc])
+
 // raw converters
 
 trait RawFactConverter {

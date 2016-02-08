@@ -54,8 +54,14 @@ class PreCommitCalcCollectorImpl extends PreCommitCalcCollector {
 ////
 
 class AttrInfoRegistry(attrInfoList: List[AttrInfo]) {
-  lazy val indexed: Set[Long] =
+  private lazy val indexed: Set[Long] =
     attrInfoList.collect { case i: IndexAttrInfo ⇒ i.attrId }.toSet
+  private lazy val calcListByAttrId: Map[Long, List[AttrCalc]] =
+    attrInfoList.collect { case attrCalc: AttrCalc ⇒
+      attrCalc.affectedByAttrIds.map(attrId => (attrId, attrCalc))
+    }.flatten.groupBy(_._1).mapValues(_.map(_._2))
+  def updates(attrId: Long) =
+    AttrUpdate(attrId, indexed(attrId), rewritable = ???, calcListByAttrId.getOrElse(attrId,Nil))
   lazy val version = MD5(Bytes(attrInfoList.collect {
     case i: IndexAttrInfo ⇒
       //println(s"ai: ${i.attrId.toString}")
@@ -65,6 +71,11 @@ class AttrInfoRegistry(attrInfoList: List[AttrInfo]) {
       s"${i.version}:$i"
   }.sorted.mkString(",")))
 }
+
+
+
+
+
 
 /*
 case class ExtractedFact(objId: Long, attrId: Long, value: DBValue)

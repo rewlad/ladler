@@ -109,21 +109,13 @@ class TxContext {
   def rawTx: RawTx
   class TxLayerContext(level: Long) {
     private lazy val rawIndex = rawTx.rawIndex
-    private lazy val rawFactConverter =
-      new RawFactConverterImpl(level*2, 0L)
-    private lazy val rawIndexConverter =
-      new RawIndexConverterImpl(level*2+1)
-    private lazy val indexed = Set[Long](SysAttrId.sessionId) /*!!!*/
-    private lazy val innerFactIndex =
-      new InnerFactIndex(rawFactConverter, rawIndex)
-    private lazy val innerIndexIndex =
-      new InnerIndexIndex(rawIndexConverter, rawIndex, indexed)
-    private lazy val attrCalcExecutor = new AttrCalcExecutor(Nil)
+    private lazy val rawFactConverter = new RawFactConverterImpl(0L)
+    private lazy val rawIndexConverter = new RawIndexConverterImpl
     protected lazy val db =
-      new RewritableTriggeringIndex(innerFactIndex, innerIndexIndex, attrCalcExecutor)
+      new IndexImpl(rawFactConverter, rawIndexConverter, rawIndex, ???) // indexed SysAttrId.sessionId
     protected lazy val search =
       new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
-    protected lazy val seq = new ObjIdSequence(innerFactIndex, SysAttrId.lastObjId)
+    protected lazy val seq = new ObjIdSequence(db, SysAttrId.lastObjId)
     protected lazy val delete = new DBDelete(db, search)
   }
   class EventTxLayerContext extends TxLayerContext(1L)
