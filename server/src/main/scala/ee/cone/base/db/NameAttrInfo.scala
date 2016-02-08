@@ -7,16 +7,18 @@ import scala.collection.mutable
 object AttrIdCompose { // do not use for original facts
   def hexSz = 4
   def idSz = 4 * hexSz
-  def apply(a: Long, b: Long): Long =
-    LongFits(a,idSz, isUnsigned = true, idSz) |
-      LongFits(b,idSz, isUnsigned = true, 0)
+  def apply(a: AttrId, b: AttrId): AttrId = new AttrId(
+    LongFits(a.value,idSz, isUnsigned = true, idSz) |
+    LongFits(b.value,idSz, isUnsigned = true, 0)
+  )
+
 }
 
-case class NoNameAttrInfo(attrId: Long) extends BaseNameAttrInfo {
+case class NoNameAttrInfo(attrId: AttrId) extends BaseNameAttrInfo {
   def nameOpt = None
 }
 
-case class NameAttrInfoImpl(attrId: Long, name: String) extends NameAttrInfo {
+case class NameAttrInfoImpl(attrId: AttrId, name: String) extends NameAttrInfo {
   lazy val nameOpt = Some(name)
 }
 
@@ -44,8 +46,8 @@ case class SearchAttrInfoImpl(
 class PreCommitCalcCollectorImpl extends PreCommitCalcCollector {
   private var calcList: List[()=>Unit] = Nil
   def recalculateAll(): Unit = calcList.reverseIterator.foreach(_.apply())
-  def apply(thenDo: Seq[Long]=>Unit): Long=>Unit = {
-    val objIds = mutable.SortedSet[Long]()
+  def apply(thenDo: Seq[ObjId]=>Unit): ObjId=>Unit = {
+    val objIds = mutable.SortedSet[ObjId]()
     calcList = (()=>thenDo(objIds.toSeq)) :: calcList
     objId => objIds += objId
   }
@@ -54,13 +56,13 @@ class PreCommitCalcCollectorImpl extends PreCommitCalcCollector {
 ////
 
 class AttrInfoRegistry(attrInfoList: List[AttrInfo]) {
-  private lazy val indexed: Set[Long] =
+  private lazy val indexed: Set[AttrId] =
     attrInfoList.collect { case i: IndexAttrInfo ⇒ i.attrId }.toSet
-  private lazy val calcListByAttrId: Map[Long, List[AttrCalc]] =
+  private lazy val calcListByAttrId: Map[AttrId, List[AttrCalc]] =
     attrInfoList.collect { case attrCalc: AttrCalc ⇒
       attrCalc.affectedByAttrIds.map(attrId => (attrId, attrCalc))
     }.flatten.groupBy(_._1).mapValues(_.map(_._2))
-  def updates(attrId: Long) =
+  def updates(attrId: AttrId) =
     AttrUpdate(attrId, indexed(attrId), rewritable = ???, calcListByAttrId.getOrElse(attrId,Nil))
   lazy val version = MD5(Bytes(attrInfoList.collect {
     case i: IndexAttrInfo ⇒

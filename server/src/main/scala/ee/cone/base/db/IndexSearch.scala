@@ -16,26 +16,41 @@ trait KeyPrefixMatcher {
   }
 }
 
-class IndexSearchImpl(
-  rawFactConverter: RawFactConverter,
-  rawIndexConverter: RawIndexConverter,
-  matcher: RawKeyMatcher,
-  tx: RawIndex
-) extends IndexSearch with KeyPrefixMatcher {
-  def apply(objId: Long) = select(rawFactConverter.keyWithoutAttrId(objId))
-  def apply(attrId: Long, value: DBValue) =
-    select(rawIndexConverter.keyWithoutObjId(attrId,value))
-  private var result: List[Long] = Nil
-  private def select(key: RawKey): List[Long] = {
+trait ListResult[T] extends KeyPrefixMatcher {
+  protected def matcher: RawKeyMatcher
+  protected def tx: RawIndex
+  protected def lastIdFromLong(id: Long): T
+
+  private var result: List[T] = Nil
+  protected def select(key: RawKey): List[T] = {
     result = Nil
     execute(tx, key)
     result.reverse
   }
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
     if(!matcher.matchPrefix(keyPrefix, ks.key)){ return false }
-    result = matcher.lastId(keyPrefix, ks.key) :: result
+    result = lastIdFromLong(matcher.lastId(keyPrefix, ks.key)) :: result
     true
   }
+}
+
+class ListObjIdsByValueImpl(
+  rawIndexConverter: RawIndexConverter,
+  val matcher: RawKeyMatcher,
+  val tx: RawIndex
+) extends ListObjIdsByValue with ListResult[ObjId] {
+  def apply(attrId: AttrId, value: DBValue) =
+    select(rawIndexConverter.keyWithoutObjId(attrId,value))
+  protected def lastIdFromLong(id: Long) = new ObjId(id)
+}
+
+class ListAttrIdsByObjIdImpl(
+  rawFactConverter: RawFactConverter,
+  val matcher: RawKeyMatcher,
+  val tx: RawIndex
+) extends ListAttrIdsByObjId with ListResult[AttrId] {
+  def apply(objId: ObjId) = select(rawFactConverter.keyWithoutAttrId(objId))
+  protected def lastIdFromLong(id: Long) = new AttrId(id)
 }
 
 class AllFactExtractor(
@@ -44,11 +59,11 @@ class AllFactExtractor(
   whileKeyPrefix: RawKey = rawFactConverter.keyHeadOnly
 ) extends KeyPrefixMatcher {
   def from(tx: RawIndex) = execute(tx, rawFactConverter.keyHeadOnly)
-  def from(tx: RawIndex, objId: Long) =
+  def from(tx: RawIndex, objId: ObjId) =
     execute(tx, rawFactConverter.keyWithoutAttrId(objId))
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
     if(!matcher.matchPrefix(whileKeyPrefix, ks.key)){ return false }
-    val(objId,attrId) = rawFactConverter.keyFromBytes(ks.key)
+    val(objId,attrId) = ??? //rawFactConverter.keyFromBytes(ks.key)
     to(objId, attrId) = rawFactConverter.valueFromBytes(ks.value)
     true
   }

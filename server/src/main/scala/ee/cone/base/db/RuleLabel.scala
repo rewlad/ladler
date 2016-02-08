@@ -20,14 +20,14 @@ class LabelPropIndexAttrInfoList(
   }
 }
 
-case class LabelIndexAttrCalc(labelAttrId: Long, propAttrId: Long, indexedAttrId: Long)
+case class LabelIndexAttrCalc(labelAttrId: AttrId, propAttrId: AttrId, indexedAttrId: AttrId)
   (context: SysAttrCalcContext)
   extends AttrCalc
 {
   import context._
-  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != DBRemoved
+  private def dbHas(objId: ObjId, attrId: AttrId) = db(objId, attrId) != DBRemoved
   def version = UUID.fromString("1afd3999-46ac-4da3-84a6-17d978f7e032")
   def affectedByAttrIds = labelAttrId :: propAttrId :: Nil
-  def recalculate(objId: Long) = db(objId, indexedAttrId) =
+  def recalculate(objId: ObjId) = db(objId, indexedAttrId) =
     if(!dbHas(objId, labelAttrId)) DBRemoved else db(objId, propAttrId)
 }

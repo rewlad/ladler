@@ -10,7 +10,7 @@ class RelSideAttrInfoList(
   createSearchAttrInfo: SearchAttrInfoFactory
 ) {
   def apply(
-    relSideAttrInfo: List[NameAttrInfo], typeAttrId: Long,
+    relSideAttrInfo: List[NameAttrInfo], typeAttrId: AttrId,
     relTypeAttrInfo: List[NameAttrInfo]
   ): List[AttrInfo] = relSideAttrInfo.flatMap{ propInfo ⇒
     val relComposedAttrInfo: List[SearchAttrInfo] =
@@ -29,14 +29,14 @@ class RelSideAttrInfoList(
     calc :: createSearchAttrInfo(None, Some(propInfo)) :: relComposedAttrInfo ::: integrity
 
   }
-  private def createRefIntegrityPreCommitCheckList(typeAttrId: Long, toAttrId: Long): List[AttrCalc] =
+  private def createRefIntegrityPreCommitCheckList(typeAttrId: AttrId, toAttrId: AttrId): List[AttrCalc] =
     TypeRefIntegrityPreCommitCheck(typeAttrId, toAttrId)(sysPreCommitCheckContext) ::
     SideRefIntegrityPreCommitCheck(typeAttrId, toAttrId)(sysPreCommitCheckContext) :: Nil
 }
 
 case class TypeIndexAttrCalc(
-  typeAttrId: Long, propAttrId: Long,
-  relTypeIdToAttrId: Map[String,Long], indexedAttrIds: Set[Long]
+  typeAttrId: AttrId, propAttrId: AttrId,
+  relTypeIdToAttrId: Map[String,AttrId], indexedAttrIds: Set[AttrId]
 )
   (context: SysAttrCalcContext)
   extends AttrCalc
@@ -44,13 +44,13 @@ case class TypeIndexAttrCalc(
   import context._
   def version = UUID.fromString("a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42")
   def affectedByAttrIds = typeAttrId :: propAttrId :: Nil
-  def recalculate(objId: Long) = {
-    indexSearch(objId)
+  def recalculate(objId: ObjId) = {
+    listAttrIdsByObjId(objId)
       .foreach(attrId => if(indexedAttrIds(attrId)) db(objId, attrId) = DBRemoved)
     (db(objId, typeAttrId), db(objId, propAttrId)) match {
       case (_,DBRemoved) | (DBRemoved,_) => ()
       case (DBStringValue(typeIdStr),value) =>
-        val attrIdOpt: Option[Long] = relTypeIdToAttrId.get(typeIdStr)
+        val attrIdOpt: Option[AttrId] = relTypeIdToAttrId.get(typeIdStr)
         if(attrIdOpt.isEmpty) fail(objId, "never here")
         else db(objId, attrIdOpt.get) = value
       case _ => Never()
@@ -62,38 +62,38 @@ abstract class RefIntegrityPreCommitCheck(context: SysPreCommitCheckContext)
   extends AttrCalc
 {
   import context._
-  private def dbHas(objId: Long, attrId: Long) = db(objId, attrId) != DBRemoved
-  protected def typeAttrId: Long
-  protected def toAttrId: Long
-  protected def checkAll(objIds: Seq[Long]): Unit
-  protected def check(objId: Long) = db(objId, toAttrId) match {
+  private def dbHas(objId: ObjId, attrId: AttrId) = db(objId, attrId) != DBRemoved
+  protected def typeAttrId: AttrId
+  protected def toAttrId: AttrId
+  protected def checkAll(objIds: Seq[ObjId]): Unit
+  protected def check(objId: ObjId) = db(objId, toAttrId) match {
     case DBRemoved ⇒ ()
     case DBLongValue(toObjId) if dbHas(toObjId, typeAttrId) ⇒ ()
     case v => fail(objId, s"attr $toAttrId should refer to valid object, but $v found")
   }
-  def recalculate(objId: Long) = add(objId)
+  def recalculate(objId: ObjId) = add(objId)
   private lazy val add = preCommitCalcCollector(checkAll)
 }
 
 //toAttrId must be indexed
-case class TypeRefIntegrityPreCommitCheck(typeAttrId: Long, toAttrId: Long)
+case class TypeRefIntegrityPreCommitCheck(typeAttrId: AttrId, toAttrId: AttrId)
   (context: SysPreCommitCheckContext)
   extends RefIntegrityPreCommitCheck(context)
 {
   import context._
   def version = UUID.fromString("b2232ecf-734c-4cfa-a88f-78b066a01cd3")
   def affectedByAttrIds = typeAttrId :: Nil
-  private def referredBy(objId: Long): List[Long] =
-    indexSearch(toAttrId, new DBLongValue(objId))
-  protected def checkAll(objIds: Seq[Long]) =
+  private def referredBy(objId: ObjId): List[ObjId] =
+    listObjIdsByValue(toAttrId, new DBLongValue(objId))
+  protected def checkAll(objIds: Seq[ObjId]) =
     objIds.flatMap(referredBy).foreach(check)
 }
 
-case class SideRefIntegrityPreCommitCheck(typeAttrId: Long, toAttrId: Long)
+case class SideRefIntegrityPreCommitCheck(typeAttrId: AttrId, toAttrId: AttrId)
   (context: SysPreCommitCheckContext)
   extends RefIntegrityPreCommitCheck(context)
 {
   def version = UUID.fromString("677f2fdc-b56e-4cf8-973f-db148ee3f0c4")
   def affectedByAttrIds = toAttrId :: Nil
-  protected def checkAll(objIds: Seq[Long]) = objIds.foreach(check)
+  protected def checkAll(objIds: Seq[ObjId]) = objIds.foreach(check)
 }

@@ -100,8 +100,8 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
 
 
 
-class DBDelete(db: Index, search: IndexSearch) {
-  def apply(objId: Long) =
+class DBDelete(db: Index, search: ListObjIdsByValue) {
+  def apply(objId: ObjId) =
     search(objId).foreach{ attrId => db(objId, attrId) = DBRemoved }
 }
 
@@ -114,7 +114,7 @@ class TxContext {
     protected lazy val db =
       new IndexImpl(rawFactConverter, rawIndexConverter, rawIndex, ???) // indexed SysAttrId.sessionId
     protected lazy val search =
-      new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
+      new IndexListObjIdsImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
     protected lazy val seq = new ObjIdSequence(db, SysAttrId.lastObjId)
     protected lazy val delete = new DBDelete(db, search)
   }
@@ -129,17 +129,17 @@ class TxContext {
 
 }
 
-class MainEventTxLayer(db: Index, search: IndexSearch) {
-  def isApplied(tempEventId: Long): Boolean =
+class MainEventTxLayer(db: Index, search: ListObjIdsByValue) {
+  def isApplied(tempEventId: ObjId): Boolean =
     search(SysAttrId.tempEventId, DBLongValue(tempEventId)).nonEmpty
   ???
 }
 
 class TempEventTxLayer(
-  db: Index, search: IndexSearch, seq: ObjIdSequence, delete: DBDelete,
+  db: Index, search: ListObjIdsByValue, seq: ObjIdSequence, delete: DBDelete,
   main: MainEventTxLayer
 ){
-  private def loadEvent(objId: Long) =
+  private def loadEvent(objId: ObjId) =
     DBEvent(search(objId).map(attrId => (attrId, db(objId, attrId))))
 
   def purgeAndLoad(sessionKey: String): SessionState =
@@ -204,14 +204,15 @@ class SysProps(db: Index, indexSearch: IndexSearch) {
 
 case object ResetTxMessage extends Message
 
-class ObjIdSequence(db: Index, seqAttrId: Long) {
-  def last: Long = db(0L, seqAttrId) match {
+class ObjIdSequence(db: Index, seqAttrId: AttrId) {
+  private def objId = new ObjId(0L)
+  def last: ObjId = db(objId, seqAttrId) match {
     case DBRemoved => 0L
     case DBLongValue(v) => v
   }
-  def last_=(value: Long) = db(0L, seqAttrId) = DBLongValue(value)
-  def next = last + 1L
-  def inc(): Long = {
+  def last_=(value: ObjId) = db(objId, seqAttrId) = DBLongValue(value)
+  def next = new ObjId(last.value + 1L)
+  def inc(): ObjId = {
     val res = next
     last = res
     res
@@ -219,10 +220,10 @@ class ObjIdSequence(db: Index, seqAttrId: Long) {
 }
 
 object SysAttrId {
-  def lastObjId      = 0x01
-  def sessionId      = 0x02
-  def sessionKey     = 0x03
-  def tempEventId    = 0x04
+  def lastObjId      = new AttrId(0x01)
+  def sessionId      = new AttrId(0x02)
+  def sessionKey     = new AttrId(0x03)
+  def tempEventId    = new AttrId(0x04)
 }
 
 object DBLayers {
@@ -232,7 +233,7 @@ object DBLayers {
   def readModelIndex = 5
 }
 
-case class DBEvent(data: List[(Long,DBValue)])
+case class DBEvent(data: List[(AttrId,DBValue)])
 
 class TestConnection(
   val context: ContextOfConnection,
