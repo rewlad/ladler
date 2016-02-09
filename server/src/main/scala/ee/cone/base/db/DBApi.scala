@@ -39,23 +39,14 @@ case object NotFoundStatus extends SeekStatus {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// DML
+// DML/DDL
 
-trait ListObjIdsByValue {
-  def apply(attrId: AttrId, value: DBValue): List[ObjId]
+trait AttrIndex[From,To] {
+  def apply(from: From): To
 }
-
-trait ListAttrIdsByObjId {
-  def apply(objId: ObjId): List[AttrId]
+trait UpdatableAttrIndex[Value] extends AttrIndex[ObjId,Value] {
+  def update(objId: ObjId, value: Value): Unit
 }
-
-
-trait Index {
-  def apply(objId: ObjId, attrId: AttrId): DBValue
-  def update(objId: ObjId, attrId: AttrId, value: DBValue): Unit
-}
-
-// DDL
 
 trait ValidateFailReaction {
   def apply(objId: ObjId, comment: String): Unit
@@ -74,23 +65,10 @@ trait SearchAttrInfoFactory {
   def apply(labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]): SearchAttrInfo
 }
 
-class SysAttrCalcContext (
-  val db: Index,
-  val listObjIdsByValue: ListObjIdsByValue,
-  val listAttrIdsByObjId: ListAttrIdsByObjId,
-  val fail: ValidateFailReaction // fail'll probably do nothing in case of outdated rel type
-)
-
 trait PreCommitCalcCollector {
   def recalculateAll(): Unit
   def apply(thenDo: Seq[ObjId]=>Unit): ObjId=>Unit
 }
-class SysPreCommitCheckContext(
-  val db: Index,
-  val listObjIdsByValue: ListObjIdsByValue,
-  val preCommitCalcCollector: PreCommitCalcCollector,
-  val fail: ValidateFailReaction
-)
 
 case class AttrUpdate(attrId: AttrId, indexed: Boolean, rewritable: Boolean, calcList: List[AttrCalc])
 
@@ -104,7 +82,7 @@ trait RawFactConverter {
   def valueFromBytes(b: RawValue): DBValue
   //def keyFromBytes(key: RawKey): (ObjId,AttrId)
 }
-trait RawIndexConverter {
+trait RawSearchConverter {
   def key(attrId: AttrId, value: DBValue, objId: ObjId): RawKey
   def keyWithoutObjId(attrId: AttrId, value: DBValue): RawKey
   def value(on: Boolean): RawValue

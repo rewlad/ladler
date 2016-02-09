@@ -4,6 +4,8 @@ import java.util.UUID
 
 import ee.cone.base.util.Never
 
+// fail'll probably do nothing in case of outdated rel type
+
 class RelSideAttrInfoList(
   sysAttrCalcContext: SysAttrCalcContext,
   sysPreCommitCheckContext: SysPreCommitCheckContext,

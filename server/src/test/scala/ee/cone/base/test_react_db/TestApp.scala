@@ -100,7 +100,7 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
 
 
 
-class DBDelete(db: Index, search: ListObjIdsByValue) {
+class DBDelete(db: UpdatableAttrIndex, search: ListObjIdsByValue) {
   def apply(objId: ObjId) =
     search(objId).foreach{ attrId => db(objId, attrId) = DBRemoved }
 }
@@ -110,9 +110,9 @@ class TxContext {
   class TxLayerContext(level: Long) {
     private lazy val rawIndex = rawTx.rawIndex
     private lazy val rawFactConverter = new RawFactConverterImpl(0L)
-    private lazy val rawIndexConverter = new RawIndexConverterImpl
+    private lazy val rawIndexConverter = new RawSearchConverterImpl
     protected lazy val db =
-      new IndexImpl(rawFactConverter, rawIndexConverter, rawIndex, ???) // indexed SysAttrId.sessionId
+      new AttrIndexImpl(rawFactConverter, rawIndexConverter, rawIndex, ???) // indexed SysAttrId.sessionId
     protected lazy val search =
       new IndexListObjIdsImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)
     protected lazy val seq = new ObjIdSequence(db, SysAttrId.lastObjId)
@@ -129,14 +129,14 @@ class TxContext {
 
 }
 
-class MainEventTxLayer(db: Index, search: ListObjIdsByValue) {
+class MainEventTxLayer(db: UpdatableAttrIndex, search: ListObjIdsByValue) {
   def isApplied(tempEventId: ObjId): Boolean =
     search(SysAttrId.tempEventId, DBLongValue(tempEventId)).nonEmpty
   ???
 }
 
 class TempEventTxLayer(
-  db: Index, search: ListObjIdsByValue, seq: ObjIdSequence, delete: DBDelete,
+  db: UpdatableAttrIndex, search: ListObjIdsByValue, seq: ObjIdSequence, delete: DBDelete,
   main: MainEventTxLayer
 ){
   private def loadEvent(objId: ObjId) =
@@ -204,7 +204,7 @@ class SysProps(db: Index, indexSearch: IndexSearch) {
 
 case object ResetTxMessage extends Message
 
-class ObjIdSequence(db: Index, seqAttrId: AttrId) {
+class ObjIdSequence(db: UpdatableAttrIndex, seqAttrId: AttrId) {
   private def objId = new ObjId(0L)
   def last: ObjId = db(objId, seqAttrId) match {
     case DBRemoved => 0L

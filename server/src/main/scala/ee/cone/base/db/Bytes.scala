@@ -52,7 +52,7 @@ class RawFactConverterImpl(var valueSrcId: Long) extends RawFactConverter {
   }*/
 }
 
-class RawIndexConverterImpl extends RawIndexConverter {
+class RawSearchConverterImpl extends RawSearchConverter {
   def head = 1L
   def key(attrId: AttrId, value: DBValue, objId: ObjId): RawKey =
     key(attrId.value, value, objId.value, hasObjId=true)
