@@ -8,7 +8,7 @@ import ee.cone.base.db.Types._
 
 // converters //////////////////////////////////////////////////////////////////
 
-class RawFactConverterImpl[Value](toRawValueOuterConverter: ToRawValueOuterConverter[Value]) extends RawFactConverter[Value] {
+class RawFactConverterImpl[Value](valueConverter: RawValueOuterConverter[Value], valueSrcId: ()=>ObjId) extends RawFactConverter[Value] {
   def head = 0L
   def key(objId: ObjId, attrId: AttrId): RawKey =
     key(objId.value, attrId.value, hasObjId=true, hasAttrId=true)
@@ -26,13 +26,16 @@ class RawFactConverterImpl[Value](toRawValueOuterConverter: ToRawValueOuterConve
       })
     })
   }
-  def valueSrcId: ObjId
-  protected def valueToRaw(value: Value): RawValue = {
-    if(value == toRawValueOuterConverter.removed) return Array[Byte]()
-    val exchangeSrcId = CompactBytes.toWrite(valueSrcId.value)
-    val b = toRawValueOuterConverter(0,value,exchangeSrcId.size)
-    exchangeSrcId.atTheEndOf(b).write(valueSrcId.value, b)
+  def value(value: Value): RawValue = {
+    if(value == valueConverter.removed) return Array[Byte]()
+    val reason = valueSrcId().value
+    val exchangeSrcId = CompactBytes.toWrite(reason)
+    val b = valueConverter.allocWrite(0,value,exchangeSrcId.size)
+    exchangeSrcId.atTheEndOf(b).write(reason, b)
   }
+  def valueFromBytes(rawValue: RawValue): Value =
+    if(rawValue.length == 0) valueConverter.removed
+    else valueConverter.read(rawValue)
 /*
   def keyFromBytes(key: RawKey): (Long,Long) = {
     val exHead = CompactBytes.toReadAt(key, 0)
@@ -43,7 +46,7 @@ class RawFactConverterImpl[Value](toRawValueOuterConverter: ToRawValueOuterConve
   }*/
 }
 
-class RawSearchConverterImpl[Value](valueConverter: ToRawValueOuterConverter[Value]) extends RawSearchConverter[Value] {
+class RawSearchConverterImpl[Value](valueConverter: RawValueOuterConverter[Value]) extends RawSearchConverter[Value] {
   def head = 1L
   def key(attrId: AttrId, value: Value, objId: ObjId): RawKey =
     key(attrId.value, value, objId.value, hasObjId=true)
@@ -55,11 +58,11 @@ class RawSearchConverterImpl[Value](valueConverter: ToRawValueOuterConverter[Val
     val valuePos = exAttrId.nextPos
     exHead.write(head, exAttrId.write(attrId,if(hasObjId){
       val absExObjId = CompactBytes.toWrite(objId)
-      val res = valueConverter(valuePos, value, absExObjId.size)
+      val res = valueConverter.allocWrite(valuePos, value, absExObjId.size)
       val exObjId = absExObjId.atTheEndOf(res)
       exObjId.write(objId, res)
     }else{
-      valueConverter(valuePos, value, 0)
+      valueConverter.allocWrite(valuePos, value, 0)
     }))
   }
   def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {
@@ -74,77 +77,66 @@ class RawSearchConverterImpl[Value](valueConverter: ToRawValueOuterConverter[Val
 // valueFromBytes-raw -> valueFromBytes-normal
 // value-raw -> valueAllocWrite-1-normal -> valueAllocWrite-2-raw
 
-trait ToRawValueInnerConverter[ValueA,ValueB] {
-  def apply(spaceBefore: Int, valueA: ValueA, valueB: ValueB, spaceAfter: Int): RawValue
-}
-trait FromRawValueOuterConverter {
-  def valueFromRaw(valueA: ValueA, valueB: ValueB): Value
-}
-
-
-
-
-
-
-class SimpleToRawValueOuterConverterImpl[Value](
-  inner: ToRawValueInnerConverter[Value,Unit]
-) extends ToRawValueOuterConverter[Value] {
-  def apply(spaceBefore: Int, value: Value, spaceAfter: Int) =
-    inner(spaceBefore, value, (), spaceAfter)
+abstract class RawValueOuterConverterImpl[ValueA,ValueB,Value](
+  inner: RawValueInnerConverter[ValueA,ValueB], removed: Value
+) extends RawValueOuterConverter[Value] with RawValueComposingConverter[ValueA,ValueB,Value] {
+  /*def allocWrite(spaceBefore: Int, value: Value, spaceAfter: Int) =
+    inner.allocWrite(spaceBefore, value, (), spaceAfter)*/
+  def read(rawValue: RawValue) = inner.read(rawValue,this)
 }
 
 
 
-trait RawValueConverterImpl[Value,ValueA,ValueB] extends RawValueConverter[Value,ValueA,ValueB] {
-
+abstract class RawValueInnerConverterImpl[ValueA,ValueB] extends RawValueInnerConverter[ValueA,ValueB] {
   protected def splitterB(exchangeA: LongByteExchange, spaceAfter: Int): Array[Byte] = {
     val exchangeB = CompactBytes.`splitter`.after(exchangeA)
     exchangeA.writeHead(exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
   }
-  def removed: Value
-  protected def valueFromBytes(b: RawValue, exchangeA: LongByteExchange, exchangeB: LongByteExchange): Value
-  def valueFromBytes(b: RawValue): Value = {
-    if(b.length==0) return removed
+  type Composer[Value] = RawValueComposingConverter[ValueA,ValueB,Value]
+  protected def readA(b: RawValue, exchange: LongByteExchange): ValueA
+  protected def readB(b: RawValue, exchange: LongByteExchange): ValueB
+  def read[Value](b: RawValue, composer: Composer[Value]): Value = {
     val exchangeA = CompactBytes.toReadAt(b,0)
     val exchangeB = CompactBytes.toReadAt(b,exchangeA.nextPos)
     val exchangeC = CompactBytes.toReadAt(b,exchangeB.nextPos).checkIsLastIn(b) //exchangeC.readLong(b)
-    valueFromBytes(b, exchangeA, exchangeB)
+    composer.compose(readA(b, exchangeA), readB(b, exchangeB))
   }
 }
 
-trait LongRawValueConverterImpl[Value] extends RawValueConverterImpl[Value,Long,Unit] {
-  protected def valueAllocWrite(spaceBefore: Int, valueA: Long, valueB: Unit, spaceAfter: Int): Array[Byte] = {
+trait LongRawValueConverterImpl extends RawValueInnerConverterImpl[Long,Unit] {
+  protected def allocWrite(spaceBefore: Int, valueA: Long, valueB: Unit, spaceAfter: Int): Array[Byte] = {
     val exchangeA = CompactBytes.toWrite(valueA).at(spaceBefore)
     exchangeA.write(valueA, splitterB(exchangeA, spaceAfter))
   }
-  protected def valueFromBytes(b: RawValue, exchangeA: LongByteExchange, exchangeB: LongByteExchange) =
-    if(exchangeB.isSplitter) valueFromRaw(exchangeA.readLong(b), ())
-    else Never()
+
+  protected def readA(b: RawValue, exchange: LongByteExchange) =
+    exchange.readLong(b)
+  protected def readB(b: RawValue, exchange: LongByteExchange) =
+    if(!exchange.isSplitter) Never()
 }
 
-trait LongPairRawValueConverterImpl[Value] extends RawValueConverterImpl[Value,Long,Long] {
-  protected def valueAllocWrite(spaceBefore: Int, valueA: Long, valueB: Long, spaceAfter: Int): Array[Byte] = {
+trait LongPairRawValueConverterImpl extends RawValueInnerConverterImpl[Long,Long] {
+  protected def allocWrite(spaceBefore: Int, valueA: Long, valueB: Long, spaceAfter: Int): Array[Byte] = {
     val exchangeA = CompactBytes.toWrite(valueA).at(spaceBefore)
     val exchangeB = CompactBytes.toWrite(valueB).after(exchangeA)
     exchangeA.write(valueA, exchangeB.write(valueB, exchangeB.alloc(spaceAfter)))
   }
-  protected def valueFromBytes(b: RawValue, exchangeA: LongByteExchange, exchangeB: LongByteExchange) = {
-
-    valueFromRaw(exchangeA.readLong(b), exchangeB.readLong(b))
-  }
-
+  protected def readA(b: RawValue, exchange: LongByteExchange) =
+    exchange.readLong(b)
+  protected def readB(b: RawValue, exchange: LongByteExchange) =
+    exchange.readLong(b)
 }
 
-trait StringRawValueConverterImpl[Value] extends RawValueConverterImpl[Value,String,Unit] {
-  protected def valueAllocWrite(spaceBefore: Int, valueA: String, valueB: Unit, spaceAfter: Int): Array[Byte] = {
+trait StringRawValueConverterImpl extends RawValueInnerConverterImpl[String,Unit] {
+  protected def allocWrite(spaceBefore: Int, valueA: String, valueB: Unit, spaceAfter: Int): Array[Byte] = {
     val src = Bytes(valueA)
     val exchangeA = CompactBytes.toWrite(src).at(spaceBefore)
     exchangeA.write(src, splitterB(exchangeA, spaceAfter))
   }
-  protected def valueFromBytes(b: RawValue, exchangeA: LongByteExchange, exchangeB: LongByteExchange) =
-    if(exchangeA.head == CompactBytes.`strHead` && exchangeB.isSplitter)
-      valueFromRaw(exchangeA.readString(b), ())
-    else Never()
+  protected def readA(b: RawValue, exchange: LongByteExchange) =
+    if(exchange.head == CompactBytes.`strHead`) exchange.readString(b) else Never()
+  protected def readB(b: RawValue, exchange: LongByteExchange) =
+    if(!exchange.isSplitter) Never()
 }
 
 // matching ////////////////////////////////////////////////////////////////////

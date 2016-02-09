@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import java.nio.ByteBuffer
 import java.util.UUID
 import ee.cone.base.util.Never
 import ee.cone.base.db.Types._
@@ -72,19 +73,18 @@ trait PreCommitCalcCollector {
 
 // raw converters
 trait RawValueOuterConverter[Value] {
-  def toRaw(spaceBefore: Int, value: Value, spaceAfter: Int): RawValue
-  def fromRaw(rawValue: RawValue): Value
-}/*
-trait RawValueOuterConverter[Value] {
-
-}*/
-
-trait RawValueConverter[Value,ValueA,ValueB] extends ToRawValueOuterConverter[Value] {
-  protected def valueFromRaw(valueA: ValueA, valueB: ValueB): Value
-  protected def valueToRaw(value: Value): RawValue
-  protected def valueAllocWrite(spaceBefore: Int, value: Value, spaceAfter: Int): RawValue
-  protected def valueAllocWrite(spaceBefore: Int, valueA: ValueA, valueB: ValueB, spaceAfter: Int): RawValue
+  def allocWrite(spaceBefore: Int, value: Value, spaceAfter: Int): RawValue
+  def read(rawValue: RawValue): Value
+  def removed: Value
 }
+trait RawValueInnerConverter[ValueA,ValueB] {
+  def read[Value](rawValue: RawValue, inner: RawValueComposingConverter[ValueA,ValueB,Value]): Value
+  def allocWrite(spaceBefore: Int, valueA: ValueA, valueB: ValueB, spaceAfter: Int): RawValue
+}
+trait RawValueComposingConverter[ValueA,ValueB,Value] {
+  def compose(valueA: ValueA, valueB: ValueB): Value
+}
+
 trait RawFactConverter[Value] {
   def key(objId: ObjId, attrId: AttrId): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
