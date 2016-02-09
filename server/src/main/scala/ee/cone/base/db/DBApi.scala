@@ -46,10 +46,12 @@ case object NotFoundStatus extends SeekStatus {
 trait AttrIndex[From,To] {
   def apply(from: From): To
 }
-trait UpdatableAttrIndex[From,To] extends AttrIndex[From,To] {
-  def update(objId: From, value: To): Unit
+trait RuledIndexAdapter[Value] extends AttrIndex[ObjId,Value] {
+  def update(objId: ObjId, value: Value): Unit
+  def ruled: RuledIndex
 }
-trait RuledIndex extends UpdatableAttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
+trait RuledIndex extends AttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
+  def update(objId: ObjId, value: DBValue): Unit
   def attrId: AttrId
   def indexed: Boolean
 }

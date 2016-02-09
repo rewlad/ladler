@@ -7,95 +7,97 @@ import ee.cone.base.util.Never
 // fail'll probably do nothing in case of outdated rel type
 
 class RelSideAttrInfoList(
-  sysAttrCalcContext: SysAttrCalcContext,
-  sysPreCommitCheckContext: SysPreCommitCheckContext,
-  createSearchAttrInfo: SearchAttrInfoFactory
+  preCommitCalcCollector: PreCommitCalcCollector,
+  createSearchAttrInfo: SearchAttrInfoFactory,
+  attrs: AttrIndex[ObjId,List[RuledIndex]]
 ) {
   def apply(
-    relSideAttrInfo: List[NameAttrInfo], typeAttrId: AttrId,
+    relSideAttrInfo: List[(NameAttrInfo,RuledIndexAdapter[Option[ObjId]],AttrIndex[Option[ObjId],List[ObjId]])], typeAttr: RuledIndex,
     relTypeAttrInfo: List[NameAttrInfo]
-  ): List[AttrInfo] = relSideAttrInfo.flatMap{ propInfo ⇒
+  ): List[AttrInfo] = relSideAttrInfo.flatMap{ case(propInfo,toAttr,searchToAttrId) ⇒
     val relComposedAttrInfo: List[SearchAttrInfo] =
       relTypeAttrInfo.map(i⇒createSearchAttrInfo(Some(i), Some(propInfo)))
-    val relTypeAttrIdToComposedAttrId =
-      relComposedAttrInfo.map{ i ⇒ i.labelAttr.toString → i.attrId }.toMap
-    val indexedAttrIds = relTypeAttrIdToComposedAttrId.values.toSet
-    val calc = TypeIndexAttrCalc(
-      typeAttrId, propInfo.attrId,
-      relTypeAttrIdToComposedAttrId, indexedAttrIds
-      //_IgnoreValidateFailReaction()
-    )(sysAttrCalcContext)
+    val relTypeAttrIdToComposedAttr =
+      relComposedAttrInfo.map{ i ⇒ i.labelAttr.attrId.toString → i.attr }.toMap
+    val indexedAttrIds = relTypeAttrIdToComposedAttr.values.toSet
+    val calc = TypeIndexAttrCalc(typeAttr, propInfo.attr, attrs)(relTypeAttrIdToComposedAttr, indexedAttrIds)
     val integrity = createRefIntegrityPreCommitCheckList(
-      typeAttrId, propInfo.attrId/*, T h rowValidateFailReaction()*/
+      typeAttr, toAttr /*propInfo.attr*/, searchToAttrId
     )
     calc :: createSearchAttrInfo(None, Some(propInfo)) :: relComposedAttrInfo ::: integrity
-
   }
-  private def createRefIntegrityPreCommitCheckList(typeAttrId: AttrId, toAttrId: AttrId): List[AttrCalc] =
-    TypeRefIntegrityPreCommitCheck(typeAttrId, toAttrId)(sysPreCommitCheckContext) ::
-    SideRefIntegrityPreCommitCheck(typeAttrId, toAttrId)(sysPreCommitCheckContext) :: Nil
+  private def createRefIntegrityPreCommitCheckList(
+    typeAttr: RuledIndex,
+    toAttr: RuledIndexAdapter[Option[ObjId]],
+    searchToAttrId: AttrIndex[Option[ObjId],List[ObjId]]
+  ): List[AttrCalc] =
+    TypeRefIntegrityPreCommitCheck(typeAttr, toAttr, searchToAttrId)(preCommitCalcCollector) ::
+    SideRefIntegrityPreCommitCheck(typeAttr, toAttr)(preCommitCalcCollector) :: Nil
 }
 
 case class TypeIndexAttrCalc(
-  typeAttrId: AttrId, propAttrId: AttrId,
-  relTypeIdToAttrId: Map[String,AttrId], indexedAttrIds: Set[AttrId]
-)
-  (context: SysAttrCalcContext)
-  extends AttrCalc
-{
-  import context._
-  def version = UUID.fromString("a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42")
-  def affectedBy = typeAttrId :: propAttrId :: Nil
+  typeAttr: RuledIndex, propAttr: RuledIndex, attrs: AttrIndex[ObjId,List[RuledIndex]],
+  version: String = "a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42"
+)(
+  relTypeIdToAttr: String=>RuledIndex, indexed: RuledIndex=>Boolean // relTypeIdToAttr.getOrElse(typeIdStr, throw new Exception(s"bad rel type $typeIdStr of $objId never here"))
+) extends AttrCalc {
+  def affectedBy = typeAttr :: propAttr :: Nil
   def recalculate(objId: ObjId) = {
-    listAttrIdsByObjId(objId)
-      .foreach(attrId => if(indexedAttrIds(attrId)) db(objId, attrId) = DBRemoved)
-    (db(objId, typeAttrId), db(objId, propAttrId)) match {
+    attrs(objId).foreach(attr => if(indexed(attr)) attr(objId) = DBRemoved)
+    (typeAttr(objId), propAttr(objId)) match {
       case (_,DBRemoved) | (DBRemoved,_) => ()
-      case (DBStringValue(typeIdStr),value) =>
-        val attrIdOpt: Option[AttrId] = relTypeIdToAttrId.get(typeIdStr)
-        if(attrIdOpt.isEmpty) fail(objId, "never here")
-        else db(objId, attrIdOpt.get) = value
+      case (DBStringValue(typeIdStr),value) => relTypeIdToAttr(typeIdStr)(objId) = value
       case _ => Never()
     }
   }
 }
 
-abstract class RefIntegrityPreCommitCheck(context: SysPreCommitCheckContext)
-  extends AttrCalc
-{
-  import context._
-  private def dbHas(objId: ObjId, attrId: AttrId) = db(objId, attrId) != DBRemoved
-  protected def typeAttrId: AttrId
-  protected def toAttrId: AttrId
-  protected def checkAll(objIds: Seq[ObjId]): Unit
-  protected def check(objId: ObjId) = db(objId, toAttrId) match {
-    case DBRemoved ⇒ ()
-    case DBLongValue(toObjId) if dbHas(toObjId, typeAttrId) ⇒ ()
-    case v => fail(objId, s"attr $toAttrId should refer to valid object, but $v found")
+class ObjIdValueConverter extends ValueConverter[Option[ObjId],DBValue] {
+  override def apply(value: Option[ObjId]): DBValue = value match {
+    case None => DBRemoved
+    case Some(objId) => DBLongValue(objId.value)
+  }
+  override def apply(value: DBValue): Option[ObjId] = value match {
+    case DBRemoved => None
+    case DBLongValue(v) => Some(new ObjId(v))
+    case _ => Never()
+  }
+}
+
+abstract class RefIntegrityPreCommitCheck extends AttrCalc {
+  protected def preCommitCalcCollector: PreCommitCalcCollector
+  protected def typeAttr: RuledIndex
+  protected def toAttr: RuledIndexAdapter[Option[ObjId]]
+  protected def checkAll(objIds: Seq[ObjId]): Seq[ValidationFailure]
+  protected def check(objId: ObjId): Option[ValidationFailure] = toAttr(objId) match {
+    case None ⇒ None
+    case Some(toObjId) if typeAttr(toObjId) != DBRemoved ⇒ None
+    case v => Some(ValidationFailure(this,objId)) //, s"attr $toAttrId should refer to valid object, but $v found")
   }
   def recalculate(objId: ObjId) = add(objId)
   private lazy val add = preCommitCalcCollector(checkAll)
 }
 
 //toAttrId must be indexed
-case class TypeRefIntegrityPreCommitCheck(typeAttrId: AttrId, toAttrId: AttrId)
-  (context: SysPreCommitCheckContext)
-  extends RefIntegrityPreCommitCheck(context)
-{
-  import context._
-  def version = UUID.fromString("b2232ecf-734c-4cfa-a88f-78b066a01cd3")
-  def affectedBy = typeAttrId :: Nil
-  private def referredBy(objId: ObjId): List[ObjId] =
-    listObjIdsByValue(toAttrId, new DBLongValue(objId))
+case class TypeRefIntegrityPreCommitCheck(
+  typeAttr: RuledIndex,
+  toAttr: RuledIndexAdapter[Option[ObjId]],
+  searchToAttrId: AttrIndex[Option[ObjId],List[ObjId]],
+  version: String = "b2232ecf-734c-4cfa-a88f-78b066a01cd3"
+)(
+  val preCommitCalcCollector: PreCommitCalcCollector
+) extends RefIntegrityPreCommitCheck {
+  def affectedBy = typeAttr :: Nil
   protected def checkAll(objIds: Seq[ObjId]) =
-    objIds.flatMap(referredBy).foreach(check)
+    objIds.flatMap(objId => searchToAttrId(Some(objId))).flatMap(check)
 }
 
-case class SideRefIntegrityPreCommitCheck(typeAttrId: AttrId, toAttrId: AttrId)
-  (context: SysPreCommitCheckContext)
-  extends RefIntegrityPreCommitCheck(context)
-{
-  def version = UUID.fromString("677f2fdc-b56e-4cf8-973f-db148ee3f0c4")
-  def affectedBy = toAttrId :: Nil
-  protected def checkAll(objIds: Seq[ObjId]) = objIds.foreach(check)
+case class SideRefIntegrityPreCommitCheck(
+  typeAttr: RuledIndex, toAttr: RuledIndexAdapter[Option[ObjId]],
+  version: String = "677f2fdc-b56e-4cf8-973f-db148ee3f0c4"
+)(
+  val preCommitCalcCollector: PreCommitCalcCollector
+) extends RefIntegrityPreCommitCheck {
+  def affectedBy = toAttr.ruled :: Nil
+  protected def checkAll(objIds: Seq[ObjId]) = objIds.flatMap(check)
 }
