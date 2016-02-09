@@ -8,26 +8,22 @@ class LabelIndexAttrInfoList(createSearchAttrInfo: SearchAttrInfoFactory) {
 }
 
 class LabelPropIndexAttrInfoList(
-  sysAttrCalcContext: SysAttrCalcContext,
   createSearchAttrInfo: SearchAttrInfoFactory
 ) {
   def apply(labelInfo: NameAttrInfo, propInfo: NameAttrInfo): List[AttrInfo] = {
     val searchInfo = createSearchAttrInfo(Some(labelInfo), Some(propInfo))
     val calc = LabelIndexAttrCalc(
-      labelInfo.attrId, propInfo.attrId, searchInfo.attrId
-    )(sysAttrCalcContext)
+      labelInfo.attr, propInfo.attr, searchInfo.attr
+    )
     calc :: searchInfo :: Nil
   }
 }
 
-case class LabelIndexAttrCalc(labelAttrId: AttrId, propAttrId: AttrId, indexedAttrId: AttrId)
-  (context: SysAttrCalcContext)
-  extends AttrCalc
-{
-  import context._
-  private def dbHas(objId: ObjId, attrId: AttrId) = db(objId, attrId) != DBRemoved
-  def version = UUID.fromString("1afd3999-46ac-4da3-84a6-17d978f7e032")
-  def affectedByAttrIds = labelAttrId :: propAttrId :: Nil
-  def recalculate(objId: ObjId) = db(objId, indexedAttrId) =
-    if(!dbHas(objId, labelAttrId)) DBRemoved else db(objId, propAttrId)
+case class LabelIndexAttrCalc(
+  labelAttr: RuledIndex, propAttr: RuledIndex, indexedAttr: RuledIndex,
+  version: String = "1afd3999-46ac-4da3-84a6-17d978f7e032"
+) extends AttrCalc {
+  def affectedBy = labelAttr :: propAttr :: Nil
+  def recalculate(objId: ObjId) =
+    indexedAttr(objId) = if(labelAttr(objId)==DBRemoved) DBRemoved else propAttr(objId)
 }

@@ -3,25 +3,30 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-class UniqueAttrCalcList(context: SysAttrCalcContext) {
-  def apply(uniqueAttrId: AttrId) = UniqueAttrCalc(uniqueAttrId)(context) :: Nil
+class UniqueAttrCalcList(preCommitCalcCollector: PreCommitCalcCollector) {
+  def apply(uniqueAttr: RuledIndex, searchUniqueAttr: AttrIndex[DBValue,List[ObjId]]) =
+    UniqueAttrCalc(uniqueAttr, searchUniqueAttr)(preCommitCalcCollector) :: Nil
 }
 
 //uniqueAttrId must be indexed
-case class UniqueAttrCalc(uniqueAttrId: AttrId)
-  (context: SysAttrCalcContext)
-  extends AttrCalc with IndexAttrInfo
-{
-  import context._
-  def version = UUID.fromString("2a734606-11c4-4a7e-a5de-5486c6b788d2")
-  def affectedByAttrIds = uniqueAttrId :: Nil
-  def recalculate(objId: ObjId) = {
-    val uniqueValue = db(objId, uniqueAttrId)
-    if(uniqueValue != DBRemoved) {
-      val objIds = listObjIdsByValue(uniqueAttrId, uniqueValue)
-      if (objIds.length != 1)
-        fail(objId, s"$uniqueAttrId value must be unique!")
+case class UniqueAttrCalc(
+  uniqueAttr: RuledIndex,
+  searchUniqueAttr: AttrIndex[DBValue,List[ObjId]],
+  version: String = "2a734606-11c4-4a7e-a5de-5486c6b788d2"
+)(
+  preCommitCalcCollector: PreCommitCalcCollector
+) extends AttrCalc {
+  def affectedBy = uniqueAttr :: Nil
+  def recalculate(objId: ObjId) = add(objId)
+  private lazy val add = preCommitCalcCollector{ objIds =>
+    objIds.flatMap{ objId =>
+      uniqueAttr(objId) match {
+        case DBRemoved => Nil
+        case uniqueValue => searchUniqueAttr(uniqueValue) match {
+          case id :: Nil => Nil
+          case ids => ids.map(ValidationFailure(this,_))
+        }
+      }
     }
   }
-  def attrId: AttrId = uniqueAttrId
 }

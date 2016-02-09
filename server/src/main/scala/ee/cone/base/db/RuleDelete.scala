@@ -1,16 +1,18 @@
 package ee.cone.base.db
 
-import java.util.UUID
-
-class DeleteAttrCalcList(context: SysAttrCalcContext) {
-  def apply(typeAttrId: AttrId) = DeleteAttrCalc(typeAttrId)(context) :: Nil
+class DeleteAttrCalcList(
+  typeId: RuledIndex,
+  attrs: AttrIndex[ObjId,List[RuledIndex]]
+) {
+  def apply(typeAttrId: AttrId) = DeleteAttrCalc(typeId, attrs) :: Nil
 }
 
-case class DeleteAttrCalc(typeAttrId: AttrId)(context: SysAttrCalcContext) extends AttrCalc {
-  import context._
-  private def dbHas(objId: ObjId, attrId: AttrId) = db(objId, attrId) != DBRemoved
-  def version = UUID.fromString("a9e66744-883f-47c9-9cda-ed5b9c1a11bb")
-  def affectedByAttrIds = typeAttrId :: Nil
-  def recalculate(objId: ObjId) = if(!dbHas(objId, typeAttrId))
-      listAttrIdsByObjId(objId).foreach(attrId => db(objId, attrId) = DBRemoved)
+case class DeleteAttrCalc(
+  typeId: RuledIndex,
+  attrs: AttrIndex[ObjId,List[RuledIndex]],
+  version: String = "a9e66744-883f-47c9-9cda-ed5b9c1a11bb"
+) extends AttrCalc {
+  def affectedBy = typeId :: Nil
+  def recalculate(objId: ObjId) =
+    if(typeId(objId)==DBRemoved) attrs(objId).foreach(_(objId) = DBRemoved)
 }

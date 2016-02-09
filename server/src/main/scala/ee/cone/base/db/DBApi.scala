@@ -1,6 +1,5 @@
 package ee.cone.base.db
 
-import java.util.UUID
 import ee.cone.base.util.Never
 import ee.cone.base.db.Types._
 
@@ -13,10 +12,13 @@ class ObjId(val value: Long) extends AnyVal
 class AttrId(val value: Long) extends AnyVal
 
 trait AttrInfo
+trait Affecting {
+  def affects: List[AttrCalc]
+}
 trait AttrCalc extends AttrInfo {
-  def version: UUID
+  def version: String
   def recalculate(objId: ObjId): Unit
-  def affectedByAttrIds: List[AttrId]
+  def affectedBy: List[Affecting]
 }
 
 trait RawIndex {
@@ -44,33 +46,36 @@ case object NotFoundStatus extends SeekStatus {
 trait AttrIndex[From,To] {
   def apply(from: From): To
 }
-trait UpdatableAttrIndex[Value] extends AttrIndex[ObjId,Value] {
-  def update(objId: ObjId, value: Value): Unit
+trait UpdatableAttrIndex[From,To] extends AttrIndex[From,To] {
+  def update(objId: From, value: To): Unit
 }
-
-trait ValidateFailReaction {
-  def apply(objId: ObjId, comment: String): Unit
-}
-
-trait IndexAttrInfo { def attrId: AttrId }
-trait BaseNameAttrInfo extends AttrInfo {
+trait RuledIndex extends UpdatableAttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
   def attrId: AttrId
+  def indexed: Boolean
+}
+
+trait ValueConverter[A,B] {
+  def apply(value: A): B
+  def apply(value: B): A
+}
+
+trait BaseNameAttrInfo extends AttrInfo {
+  def attr: RuledIndex
   def nameOpt: Option[String]
 }
 trait NameAttrInfo extends BaseNameAttrInfo
 trait SearchAttrInfo extends BaseNameAttrInfo {
-  def labelAttrId: AttrId
+  def labelAttr: RuledIndex
 }
 trait SearchAttrInfoFactory {
   def apply(labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]): SearchAttrInfo
 }
 
+case class ValidationFailure(calc: AttrCalc, objId: ObjId)
 trait PreCommitCalcCollector {
   def recalculateAll(): Unit
-  def apply(thenDo: Seq[ObjId]=>Unit): ObjId=>Unit
+  def apply(thenDo: Seq[ObjId]=>Seq[ValidationFailure]): ObjId=>Unit
 }
-
-case class AttrUpdate(attrId: AttrId, indexed: Boolean, rewritable: Boolean, calcList: List[AttrCalc])
 
 // raw converters
 

@@ -2,6 +2,7 @@
 package ee.cone.base.db
 
 import ee.cone.base.db.Types._
+import ee.cone.base.util.Never
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
@@ -34,28 +35,33 @@ trait ListResult[T] extends KeyPrefixMatcher {
   }
 }
 
-class ListObjIdsByValueImpl(
+case class SearchByValue[SearchValue](
+  ruledIndex: RuledIndex
+)(
+  converter: ValueConverter[SearchValue,DBValue],
   rawIndexConverter: RawSearchConverter,
   val matcher: RawKeyMatcher,
-  val tx: RawIndex,
-  attrId: AttrId
-) extends AttrIndex[DBValue,List[ObjId]] with ListResult[ObjId] {
-  def apply(value: DBValue) =
-    select(rawIndexConverter.keyWithoutObjId(attrId,value))
+  val tx: RawIndex
+) extends AttrIndex[SearchValue,List[ObjId]] with ListResult[ObjId] {
+  def apply(value: SearchValue) = {
+    if(!ruledIndex.indexed) Never()
+    select(rawIndexConverter.keyWithoutObjId(ruledIndex.attrId,converter(value)))
+  }
   protected def lastIdFromLong(id: Long) = new ObjId(id)
 }
 
-class ListAttrIdsByObjIdImpl(
+case class SearchByObjId()(
   rawFactConverter: RawFactConverter,
   val matcher: RawKeyMatcher,
-  val tx: RawIndex
-) extends AttrIndex[ObjId,List[AttrId]] with ListResult[AttrId] {
+  val tx: RawIndex,
+  ruledIndexById: AttrId=>RuledIndex
+) extends AttrIndex[ObjId,List[RuledIndex]] with ListResult[RuledIndex] {
   def apply(objId: ObjId) = select(rawFactConverter.keyWithoutAttrId(objId))
-  protected def lastIdFromLong(id: Long) = new AttrId(id)
+  protected def lastIdFromLong(id: Long) = ruledIndexById(new AttrId(id))
 }
 
 class AllFactExtractor(
-  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: UpdatableAttrIndex
+  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: RuledIndex
 )(
   whileKeyPrefix: RawKey = rawFactConverter.keyHeadOnly
 ) extends KeyPrefixMatcher {

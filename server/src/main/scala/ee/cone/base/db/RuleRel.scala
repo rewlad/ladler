@@ -18,7 +18,7 @@ class RelSideAttrInfoList(
     val relComposedAttrInfo: List[SearchAttrInfo] =
       relTypeAttrInfo.map(i⇒createSearchAttrInfo(Some(i), Some(propInfo)))
     val relTypeAttrIdToComposedAttrId =
-      relComposedAttrInfo.map{ i ⇒ i.labelAttrId.toString → i.attrId }.toMap
+      relComposedAttrInfo.map{ i ⇒ i.labelAttr.toString → i.attrId }.toMap
     val indexedAttrIds = relTypeAttrIdToComposedAttrId.values.toSet
     val calc = TypeIndexAttrCalc(
       typeAttrId, propInfo.attrId,
@@ -45,7 +45,7 @@ case class TypeIndexAttrCalc(
 {
   import context._
   def version = UUID.fromString("a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42")
-  def affectedByAttrIds = typeAttrId :: propAttrId :: Nil
+  def affectedBy = typeAttrId :: propAttrId :: Nil
   def recalculate(objId: ObjId) = {
     listAttrIdsByObjId(objId)
       .foreach(attrId => if(indexedAttrIds(attrId)) db(objId, attrId) = DBRemoved)
@@ -84,7 +84,7 @@ case class TypeRefIntegrityPreCommitCheck(typeAttrId: AttrId, toAttrId: AttrId)
 {
   import context._
   def version = UUID.fromString("b2232ecf-734c-4cfa-a88f-78b066a01cd3")
-  def affectedByAttrIds = typeAttrId :: Nil
+  def affectedBy = typeAttrId :: Nil
   private def referredBy(objId: ObjId): List[ObjId] =
     listObjIdsByValue(toAttrId, new DBLongValue(objId))
   protected def checkAll(objIds: Seq[ObjId]) =
@@ -96,6 +96,6 @@ case class SideRefIntegrityPreCommitCheck(typeAttrId: AttrId, toAttrId: AttrId)
   extends RefIntegrityPreCommitCheck(context)
 {
   def version = UUID.fromString("677f2fdc-b56e-4cf8-973f-db148ee3f0c4")
-  def affectedByAttrIds = toAttrId :: Nil
+  def affectedBy = toAttrId :: Nil
   protected def checkAll(objIds: Seq[ObjId]) = objIds.foreach(check)
 }
