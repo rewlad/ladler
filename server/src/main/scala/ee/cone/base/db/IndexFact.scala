@@ -3,15 +3,6 @@ package ee.cone.base.db
 
 import ee.cone.base.util.Never
 
-case class RuledIndexAdapterImpl[Value](
-  ruled: RuledIndex
-)(
-  converter: ValueConverter[Value,DBValue]
-) extends RuledIndexAdapter[Value] {
-  def update(objId: ObjId, value: Value) = ruled(objId) = converter(value)
-  def apply(objId: ObjId) = converter(ruled(objId))
-}
-
 case class RuledIndexImpl(
   inner: InnerUpdatableAttrIndexImpl, rewritable: Boolean, indexed: Boolean
 )(

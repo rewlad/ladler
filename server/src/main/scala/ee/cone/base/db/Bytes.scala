@@ -11,18 +11,19 @@ import ee.cone.base.db.Types._
 class RawFactConverterImpl(var valueSrcId: Long) extends RawFactConverter {
   def head = 0L
   def key(objId: ObjId, attrId: AttrId): RawKey =
-    key(objId.value, attrId.value, hasObjId=true, hasAttrId=true)
+    key(objId.value, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
   def keyWithoutAttrId(objId: ObjId): RawKey =
-    key(objId.value, 0, hasObjId=true, hasAttrId=false)
+    key(objId.value, 0, 0, hasObjId=true, hasAttrId=false)
   def keyHeadOnly: RawKey =
-    key(0, 0, hasObjId=false, hasAttrId=false)
-  private def key(objId: Long, attrId: Long, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
+    key(0, 0, 0, hasObjId=false, hasAttrId=false)
+  private def key(objId: Long, labelId: Long, propId: Long, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
     val exHead = CompactBytes.toWrite(head).at(0)
     exHead.write(head, if(!hasObjId) exHead.alloc(0) else {
       val exObjId = CompactBytes.toWrite(objId).after(exHead)
       exObjId.write(objId, if(!hasAttrId) exObjId.alloc(0) else {
-        val exAttrId = CompactBytes.toWrite(attrId).after(exObjId)
-        exAttrId.write(attrId, exAttrId.alloc(0))
+        val exLabelId = CompactBytes.toWrite(labelId).after(exObjId)
+        val exPropId = CompactBytes.toWrite(propId).after(exLabelId)
+        exLabelId.write(labelId, exLabelId.write(propId, exPropId.alloc(0)))
       })
     })
   }
@@ -55,21 +56,24 @@ class RawFactConverterImpl(var valueSrcId: Long) extends RawFactConverter {
 class RawSearchConverterImpl extends RawSearchConverter {
   def head = 1L
   def key(attrId: AttrId, value: DBValue, objId: ObjId): RawKey =
-    key(attrId.value, value, objId.value, hasObjId=true)
+    key(attrId.labelId, attrId.propId, value, objId.value, hasObjId=true)
   def keyWithoutObjId(attrId: AttrId, value: DBValue): RawKey =
-    key(attrId.value, value, 0, hasObjId=false)
-  private def key(attrId: Long, value: DBValue, objId: Long, hasObjId: Boolean): RawKey = {
+    key(attrId.labelId, attrId.propId, value, 0, hasObjId=false)
+  private def key(labelId: Long, propId: Long, value: DBValue, objId: Long, hasObjId: Boolean): RawKey = {
     val exHead = CompactBytes.toWrite(head).at(0)
-    val exAttrId = CompactBytes.toWrite(attrId).after(exHead)
-    val valuePos = exAttrId.nextPos
-    exHead.write(head, exAttrId.write(attrId,if(hasObjId){
-      val absExObjId = CompactBytes.toWrite(objId)
-      val res = RawValueConverter.allocWrite(valuePos, value, absExObjId.size)
-      val exObjId = absExObjId.atTheEndOf(res)
-      exObjId.write(objId, res)
-    }else{
-      RawValueConverter.allocWrite(valuePos, value, 0)
-    }))
+    val exLabelId = CompactBytes.toWrite(labelId).after(exHead)
+    val exPropId = CompactBytes.toWrite(propId).after(exLabelId)
+    val valuePos = exPropId.nextPos
+    exHead.write(head, exLabelId.write(labelId,
+      exHead.write(head, exPropId.write(propId,if(hasObjId){
+        val absExObjId = CompactBytes.toWrite(objId)
+        val res = RawValueConverter.allocWrite(valuePos, value, absExObjId.size)
+        val exObjId = absExObjId.atTheEndOf(res)
+        exObjId.write(objId, res)
+      }else{
+        RawValueConverter.allocWrite(valuePos, value, 0)
+      }))
+    ))
   }
   def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {
     val value = 1L
@@ -118,8 +122,13 @@ object BytesSame {
 object RawKeyMatcherImpl extends RawKeyMatcher {
   def matchPrefix(keyPrefix: RawKey, key: RawKey): Boolean =
     BytesSame.part(keyPrefix, key, keyPrefix.length)
-  def lastId(keyPrefix: RawKey, key: RawKey): Long =
-    CompactBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key).readLong(key)
+  def lastObjId(keyPrefix: RawKey, key: RawKey): ObjId =
+    new ObjId(CompactBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key).readLong(key))
+  def lastAttrId(keyPrefix: RawKey, key: RawKey): AttrId = {
+    val exLabelId = CompactBytes.toReadAt(key, keyPrefix.length)
+    val exPropId = CompactBytes.toReadAfter(key, exLabelId).checkIsLastIn(key)
+    new AttrId(exLabelId.readLong(key), exPropId.readLong(key))
+  }
 }
 
 // bytes ///////////////////////////////////////////////////////////////////////

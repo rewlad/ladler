@@ -9,7 +9,7 @@ object Types {
 }
 
 class ObjId(val value: Long) extends AnyVal
-class AttrId(val value: Long) extends AnyVal
+case class AttrId(labelId: Long, propId: Long)
 
 trait AttrInfo
 trait Affecting {
@@ -48,31 +48,27 @@ case object NotFoundStatus extends SeekStatus {
 trait AttrIndex[From,To] {
   def apply(from: From): To
 }
-trait RuledIndexAdapter[Value] extends AttrIndex[ObjId,Value] {
-  def update(objId: ObjId, value: Value): Unit
-  def ruled: RuledIndex
+trait ValueConverter[A,B] {
+  def apply(value: A): B
+  def apply(value: B): A
 }
 trait RuledIndex extends AttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
   def update(objId: ObjId, value: DBValue): Unit
   def attrId: AttrId
   def indexed: Boolean
 }
+trait RuledIndexAdapter[Value] extends AttrIndex[ObjId,Value] {
+  def update(objId: ObjId, value: Value): Unit
+  def ruled: RuledIndex
+  def converter: ValueConverter[Value,DBValue]
+}
+trait SearchByValue[Value] extends AttrIndex[Value,List[ObjId]] with AttrInfo {
+  def direct: RuledIndexAdapter[Value]
+}
+trait SearchByObjId extends AttrIndex[ObjId,List[RuledIndex]]
 
-trait ValueConverter[A,B] {
-  def apply(value: A): B
-  def apply(value: B): A
-}
-
-trait BaseNameAttrInfo extends AttrInfo {
-  def attr: RuledIndex
-  def nameOpt: Option[String]
-}
-trait NameAttrInfo extends BaseNameAttrInfo
-trait SearchAttrInfo extends BaseNameAttrInfo {
-  def labelAttr: RuledIndex
-}
-trait SearchAttrInfoFactory {
-  def apply(labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]): SearchAttrInfo
+trait IndexComposer {
+  def apply(labelAttr: RuledIndex, propAttr: RuledIndex): RuledIndex
 }
 
 case class ValidationFailure(calc: PreCommitCheck, objId: ObjId)
@@ -100,7 +96,8 @@ trait RawSearchConverter {
 }
 trait RawKeyMatcher {
   def matchPrefix(keyPrefix: RawKey, key: RawKey): Boolean
-  def lastId(keyPrefix: RawKey, key: RawKey): Long
+  def lastObjId(keyPrefix: RawKey, key: RawKey): ObjId
+  def lastAttrId(keyPrefix: RawKey, key: RawKey): AttrId
 }
 
 // DBValue

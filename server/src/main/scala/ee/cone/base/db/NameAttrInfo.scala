@@ -4,48 +4,17 @@ import ee.cone.base.util.{Bytes, MD5, LongFits, Never}
 
 import scala.collection.mutable
 
-object AttrIdCompose { // do not use for original facts
-  def hexSz = 4
-  def idSz = 4 * hexSz
-  def apply(a: AttrId, b: AttrId): AttrId = new AttrId(
-    LongFits(a.value,idSz, isUnsigned = true, idSz) |
-    LongFits(b.value,idSz, isUnsigned = true, 0)
-  )
-
-}
-
-case class NoNameAttrInfo(attr: RuledIndex) extends BaseNameAttrInfo {
-  def nameOpt = None
-}
-
-case class NameAttrInfoImpl(attr: RuledIndex, name: String) extends NameAttrInfo {
-  lazy val nameOpt = Some(name)
-}
-
-class SearchAttrInfoFactoryImpl(
-  ruledIndexById: AttrId=>RuledIndex
-) extends SearchAttrInfoFactory {
-  def apply(labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]) =
-    SearchAttrInfoImpl(labelOpt, propOpt)(ruledIndexById)
-}
-
-case class SearchAttrInfoImpl(
-  labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]
-)(
-  ruledIndexById: AttrId=>RuledIndex
-) extends SearchAttrInfo {
-  def attr = composedInfo.attr
-  def nameOpt = composedInfo.nameOpt
-  private lazy val composedInfo: BaseNameAttrInfo = (labelOpt,propOpt) match {
-    case (None,Some(info)) ⇒ info
-    case (Some(info),None) ⇒ info
-    case (Some(NameAttrInfoImpl(labelAttr,_)),Some(NameAttrInfoImpl(propAttr,_))) ⇒
-      NoNameAttrInfo(ruledIndexById(AttrIdCompose(labelAttr.attrId,propAttr.attrId)))
-    case (None,None) ⇒ Never()
+class IndexComposerImpl(
+  ruledIndexById: AttrId=>RuledIndex //create indexed rewritable
+) extends IndexComposer {
+  def apply(labelAttr: RuledIndex, propAttr: RuledIndex) = {
+    val AttrId(labelAttrId,0) = labelAttr.attrId
+    val AttrId(0,propAttrId) = propAttr.attrId
+    ruledIndexById(new AttrId(labelAttrId,propAttrId))
   }
-  lazy val keyForValue: String = propOpt.orElse(labelOpt).flatMap(_.nameOpt).get
-  def labelAttr = labelOpt.get.attr
 }
+
+//lazy val keyForValue: String = propOpt.orElse(labelOpt).flatMap(_.nameOpt).get
 
 // fails = attrCalcList.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
 case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck) extends PreCommitCheckAttrCalc {

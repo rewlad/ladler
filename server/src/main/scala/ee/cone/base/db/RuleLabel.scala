@@ -1,20 +1,13 @@
 package ee.cone.base.db
 
-import java.util.UUID
-
-class LabelIndexAttrInfoList(createSearchAttrInfo: SearchAttrInfoFactory) {
-  def apply(labelInfo: NameAttrInfo): List[AttrInfo] =
-    createSearchAttrInfo(Some(labelInfo), None) :: Nil
-}
+// LabelIndexAttrInfoList -- just indexed=true in labelAttr
 
 class LabelPropIndexAttrInfoList(
-  createSearchAttrInfo: SearchAttrInfoFactory
+  createSearchAttrInfo: IndexComposer
 ) {
-  def apply(labelInfo: NameAttrInfo, propInfo: NameAttrInfo): List[AttrInfo] = {
-    val searchInfo = createSearchAttrInfo(Some(labelInfo), Some(propInfo))
-    val calc = LabelIndexAttrCalc(
-      labelInfo.attr, propInfo.attr, searchInfo.attr
-    )
+  def apply(labelInfo: RuledIndex, propInfo: RuledIndex): List[AttrInfo] = {
+    val searchInfo = createSearchAttrInfo(labelInfo, propInfo)
+    val calc = LabelIndexAttrCalc(labelInfo, propInfo, searchInfo)
     calc :: searchInfo :: Nil
   }
 }

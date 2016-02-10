@@ -2,14 +2,14 @@ package ee.cone.base.db
 
 class DeleteAttrCalcList(
   typeId: RuledIndex,
-  attrs: AttrIndex[ObjId,List[RuledIndex]]
+  attrs: SearchByObjId
 ) {
-  def apply(typeAttrId: AttrId) = DeleteAttrCalc(typeId, attrs) :: Nil
+  def apply() = DeleteAttrCalc(typeId, attrs) :: Nil
 }
 
 case class DeleteAttrCalc(
   typeId: RuledIndex,
-  attrs: AttrIndex[ObjId,List[RuledIndex]],
+  attrs: SearchByObjId,
   version: String = "a9e66744-883f-47c9-9cda-ed5b9c1a11bb"
 ) extends AttrCalc {
   def affectedBy = typeId :: Nil

@@ -8,35 +8,33 @@ import ee.cone.base.util.Never
 
 class RelSideAttrInfoList(
   preCommitCheck: PreCommitCheck=>AttrCalc,
-  createSearchAttrInfo: SearchAttrInfoFactory,
-  attrs: AttrIndex[ObjId,List[RuledIndex]]
+  createSearchAttrInfo: IndexComposer,
+  attrs: SearchByObjId
 ) {
   def apply(
-    relSideAttrInfo: List[(NameAttrInfo,RuledIndexAdapter[Option[ObjId]],AttrIndex[Option[ObjId],List[ObjId]])], typeAttr: RuledIndex,
-    relTypeAttrInfo: List[NameAttrInfo]
-  ): List[AttrInfo] = relSideAttrInfo.flatMap{ case(propInfo,toAttr,searchToAttrId) ⇒
-    val relComposedAttrInfo: List[SearchAttrInfo] =
-      relTypeAttrInfo.map(i⇒createSearchAttrInfo(Some(i), Some(propInfo)))
+    relSideAttrInfo: List[SearchByValue[Option[ObjId]]], typeAttr: RuledIndex,
+    relTypeAttrInfo: List[RuledIndex]
+  ): List[AttrInfo] = relSideAttrInfo.flatMap{ searchToAttr ⇒
+    val propInfo = searchToAttr.direct.ruled
+    val relComposedAttrInfo: List[(RuledIndex,RuledIndex)] =
+      relTypeAttrInfo.map(labelAttr⇒(labelAttr,createSearchAttrInfo(labelAttr, propInfo)))
     val relTypeAttrIdToComposedAttr =
-      relComposedAttrInfo.map{ i ⇒ i.labelAttr.attrId.toString → i.attr }.toMap
+      relComposedAttrInfo.map{ case(l,i) ⇒ l.attrId.toString → i }.toMap
     val indexedAttrIds = relTypeAttrIdToComposedAttr.values.toSet
-    val calc = TypeIndexAttrCalc(typeAttr, propInfo.attr, attrs)(relTypeAttrIdToComposedAttr, indexedAttrIds)
-    val integrity = createRefIntegrityPreCommitCheckList(
-      typeAttr, toAttr /*propInfo.attr*/, searchToAttrId
-    )
-    calc :: createSearchAttrInfo(None, Some(propInfo)) :: relComposedAttrInfo ::: integrity
+    val calc = TypeIndexAttrCalc(typeAttr, propInfo, attrs)(relTypeAttrIdToComposedAttr, indexedAttrIds)
+    val integrity = createRefIntegrityPreCommitCheckList(typeAttr, searchToAttr)
+    calc :: propInfo :: relComposedAttrInfo.map(_._2) ::: integrity
   }
   private def createRefIntegrityPreCommitCheckList(
     typeAttr: RuledIndex,
-    toAttr: RuledIndexAdapter[Option[ObjId]],
-    searchToAttrId: AttrIndex[Option[ObjId],List[ObjId]]
+    searchToAttrId: SearchByValue[Option[ObjId]]
   ): List[AttrCalc] =
-    preCommitCheck(TypeRefIntegrityPreCommitCheck(typeAttr, toAttr, searchToAttrId)) ::
-      preCommitCheck(SideRefIntegrityPreCommitCheck(typeAttr, toAttr)) :: Nil
+    preCommitCheck(TypeRefIntegrityPreCommitCheck(typeAttr, searchToAttrId)) ::
+      preCommitCheck(SideRefIntegrityPreCommitCheck(typeAttr, searchToAttrId.direct)) :: Nil
 }
 
 case class TypeIndexAttrCalc(
-  typeAttr: RuledIndex, propAttr: RuledIndex, attrs: AttrIndex[ObjId,List[RuledIndex]],
+  typeAttr: RuledIndex, propAttr: RuledIndex, attrs: SearchByObjId,
   version: String = "a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42"
 )(
   relTypeIdToAttr: String=>RuledIndex, indexed: RuledIndex=>Boolean // relTypeIdToAttr.getOrElse(typeIdStr, throw new Exception(s"bad rel type $typeIdStr of $objId never here"))
@@ -49,18 +47,6 @@ case class TypeIndexAttrCalc(
       case (DBStringValue(typeIdStr),value) => relTypeIdToAttr(typeIdStr)(objId) = value
       case _ => Never()
     }
-  }
-}
-
-class ObjIdValueConverter extends ValueConverter[Option[ObjId],DBValue] {
-  override def apply(value: Option[ObjId]): DBValue = value match {
-    case None => DBRemoved
-    case Some(objId) => DBLongValue(objId.value)
-  }
-  override def apply(value: DBValue): Option[ObjId] = value match {
-    case DBRemoved => None
-    case DBLongValue(v) => Some(new ObjId(v))
-    case _ => Never()
   }
 }
 
@@ -77,13 +63,13 @@ abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
 //toAttrId must be indexed
 case class TypeRefIntegrityPreCommitCheck(
   typeAttr: RuledIndex,
-  toAttr: RuledIndexAdapter[Option[ObjId]],
-  searchToAttrId: AttrIndex[Option[ObjId],List[ObjId]],
+  searchToAttr: SearchByValue[Option[ObjId]],
   version: String = "b2232ecf-734c-4cfa-a88f-78b066a01cd3"
 ) extends RefIntegrityPreCommitCheck {
+  protected def toAttr = searchToAttr.direct
   def affectedBy = typeAttr :: Nil
   def check(objIds: Seq[ObjId]) =
-    objIds.flatMap(objId => searchToAttrId(Some(objId))).flatMap(check)
+    objIds.flatMap(objId => searchToAttr(Some(objId))).flatMap(check)
 }
 
 case class SideRefIntegrityPreCommitCheck(

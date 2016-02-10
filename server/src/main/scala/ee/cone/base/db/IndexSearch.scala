@@ -20,7 +20,7 @@ trait KeyPrefixMatcher {
 trait ListResult[T] extends KeyPrefixMatcher {
   protected def matcher: RawKeyMatcher
   protected def tx: RawIndex
-  protected def lastIdFromLong(id: Long): T
+  protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey): T
 
   private var result: List[T] = Nil
   protected def select(key: RawKey): List[T] = {
@@ -30,34 +30,35 @@ trait ListResult[T] extends KeyPrefixMatcher {
   }
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
     if(!matcher.matchPrefix(keyPrefix, ks.key)){ return false }
-    result = lastIdFromLong(matcher.lastId(keyPrefix, ks.key)) :: result
+    result = lastIdFromLong(keyPrefix, ks.key) :: result
     true
   }
 }
 
-case class SearchByValue[SearchValue](
-  ruledIndex: RuledIndex
+case class SearchByValueImpl[SearchValue](
+  direct: RuledIndexAdapter[SearchValue]
 )(
-  converter: ValueConverter[SearchValue,DBValue],
   rawIndexConverter: RawSearchConverter,
   val matcher: RawKeyMatcher,
   val tx: RawIndex
-) extends AttrIndex[SearchValue,List[ObjId]] with ListResult[ObjId] {
+) extends SearchByValue[SearchValue] with ListResult[ObjId] {
   def apply(value: SearchValue) = {
-    if(!ruledIndex.indexed) Never()
-    select(rawIndexConverter.keyWithoutObjId(ruledIndex.attrId,converter(value)))
+    if(!direct.ruled.indexed) Never()
+    select(rawIndexConverter.keyWithoutObjId(direct.ruled.attrId,direct.converter(value)))
   }
-  protected def lastIdFromLong(id: Long) = new ObjId(id)
+  protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey) =
+    matcher.lastObjId(keyPrefix, key)
 }
 
-case class SearchByObjId()(
+case class SearchByObjIdImpl()(
   rawFactConverter: RawFactConverter,
   val matcher: RawKeyMatcher,
   val tx: RawIndex,
   ruledIndexById: AttrId=>RuledIndex
-) extends AttrIndex[ObjId,List[RuledIndex]] with ListResult[RuledIndex] {
+) extends SearchByObjId with ListResult[RuledIndex] {
   def apply(objId: ObjId) = select(rawFactConverter.keyWithoutAttrId(objId))
-  protected def lastIdFromLong(id: Long) = ruledIndexById(new AttrId(id))
+  protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey) =
+    ruledIndexById(matcher.lastAttrId(keyPrefix, key))
 }
 
 class AllFactExtractor(
