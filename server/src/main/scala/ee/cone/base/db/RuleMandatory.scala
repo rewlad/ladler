@@ -1,11 +1,9 @@
 package ee.cone.base.db
 
-import java.util.UUID
-
-class MandatoryPreCommitCheckList(preCommitCalcCollector: PreCommitCalcCollector) {
+class MandatoryPreCommitCheckList(preCommitCheck: PreCommitCheck=>AttrCalc) {
   def apply(condAttr: RuledIndex, mandatoryAttr: RuledIndex, mutual: Boolean): List[AttrCalc] =
-    MandatoryPreCommitCheck(condAttr, mandatoryAttr)(preCommitCalcCollector) :: (
-      if(mutual) MandatoryPreCommitCheck(mandatoryAttr, condAttr)(preCommitCalcCollector) :: Nil
+    preCommitCheck(MandatoryPreCommitCheck(condAttr, mandatoryAttr)) :: (
+      if(mutual) preCommitCheck(MandatoryPreCommitCheck(mandatoryAttr, condAttr)) :: Nil
       else Nil
     )
 }
@@ -13,13 +11,9 @@ class MandatoryPreCommitCheckList(preCommitCalcCollector: PreCommitCalcCollector
 case class MandatoryPreCommitCheck(
   condAttr: RuledIndex, mandatoryAttr: RuledIndex,
   version: String = "ed748474-04e0-4ff7-89a1-be8a95aa743c"
-)(
-  preCommitCalcCollector: PreCommitCalcCollector
-) extends AttrCalc {
+) extends PreCommitCheck {
   def affectedBy = condAttr :: mandatoryAttr :: Nil
-  def recalculate(objId: ObjId) = add(objId)
-  private lazy val add = preCommitCalcCollector{ objIds =>
+  def check(objIds: Seq[ObjId]) =
     for(objId ← objIds if condAttr(objId)!=DBRemoved && mandatoryAttr(objId)==DBRemoved)
       yield ValidationFailure(this, objId)
-  }
 }

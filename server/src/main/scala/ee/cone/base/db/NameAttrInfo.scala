@@ -47,16 +47,13 @@ case class SearchAttrInfoImpl(
   def labelAttr = labelOpt.get.attr
 }
 
-
-class PreCommitCalcCollectorImpl(fail: ValidationFailure=>Unit) extends PreCommitCalcCollector {
-  private var calcList: List[()=>Unit] = Nil
-  def recalculateAll(): Unit = calcList.reverseIterator.foreach(_.apply())
-
-  def apply(thenDo: Seq[ObjId]=>Seq[ValidationFailure]): ObjId=>Unit = {
-    val objIds = mutable.SortedSet[ObjId]()
-    calcList = (()=>thenDo(objIds.toSeq).foreach(fail)) :: calcList
-    objId => objIds += objId
-  }
+// fails = attrCalcList.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
+case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck) extends PreCommitCheckAttrCalc {
+  private lazy val objIds = mutable.SortedSet[ObjId]()
+  def version = check.version
+  def affectedBy = check.affectedBy
+  def recalculate(objId: ObjId) = objIds += objId
+  def checkAll() = check.check(objIds.toSeq)
 }
 
 ////

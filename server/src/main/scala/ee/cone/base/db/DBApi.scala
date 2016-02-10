@@ -13,12 +13,14 @@ class AttrId(val value: Long) extends AnyVal
 
 trait AttrInfo
 trait Affecting {
-  def affects: List[AttrCalc]
+  def affects: List[Affected]
 }
-trait AttrCalc extends AttrInfo {
+trait Affected {
   def version: String
-  def recalculate(objId: ObjId): Unit
   def affectedBy: List[Affecting]
+}
+trait AttrCalc extends AttrInfo with Affected {
+  def recalculate(objId: ObjId): Unit
 }
 
 trait RawIndex {
@@ -73,10 +75,12 @@ trait SearchAttrInfoFactory {
   def apply(labelOpt: Option[NameAttrInfo], propOpt: Option[NameAttrInfo]): SearchAttrInfo
 }
 
-case class ValidationFailure(calc: AttrCalc, objId: ObjId)
-trait PreCommitCalcCollector {
-  def recalculateAll(): Unit
-  def apply(thenDo: Seq[ObjId]=>Seq[ValidationFailure]): ObjId=>Unit
+case class ValidationFailure(calc: PreCommitCheck, objId: ObjId)
+trait PreCommitCheckAttrCalc extends AttrCalc {
+  def checkAll(): Seq[ValidationFailure]
+}
+trait PreCommitCheck extends Affected {
+  def check(objIds: Seq[ObjId]): Seq[ValidationFailure]
 }
 
 // raw converters
