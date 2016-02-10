@@ -253,6 +253,13 @@ frame / message handling
 mTx / rw Tx
 */
 
+/*
+set isApplied => apply event
+
+every attr checks isApplied => die, reconnect
+
+ */
+
 class RawTx(val rawIndex: RawIndex, val commit: ()=>Unit)
 trait DBEnv {
   def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx

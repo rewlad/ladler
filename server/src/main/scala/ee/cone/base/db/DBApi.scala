@@ -62,7 +62,7 @@ trait RuledIndexAdapter[Value] extends AttrIndex[ObjId,Value] {
   def ruled: RuledIndex
   def converter: ValueConverter[Value,DBValue]
 }
-trait SearchByValue[Value] extends AttrIndex[Value,List[ObjId]] with AttrInfo {
+trait SearchByValue[Value] extends AttrIndex[Value,List[ObjId]] {
   def direct: RuledIndexAdapter[Value]
 }
 trait SearchByObjId extends AttrIndex[ObjId,List[RuledIndex]]
