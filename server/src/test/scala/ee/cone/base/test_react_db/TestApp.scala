@@ -218,7 +218,7 @@ object SysAttrId {
 case object ResetTxMessage extends Message
 
 ////
-
+/*
 case class PreventChangesIfAppliedAttrCalc(
   isAppliedAttr: RuledIndex,
   version: String = "e959c2f3-7c70-4e4e-aa3e-64516f613f39"
@@ -236,7 +236,7 @@ case class PreventUnsetAppliedAttrCalc(
   override def recalculate(objId: ObjId) = if(isAppliedAttr(objId)==DBRemoved) Never()
   override def affectedBy = isAppliedAttr :: Nil
 }
-
+*/
 ////
 
 class FindOrCreateSrcId(searchSrcId: SearchByValue[UUID], seq: ObjIdSequence) extends AttrIndex[UUID,ObjId] {
