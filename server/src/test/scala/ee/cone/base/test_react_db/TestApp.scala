@@ -1,6 +1,7 @@
 package ee.cone.base.test_react_db
 
 import java.nio.file.Paths
+import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import ee.cone.base.util.{Never, Setup}
 import scala.collection.immutable.SortedMap
@@ -169,24 +170,26 @@ class TempEventTxLayer(
 
 case class SessionState(loaded: Boolean, sessionId: DBValue, eventList: List[DBEvent])
 class MutableSessionState(
-  lifeCycle: LifeCycle, env: TestEnv, rw: Boolean, sessionKey: String,
+  lifeCycle: LifeCycle, env: TestEnv, sessionKey: String,
   createTxContext: (RawTx,)=>TxContext
 ){
   private var state = SessionState(loaded=false, DBRemoved, Nil)
-  private def withTx(f: DBEventTx=>Unit): Unit = lifeCycle.sub{ mTxLifeCycle =>
-    val rawTx = env.createTx(lifeCycle, rw)
-    val txContext = createTxContext
-    f(new DBEventTx(rawTx, mainTx))
+  private def withTx(rw: Boolean)(f: ()=>Unit): Unit = lifeCycle.sub{ mTxLifeCycle =>
+    val rawTx = env.createTx(mTxLifeCycle, rw)
+    // todo: set rawTx for mTxLifeCycle
+    f()
     rawTx.commit()
   }
   private def loaded() =
     if(!state.loaded) withTx{ tx => state = tx.purgeAndLoad(sessionKey) }
   def get = { loaded(); state }
-  def add(ev: DBEvent): Unit = {
-    loaded()
-    withTx{ tx => state = tx.add(state, ev) }
-  }
+
+
+  //  withTx(rw=true){ dispatch  }
+
 }
+
+case class DBEvent(data: Map[AttrId,DBValue])
 
 /*
 class SysProps(db: Index, indexSearch: IndexSearch) {
@@ -200,40 +203,56 @@ class SysProps(db: Index, indexSearch: IndexSearch) {
   lazy val appliedId      = new Prop(0x03)
 }
 */
-
-
-case object ResetTxMessage extends Message
-
-class ObjIdSequence(db: UpdatableAttrIndex, seqAttrId: AttrId) {
-  private def objId = new ObjId(0L)
-  def last: ObjId = db(objId, seqAttrId) match {
-    case DBRemoved => 0L
-    case DBLongValue(v) => v
-  }
-  def last_=(value: ObjId) = db(objId, seqAttrId) = DBLongValue(value)
-  def next = new ObjId(last.value + 1L)
-  def inc(): ObjId = {
-    val res = next
-    last = res
-    res
-  }
-}
-
+/*
 object SysAttrId {
   def lastObjId      = new AttrId(0x01)
   def sessionId      = new AttrId(0x02)
   def sessionKey     = new AttrId(0x03)
   def tempEventId    = new AttrId(0x04)
 }
+*/
 
-object DBLayers {
-  def eventFacts     = 2
-  def eventIndex     = 3
-  def readModelFacts = 4
-  def readModelIndex = 5
+
+
+
+case object ResetTxMessage extends Message
+
+////
+
+case class PreventChangesIfAppliedAttrCalc(
+  isAppliedAttr: RuledIndex,
+  version: String = "e959c2f3-7c70-4e4e-aa3e-64516f613f39"
+)(
+  allAttrInfoList: ()=>List[AttrInfo]
+) extends AttrCalc {
+  override def recalculate(objId: ObjId) = if(isAppliedAttr(objId)!=DBRemoved) Never()
+  override def affectedBy =
+    allAttrInfoList().collect{ case i: RuledIndex if i != isAppliedAttr => i }
+}
+case class PreventUnsetAppliedAttrCalc(
+  isAppliedAttr: RuledIndex,
+  version: String = "bba34082-d0fd-4d16-b191-265b1fc06d21"
+) extends AttrCalc {
+  override def recalculate(objId: ObjId) = if(isAppliedAttr(objId)==DBRemoved) Never()
+  override def affectedBy = isAppliedAttr :: Nil
 }
 
-case class DBEvent(data: List[(AttrId,DBValue)])
+////
+
+class FindOrCreateSrcId(searchSrcId: SearchByValue[UUID], seq: ObjIdSequence) extends AttrIndex[UUID,ObjId] {
+  def apply(value: UUID) = searchSrcId(value).headOption
+    .getOrElse(Setup(seq.inc()){ objId => searchSrcId.direct(objId) = value })
+}
+class ObjIdSequence(seqAttr: RuledIndexAdapter[Option[ObjId]]) {
+  def inc(): ObjId = {
+    val objId = new ObjId(0L)
+    val res = new ObjId(seqAttr(objId).getOrElse(objId).value + 1L)
+    seqAttr(objId) = Some(res)
+    res
+  }
+}
+
+////
 
 class TestConnection(
   val context: ContextOfConnection,
