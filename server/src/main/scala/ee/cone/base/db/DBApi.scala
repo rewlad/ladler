@@ -13,7 +13,7 @@ case class AttrId(labelId: Long, propId: Long)
 
 trait AttrInfo
 trait Affecting {
-  def affects: List[Affected]
+  protected def affects(calc: AttrCalc): Unit
 }
 trait Affected {
   def version: String

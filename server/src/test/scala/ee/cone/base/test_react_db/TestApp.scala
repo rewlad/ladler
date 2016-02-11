@@ -245,20 +245,68 @@ class TestConnection(
   def receive = tx().receive
 }
 
-/*
-app
-connection
-snapshot / ro Tx
-frame / message handling
-mTx / rw Tx
-*/
 
 /*
-set isApplied => apply event
+instant indexed:
+  session.sessionKey
+  ev.sessionId
+  undo.undoneId
+  reqEv.isRequested
+  commitEv.committedReqId
+  commitEv.committedSessionId
+main:
+  0.lastMergedId
 
-every attr checks isApplied => die, reconnect
+isRequested -- no more undo-s for ev-s le by session, only undo-s by merger
+
+concurrency, exceptions, lifecycle:
+  exception kills connection
+  scopes are mostly connection
+  instant/main are selecting by attr
+  tx/snapshot scoped values will have lazy resettable wrapper
+  instantDB write can only add events
+remember:
+  app
+  connection
+  snapshot / ro Tx
+  frame / message handling
+  mTx / rw Tx
+
+
+merger connection iteration:
+  try-with mainDB rw:
+    try
+      try-with instantDB read:
+        get first with isRequested gt lastMergedId that is not undone;
+        handle according to its none|committed by later ev
+    finally:
+      try-with instantDB rw:
+        err: add undo
+        not yet committed: add commit
+
+ui do iteration:
+  switch mainDB off
+  inside dispatch can be:
+    try-with instantDB rw: add event
+    reset vDom or tx
+
+ui fresh snapshot:
+  sessionLastMergedId = gt last committed and merged request for this session --
+  -- rev committedSessionId -> for reverse -> rel committedReqId -> until le lastMergedId
+
+ui next view iteration:
+  switch mainDB mux
+  try
+    try-with instantDB read:
+      loop
+        get first with our sessionId gt sessionLastMergedId that is not undone;
+        handle
+      view
+  finally:
+    send vDomDiff or error
 
  */
+
 
 class RawTx(val rawIndex: RawIndex, val commit: ()=>Unit)
 trait DBEnv {
