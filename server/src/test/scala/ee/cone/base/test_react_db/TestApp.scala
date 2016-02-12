@@ -3,7 +3,7 @@ package ee.cone.base.test_react_db
 import java.nio.file.Paths
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
-import ee.cone.base.util.{Never, Setup}
+import ee.cone.base.util.{Single, Never, Setup}
 import scala.collection.immutable.SortedMap
 
 import ee.cone.base.connection_api.{DictMessage, Message}
@@ -40,6 +40,40 @@ class Cached[T](create: ()=>T){
     value.get
   }
 }
+
+
+class CachedLife(lifeCycle: ()=>LifeCycle) {
+  def apply[C](create: =>C)(close: C=>Unit): ()=>C = {
+    var state: Option[C] = None
+    () => state.getOrElse(
+      lifeCycle().setup(Setup(create){ i => state = Option(i) })
+        { i => state = None; close(i) }
+    )
+  }
+}
+
+/*
+class TxLife(lifeCycle: Cached[LifeCycle]) {
+  def apply[C](create: ()=>C) = {
+    val cached = new Cached[C](mk)
+    def mk(): C = lifeCycle().setup{ create() }(a => cached.reset())
+
+
+    //lifeCycle().setup{ create() }{ a => cached. }
+  }
+
+}
+*/
+
+class B {
+  def close() = ()
+}
+class A(snapLife: Life) {
+  lazy val test: ()=>B = snapLife(new B) // Autoclosable
+}
+
+
+
 
 class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
   /*def regenerateDom() = {
@@ -263,6 +297,44 @@ class TestConnection(
   lazy val tx = new Cached[TestTx](() => new TestTx(this))
   def receive = tx().receive
 }
+
+
+
+
+
+
+
+/*
+trait IA_SomeAttr {
+  def someAttr: String
+}
+trait A_SomeAttr extends IA_SomeAttr {
+  def someAttr = ???
+}
+class SomeObj extends A_SomeAttr
+*/
+
+/*
+abstract class Abc extends IA_txLife with IA_frameLife
+class SummaryWeightCalc(
+  weight: RuledIndexAdapter[Option[BigDecimal]],
+  searchColor: SearchByValue[Option[String],Car],//RuledIndexAdapter[Option[Color]]
+  searchWeightSummary: SearchByValue[Boolean]
+) extends AttrCalc {
+  def recalculate(objId: ObjId) = {
+    weight(Single(searchWeightSummary(true))) =
+      Some(searchColorOfCar(Some("G")).flatMap(o => weight(o)).sum)
+
+  }
+  def affectedBy = searchColor.direct.ruled :: weight.ruled :: Nil
+}
+trait Generated {
+  def color: RuledIndexAdapter[Option[String]]
+  lazy val searchColor = new SearchByValueImpl(color)
+  lazy val summaryWeightCalc = new SummaryWeightCalc(???,searchColor,???)
+  def info = summaryWeightCalc :: searchColor :: ??? :: Nil
+}
+*/
 
 
 /*
