@@ -20,7 +20,8 @@ trait Affected {
   def affectedBy: List[Affecting]
 }
 trait AttrCalc extends AttrInfo with Affected {
-  def recalculate(objId: ObjId): Unit
+  def beforeUpdate(objId: ObjId): Unit
+  def afterUpdate(objId: ObjId): Unit
 }
 
 trait RawIndex {
@@ -55,7 +56,6 @@ trait ValueConverter[A,B] {
 trait RuledIndex extends AttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
   def update(objId: ObjId, value: DBValue): Unit
   def attrId: AttrId
-  def indexed: Boolean
 }
 trait RuledIndexAdapter[Value] extends AttrIndex[ObjId,Value] {
   def update(objId: ObjId, value: Value): Unit
@@ -85,7 +85,7 @@ trait RawFactConverter {
   def key(objId: ObjId, attrId: AttrId): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
-  def value(value: DBValue): RawValue
+  def value(value: DBValue, valueSrcId: ObjId): RawValue
   def valueFromBytes(b: RawValue): DBValue
   //def keyFromBytes(key: RawKey): (ObjId,AttrId)
 }

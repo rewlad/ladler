@@ -40,7 +40,8 @@ case class TypeIndexAttrCalc(
   relTypeIdToAttr: String=>RuledIndex, indexed: RuledIndex=>Boolean // relTypeIdToAttr.getOrElse(typeIdStr, throw new Exception(s"bad rel type $typeIdStr of $objId never here"))
 ) extends AttrCalc {
   def affectedBy = typeAttr :: propAttr :: Nil
-  def recalculate(objId: ObjId) = {
+  def beforeUpdate(objId: ObjId) = ()
+  def afterUpdate(objId: ObjId) = {
     attrs(objId).foreach(attr => if(indexed(attr)) attr(objId) = DBRemoved)
     (typeAttr(objId), propAttr(objId)) match {
       case (_,DBRemoved) | (DBRemoved,_) => ()

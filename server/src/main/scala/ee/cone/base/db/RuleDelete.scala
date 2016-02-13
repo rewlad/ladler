@@ -13,6 +13,7 @@ case class DeleteAttrCalc(
   version: String = "a9e66744-883f-47c9-9cda-ed5b9c1a11bb"
 ) extends AttrCalc {
   def affectedBy = typeId :: Nil
-  def recalculate(objId: ObjId) =
+  def beforeUpdate(objId: ObjId) = ()
+  def afterUpdate(objId: ObjId) =
     if(typeId(objId)==DBRemoved) attrs(objId).foreach(_(objId) = DBRemoved)
 }

@@ -8,7 +8,7 @@ import ee.cone.base.db.Types._
 
 // converters //////////////////////////////////////////////////////////////////
 
-class RawFactConverterImpl(var valueSrcId: Long) extends RawFactConverter {
+class RawFactConverterImpl extends RawFactConverter {
   def head = 0L
   def key(objId: ObjId, attrId: AttrId): RawKey =
     key(objId.value, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
@@ -27,12 +27,9 @@ class RawFactConverterImpl(var valueSrcId: Long) extends RawFactConverter {
       })
     })
   }
-  def value(value: DBValue): RawValue = {
-    if(value == DBRemoved) return Array[Byte]()
-    val exchangeSrcId = CompactBytes.toWrite(valueSrcId)
-    val b = RawValueConverter.allocWrite(0,value,exchangeSrcId.size)
-    exchangeSrcId.atTheEndOf(b).write(valueSrcId, b)
-  }
+  def value(value: DBValue, valueSrcId: ObjId) =
+    if(value == DBRemoved) Array[Byte]()
+    else RawValueConverter.allocWrite(0,value,valueSrcId)
   def valueFromBytes(b: RawValue): DBValue = {
     if(b.length==0) return DBRemoved
     val exchangeA = CompactBytes.toReadAt(b,0)
@@ -55,25 +52,20 @@ class RawFactConverterImpl(var valueSrcId: Long) extends RawFactConverter {
 
 class RawSearchConverterImpl extends RawSearchConverter {
   def head = 1L
+  val noObjId = new ObjId(0)
   def key(attrId: AttrId, value: DBValue, objId: ObjId): RawKey =
-    key(attrId.labelId, attrId.propId, value, objId.value, hasObjId=true)
+    key(attrId.labelId, attrId.propId, value, objId, hasObjId=true)
   def keyWithoutObjId(attrId: AttrId, value: DBValue): RawKey =
-    key(attrId.labelId, attrId.propId, value, 0, hasObjId=false)
-  private def key(labelId: Long, propId: Long, value: DBValue, objId: Long, hasObjId: Boolean): RawKey = {
+    key(attrId.labelId, attrId.propId, value, noObjId, hasObjId=false)
+  private def key(labelId: Long, propId: Long, value: DBValue, objId: ObjId, hasObjId: Boolean): RawKey = {
     val exHead = CompactBytes.toWrite(head).at(0)
     val exLabelId = CompactBytes.toWrite(labelId).after(exHead)
     val exPropId = CompactBytes.toWrite(propId).after(exLabelId)
     val valuePos = exPropId.nextPos
-    exHead.write(head, exLabelId.write(labelId,
-      exHead.write(head, exPropId.write(propId,if(hasObjId){
-        val absExObjId = CompactBytes.toWrite(objId)
-        val res = RawValueConverter.allocWrite(valuePos, value, absExObjId.size)
-        val exObjId = absExObjId.atTheEndOf(res)
-        exObjId.write(objId, res)
-      }else{
-        RawValueConverter.allocWrite(valuePos, value, 0)
-      }))
-    ))
+    exHead.write(head, exLabelId.write(labelId, exPropId.write(propId,
+      if(hasObjId) RawValueConverter.allocWrite(valuePos, value, objId)
+      else RawValueConverter.allocWrite(valuePos, value)
+    )))
   }
   def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {
     val value = 1L
@@ -85,11 +77,19 @@ class RawSearchConverterImpl extends RawSearchConverter {
 }
 
 object RawValueConverter {
-  protected def splitterB(exchangeA: LongByteExchange, spaceAfter: Int): Array[Byte] = {
+  private def splitterB(exchangeA: LongByteExchange, spaceAfter: Int): Array[Byte] = {
     val exchangeB = CompactBytes.`splitter`.after(exchangeA)
     exchangeA.writeHead(exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
   }
-  def allocWrite(spaceBefore: Int, dbValue: DBValue, spaceAfter: Int): Array[Byte] = dbValue match {
+  def allocWrite(spaceBefore: Int, dbValue: DBValue) =
+    allocWrite(spaceBefore, dbValue, 0)
+  def allocWrite(spaceBefore: Int, dbValue: DBValue, srcValueId: ObjId) = {
+    val id = srcValueId.value
+    val absEx = CompactBytes.toWrite(id)
+    val res = allocWrite(spaceBefore, dbValue, absEx.size)
+    absEx.atTheEndOf(res).write(id, res)
+  }
+  private def allocWrite(spaceBefore: Int, dbValue: DBValue, spaceAfter: Int): Array[Byte] = dbValue match {
     case l: DBLongValue =>
       val exchangeA = CompactBytes.toWrite(l.value).at(spaceBefore)
       exchangeA.write(l.value, splitterB(exchangeA,spaceAfter))

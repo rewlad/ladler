@@ -4,16 +4,6 @@ import ee.cone.base.util.{Bytes, MD5, LongFits, Never}
 
 import scala.collection.mutable
 
-class IndexComposerImpl(
-  ruledIndexById: AttrId=>RuledIndex //create indexed rewritable
-) extends IndexComposer {
-  def apply(labelAttr: RuledIndex, propAttr: RuledIndex) = {
-    val AttrId(labelAttrId,0) = labelAttr.attrId
-    val AttrId(0,propAttrId) = propAttr.attrId
-    ruledIndexById(new AttrId(labelAttrId,propAttrId))
-  }
-}
-
 //lazy val keyForValue: String = propOpt.orElse(labelOpt).flatMap(_.nameOpt).get
 
 // fails = attrCalcList.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
@@ -21,7 +11,8 @@ case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck) extends PreCommitCh
   private lazy val objIds = mutable.SortedSet[ObjId]()
   def version = check.version
   def affectedBy = check.affectedBy
-  def recalculate(objId: ObjId) = objIds += objId
+  def beforeUpdate(objId: ObjId) = ()
+  def afterUpdate(objId: ObjId) = objIds += objId
   def checkAll() = check.check(objIds.toSeq)
 }
 
@@ -35,9 +26,9 @@ class AttrInfoRegistry(attrInfoList: List[AttrInfo]) {
   /*def updates(attrId: AttrId) =
     AttrUpdate(attrId, indexed(attrId), rewritable = ???, calcListByAttrId.getOrElse(attrId,Nil))*/
   lazy val version = MD5(Bytes(attrInfoList.collect {
-    case i: RuledIndex if i.indexed ⇒
+    //case i: RuledIndex if i.indexed ⇒
       //println(s"ai: ${i.attrId.toString}")
-      i.attrId.toString
+    //  i.attrId.toString
     case i: AttrCalc ⇒
       //println(s"acc:${i.version}:$i")
       i.toString

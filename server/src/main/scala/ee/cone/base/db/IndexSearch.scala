@@ -35,17 +35,23 @@ trait ListResult[T] extends KeyPrefixMatcher {
   }
 }
 
+// was LabelIndexAttrInfoList / LabelPropIndexAttrInfoList
+// direct ruled may be composed or labelAttr
 case class SearchByValueImpl[SearchValue](
-  direct: RuledIndexAdapter[SearchValue]
+  direct: RuledIndexAdapter[SearchValue], version: String = "1"
 )(
-  rawIndexConverter: RawSearchConverter,
+  converter: RawSearchConverter,
   val matcher: RawKeyMatcher,
   val tx: RawIndex
-) extends SearchByValue[SearchValue] with ListResult[ObjId] {
-  def apply(value: SearchValue) = {
-    if(!direct.ruled.indexed) Never()
-    select(rawIndexConverter.keyWithoutObjId(direct.ruled.attrId,direct.converter(value)))
-  }
+) extends AttrCalc with SearchByValue[SearchValue] with ListResult[ObjId] {
+  def affectedBy: List[Affecting] = direct.ruled :: Nil
+  def beforeUpdate(objId: ObjId): Unit = update(objId, direct.ruled(objId), on=false)
+  def afterUpdate(objId: ObjId): Unit = update(objId, direct.ruled(objId), on=true)
+  private def update(objId: ObjId, value: DBValue, on: Boolean): Unit =
+    if(value != DBRemoved)
+      tx.set(converter.key(direct.ruled.attrId, value, objId), converter.value(on))
+  def apply(value: SearchValue) =
+    select(converter.keyWithoutObjId(direct.ruled.attrId, direct.converter(value)))
   protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey) =
     matcher.lastObjId(keyPrefix, key)
 }
