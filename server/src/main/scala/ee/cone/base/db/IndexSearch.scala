@@ -40,10 +40,10 @@ trait ListResult[T] extends KeyPrefixMatcher {
 case class SearchByValueImpl[SearchValue](
   direct: RuledIndexAdapter[SearchValue]
 )(
-  db: SearchIndexAttrCalc
+  val ruled: SearchIndexAttrCalc
 ) extends SearchByValue[SearchValue] {
 
-  def apply(value: SearchValue) = db.search(direct.converter(value))
+  def apply(value: SearchValue) = ruled.search(direct.converter(value))
 }
 
 case class SearchIndexAttrCalc(

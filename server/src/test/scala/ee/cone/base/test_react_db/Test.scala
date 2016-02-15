@@ -1,5 +1,7 @@
 package ee.cone.base.test_react_db
 
+import scala.collection.mutable.ArrayBuffer
+
 object Test {
   trait Prop[Value] {
     def apply(objId: Long): Value
@@ -111,4 +113,9 @@ object Test2 {
   xObj(yProp)
   yObj(yProp)
   // yObj(xProp) = ""
+}
+
+object Test3 {
+  val a = new ArrayBuffer[Int]
+  a.update(6,9)
 }
