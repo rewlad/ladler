@@ -11,9 +11,9 @@ import ee.cone.base.db.Types._
 class RawFactConverterImpl extends RawFactConverter {
   def head = 0L
   def key(objId: ObjId, attrId: AttrId): RawKey =
-    key(objId.value, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
+    key(objId, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
   def keyWithoutAttrId(objId: ObjId): RawKey =
-    key(objId.value, 0, 0, hasObjId=true, hasAttrId=false)
+    key(objId, 0, 0, hasObjId=true, hasAttrId=false)
   def keyHeadOnly: RawKey =
     key(0, 0, 0, hasObjId=false, hasAttrId=false)
   private def key(objId: Long, labelId: Long, propId: Long, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
@@ -52,11 +52,10 @@ class RawFactConverterImpl extends RawFactConverter {
 
 class RawSearchConverterImpl extends RawSearchConverter {
   def head = 1L
-  val noObjId = new ObjId(0)
   def key(attrId: AttrId, value: DBValue, objId: ObjId): RawKey =
     key(attrId.labelId, attrId.propId, value, objId, hasObjId=true)
   def keyWithoutObjId(attrId: AttrId, value: DBValue): RawKey =
-    key(attrId.labelId, attrId.propId, value, noObjId, hasObjId=false)
+    key(attrId.labelId, attrId.propId, value, 0L, hasObjId=false)
   private def key(labelId: Long, propId: Long, value: DBValue, objId: ObjId, hasObjId: Boolean): RawKey = {
     val exHead = CompactBytes.toWrite(head).at(0)
     val exLabelId = CompactBytes.toWrite(labelId).after(exHead)
@@ -81,15 +80,14 @@ object RawValueConverter {
     val exchangeB = CompactBytes.`splitter`.after(exchangeA)
     exchangeA.writeHead(exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
   }
-  def allocWrite(spaceBefore: Int, dbValue: DBValue) =
-    allocWrite(spaceBefore, dbValue, 0)
-  def allocWrite(spaceBefore: Int, dbValue: DBValue, srcValueId: ObjId) = {
-    val id = srcValueId.value
-    val absEx = CompactBytes.toWrite(id)
-    val res = allocWrite(spaceBefore, dbValue, absEx.size)
-    absEx.atTheEndOf(res).write(id, res)
+  def allocWrite(spaceBefore: Int, dbValue: DBValue): Array[Byte] =
+    allocWriteInner(spaceBefore, dbValue, 0)
+  def allocWrite(spaceBefore: Int, dbValue: DBValue, srcValueId: ObjId): Array[Byte] = {
+    val absEx = CompactBytes.toWrite(srcValueId)
+    val res = allocWriteInner(spaceBefore, dbValue, absEx.size)
+    absEx.atTheEndOf(res).write(srcValueId, res)
   }
-  private def allocWrite(spaceBefore: Int, dbValue: DBValue, spaceAfter: Int): Array[Byte] = dbValue match {
+  private def allocWriteInner(spaceBefore: Int, dbValue: DBValue, spaceAfter: Int): Array[Byte] = dbValue match {
     case l: DBLongValue =>
       val exchangeA = CompactBytes.toWrite(l.value).at(spaceBefore)
       exchangeA.write(l.value, splitterB(exchangeA,spaceAfter))
@@ -123,7 +121,7 @@ object RawKeyMatcherImpl extends RawKeyMatcher {
   def matchPrefix(keyPrefix: RawKey, key: RawKey): Boolean =
     BytesSame.part(keyPrefix, key, keyPrefix.length)
   def lastObjId(keyPrefix: RawKey, key: RawKey): ObjId =
-    new ObjId(CompactBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key).readLong(key))
+    CompactBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key).readLong(key)
   def lastAttrId(keyPrefix: RawKey, key: RawKey): AttrId = {
     val exLabelId = CompactBytes.toReadAt(key, keyPrefix.length)
     val exPropId = CompactBytes.toReadAfter(key, exLabelId).checkIsLastIn(key)

@@ -8,12 +8,12 @@ import scala.collection.mutable
 
 // fails = attrCalcList.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
 case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck) extends PreCommitCheckAttrCalc {
-  private lazy val objIds = mutable.SortedSet[ObjId]()
+  private lazy val nodes = mutable.Set[DBNode]()
   def version = check.version
   def affectedBy = check.affectedBy
-  def beforeUpdate(objId: ObjId) = ()
-  def afterUpdate(objId: ObjId) = objIds += objId
-  def checkAll() = check.check(objIds.toSeq)
+  def beforeUpdate(node: DBNode) = ()
+  def afterUpdate(node: DBNode) = nodes += node
+  def checkAll() = check.check(nodes.toSeq.sortBy(_.objId))
 }
 
 ////

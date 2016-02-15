@@ -13,12 +13,12 @@ case class UniqueAttrCalc(
 ) extends PreCommitCheck {
   private def uniqueAttr = searchUniqueAttr.direct.ruled
   def affectedBy = uniqueAttr :: Nil
-  def check(objIds: Seq[ObjId]) = objIds.flatMap{ objId =>
-    uniqueAttr(objId) match {
+  def check(nodes: Seq[DBNode]) = nodes.flatMap{ node =>
+    node(uniqueAttr) match {
       case DBRemoved => Nil
-      case uniqueValue => searchUniqueAttr(uniqueValue) match {
-        case id :: Nil => Nil
-        case ids => ids.map(ValidationFailure(this,_))
+      case uniqueValue => searchUniqueAttr.get(uniqueValue) match {
+        case node :: Nil => Nil
+        case nodes => nodes.map(ValidationFailure(this,_))
       }
     }
   }

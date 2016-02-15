@@ -5,20 +5,20 @@ import ee.cone.base.util.Never
 case class RuledIndexAdapterImpl[Value](
   ruled: CalcIndex
 )(
-  val converter: ValueConverter[Value,DBValue]
+  val converter: DBValueConverter[Value]
 ) extends RuledIndexAdapter[Value] {
-  def update(objId: ObjId, value: Value) = ruled(objId) = converter(value)
-  def apply(objId: ObjId) = converter(ruled(objId))
+  def set(node: DBNode, value: Value) = node(ruled) = converter(value)
+  def get(node: DBNode) = converter(node(ruled))
 }
 
-class ObjIdValueConverter extends ValueConverter[Option[ObjId],DBValue] {
-  override def apply(value: Option[ObjId]): DBValue = value match {
+class NodeValueConverter extends DBValueConverter[Option[DBNode]] {
+  override def apply(value: Option[DBNode]): DBValue = value match {
     case None => DBRemoved
-    case Some(objId) => DBLongValue(objId.value)
+    case Some(node) => DBLongValue(node.objId)
   }
-  override def apply(value: DBValue): Option[ObjId] = value match {
+  override def apply(value: DBValue): Option[DBNode] = value match {
     case DBRemoved => None
-    case DBLongValue(v) => Some(new ObjId(v))
+    case DBLongValue(v) => Some(new DBNodeImpl(v))
     case _ => Never()
   }
 }

@@ -9,10 +9,10 @@ import ee.cone.base.util.Never
 class RelSideAttrInfoList(
   preCommitCheck: PreCommitCheck=>AttrCalc,
   createSearchAttrInfo: IndexComposer,
-  attrs: SearchByObjId
+  attrs: SearchByNode
 ) {
   def apply(
-    relSideAttrInfo: List[SearchByValue[Option[ObjId]]], typeAttr: CalcIndex,
+    relSideAttrInfo: List[SearchByValue[Option[DBNode]]], typeAttr: CalcIndex,
     relTypeAttrInfo: List[CalcIndex]
   ): List[AttrInfo] = relSideAttrInfo.flatMap{ searchToAttr ⇒
     val propInfo = searchToAttr.direct.ruled
@@ -27,25 +27,25 @@ class RelSideAttrInfoList(
   }
   private def createRefIntegrityPreCommitCheckList(
     typeAttr: CalcIndex,
-    searchToAttrId: SearchByValue[Option[ObjId]]
+    searchToAttrId: SearchByValue[Option[DBNode]]
   ): List[AttrCalc] =
     preCommitCheck(TypeRefIntegrityPreCommitCheck(typeAttr, searchToAttrId)) ::
       preCommitCheck(SideRefIntegrityPreCommitCheck(typeAttr, searchToAttrId.direct)) :: Nil
 }
 
 case class TypeIndexAttrCalc(
-  typeAttr: CalcIndex, propAttr: CalcIndex, attrs: SearchByObjId,
+  typeAttr: CalcIndex, propAttr: CalcIndex, attrs: SearchByNode,
   version: String = "a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42"
 )(
   relTypeIdToAttr: String=>CalcIndex, indexed: CalcIndex=>Boolean // relTypeIdToAttr.getOrElse(typeIdStr, throw new Exception(s"bad rel type $typeIdStr of $objId never here"))
 ) extends AttrCalc {
   def affectedBy = typeAttr :: propAttr :: Nil
-  def beforeUpdate(objId: ObjId) = ()
-  def afterUpdate(objId: ObjId) = {
-    attrs(objId).foreach(attr => if(indexed(attr)) attr(objId) = DBRemoved)
-    (typeAttr(objId), propAttr(objId)) match {
+  def beforeUpdate(node: DBNode) = ()
+  def afterUpdate(node: DBNode) = {
+    node(attrs).foreach(attr => if(indexed(attr)) node(attr) = DBRemoved)
+    (node(typeAttr), node(propAttr)) match {
       case (_,DBRemoved) | (DBRemoved,_) => ()
-      case (DBStringValue(typeIdStr),value) => relTypeIdToAttr(typeIdStr)(objId) = value
+      case (DBStringValue(typeIdStr),value) => node(relTypeIdToAttr(typeIdStr)) = value
       case _ => Never()
     }
   }
@@ -53,30 +53,30 @@ case class TypeIndexAttrCalc(
 
 abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
   protected def typeAttr: CalcIndex
-  protected def toAttr: RuledIndexAdapter[Option[ObjId]]
-  protected def check(objId: ObjId): Option[ValidationFailure] = toAttr(objId) match {
+  protected def toAttr: RuledIndexAdapter[Option[DBNode]]
+  protected def checkNode(node: DBNode): Option[ValidationFailure] = node(toAttr) match {
     case None ⇒ None
-    case Some(toObjId) if typeAttr(toObjId) != DBRemoved ⇒ None
-    case v => Some(ValidationFailure(this,objId)) //, s"attr $toAttrId should refer to valid object, but $v found")
+    case Some(toNode) if toNode(typeAttr) != DBRemoved ⇒ None
+    case v => Some(ValidationFailure(this,node)) //, s"attr $toAttrId should refer to valid object, but $v found")
   }
 }
 
 //toAttrId must be indexed
 case class TypeRefIntegrityPreCommitCheck(
   typeAttr: CalcIndex,
-  searchToAttr: SearchByValue[Option[ObjId]],
+  searchToAttr: SearchByValue[Option[DBNode]],
   version: String = "b2232ecf-734c-4cfa-a88f-78b066a01cd3"
 ) extends RefIntegrityPreCommitCheck {
   protected def toAttr = searchToAttr.direct
   def affectedBy = typeAttr :: Nil
-  def check(objIds: Seq[ObjId]) =
-    objIds.flatMap(objId => searchToAttr(Some(objId))).flatMap(check)
+  def check(nodes: Seq[DBNode]) =
+    nodes.flatMap(node => searchToAttr.get(Some(node))).flatMap(checkNode)
 }
 
 case class SideRefIntegrityPreCommitCheck(
-  typeAttr: CalcIndex, toAttr: RuledIndexAdapter[Option[ObjId]],
+  typeAttr: CalcIndex, toAttr: RuledIndexAdapter[Option[DBNode]],
   version: String = "677f2fdc-b56e-4cf8-973f-db148ee3f0c4"
 ) extends RefIntegrityPreCommitCheck {
   def affectedBy = toAttr.ruled :: Nil
-  def check(objIds: Seq[ObjId]) = objIds.flatMap(check)
+  def check(nodes: Seq[DBNode]) = nodes.flatMap(checkNode)
 }

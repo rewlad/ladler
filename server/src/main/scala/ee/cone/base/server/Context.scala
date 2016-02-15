@@ -28,7 +28,7 @@ class LifeCycleImpl extends LifeCycle {
   def sub() = setup(new LifeCycleImpl)(_.close())
   def sub[R](f: LifeCycle=>R) = {
     val c = sub()
-    try c.open(); f(c) finally c.close()
+    try { c.open(); f(c) } finally c.close()
   }
 }
 

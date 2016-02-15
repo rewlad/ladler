@@ -136,7 +136,7 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
 
 
 class DBDelete(db: UpdatableAttrIndex, search: ListObjIdsByValue) {
-  def apply(objId: ObjId) =
+  def apply(objId: DBNode) =
     search(objId).foreach{ attrId => db(objId, attrId) = DBRemoved }
 }
 
@@ -165,7 +165,7 @@ class TxContext {
 }
 
 class MainEventTxLayer(db: UpdatableAttrIndex, search: ListObjIdsByValue) {
-  def isApplied(tempEventId: ObjId): Boolean =
+  def isApplied(tempEventId: DBNode): Boolean =
     search(SysAttrId.tempEventId, DBLongValue(tempEventId)).nonEmpty
   ???
 }
@@ -174,7 +174,7 @@ class TempEventTxLayer(
   db: UpdatableAttrIndex, search: ListObjIdsByValue, seq: ObjIdSequence, delete: DBDelete,
   main: MainEventTxLayer
 ){
-  private def loadEvent(objId: ObjId) =
+  private def loadEvent(objId: DBNode) =
     DBEvent(search(objId).map(attrId => (attrId, db(objId, attrId))))
 
   def purgeAndLoad(sessionKey: String): SessionState =
@@ -273,14 +273,14 @@ case class PreventUnsetAppliedAttrCalc(
 */
 ////
 
-class FindOrCreateSrcId(searchSrcId: SearchByValue[UUID], seq: ObjIdSequence) extends AttrIndex[UUID,ObjId] {
+class FindOrCreateSrcId(searchSrcId: SearchByValue[UUID], seq: ObjIdSequence) extends AttrIndex[UUID,DBNode] {
   def apply(value: UUID) = searchSrcId(value).headOption
     .getOrElse(Setup(seq.inc()){ objId => searchSrcId.direct(objId) = value })
 }
-class ObjIdSequence(seqAttr: RuledIndexAdapter[Option[ObjId]]) {
-  def inc(): ObjId = {
-    val objId = new ObjId(0L)
-    val res = new ObjId(seqAttr(objId).getOrElse(objId).value + 1L)
+class ObjIdSequence(seqAttr: RuledIndexAdapter[Option[DBNode]]) {
+  def inc(): DBNode = {
+    val objId = new DBNode(0L)
+    val res = new DBNode(seqAttr(objId).getOrElse(objId).value + 1L)
     seqAttr(objId) = Some(res)
     res
   }

@@ -43,15 +43,15 @@ case class SearchByValueImpl[SearchValue](
   val ruled: SearchIndexAttrCalc
 ) extends SearchByValue[SearchValue] {
 
-  def apply(value: SearchValue) = ruled.search(direct.converter(value))
+  def get(value: SearchValue) = ruled.search(direct.converter(value))
 }
 
 case class SearchIndexAttrCalc(
   ruled: CalcIndex, version: String = "1"
 )(db: SearchIndex) extends AttrCalc {
   def affectedBy: List[Affecting] = ruled :: Nil
-  def beforeUpdate(objId: ObjId) = db(ruled.attrId, ruled(objId), objId) = false
-  def afterUpdate(objId: ObjId) = db(ruled.attrId, ruled(objId), objId) = true
+  def beforeUpdate(node: DBNode) = db(ruled.attrId, node(ruled), node) = false
+  def afterUpdate(node: DBNode) = db(ruled.attrId, node(ruled), node) = true
   def search(value: DBValue) = db(ruled.attrId, value)
 }
 
@@ -59,34 +59,35 @@ class SearchIndex(
   val matcher: RawKeyMatcher,
   val tx: RawIndex,
   converter: RawSearchConverter
-) extends ListResult[ObjId] {
-  def update(attrId: AttrId, value: DBValue, objId: ObjId, on: Boolean): Unit =
+) extends ListResult[DBNode] {
+  def update(attrId: AttrId, value: DBValue, node: DBNode, on: Boolean): Unit =
     if(value != DBRemoved)
-      tx.set(converter.key(attrId, value, objId), converter.value(on))
+      tx.set(converter.key(attrId, value, node.objId), converter.value(on))
   def apply(attrId: AttrId, value: DBValue) =
     select(converter.keyWithoutObjId(attrId, value))
   protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey) =
-    matcher.lastObjId(keyPrefix, key)
+    new DBNodeImpl(matcher.lastObjId(keyPrefix, key))
 }
 
-case class SearchByObjIdImpl()(
+case class SearchByNodeImpl()(
   rawFactConverter: RawFactConverter,
   val matcher: RawKeyMatcher,
   val tx: RawIndex,
   ruledIndexById: AttrId=>CalcIndex
-) extends SearchByObjId with ListResult[CalcIndex] {
-  def apply(objId: ObjId) = select(rawFactConverter.keyWithoutAttrId(objId))
+) extends SearchByNode with ListResult[CalcIndex] {
+  def get(node: DBNode) = select(rawFactConverter.keyWithoutAttrId(node.objId))
   protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey) =
     ruledIndexById(matcher.lastAttrId(keyPrefix, key))
 }
 
+/*
 class AllFactExtractor(
   rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: CalcIndex
 )(
   whileKeyPrefix: RawKey = rawFactConverter.keyHeadOnly
 ) extends KeyPrefixMatcher {
   def from(tx: RawIndex) = execute(tx, rawFactConverter.keyHeadOnly)
-  def from(tx: RawIndex, objId: ObjId) =
+  def from(tx: RawIndex, objId: DBNode) =
     execute(tx, rawFactConverter.keyWithoutAttrId(objId))
   protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean = {
     if(!matcher.matchPrefix(whileKeyPrefix, ks.key)){ return false }
@@ -95,6 +96,7 @@ class AllFactExtractor(
     true
   }
 }
+*/
 
 /*
 class InnerIndexSearch(

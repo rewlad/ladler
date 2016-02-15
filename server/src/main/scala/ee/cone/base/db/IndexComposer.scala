@@ -8,11 +8,11 @@ object IndexComposerImpl extends IndexComposer {
     val AttrId(0,propAttrId) = propAttr.attrId
     val composedAttrId = new AttrId(labelAttrId,propAttrId)
     new CalcIndex {
-      def update(objId: ObjId, value: DBValue) = Never()
+      def set(node: DBNode, value: DBValue) = Never()
       def attrId = composedAttrId
-      def apply(objId: ObjId) =
-        if(labelAttr(objId)==DBRemoved) DBRemoved else propAttr(objId)
-      protected def affects(calc: AttrCalc) = {
+      def get(node: DBNode) =
+        if(node(labelAttr)==DBRemoved) DBRemoved else node(propAttr)
+      def affects(calc: AttrCalc) = {
         labelAttr.affects(calc)
         propAttr.affects(calc)
       }

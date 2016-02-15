@@ -6,22 +6,22 @@ import ee.cone.base.db.Types._
 object Types {
   type RawKey = Array[Byte]
   type RawValue = Array[Byte]
+  type ObjId = Long
 }
 
-class ObjId(val value: Long) extends AnyVal
 case class AttrId(labelId: Long, propId: Long)
 
 trait AttrInfo
 trait Affecting {
-  protected def affects(calc: AttrCalc): Unit
+  def affects(calc: AttrCalc): Unit
 }
 trait Affected {
   def version: String
   def affectedBy: List[Affecting]
 }
 trait AttrCalc extends AttrInfo with Affected {
-  def beforeUpdate(objId: ObjId): Unit
-  def afterUpdate(objId: ObjId): Unit
+  def beforeUpdate(node: DBNode): Unit
+  def afterUpdate(node: DBNode): Unit
 }
 
 trait RawIndex {
@@ -46,37 +46,51 @@ case object NotFoundStatus extends SeekStatus {
 
 // DML/DDL
 
+trait DBNode {
+  def objId: Long
+  def apply[Value](attr: AttrIndex[DBNode,Value]): Value
+  def update[Value](attr: UpdatableAttrIndex[Value], value: Value): Unit
+}
+
+
+class DBNodeImpl(val objId: Long) extends DBNode {
+  def apply[Value](attr: AttrIndex[DBNode,Value]) = attr.get(this)
+  def update[Value](attr: UpdatableAttrIndex[Value], value: Value) =
+    attr.set(this,value)
+}
+
 trait AttrIndex[From,To] {
-  def apply(from: From): To
+  def get(from: From): To
 }
-trait ValueConverter[A,B] {
-  def apply(value: A): B
-  def apply(value: B): A
+trait DBValueConverter[A] {
+  def apply(value: A): DBValue
+  def apply(value: DBValue): A
 }
-trait CalcIndex extends AttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
-  def update(objId: ObjId, value: DBValue): Unit
+trait UpdatableAttrIndex[Value] extends AttrIndex[DBNode,Value] {
+  def set(node: DBNode, value: Value): Unit
+}
+trait CalcIndex extends UpdatableAttrIndex[DBValue] with Affecting with AttrInfo {
   def attrId: AttrId
 }
-trait RuledIndexAdapter[Value] extends AttrIndex[ObjId,Value] {
-  def update(objId: ObjId, value: Value): Unit
+trait RuledIndexAdapter[Value] extends UpdatableAttrIndex[Value] {
   def ruled: CalcIndex
-  def converter: ValueConverter[Value,DBValue]
+  def converter: DBValueConverter[Value]
 }
-trait SearchByValue[Value] extends AttrIndex[Value,List[ObjId]] {
+trait SearchByValue[Value] extends AttrIndex[Value,List[DBNode]] {
   def direct: RuledIndexAdapter[Value]
 }
-trait SearchByObjId extends AttrIndex[ObjId,List[CalcIndex]]
+trait SearchByNode extends AttrIndex[DBNode,List[CalcIndex]]
 
 trait IndexComposer {
   def apply(labelAttr: CalcIndex, propAttr: CalcIndex): CalcIndex
 }
 
-case class ValidationFailure(calc: PreCommitCheck, objId: ObjId)
+case class ValidationFailure(calc: PreCommitCheck, node: DBNode)
 trait PreCommitCheckAttrCalc extends AttrCalc {
   def checkAll(): Seq[ValidationFailure]
 }
 trait PreCommitCheck extends Affected {
-  def check(objIds: Seq[ObjId]): Seq[ValidationFailure]
+  def check(nodes: Seq[DBNode]): Seq[ValidationFailure]
 }
 
 // raw converters

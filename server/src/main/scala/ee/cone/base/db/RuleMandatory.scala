@@ -13,7 +13,7 @@ case class MandatoryPreCommitCheck(
   version: String = "ed748474-04e0-4ff7-89a1-be8a95aa743c"
 ) extends PreCommitCheck {
   def affectedBy = condAttr :: mandatoryAttr :: Nil
-  def check(objIds: Seq[ObjId]) =
-    for(objId ← objIds if condAttr(objId)!=DBRemoved && mandatoryAttr(objId)==DBRemoved)
-      yield ValidationFailure(this, objId)
+  def check(nodes: Seq[DBNode]) =
+    for(node ← nodes if node(condAttr)!=DBRemoved && node(mandatoryAttr)==DBRemoved)
+      yield ValidationFailure(this, node)
 }
