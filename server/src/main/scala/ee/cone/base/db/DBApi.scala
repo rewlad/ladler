@@ -108,10 +108,14 @@ trait RawSearchConverter {
   def keyWithoutObjId(attrId: AttrId, value: DBValue): RawKey
   def value(on: Boolean): RawValue
 }
-trait RawKeyMatcher {
-  def matchPrefix(keyPrefix: RawKey, key: RawKey): Boolean
-  def lastObjId(keyPrefix: RawKey, key: RawKey): ObjId
-  def lastAttrId(keyPrefix: RawKey, key: RawKey): AttrId
+trait Feed[T]{
+  def apply(value: T): Boolean
+}
+trait RawKeyExtractor[T] {
+  def apply(keyPrefix: RawKey, key: RawKey, feed: Feed[T]): Boolean
+}
+trait RawVisitor[T] {
+  def execute(whileKeyPrefix: RawKey, feed: Feed[T]): Unit
 }
 
 // DBValue

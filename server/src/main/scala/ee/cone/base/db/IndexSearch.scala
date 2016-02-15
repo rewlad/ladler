@@ -6,19 +6,33 @@ import ee.cone.base.util.Never
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
-trait KeyPrefixMatcher {
-  protected def feed(keyPrefix: RawKey, ks: KeyStatus): Boolean
-  protected def execute(tx: RawIndex, keyPrefix: RawKey): Unit = {
-    tx.seek(keyPrefix)
-    while(tx.peek match {
-      case ks: KeyStatus if feed(keyPrefix, ks) ⇒ tx.seekNext(); true
-      case _ ⇒ false
-    }) {}
+class SearchVisitor(
+  converter: RawSearchConverter,
+  val matcher: RawKeyExtractor[ObjId],
+  val tx: RawIndex,
+  rawVisitor: RawVisitor[ObjId]
+) {
+  def execute(attrId: AttrId, value: DBValue, feed: Feed[ObjId]) = {
+    val key = converter.keyWithoutObjId(attrId, value)
+    tx.seek(key)
+    rawVisitor.execute(key, feed)
+  }
+  def execute(attrId: AttrId, value: DBValue, objId: ObjId, feed: Feed[ObjId]) = {
+    tx.seek(converter.key(attrId, value, objId))
+    rawVisitor.execute(converter.keyWithoutObjId(attrId, value), feed)
   }
 }
 
+class FactVisitor(
+
+){
+
+}
+
+
+
 trait ListResult[T] extends KeyPrefixMatcher {
-  protected def matcher: RawKeyMatcher
+  protected def matcher: RawKeyExtractor
   protected def tx: RawIndex
   protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey): T
 
@@ -56,7 +70,7 @@ case class SearchIndexAttrCalc(
 }
 
 class SearchIndex(
-  val matcher: RawKeyMatcher,
+  val matcher: RawKeyExtractor,
   val tx: RawIndex,
   converter: RawSearchConverter
 ) extends ListResult[DBNode] {
@@ -71,7 +85,7 @@ class SearchIndex(
 
 case class SearchByNodeImpl()(
   rawFactConverter: RawFactConverter,
-  val matcher: RawKeyMatcher,
+  val matcher: RawKeyExtractor,
   val tx: RawIndex,
   ruledIndexById: AttrId=>CalcIndex
 ) extends SearchByNode with ListResult[CalcIndex] {
@@ -80,9 +94,9 @@ case class SearchByNodeImpl()(
     ruledIndexById(matcher.lastAttrId(keyPrefix, key))
 }
 
-/*
+
 class AllFactExtractor(
-  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: CalcIndex
+  rawFactConverter: RawFactConverter, matcher: RawKeyExtractor, to: CalcIndex
 )(
   whileKeyPrefix: RawKey = rawFactConverter.keyHeadOnly
 ) extends KeyPrefixMatcher {
@@ -96,7 +110,7 @@ class AllFactExtractor(
     true
   }
 }
-*/
+
 
 /*
 class InnerIndexSearch(
