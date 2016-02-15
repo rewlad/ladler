@@ -12,11 +12,11 @@ class RelSideAttrInfoList(
   attrs: SearchByObjId
 ) {
   def apply(
-    relSideAttrInfo: List[SearchByValue[Option[ObjId]]], typeAttr: RuledIndex,
-    relTypeAttrInfo: List[RuledIndex]
+    relSideAttrInfo: List[SearchByValue[Option[ObjId]]], typeAttr: CalcIndex,
+    relTypeAttrInfo: List[CalcIndex]
   ): List[AttrInfo] = relSideAttrInfo.flatMap{ searchToAttr ⇒
     val propInfo = searchToAttr.direct.ruled
-    val relComposedAttrInfo: List[(RuledIndex,RuledIndex)] =
+    val relComposedAttrInfo: List[(CalcIndex,CalcIndex)] =
       relTypeAttrInfo.map(labelAttr⇒(labelAttr,createSearchAttrInfo(labelAttr, propInfo)))
     val relTypeAttrIdToComposedAttr =
       relComposedAttrInfo.map{ case(l,i) ⇒ l.attrId.toString → i }.toMap
@@ -26,7 +26,7 @@ class RelSideAttrInfoList(
     calc :: propInfo :: relComposedAttrInfo.map(_._2) ::: integrity
   }
   private def createRefIntegrityPreCommitCheckList(
-    typeAttr: RuledIndex,
+    typeAttr: CalcIndex,
     searchToAttrId: SearchByValue[Option[ObjId]]
   ): List[AttrCalc] =
     preCommitCheck(TypeRefIntegrityPreCommitCheck(typeAttr, searchToAttrId)) ::
@@ -34,10 +34,10 @@ class RelSideAttrInfoList(
 }
 
 case class TypeIndexAttrCalc(
-  typeAttr: RuledIndex, propAttr: RuledIndex, attrs: SearchByObjId,
+  typeAttr: CalcIndex, propAttr: CalcIndex, attrs: SearchByObjId,
   version: String = "a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42"
 )(
-  relTypeIdToAttr: String=>RuledIndex, indexed: RuledIndex=>Boolean // relTypeIdToAttr.getOrElse(typeIdStr, throw new Exception(s"bad rel type $typeIdStr of $objId never here"))
+  relTypeIdToAttr: String=>CalcIndex, indexed: CalcIndex=>Boolean // relTypeIdToAttr.getOrElse(typeIdStr, throw new Exception(s"bad rel type $typeIdStr of $objId never here"))
 ) extends AttrCalc {
   def affectedBy = typeAttr :: propAttr :: Nil
   def beforeUpdate(objId: ObjId) = ()
@@ -52,7 +52,7 @@ case class TypeIndexAttrCalc(
 }
 
 abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
-  protected def typeAttr: RuledIndex
+  protected def typeAttr: CalcIndex
   protected def toAttr: RuledIndexAdapter[Option[ObjId]]
   protected def check(objId: ObjId): Option[ValidationFailure] = toAttr(objId) match {
     case None ⇒ None
@@ -63,7 +63,7 @@ abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
 
 //toAttrId must be indexed
 case class TypeRefIntegrityPreCommitCheck(
-  typeAttr: RuledIndex,
+  typeAttr: CalcIndex,
   searchToAttr: SearchByValue[Option[ObjId]],
   version: String = "b2232ecf-734c-4cfa-a88f-78b066a01cd3"
 ) extends RefIntegrityPreCommitCheck {
@@ -74,7 +74,7 @@ case class TypeRefIntegrityPreCommitCheck(
 }
 
 case class SideRefIntegrityPreCommitCheck(
-  typeAttr: RuledIndex, toAttr: RuledIndexAdapter[Option[ObjId]],
+  typeAttr: CalcIndex, toAttr: RuledIndexAdapter[Option[ObjId]],
   version: String = "677f2fdc-b56e-4cf8-973f-db148ee3f0c4"
 ) extends RefIntegrityPreCommitCheck {
   def affectedBy = toAttr.ruled :: Nil

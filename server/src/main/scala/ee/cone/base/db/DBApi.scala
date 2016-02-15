@@ -53,22 +53,22 @@ trait ValueConverter[A,B] {
   def apply(value: A): B
   def apply(value: B): A
 }
-trait RuledIndex extends AttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
+trait CalcIndex extends AttrIndex[ObjId,DBValue] with Affecting with AttrInfo {
   def update(objId: ObjId, value: DBValue): Unit
   def attrId: AttrId
 }
 trait RuledIndexAdapter[Value] extends AttrIndex[ObjId,Value] {
   def update(objId: ObjId, value: Value): Unit
-  def ruled: RuledIndex
+  def ruled: CalcIndex
   def converter: ValueConverter[Value,DBValue]
 }
 trait SearchByValue[Value] extends AttrIndex[Value,List[ObjId]] {
   def direct: RuledIndexAdapter[Value]
 }
-trait SearchByObjId extends AttrIndex[ObjId,List[RuledIndex]]
+trait SearchByObjId extends AttrIndex[ObjId,List[CalcIndex]]
 
 trait IndexComposer {
-  def apply(labelAttr: RuledIndex, propAttr: RuledIndex): RuledIndex
+  def apply(labelAttr: CalcIndex, propAttr: CalcIndex): CalcIndex
 }
 
 case class ValidationFailure(calc: PreCommitCheck, objId: ObjId)

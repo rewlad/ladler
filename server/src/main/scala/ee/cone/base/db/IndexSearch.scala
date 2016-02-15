@@ -38,20 +38,33 @@ trait ListResult[T] extends KeyPrefixMatcher {
 // was LabelIndexAttrInfoList / LabelPropIndexAttrInfoList
 // direct ruled may be composed or labelAttr
 case class SearchByValueImpl[SearchValue](
-  direct: RuledIndexAdapter[SearchValue], version: String = "1"
+  direct: RuledIndexAdapter[SearchValue]
 )(
-  converter: RawSearchConverter,
+  db: SearchIndexAttrCalc
+) extends SearchByValue[SearchValue] {
+
+  def apply(value: SearchValue) = db.search(direct.converter(value))
+}
+
+case class SearchIndexAttrCalc(
+  ruled: CalcIndex, version: String = "1"
+)(db: SearchIndex) extends AttrCalc {
+  def affectedBy: List[Affecting] = ruled :: Nil
+  def beforeUpdate(objId: ObjId) = db(ruled.attrId, ruled(objId), objId) = false
+  def afterUpdate(objId: ObjId) = db(ruled.attrId, ruled(objId), objId) = true
+  def search(value: DBValue) = db(ruled.attrId, value)
+}
+
+class SearchIndex(
   val matcher: RawKeyMatcher,
-  val tx: RawIndex
-) extends AttrCalc with SearchByValue[SearchValue] with ListResult[ObjId] {
-  def affectedBy: List[Affecting] = direct.ruled :: Nil
-  def beforeUpdate(objId: ObjId): Unit = update(objId, direct.ruled(objId), on=false)
-  def afterUpdate(objId: ObjId): Unit = update(objId, direct.ruled(objId), on=true)
-  private def update(objId: ObjId, value: DBValue, on: Boolean): Unit =
+  val tx: RawIndex,
+  converter: RawSearchConverter
+) extends ListResult[ObjId] {
+  def update(attrId: AttrId, value: DBValue, objId: ObjId, on: Boolean): Unit =
     if(value != DBRemoved)
-      tx.set(converter.key(direct.ruled.attrId, value, objId), converter.value(on))
-  def apply(value: SearchValue) =
-    select(converter.keyWithoutObjId(direct.ruled.attrId, direct.converter(value)))
+      tx.set(converter.key(attrId, value, objId), converter.value(on))
+  def apply(attrId: AttrId, value: DBValue) =
+    select(converter.keyWithoutObjId(attrId, value))
   protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey) =
     matcher.lastObjId(keyPrefix, key)
 }
@@ -60,15 +73,15 @@ case class SearchByObjIdImpl()(
   rawFactConverter: RawFactConverter,
   val matcher: RawKeyMatcher,
   val tx: RawIndex,
-  ruledIndexById: AttrId=>RuledIndex
-) extends SearchByObjId with ListResult[RuledIndex] {
+  ruledIndexById: AttrId=>CalcIndex
+) extends SearchByObjId with ListResult[CalcIndex] {
   def apply(objId: ObjId) = select(rawFactConverter.keyWithoutAttrId(objId))
   protected def lastIdFromLong(keyPrefix: RawKey, key: RawKey) =
     ruledIndexById(matcher.lastAttrId(keyPrefix, key))
 }
 
 class AllFactExtractor(
-  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: RuledIndex
+  rawFactConverter: RawFactConverter, matcher: RawKeyMatcher, to: CalcIndex
 )(
   whileKeyPrefix: RawKey = rawFactConverter.keyHeadOnly
 ) extends KeyPrefixMatcher {

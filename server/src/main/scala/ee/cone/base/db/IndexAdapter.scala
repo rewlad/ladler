@@ -3,7 +3,7 @@ package ee.cone.base.db
 import ee.cone.base.util.Never
 
 case class RuledIndexAdapterImpl[Value](
-  ruled: RuledIndex
+  ruled: CalcIndex
 )(
   val converter: ValueConverter[Value,DBValue]
 ) extends RuledIndexAdapter[Value] {
