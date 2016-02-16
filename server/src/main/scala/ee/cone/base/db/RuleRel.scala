@@ -6,77 +6,92 @@ import ee.cone.base.util.Never
 
 // fail'll probably do nothing in case of outdated rel type
 
-class RelSideAttrInfoList(
-  preCommitCheck: PreCommitCheck=>AttrCalc,
-  createSearchAttrInfo: IndexComposer,
-  attrs: SearchByNode
-) {
-  def apply(
-    relSideAttrInfo: List[SearchByValue[Option[DBNode]]], typeAttr: CalcIndex,
-    relTypeAttrInfo: List[CalcIndex]
-  ): List[AttrInfo] = relSideAttrInfo.flatMap{ searchToAttr ⇒
-    val propInfo = searchToAttr.direct.ruled
-    val relComposedAttrInfo: List[(CalcIndex,CalcIndex)] =
-      relTypeAttrInfo.map(labelAttr⇒(labelAttr,createSearchAttrInfo(labelAttr, propInfo)))
-    val relTypeAttrIdToComposedAttr =
-      relComposedAttrInfo.map{ case(l,i) ⇒ l.attrId.toString → i }.toMap
-    val indexedAttrIds = relTypeAttrIdToComposedAttr.values.toSet
-    val calc = TypeIndexAttrCalc(typeAttr, propInfo, attrs)(relTypeAttrIdToComposedAttr, indexedAttrIds)
-    val integrity = createRefIntegrityPreCommitCheckList(typeAttr, searchToAttr)
-    calc :: propInfo :: relComposedAttrInfo.map(_._2) ::: integrity
+case class RelTypeInfo(
+  label: Prop[Option[Boolean]], start: RelSideTypeInfo, end: RelSideTypeInfo,
+  attrInfoList: List[AttrInfo]
+)
+
+case class RelSideTypeInfo(
+  side: RelSideInfo, listByValue: ListByValue[Option[DBNode]],
+  attrInfoList: List[AttrInfo]
+)
+
+class RelTypeInfoFactory(
+  relStartSide: RelSideInfo,
+  relEndSide: RelSideInfo,
+  createProp: (AttrId,DBValueConverter[Boolean]) => Prop[Option[Boolean]],
+  createList: (SearchAttrCalc,DBValueConverter[Option[DBNode]]) => ListByValue[Option[DBNode]],
+  converter: DBValueConverter[Boolean],
+  searchIndex: SearchIndex
+){
+  private def createForSide(labelAttrId: AttrId, side: RelSideInfo) = {
+    val composedAttrId = searchIndex.composeAttrId(labelAttrId, side.attrId)
+    val listByValue = createList(searchIndex.attrCalc(composedAttrId), side.converter)
+    RelSideTypeInfo(side, listByValue, listByValue :: Nil)
   }
-  private def createRefIntegrityPreCommitCheckList(
-    typeAttr: CalcIndex,
-    searchToAttrId: SearchByValue[Option[DBNode]]
-  ): List[AttrCalc] =
-    preCommitCheck(TypeRefIntegrityPreCommitCheck(typeAttr, searchToAttrId)) ::
-      preCommitCheck(SideRefIntegrityPreCommitCheck(typeAttr, searchToAttrId.direct)) :: Nil
+  def apply(labelAttrId: AttrId) = {
+    val label = createProp(labelAttrId,converter)
+    val start = createForSide(labelAttrId, relStartSide)
+    val end = createForSide(labelAttrId, relEndSide)
+    RelTypeInfo(label, start, end, label :: start.attrInfoList ::: end.attrInfoList)
+  }
 }
 
-case class TypeIndexAttrCalc(
-  typeAttr: CalcIndex, propAttr: CalcIndex, attrs: SearchByNode,
-  version: String = "a6e93a68-1df8-4ee7-8b3f-1cb5ae768c42"
-)(
-  relTypeIdToAttr: String=>CalcIndex, indexed: CalcIndex=>Boolean // relTypeIdToAttr.getOrElse(typeIdStr, throw new Exception(s"bad rel type $typeIdStr of $objId never here"))
-) extends AttrCalc {
-  def affectedBy = typeAttr :: propAttr :: Nil
-  def beforeUpdate(node: DBNode) = ()
-  def afterUpdate(node: DBNode) = {
-    node(attrs).foreach(attr => if(indexed(attr)) node(attr) = DBRemoved)
-    (node(typeAttr), node(propAttr)) match {
-      case (_,DBRemoved) | (DBRemoved,_) => ()
-      case (DBStringValue(typeIdStr),value) => node(relTypeIdToAttr(typeIdStr)) = value
-      case _ => Never()
-    }
+case class RelSideInfo(
+  attrId: AttrId,
+  prop: Prop[Option[DBNode]],
+  listByValue: ListByValue[Option[DBNode]],
+  attrInfoList: List[AttrInfo]
+)(val converter: DBValueConverter[Option[DBNode]])
+
+class RelSideInfoFactory(
+  preCommitCheck: PreCommitCheck=>AttrCalc,
+  converter: DBValueConverter[Option[DBNode]],
+  createProp: (AttrId,DBValueConverter[Option[DBNode]]) => Prop[Option[DBNode]],
+  createList: (SearchAttrCalc,DBValueConverter[Option[DBNode]]) => ListByValue[Option[DBNode]],
+  hasTypeAttr: Prop[Boolean],
+  searchIndex: SearchIndex
+){
+  def apply(attrId: AttrId) = {
+    val prop = createProp(attrId,converter)
+    val listByValue = createList(searchIndex.attrCalc(attrId),converter)
+    val attrInfoList: List[AttrInfo] = prop :: listByValue :: new AttrInfo {
+      def attrCalcList =
+        preCommitCheck(TypeRefIntegrityPreCommitCheck(hasTypeAttr, prop, listByValue)) ::
+        preCommitCheck(SideRefIntegrityPreCommitCheck(hasTypeAttr, prop)) :: Nil
+    } :: Nil
+
+    RelSideInfo(attrId, prop, listByValue, attrInfoList)(converter)
   }
 }
+
+  //def affectedBy = typeAttr :: propAttr :: Nil
+
 
 abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
-  protected def typeAttr: CalcIndex
-  protected def toAttr: RuledIndexAdapter[Option[DBNode]]
+  protected def hasTypeAttr: Prop[Boolean]
+  protected def toAttr: Prop[Option[DBNode]]
   protected def checkNode(node: DBNode): Option[ValidationFailure] = node(toAttr) match {
     case None ⇒ None
-    case Some(toNode) if toNode(typeAttr) != DBRemoved ⇒ None
+    case Some(toNode) if toNode(hasTypeAttr) ⇒ None
     case v => Some(ValidationFailure(this,node)) //, s"attr $toAttrId should refer to valid object, but $v found")
   }
 }
 
 //toAttrId must be indexed
 case class TypeRefIntegrityPreCommitCheck(
-  typeAttr: CalcIndex,
-  searchToAttr: SearchByValue[Option[DBNode]],
-  version: String = "b2232ecf-734c-4cfa-a88f-78b066a01cd3"
+  hasTypeAttr: Prop[Boolean],
+  toAttr: Prop[Option[DBNode]],
+  listToAttr: ListByValue[Option[DBNode]]
 ) extends RefIntegrityPreCommitCheck {
-  protected def toAttr = searchToAttr.direct
-  def affectedBy = typeAttr :: Nil
+  def affectedBy = hasTypeAttr :: Nil
   def check(nodes: Seq[DBNode]) =
-    nodes.flatMap(node => searchToAttr.get(Some(node))).flatMap(checkNode)
+    nodes.flatMap(node => listToAttr.list(Some(node))).flatMap(checkNode)
 }
 
 case class SideRefIntegrityPreCommitCheck(
-  typeAttr: CalcIndex, toAttr: RuledIndexAdapter[Option[DBNode]],
-  version: String = "677f2fdc-b56e-4cf8-973f-db148ee3f0c4"
+  hasTypeAttr: Prop[Boolean], toAttr: Prop[Option[DBNode]]
 ) extends RefIntegrityPreCommitCheck {
-  def affectedBy = toAttr.ruled :: Nil
+  def affectedBy = toAttr :: Nil
   def check(nodes: Seq[DBNode]) = nodes.flatMap(checkNode)
 }

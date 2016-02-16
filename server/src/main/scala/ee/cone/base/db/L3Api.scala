@@ -1,47 +1,50 @@
 package ee.cone.base.db
 
-import ee.cone.base.db.Types._
-
-trait AttrInfo
-
-trait Affecting {
-  def affects: List[CalcFactIndex]
+trait DBNode {
+  def objId: Long
+  def apply[Value](attr: Prop[Value]): Value
+  def update[Value](attr: Prop[Value], value: Value): Unit
 }
 
-trait Affected {
-  def affectedBy: List[CalcFactIndex]
+trait DBValueConverter[A] {
+  def apply(value: A): DBValue
+  def apply(value: DBValue): A
 }
 
-trait AttrCalc extends AttrInfo with Affected {
-  def beforeUpdate(objId: ObjId): Unit
-  def afterUpdate(objId: ObjId): Unit
+trait AttrInfo {
+  def attrCalcList: List[AttrCalc]
 }
 
-trait CalcFactIndex extends AttrInfo with Affecting {
+trait Prop[Value] extends AttrInfo {
+  def get(node: DBNode): Value
+  def set(node: DBNode, value: Value): Unit
+  def converter: DBValueConverter[Value]
   def attrId: AttrId
-  def get(objId: ObjId): DBValue
-  def set(objId: ObjId, value: DBValue): Unit
+  def nonEmpty: Prop[Boolean]
 }
 
-trait CalcSearchIndex {
-  def execute(value: DBValue, feed: Feed[ObjId]): Unit
-  def execute(value: DBValue, objId: ObjId, feed: Feed[ObjId]): Unit
-}
-
-trait IndexComposer {
-  def apply(labelAttr: CalcFactIndex, propAttr: CalcFactIndex): CalcFactIndex
-}
-
-case class ValidationFailure(calc: PreCommitCheck, objId: ObjId)
+case class ValidationFailure(calc: PreCommitCheck, node: DBNode)
 
 trait PreCommitCheckAttrCalc extends AttrCalc {
   def checkAll(): Seq[ValidationFailure]
 }
 
-trait PreCommitCheck extends Affected {
-  def check(ibjIds: Seq[ObjId]): Seq[ValidationFailure]
+trait PreCommitCheck extends {
+  def affectedBy: List[Prop[_]]
+  def check(nodes: Seq[DBNode]): Seq[ValidationFailure]
 }
 
-trait CalcFactIndexByObjId {
-  def execute(objId: ObjId, feed: Feed[CalcFactIndex]): Unit
+trait ListFeed[From,To] extends Feed[From] {
+  def result: List[To]
+}
+
+trait ListByValue[Value] extends AttrInfo {
+  def list(value: Value): List[DBNode]
+  def list(value: Value, fromNode: DBNode): List[DBNode]
+}
+
+trait NodeAttrCalc {
+  def affectedBy: List[Prop[_]]
+  def beforeUpdate(node: DBNode): Unit
+  def afterUpdate(node: DBNode): Unit
 }

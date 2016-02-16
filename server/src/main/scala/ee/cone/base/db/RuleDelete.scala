@@ -1,19 +1,15 @@
 package ee.cone.base.db
 
 class DeleteAttrCalcList(
-  typeId: CalcIndex,
-  attrs: SearchByNode
+  typeId: Prop[_],
+  attrs: Prop[List[Prop[_]]]
 ) {
   def apply() = DeleteAttrCalc(typeId, attrs) :: Nil
 }
 
-case class DeleteAttrCalc(
-  typeId: CalcIndex,
-  attrs: SearchByNode,
-  version: String = "a9e66744-883f-47c9-9cda-ed5b9c1a11bb"
-) extends AttrCalc {
+case class DeleteAttrCalc[T,A](typeId: Prop[_], attrs: Prop[List[Prop[_]]]) extends NodeAttrCalc {
   def affectedBy = typeId :: Nil
+  def afterUpdate(node: DBNode) = if(!node(typeId.nonEmpty))
+    node(attrs).foreach(attr => node(attr.nonEmpty) = false)
   def beforeUpdate(node: DBNode) = ()
-  def afterUpdate(node: DBNode) =
-    if(node(typeId)==DBRemoved) node(attrs).foreach(node(_) = DBRemoved)
 }
