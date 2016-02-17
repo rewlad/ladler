@@ -2,50 +2,72 @@ package ee.cone.base.server
 
 import java.net.Socket
 import java.nio.file.Path
-import java.util.concurrent.Executors
+import java.util.concurrent.{Executor, LinkedBlockingQueue, BlockingQueue,
+Executors}
 
-import ee.cone.base.connection_api.Message
+import ee.cone.base.connection_api.{DictMessage, Message}
+import ee.cone.base.util.ToRunnable
+
+trait ServerAppMix {
+  def httpPort: Int
+  def threadCount: Int
+  def staticRoot: Path
+  def ssePort: Int
+
+  lazy val pool = Executors.newScheduledThreadPool(threadCount)
+  lazy val connectionRegistry = new ConnectionRegistryImpl
+  lazy val httpServer = new RHttpServer(httpPort, staticRoot, pool, connectionRegistry)
+  lazy val sseServer = new RSSEServer(ssePort, pool, )
+  lazy val connectionMana
+
+  trait ServerConnectionMix {
+    def connectionLifeCycle: LifeCycle
+    def socket: Socket
+    def allowOrigin: Option[String]
+    def purgePeriod: Long
+
+    lazy val incoming = new LinkedBlockingQueue[DictMessage]
+    lazy val receiver = connectionRegistry.createReceiver(connectionLifeCycle, incoming)
+    lazy val sender = new SSESender(connectionLifeCycle, allowOrigin, socket)
+    lazy val keepAlive = new KeepAlive(receiver, sender)
+  }
+}
+
 
 class ContextOfConnection(val sender: SenderOfConnection, val lifeCycle: LifeCycle)
 
 abstract class SSEHttpServer {
-  def httpPort: Int
-  def threadCount: Int
-  def staticRoot: Path
-  def allowOrigin: Option[String]
-  def ssePort: Int
-  def framePeriod: Long
-  def purgePeriod: Long
+
   def createMessageReceiverOfConnection(context: ContextOfConnection): ReceiverOf[Message]
 
-  private def createConnection(socket: Socket): Unit = {
-    val lifeTime = new LifeCycleImpl()
-    val receiver = new ReceiverOfConnectionImpl(lifeTime, connectionRegistry)
-    val sender = new SSESender(lifeTime, allowOrigin, socket)
-    val keepAlive = new KeepAlive(receiver, sender)
-    val context = new ContextOfConnection(sender, lifeTime)
-    val frameHandler = createMessageReceiverOfConnection(context)
-    val transmitter =
-      new ActivateReceivers(receiver, keepAlive :: frameHandler :: Nil)
-    val generator =
-      new FrameGenerator(lifeTime, pool, framePeriod, purgePeriod, transmitter)
-    lifeTime.open()
-    lifeTime.setup(socket)(_.close())
-    generator.started
-  }
-  lazy val pool = Executors.newScheduledThreadPool(threadCount)
-  lazy val connectionRegistry = new ConnectionRegistryImpl
+  protected def createConnection(connectionLifeCycle: LifeCycle, socket: Socket): Unit
+
+
   def start() = {
     new RSSEServer {
       def ssePort = SSEHttpServer.this.ssePort
       def pool = SSEHttpServer.this.pool
-      def createConnection(socket: Socket) = SSEHttpServer.this.createConnection(socket)
+      def createConnection(socket: Socket) = {
+
+      }
     }.start()
-    new RHttpServer {
-      def httpPort = SSEHttpServer.this.httpPort
-      def pool = SSEHttpServer.this.pool
-      def connectionRegistry = SSEHttpServer.this.connectionRegistry
-      def staticRoot = SSEHttpServer.this.staticRoot
-    }.start()
+
   }
+}
+
+trait ConnectionManager {
+  def createConnection(socket: Socket): Unit
+}
+
+class ThreadPerConnectionManager(
+  pool: Executor, runConnection: (LifeCycle,Socket)=>Unit
+) extends ConnectionManager {
+  def createConnection(socket: Socket) = pool.execute(ToRunnable{
+    val connectionLifeCycle = new LifeCycleImpl()
+    try{
+      connectionLifeCycle.open()
+      connectionLifeCycle.setup(socket)(_.close())
+      runConnection(connectionLifeCycle, socket)
+    } finally connectionLifeCycle.close()
+  })
 }

@@ -29,11 +29,12 @@ class ConnectionHandler(connectionRegistry: ConnectionRegistry) extends HttpHand
   } finally httpExchange.close() }
 }
 
-abstract class RHttpServer {
-  def httpPort: Int
-  def pool: Executor
-  def connectionRegistry: ConnectionRegistry
-  def staticRoot: Path
+class RHttpServer(
+  httpPort: Int,
+  staticRoot: Path,
+  pool: Executor,
+  connectionRegistry: ConnectionRegistry
+){
   def start() = {
     val server = HttpServer.create(new InetSocketAddress(httpPort),0)
     server.setExecutor(pool)

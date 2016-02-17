@@ -32,45 +32,12 @@ class IndexView extends View {
 }
 */
 
-class Cached[T](create: ()=>T){
-  private var value: Option[T] = None
-  def reset() = value = None
-  def apply() = {
-    if(value.isEmpty) value = Option(create())
-    value.get
-  }
-}
 
 
-class CachedLife(lifeCycle: ()=>LifeCycle) {
-  def apply[C](create: =>C)(close: C=>Unit): ()=>C = {
-    var state: Option[C] = None
-    () => state.getOrElse(
-      lifeCycle().setup(Setup(create){ i => state = Option(i) })
-        { i => state = None; close(i) }
-    )
-  }
-}
-
-/*
-class TxLife(lifeCycle: Cached[LifeCycle]) {
-  def apply[C](create: ()=>C) = {
-    val cached = new Cached[C](mk)
-    def mk(): C = lifeCycle().setup{ create() }(a => cached.reset())
 
 
-    //lifeCycle().setup{ create() }{ a => cached. }
-  }
 
-}
-*/
 
-class B {
-  def close() = ()
-}
-class A(snapLife: Life) {
-  lazy val test: ()=>B = snapLife(new B) // Autoclosable
-}
 
 
 
@@ -91,46 +58,15 @@ class TestTx(connection: TestConnection) extends ReceiverOf[Message] {
   ???
 }*/
   def mainTx: DBAppliedTx
-  lazy val vDom = new Cached[Value] { () =>
 
-    ???
-  }
   private lazy val periodicFullReset = new OncePer(1000, reset)
   private def reset() = {
     lifeCycle.close()
     connection.tx.reset()
   }
-  private var vDomDeferReset = false
-  lazy val lifeCycle = connection.context.lifeCycle.sub()
   //lazy val eventFactConverter = new RawFactConverterImpl(DBLayers.eventFacts, 0L)
-  lazy val dbEventList = new DBEventList(lifeCycle, connection.tempDB, rw=true, connection.sessionId, mainTx)
 
-  def transformMessage(path: List[String], message: DictMessage): Message = {
-    val node = ResolveValue(vDom(), path)
-      .getOrElse(throw new Exception(s"$path not found"))
-    val transformer = node match {
-      case v: MessageTransformer => v
-    }
-    transformer.transformMessage.lift(message).get
-  }
-  def receive = {
-    case message@WithVDomPath(path) => receive(transformMessage(path, message))
-    case ev@DBEvent(data) =>
-      dbEventList.add(ev)
-      vDom.reset()
-    // non-db events here, vDomDeferReset = true
-    // hash
-    case ResetTxMessage => reset() // msg from merger can reset full context
-    case PeriodicMessage =>
-      periodicFullReset() // ?vDom if fail?
-      if (vDomDeferReset) {
-        vDomDeferReset = false
-        vDom.reset()
-      }
-      connection.diff.diff(vDom()).foreach(d =>
-        connection.context.sender.send("showDiff", JsonToString(d))
-      )
-  }
+
 }
 
 
@@ -225,6 +161,8 @@ class MutableSessionState(
 
 case class DBEvent(data: Map[AttrId,DBValue])
 
+case object ResetTxMessage extends Message
+
 /*
 class SysProps(db: Index, indexSearch: IndexSearch) {
   class Prop(attrId: Long) {
@@ -246,201 +184,62 @@ object SysAttrId {
 }
 */
 
-
-
-
-case object ResetTxMessage extends Message
-
-////
-/*
-case class PreventChangesIfAppliedAttrCalc(
-  isAppliedAttr: RuledIndex,
-  version: String = "e959c2f3-7c70-4e4e-aa3e-64516f613f39"
-)(
-  allAttrInfoList: ()=>List[AttrInfo]
-) extends AttrCalc {
-  override def recalculate(objId: ObjId) = if(isAppliedAttr(objId)!=DBRemoved) Never()
-  override def affectedBy =
-    allAttrInfoList().collect{ case i: RuledIndex if i != isAppliedAttr => i }
-}
-case class PreventUnsetAppliedAttrCalc(
-  isAppliedAttr: RuledIndex,
-  version: String = "bba34082-d0fd-4d16-b191-265b1fc06d21"
-) extends AttrCalc {
-  override def recalculate(objId: ObjId) = if(isAppliedAttr(objId)==DBRemoved) Never()
-  override def affectedBy = isAppliedAttr :: Nil
-}
-*/
 ////
 
-class FindOrCreateSrcId(searchSrcId: SearchByValue[UUID], seq: ObjIdSequence) extends AttrIndex[UUID,DBNode] {
-  def apply(value: UUID) = searchSrcId(value).headOption
-    .getOrElse(Setup(seq.inc()){ objId => searchSrcId.direct(objId) = value })
-}
-class ObjIdSequence(seqAttr: RuledIndexAdapter[Option[DBNode]]) {
-  def inc(): DBNode = {
-    val objId = new DBNode(0L)
-    val res = new DBNode(seqAttr(objId).getOrElse(objId).value + 1L)
-    seqAttr(objId) = Some(res)
-    res
-  }
-}
 
-////
-
-class TestConnection(
+class TestConnection0(
   val context: ContextOfConnection,
   val tempDB: TestEnv, //apply and clear on db startup
   val mainDB: TestEnv
 ) extends ReceiverOf[Message] {
   lazy val diff = new DiffImpl(MapValueImpl)
-  lazy val tx = new Cached[TestTx](() => new TestTx(this))
-  def receive = tx().receive
-}
+  lazy val vDom = new Cached[Value] { () =>
 
-
-
-
-
-
-
-/*
-trait IA_SomeAttr {
-  def someAttr: String
-}
-trait A_SomeAttr extends IA_SomeAttr {
-  def someAttr = ???
-}
-class SomeObj extends A_SomeAttr
-*/
-
-/*
-abstract class Abc extends IA_txLife with IA_frameLife
-class SummaryWeightCalc(
-  weight: RuledIndexAdapter[Option[BigDecimal]],
-  searchColor: SearchByValue[Option[String],Car],//RuledIndexAdapter[Option[Color]]
-  searchWeightSummary: SearchByValue[Boolean]
-) extends AttrCalc {
-  def recalculate(objId: ObjId) = {
-    weight(Single(searchWeightSummary(true))) =
-      Some(searchColorOfCar(Some("G")).flatMap(o => weight(o)).sum)
-
+    ???
   }
-  def affectedBy = searchColor.direct.ruled :: weight.ruled :: Nil
-}
-trait Generated {
-  def color: RuledIndexAdapter[Option[String]]
-  lazy val searchColor = new SearchByValueImpl(color)
-  lazy val summaryWeightCalc = new SummaryWeightCalc(???,searchColor,???)
-  def info = summaryWeightCalc :: searchColor :: ??? :: Nil
-}
-*/
-
-
-/*
-instant indexed:
-  session.sessionKey
-  ev.sessionId
-  undo.undoneId
-  reqEv.isRequested
-  commitEv.committedReqId
-  commitEv.committedSessionId
-main:
-  0.lastMergedId
-
-isRequested -- no more undo-s for ev-s le by session, only undo-s by merger
-
-concurrency, exceptions, lifecycle:
-  exception kills connection
-  scopes are mostly connection
-  instant/main are selecting by attr
-  tx/snapshot scoped values will have lazy resettable wrapper
-  instantDB write can only add events
-remember:
-  app
-  connection
-  snapshot / ro Tx
-  frame / message handling
-  mTx / rw Tx
-
-
-merger connection iteration:
-  try-with mainDB rw:
-    try
-      try-with instantDB read:
-        get first with isRequested gt lastMergedId that is not undone;
-        handle according to its none|committed by later ev
-    finally:
-      try-with instantDB rw:
-        err: add undo
-        not yet committed: add commit
-
-ui do iteration:
-  switch mainDB off
-  inside dispatch can be:
-    try-with instantDB rw: add event
-    reset vDom or tx
-
-ui fresh snapshot:
-  sessionLastMergedId = gt last committed and merged request for this session --
-  -- rev committedSessionId -> for reverse -> rel committedReqId -> until le lastMergedId
-
-ui next view iteration:
-  switch mainDB mux
-  try
-    try-with instantDB read:
-      loop
-        get first with our sessionId gt sessionLastMergedId that is not undone;
-        handle
-      view
-  finally:
-    send vDomDiff or error
-
- */
-
-
-class RawTx(val rawIndex: RawIndex, val commit: ()=>Unit)
-trait DBEnv {
-  def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
-}
-
-class TestEnv extends DBEnv {
-  private var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
-  private lazy val lock = new ReentrantLock
-  private def createRawIndex() = Setup(new NonEmptyUnmergedIndex) { i =>
-    synchronized {
-      i.data = data
+  private var vDomDeferReset = false
+  lazy val lifeCycle = connection.context.lifeCycle.sub()
+  lazy val dbEventList = new DBEventList(lifeCycle, connection.tempDB, rw=true, connection.sessionId, mainTx)
+  def transformMessage(path: List[String], message: DictMessage): Message = {
+    val node = ResolveValue(vDom(), path)
+      .getOrElse(throw new Exception(s"$path not found"))
+    val transformer = node match {
+      case v: MessageTransformer => v
     }
+    transformer.transformMessage.lift(message).get
   }
-  def createTx(txLifeCycle: LifeCycle, rw: Boolean) =
-    if(!rw) new RawTx(createRawIndex(), () => ())
-    else txLifeCycle.setup {
-      lock.lock()
-      val index = createRawIndex()
-      def commit() = {
-        if(!lock.isHeldByCurrentThread) Never()
-        synchronized {
-          data = index.data
-        }
+
+  def receive = {
+    case message@WithVDomPath(path) => receive(transformMessage(path, message))
+    case ev@DBEvent(data) =>
+      dbEventList.add(ev)
+      vDom.reset()
+    // non-db events here, vDomDeferReset = true
+    // hash
+    case ResetTxMessage => reset() // msg from merger can reset full context
+    case PeriodicMessage =>
+      periodicFullReset() // ?vDom if fail?
+      if (vDomDeferReset) {
+        vDomDeferReset = false
+        vDom.reset()
       }
-      new RawTx(index, commit)
-    }(_ => lock.unlock())
+      connection.diff.diff(vDom()).foreach(d =>
+        connection.context.sender.send("showDiff", JsonToString(d))
+      )
+  }
 }
 
-object TestApp extends App {
-  val tempDB = new TestEnv
-  val mainDB = new TestEnv
-  val server = new SSEHttpServer {
-    def threadCount = 5
-    def allowOrigin = Some("*")
-    def ssePort = 5556
-    def httpPort = 5557
-    def framePeriod = 20
-    def purgePeriod = 2000
-    def staticRoot = Paths.get("../client/build/test")
-    def createMessageReceiverOfConnection(context: ContextOfConnection) =
-      new TestConnection(context, tempDB, mainDB)
-  }
-  server.start()
-  println(s"SEE: http://127.0.0.1:${server.httpPort}/react-app.html")
+class TestConnection(
+  val context: ContextOfConnection,
+  val tempDB: TestEnv, //apply and clear on db startup
+  val mainDB: TestEnv
+){
+
+
+
 }
+
+
+
+
+

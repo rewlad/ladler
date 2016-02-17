@@ -2,6 +2,38 @@ package ee.cone.base.test_react_db
 
 import scala.collection.mutable.ArrayBuffer
 
+/*
+trait IA_SomeAttr {
+  def someAttr: String
+}
+trait A_SomeAttr extends IA_SomeAttr {
+  def someAttr = ???
+}
+class SomeObj extends A_SomeAttr
+*/
+
+/*
+abstract class Abc extends IA_txLife with IA_frameLife
+class SummaryWeightCalc(
+  weight: RuledIndexAdapter[Option[BigDecimal]],
+  searchColor: SearchByValue[Option[String],Car],//RuledIndexAdapter[Option[Color]]
+  searchWeightSummary: SearchByValue[Boolean]
+) extends AttrCalc {
+  def recalculate(objId: ObjId) = {
+    weight(Single(searchWeightSummary(true))) =
+      Some(searchColorOfCar(Some("G")).flatMap(o => weight(o)).sum)
+
+  }
+  def affectedBy = searchColor.direct.ruled :: weight.ruled :: Nil
+}
+trait Generated {
+  def color: RuledIndexAdapter[Option[String]]
+  lazy val searchColor = new SearchByValueImpl(color)
+  lazy val summaryWeightCalc = new SummaryWeightCalc(???,searchColor,???)
+  def info = summaryWeightCalc :: searchColor :: ??? :: Nil
+}
+*/
+
 object Test {
   trait Prop[Value] {
     def apply(objId: Long): Value
@@ -119,3 +151,4 @@ object Test3 {
   val a = new ArrayBuffer[Int]
   a.update(6,9)
 }
+

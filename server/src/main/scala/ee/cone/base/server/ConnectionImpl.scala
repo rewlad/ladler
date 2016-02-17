@@ -1,41 +1,40 @@
 package ee.cone.base.server
 
 import java.util
+import java.util.concurrent.{BlockingQueue, LinkedBlockingQueue}
 
 import ee.cone.base.connection_api.{Message, DictMessage}
 import ee.cone.base.util.Setup
 
 import scala.collection.concurrent.TrieMap
 
-class ReceiverOfConnectionImpl(lifeTime: LifeCycle, registry: ConnectionRegistryImpl) extends ReceiverOfConnection {
-  private def createConnectionKey = Setup(util.UUID.randomUUID.toString){ k =>
-    registry.store(k) = this
-    println(s"connection   register: $k")
-  }
-  lazy val connectionKey = lifeTime.setup(createConnectionKey){ k =>
+class ReceiverOfConnectionImpl(
+  registry: ConnectionRegistryImpl, lifeTime: LifeCycle, queue: BlockingQueue[DictMessage] //Linked*
+) extends ReceiverOfConnection {
+  lazy val connectionKey = Setup(lifeTime.setup(util.UUID.randomUUID.toString){ k =>
     registry.store.remove(k)
     println(s"connection unregister: $k")
+  }){ k =>
+    registry.store(k) = queue
+    println(s"connection   register: $k")
   }
-
-  private lazy val incoming = new util.ArrayDeque[DictMessage]
-  def poll(): Option[DictMessage] =
-    incoming.synchronized(Option(incoming.poll()))
-  def add(message: DictMessage) =
-    incoming.synchronized(incoming.add(message))
 }
 
 class ConnectionRegistryImpl extends ConnectionRegistry {
-  lazy val store = TrieMap[String, ReceiverOfConnectionImpl]()
-  def send(bnd: DictMessage) =
-    store(bnd.value("X-r-connection")).add(bnd)
+  lazy val store = TrieMap[String, BlockingQueue[DictMessage]]()
+  def send(bnd: DictMessage) = store(bnd.value("X-r-connection")).add(bnd)
+  def createReceiver(lifeTime: LifeCycle, queue: BlockingQueue[DictMessage]) =
+    new ReceiverOfConnectionImpl(this, lifeTime, queue)
 }
 
+////
+
 class ActivateReceivers(
-  receiver: ReceiverOfConnectionImpl, receivers: List[ReceiverOf[Message]]
+  queue: BlockingQueue[DictMessage], receivers: List[ReceiverOf[Message]]
 ) extends ReceiverOf[Message] {
   private def byAll(message: Message) = receivers.foreach(_.receive(message))
   def receive = { case message => next(message) }
-  private def next(message: Message): Unit = receiver.poll() match {
+  private def next(message: Message): Unit = Option(queue.poll()) match {
     case Some(m) =>
       byAll(m)
       next(message)

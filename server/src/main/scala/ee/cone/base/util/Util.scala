@@ -20,6 +20,7 @@ object Single {
     case el :: Nil => el
     case _ => throw new Exception()
   }
+  def option[C](l: List[C]): Option[C] = if(l.isEmpty) None else Option(apply(l))
 }
 
 object Setup {

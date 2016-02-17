@@ -2,9 +2,9 @@
 package ee.cone.base.server
 
 import java.net.{ServerSocket, Socket}
-import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.{Executor, ScheduledExecutorService}
 
-import ee.cone.base.util.{ToRunnable, Bytes}
+import ee.cone.base.util.{Setup, ToRunnable, Bytes}
 
 class SSESender(lifeTime: LifeCycle, allowOriginOption: Option[String], socket: Socket)
   extends SenderOfConnection
@@ -24,14 +24,13 @@ class SSESender(lifeTime: LifeCycle, allowOriginOption: Option[String], socket: 
   }
 }
 
-abstract class RSSEServer {
-  def pool: ScheduledExecutorService
-  def createConnection(socket: Socket)
-  def ssePort: Int
+
+
+class RSSEServer(ssePort: Int, pool: Executor, connectionManager: ConnectionManager) {
   def start() = {
     val serverSocket = new ServerSocket(ssePort) //todo toClose
     pool.execute(ToRunnable{
-      while(true) createConnection(serverSocket.accept())
+      while(true) connectionManager.createConnection(serverSocket.accept())
     })
   }
 }

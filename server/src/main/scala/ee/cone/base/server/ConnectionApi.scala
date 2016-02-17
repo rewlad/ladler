@@ -1,5 +1,7 @@
 package ee.cone.base.server
 
+import java.util.concurrent.BlockingQueue
+
 import ee.cone.base.connection_api.{Message, DictMessage}
 
 trait SenderOfConnection {
@@ -20,6 +22,7 @@ trait LifeCycle {
 
 trait ConnectionRegistry {
   def send(bnd: DictMessage): Unit
+  def createReceiver(lifeTime: LifeCycle, queue: BlockingQueue[DictMessage]): ReceiverOfConnection
 }
 
 case object PeriodicMessage extends Message
