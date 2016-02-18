@@ -34,7 +34,7 @@ class RHttpServer(
   staticRoot: Path,
   pool: Executor,
   connectionRegistry: ConnectionRegistry
-){
+) extends AppComponent with CanStart {
   def start() = {
     val server = HttpServer.create(new InetSocketAddress(httpPort),0)
     server.setExecutor(pool)

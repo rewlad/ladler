@@ -1,6 +1,6 @@
 package ee.cone.base.server
 
-import java.util.concurrent.BlockingQueue
+import java.net.Socket
 
 import ee.cone.base.connection_api.{Message, DictMessage}
 
@@ -22,9 +22,23 @@ trait LifeCycle {
 
 trait ConnectionRegistry {
   def send(bnd: DictMessage): Unit
-  def createReceiver(lifeTime: LifeCycle, queue: BlockingQueue[DictMessage]): ReceiverOfConnection
 }
 
 case object PeriodicMessage extends Message
 
 trait ReceiverOf[M] { def receive: PartialFunction[M,Unit] }
+
+trait MixBase[Component] { // to utils?
+  def args: List[Component]
+  def createComponents() = args
+  lazy val components = createComponents()
+}
+
+trait AppComponent
+trait ConnectionComponent
+
+trait CanStart {
+  def start(): Unit
+}
+
+class SocketOfConnection(val value: Socket) extends ConnectionComponent

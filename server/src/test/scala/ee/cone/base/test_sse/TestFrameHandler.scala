@@ -1,9 +1,45 @@
 package ee.cone.base.test_sse
 
-import ee.cone.base.connection_api.Message
+import java.util.concurrent.{TimeUnit, BlockingQueue}
+import ee.cone.base.connection_api.{DictMessage, Message}
 import ee.cone.base.server._
 
-class TestFrameHandler(sender: SenderOfConnection) extends ReceiverOf[Message] {
+class TestFrameHandler(
+    sender: SenderOfConnection, keepAlive: KeepAlive, queue: BlockingQueue[DictMessage],
+    framePeriod: Long
+) extends ReceiverOf[Message] {
+  def apply(): Unit = {
+    try {
+      while(true){
+        snapshot.init
+        while(snapshot.isOpenFresh){
+          incrementalApply
+          show
+          while(vDom.isOpenFresh){
+            val message = queue.poll(framePeriod,TimeUnit.MILLISECONDS)
+              dispatch // can close / set refresh time
+          }
+        }
+      }
+    } catch {
+      case e: Exception ⇒
+        sender.send("fail",???)
+        throw e
+    }
+
+
+
+    while(true){
+      show()
+      val nextShowTime = System.currentTimeMillis + framePeriod
+      while(nextShowTime > System.currentTimeMillis || vDomIsInvalid.value){
+        receive(queue.poll(framePeriod,TimeUnit.MILLISECONDS))
+      }
+      //keepAlive.receive()
+      //Thread.sleep(100)
+    }
+  }
+
   private var prevTime: Long = 0L
   def receive = {
     case PeriodicMessage =>

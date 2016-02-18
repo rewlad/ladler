@@ -6,6 +6,7 @@ ScheduledExecutorService}
 import ee.cone.base.util.{Trace, ToRunnable}
 import ee.cone.base.connection_api.Message
 
+/*
 class FrameGenerator(
   lifeTime: LifeCycle,
   //receiver: ReceiverOfConnection,
@@ -23,3 +24,4 @@ class FrameGenerator(
   private lazy val watchFuture = setup(schedule(purgePeriod, checkCloseAll()))
   def started = (mainFuture,watchFuture)
 }
+*/

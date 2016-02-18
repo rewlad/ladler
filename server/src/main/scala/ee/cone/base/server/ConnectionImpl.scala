@@ -23,8 +23,6 @@ class ReceiverOfConnectionImpl(
 class ConnectionRegistryImpl extends ConnectionRegistry {
   lazy val store = TrieMap[String, BlockingQueue[DictMessage]]()
   def send(bnd: DictMessage) = store(bnd.value("X-r-connection")).add(bnd)
-  def createReceiver(lifeTime: LifeCycle, queue: BlockingQueue[DictMessage]) =
-    new ReceiverOfConnectionImpl(this, lifeTime, queue)
 }
 
 ////
