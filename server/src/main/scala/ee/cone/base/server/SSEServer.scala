@@ -28,12 +28,11 @@ class SSESender(
   }
 }
 
-class RSSEServer(ssePort: Int, pool: Executor, createConnection: List[ConnectionComponent] ⇒ CanStart) extends AppComponent with CanStart {
-  def start() = {
+class RSSEServer(ssePort: Int, pool: Executor, createConnection: List[ConnectionComponent] ⇒ Runnable) extends AppComponent with CanStart {
+  def start() = pool.execute(ToRunnable{
     val serverSocket = new ServerSocket(ssePort) //todo toClose
-    pool.execute(ToRunnable{
-      while(true)
-        createConnection(new SocketOfConnection(serverSocket.accept()) :: Nil).start()
+    while(true) pool.execute(ToRunnable {
+      createConnection(new SocketOfConnection(serverSocket.accept()) :: Nil).run()
     })
-  }
+  })
 }

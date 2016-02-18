@@ -20,7 +20,7 @@ class TestConnectionMix(app: TestAppMix, val args: List[ConnectionComponent]) ex
   lazy val serverAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val purgePeriod = 2000
-  lazy val runInner = new TestFrameHandler(sender)
+  lazy val run = new TestConnection(connectionLifeCycle,sender)
 }
 
 object TestApp extends App {
@@ -28,3 +28,4 @@ object TestApp extends App {
   app.start()
   println(s"SEE: http://127.0.0.1:${app.httpPort}/sse.html")
 }
+

@@ -11,7 +11,7 @@ trait ServerAppMix extends MixBase[AppComponent] with CanStart {
   def threadCount: Int
   def staticRoot: Path
   def ssePort: Int
-  def createSSEConnection: List[ConnectionComponent] ⇒ CanStart
+  def createSSEConnection: List[ConnectionComponent] ⇒ Runnable
 
   lazy val pool = Executors.newScheduledThreadPool(threadCount)
   lazy val connectionRegistry = new ConnectionRegistryImpl
@@ -22,18 +22,16 @@ trait ServerAppMix extends MixBase[AppComponent] with CanStart {
   override def createComponents() = httpServer :: sseServer :: super.createComponents()
 }
 
-trait ServerConnectionMix extends MixBase[ConnectionComponent] with CanStart {
+trait ServerConnectionMix extends MixBase[ConnectionComponent] with Runnable {
   def serverAppMix: ServerAppMix
   def allowOrigin: Option[String]
   def purgePeriod: Long
-  def runInner: ()⇒Unit
 
   lazy val connectionLifeCycle = new LifeCycleImpl()
-  lazy val pool = serverAppMix.pool
   lazy val connectionRegistry = serverAppMix.connectionRegistry
   lazy val incoming = new LinkedBlockingQueue[DictMessage]
   lazy val receiver = new ReceiverOfConnectionImpl(connectionRegistry, connectionLifeCycle, incoming)
   lazy val sender = new SSESender(connectionLifeCycle, allowOrigin, components)
   lazy val keepAlive = new KeepAlive(receiver, sender)
-  lazy val start = new ThreadPerSSEConnectionRun(pool,connectionLifeCycle, runInner)
 }
+

@@ -4,13 +4,16 @@ import java.util.concurrent.{TimeUnit, BlockingQueue}
 import ee.cone.base.connection_api.{DictMessage, Message}
 import ee.cone.base.server._
 
-class TestFrameHandler(
-    sender: SenderOfConnection, keepAlive: KeepAlive, queue: BlockingQueue[DictMessage],
-    framePeriod: Long
+
+class TestConnection(
+    connectionLifeCycle: LifeCycle,
+    sender: SenderOfConnection//, keepAlive: KeepAlive, queue: BlockingQueue[DictMessage],
+    //framePeriod: Long
 ) extends ReceiverOf[Message] {
   def apply(): Unit = {
     try {
-      while(true){
+      connectionLifeCycle.open()
+      while(true){/*
         snapshot.init
         while(snapshot.isOpenFresh){
           incrementalApply
@@ -19,16 +22,18 @@ class TestFrameHandler(
             val message = queue.poll(framePeriod,TimeUnit.MILLISECONDS)
               dispatch // can close / set refresh time
           }
-        }
+        }*/
       }
     } catch {
       case e: Exception ⇒
         sender.send("fail",???)
         throw e
+    } finally {
+      connectionLifeCycle.close()
     }
 
 
-
+/*
     while(true){
       show()
       val nextShowTime = System.currentTimeMillis + framePeriod
@@ -37,7 +42,7 @@ class TestFrameHandler(
       }
       //keepAlive.receive()
       //Thread.sleep(100)
-    }
+    }*/
   }
 
   private var prevTime: Long = 0L
