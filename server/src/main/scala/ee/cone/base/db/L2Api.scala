@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.ConnectionComponent
 import ee.cone.base.db.Types._
 
 trait FactIndex {
@@ -15,9 +16,7 @@ trait SearchIndex {
   def attrCalc(attrId: AttrId): SearchAttrCalc
 }
 
-
-
-trait AttrCalc {
+trait AttrCalc extends ConnectionComponent {
   def affectedBy: List[AttrId]
   def beforeUpdate(objId: ObjId): Unit
   def afterUpdate(objId: ObjId): Unit

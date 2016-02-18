@@ -2,12 +2,18 @@ package ee.cone.base.test_react_db
 
 import java.nio.file.Paths
 import java.util.UUID
+import java.util.concurrent.{TimeUnit, BlockingQueue}
 import java.util.concurrent.locks.ReentrantLock
+
+
+import ee.cone.base.connection_api.{AppComponent, ConnectionComponent,
+DictMessage, Message}
+
 import scala.collection.immutable.SortedMap
 
 import ee.cone.base.db._
 import ee.cone.base.db.Types._
-import ee.cone.base.server.{ContextOfConnection, SSEHttpServer, LifeCycle}
+import ee.cone.base.server._
 import ee.cone.base.util.{Single, Never, Setup}
 
 class LifeCacheState[C] {
@@ -78,22 +84,60 @@ class TestEnv extends DBEnv {
       new RawTx(index, commit)
     }(_=>lock.unlock())
 }
-
+/*
 object TestApp extends App {
   val tempDB = new TestEnv
   val mainDB = new TestEnv
-  val server = new SSEHttpServer {
-    def threadCount = 5
-    def allowOrigin = Some("*")
-    def ssePort = 5556
-    def httpPort = 5557
-    def framePeriod = 20
-    def purgePeriod = 2000
-    def staticRoot = Paths.get("../client/build/test")
-    def createMessageReceiverOfConnection(context: ContextOfConnection) =
-      new TestConnection(context, tempDB, mainDB)
-  }
-  server.start()
-  println(s"SEE: http://127.0.0.1:${server.httpPort}/react-app.html")
+
+}
+*/
+class TestAppMix(val args: List[AppComponent]) extends ServerAppMix {
+  lazy val httpPort = 5557
+  lazy val staticRoot = Paths.get("../client/build/test")
+  lazy val ssePort = 5556
+  lazy val threadCount = 5
+  lazy val createSSEConnection = (cArgs:List[ConnectionComponent]) ⇒ new TestConnectionMix(this, cArgs)
 }
 
+class TestConnectionMix(app: TestAppMix, val args: List[ConnectionComponent]) extends ServerConnectionMix with Runnable {
+  lazy val serverAppMix = app
+  lazy val allowOrigin = Some("*")
+  lazy val framePeriod = 200
+  lazy val run = new TestConnection(connectionLifeCycle,sender,incoming,framePeriod)
+}
+
+object TestApp extends App {
+  val app = new TestAppMix(Nil)
+  app.start()
+  println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html")
+}
+
+class TestConnection(
+  connectionLifeCycle: LifeCycle,
+  sender: SenderOfConnection,
+  incoming: BlockingQueue[DictMessage],
+  framePeriod: Long
+  //, keepAlive: KeepAlive, queue: BlockingQueue[DictMessage],
+  //
+) {
+  def apply(): Unit = try {
+    connectionLifeCycle.open()
+    while(true){
+      //snapshot.init
+      while(???/*snapshot.isOpenFresh*/){
+        //incrementalApply
+        //show
+        while(???/*vDom.isOpenFresh*/){
+          val message = Option(incoming.poll(framePeriod,TimeUnit.MILLISECONDS))
+          //dispatch // can close / set refresh time
+        }
+      }
+    }
+  } catch {
+    case e: Exception ⇒
+      sender.send("fail",???)
+      throw e
+  } finally {
+    connectionLifeCycle.close()
+  }
+}

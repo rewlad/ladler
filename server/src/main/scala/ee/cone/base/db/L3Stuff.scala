@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.ConnectionComponent
 import ee.cone.base.db.Types._
 import ee.cone.base.util.Never
 
@@ -37,7 +38,7 @@ class ListByDBNode(inner: FactIndex, index: AttrId=>Prop[_]) extends Prop[List[P
   def converter = Never()
   def attrId = Never()
   def nonEmpty = Never() //?
-  def attrCalcList = Nil
+  def components = Nil
 }
 
 case class ListByValueImpl[Value](attrCalc: SearchAttrCalc)(
@@ -54,7 +55,7 @@ case class ListByValueImpl[Value](attrCalc: SearchAttrCalc)(
     searchIndex.execute(attrId, converter(value), fromNode.objId, feed)
     feed.result.reverse
   }
-  def attrCalcList = attrCalc :: Nil
+  def components = attrCalc :: Nil
 }
 
 class ListFeedImpl[From,To](converter: From=>To) extends Feed[From] {
@@ -73,13 +74,13 @@ case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck) extends PreCommitCh
   def checkAll() = check.check(objIds.toSeq.map(new DBNodeImpl(_)))
 }
 
-class CheckAll(attrInfoList: List[AttrCalc]) {
+class CheckAll(components: =>List[ConnectionComponent]) {
   def apply(): Seq[ValidationFailure] =
-    attrInfoList.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
+    components.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
 }
 
-case class PropImpl[Value](attrId: AttrId, nonEmpty: Prop[Boolean], attrCalcList: List[AttrCalc])(
-  db: FactIndex, val converter: DBValueConverter[Value]
+case class PropImpl[Value](attrId: AttrId, nonEmpty: Prop[Boolean], components: List[AttrCalc])(
+  db: FactIndex, converter: DBValueConverter[Value]
 ) extends Prop[Value] {
   def set(node: DBNode, value: Value) = db.set(node.objId, attrId, converter(value))
   def get(node: DBNode) = converter(db.get(node.objId, attrId))

@@ -35,4 +35,3 @@ class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) exte
     case PeriodicMessage => periodicFrame()
   }
 }
-

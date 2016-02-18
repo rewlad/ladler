@@ -1,32 +1,41 @@
 package ee.cone.base.server
 
 import java.util
-import java.util.concurrent.{BlockingQueue, LinkedBlockingQueue}
+import java.util.concurrent.BlockingQueue
 
-import ee.cone.base.connection_api.{Message, DictMessage}
-import ee.cone.base.util.Setup
+import ee.cone.base.connection_api._
 
 import scala.collection.concurrent.TrieMap
 
 class ReceiverOfConnectionImpl(
-  registry: ConnectionRegistryImpl, lifeTime: LifeCycle, queue: BlockingQueue[DictMessage] //Linked*
+  registry: ConnectionRegistry, val queue: BlockingQueue[DictMessage] //Linked*
 ) extends ReceiverOfConnection {
-  lazy val connectionKey = Setup(lifeTime.setup(util.UUID.randomUUID.toString){ k =>
+  def registries = registry :: Nil
+  lazy val connectionKey = util.UUID.randomUUID.toString
+}
+
+class ConnectionRegistryImpl extends ConnectionRegistry {
+  lazy val store = TrieMap[String, ReceiverOfConnection]()
+  def send(bnd: DictMessage) = store(bnd.value("X-r-connection")).queue.add(bnd)
+}
+
+class ConnectionRegistration(
+  registry: ConnectionRegistryImpl, item: ReceiverOfConnection
+) extends Registration with ConnectionComponent {
+  def open() = {
+    val k = item.connectionKey
     registry.store.remove(k)
     println(s"connection unregister: $k")
-  }){ k =>
-    registry.store(k) = queue
+  }
+  def close() = {
+    val k = item.connectionKey
+    registry.store(k) = item
     println(s"connection   register: $k")
   }
 }
 
-class ConnectionRegistryImpl extends ConnectionRegistry {
-  lazy val store = TrieMap[String, BlockingQueue[DictMessage]]()
-  def send(bnd: DictMessage) = store(bnd.value("X-r-connection")).add(bnd)
-}
-
 ////
-
+/*
 class ActivateReceivers(
   queue: BlockingQueue[DictMessage], receivers: List[ReceiverOf[Message]]
 ) extends ReceiverOf[Message] {
@@ -39,3 +48,4 @@ class ActivateReceivers(
     case None => byAll(message)
   }
 }
+*/

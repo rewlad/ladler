@@ -1,14 +1,15 @@
 
 package ee.cone.base.server
 
-import java.net.{ServerSocket, Socket}
-import java.util.concurrent.{Executor, ScheduledExecutorService}
+import java.net.ServerSocket
+import java.util.concurrent.Executor
 
-import ee.cone.base.util.{Single, Setup, ToRunnable, Bytes}
+import ee.cone.base.connection_api._
+import ee.cone.base.util.{Single, ToRunnable, Bytes}
 
 class SSESender(
     connectionLifeCycle: LifeCycle, allowOriginOption: Option[String],
-    components: List[ConnectionComponent]
+    components: =>List[ConnectionComponent]
 ) extends SenderOfConnection {
   private lazy val socket = Single(components.collect{ case c: SocketOfConnection ⇒
     connectionLifeCycle.setup(c.value)(_.close())

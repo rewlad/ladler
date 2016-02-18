@@ -1,4 +1,53 @@
 package ee.cone.base.db
+
+import ee.cone.base.connection_api._
+import ee.cone.base.db.Types.ObjId
+
+trait DBEnv extends AppComponent with CanStart
+
+trait DBAppMix extends MixBase[AppComponent] {
+  def mainDB: DBEnv
+  def instantDB: DBEnv
+  override def createComponents() = mainDB :: instantDB :: super.createComponents()
+}
+
+trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
+  def dbAppMix: DBAppMix
+
+  lazy val rawFactConverter = new RawFactConverterImpl
+  lazy val rawSearchConverter = new RawSearchConverterImpl
+  lazy val attrIdExtractor = new AttrIdExtractor
+  lazy val objIdExtractor = new ObjIdExtractor
+  lazy val attrIdRawVisitor = new RawVisitorImpl(attrIdExtractor)
+  lazy val objIdRawVisitor = new RawVisitorImpl(objIdExtractor)
+  lazy val attrCalcLists = new AttrCalcLists(components)
+  lazy val searchAttrCalcCheck = new SearchAttrCalcCheck(components)
+
+  lazy val mainFactIndex =
+    new FactIndexImpl(true, rawFactConverter, attrIdRawVisitor, attrCalcLists)
+  lazy val instantFactIndex =
+    new FactIndexImpl(false, rawFactConverter, attrIdRawVisitor, attrCalcLists)
+  lazy val mainSearchIndex =
+    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, mainFactIndex, searchAttrCalcCheck)
+  lazy val instantSearchIndex =
+    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, instantFactIndex, searchAttrCalcCheck)
+
+
+  override def createComponents() = /*all prop.components*/ super.createComponents()
+}
+
+
+
+
+
+trait DBTxMix {
+  //new FactRawIndexRegistration()
+  //new SearchRawIndexRegistration
+  //new SrcObjIdRegistration()
+}
+
+
+
 /*
 class MixedInnerIndex(
   factHead: Long, indexHead: Long, rawIndex: RawIndex/*T*/, indexed: Long=>Boolean

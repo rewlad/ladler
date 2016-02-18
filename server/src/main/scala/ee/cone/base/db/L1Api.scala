@@ -24,5 +24,5 @@ case object NotFoundStatus extends SeekStatus {
 }
 
 trait RawVisitor[T] {
-  def execute(whileKeyPrefix: RawKey, feed: Feed[T]): Unit
+  def execute(tx: RawIndex, whileKeyPrefix: RawKey, feed: Feed[T]): Unit
 }

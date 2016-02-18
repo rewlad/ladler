@@ -1,5 +1,7 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.ConnectionComponent
+
 trait DBNode {
   def objId: Long
   def apply[Value](attr: Prop[Value]): Value
@@ -11,14 +13,13 @@ trait DBValueConverter[A] {
   def apply(value: DBValue): A
 }
 
-trait AttrInfo {
-  def attrCalcList: List[AttrCalc]
+trait ComponentProvider {
+  def components: List[ConnectionComponent]
 }
 
-trait Prop[Value] extends AttrInfo {
+trait Prop[Value] extends ComponentProvider {
   def get(node: DBNode): Value
   def set(node: DBNode, value: Value): Unit
-  def converter: DBValueConverter[Value]
   def attrId: AttrId
   def nonEmpty: Prop[Boolean]
 }
@@ -38,7 +39,7 @@ trait ListFeed[From,To] extends Feed[From] {
   def result: List[To]
 }
 
-trait ListByValue[Value] extends AttrInfo {
+trait ListByValue[Value] extends ComponentProvider {
   def list(value: Value): List[DBNode]
   def list(value: Value, fromNode: DBNode): List[DBNode]
 }

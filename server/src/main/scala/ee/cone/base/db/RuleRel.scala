@@ -2,19 +2,20 @@ package ee.cone.base.db
 
 import java.util.UUID
 
+import ee.cone.base.connection_api.ConnectionComponent
 import ee.cone.base.util.Never
 
 // fail'll probably do nothing in case of outdated rel type
 
-case class RelTypeInfo(
+case class RelTypeInfo (
   label: Prop[Option[Boolean]], start: RelSideTypeInfo, end: RelSideTypeInfo,
-  attrInfoList: List[AttrInfo]
-)
+  components: List[ConnectionComponent]
+) extends ComponentProvider
 
 case class RelSideTypeInfo(
   side: RelSideInfo, listByValue: ListByValue[Option[DBNode]],
-  attrInfoList: List[AttrInfo]
-)
+  components: List[ConnectionComponent]
+) extends ComponentProvider
 
 class RelTypeInfoFactory(
   relStartSide: RelSideInfo,
@@ -27,13 +28,13 @@ class RelTypeInfoFactory(
   private def createForSide(labelAttrId: AttrId, side: RelSideInfo) = {
     val composedAttrId = searchIndex.composeAttrId(labelAttrId, side.attrId)
     val listByValue = createList(searchIndex.attrCalc(composedAttrId), side.converter)
-    RelSideTypeInfo(side, listByValue, listByValue :: Nil)
+    RelSideTypeInfo(side, listByValue, listByValue.components)
   }
   def apply(labelAttrId: AttrId) = {
     val label = createProp(labelAttrId,converter)
     val start = createForSide(labelAttrId, relStartSide)
     val end = createForSide(labelAttrId, relEndSide)
-    RelTypeInfo(label, start, end, label :: start.attrInfoList ::: end.attrInfoList)
+    RelTypeInfo(label, start, end, label.components ::: start.components ::: end.components)
   }
 }
 
@@ -41,8 +42,8 @@ case class RelSideInfo(
   attrId: AttrId,
   prop: Prop[Option[DBNode]],
   listByValue: ListByValue[Option[DBNode]],
-  attrInfoList: List[AttrInfo]
-)(val converter: DBValueConverter[Option[DBNode]])
+  components: List[ConnectionComponent]
+)(val converter: DBValueConverter[Option[DBNode]]) extends ComponentProvider
 
 class RelSideInfoFactory(
   preCommitCheck: PreCommitCheck=>AttrCalc,
@@ -55,13 +56,12 @@ class RelSideInfoFactory(
   def apply(attrId: AttrId) = {
     val prop = createProp(attrId,converter)
     val listByValue = createList(searchIndex.attrCalc(attrId),converter)
-    val attrInfoList: List[AttrInfo] = prop :: listByValue :: new AttrInfo {
-      def attrCalcList =
+    val components: List[ConnectionComponent] = prop.components ::: listByValue.components :::
         preCommitCheck(TypeRefIntegrityPreCommitCheck(hasTypeAttr, prop, listByValue)) ::
         preCommitCheck(SideRefIntegrityPreCommitCheck(hasTypeAttr, prop)) :: Nil
-    } :: Nil
 
-    RelSideInfo(attrId, prop, listByValue, attrInfoList)(converter)
+
+    RelSideInfo(attrId, prop, listByValue, components)(converter)
   }
 }
 

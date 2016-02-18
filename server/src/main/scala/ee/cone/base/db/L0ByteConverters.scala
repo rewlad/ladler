@@ -117,14 +117,14 @@ object BytesSame {
   }
 }
 
-object ObjIdExtractor extends RawKeyExtractor[ObjId] {
+class ObjIdExtractor extends RawKeyExtractor[ObjId] {
   def apply(keyPrefix: RawKey, key: RawKey, feed: Feed[ObjId]): Boolean = {
     if(!BytesSame.part(keyPrefix, key, keyPrefix.length)) return false
     val ex = CompactBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key)
     feed(ex.readLong(key))
   }
 }
-object AttrIdExtractor extends RawKeyExtractor[AttrId] {
+class AttrIdExtractor extends RawKeyExtractor[AttrId] {
   def apply(keyPrefix: RawKey, key: RawKey, feed: Feed[AttrId]): Boolean = {
     if(!BytesSame.part(keyPrefix, key, keyPrefix.length)) return false
     val exLabelId = CompactBytes.toReadAt(key, keyPrefix.length)

@@ -229,7 +229,7 @@ class TestConnection0(
   }
 }
 
-class TestConnection(
+class TestConnection1(
   val context: ContextOfConnection,
   val tempDB: TestEnv, //apply and clear on db startup
   val mainDB: TestEnv

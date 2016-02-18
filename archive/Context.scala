@@ -1,43 +1,6 @@
 package ee.cone.base.server
 
-import ee.cone.base.util.Setup
 
-sealed trait LifeStatus
-case object OpenableLifeStatus extends LifeStatus
-class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
-case object ClosingLifeStatus extends LifeStatus
-class LifeCycleImpl extends LifeCycle {
-  protected var status: LifeStatus = OpenableLifeStatus
-  def setup[C](create: =>C)(close: C=>Unit): C = status match {
-    case st: OpenLifeStatus => // we must not create until status is ok
-      val res = create
-      status = new OpenLifeStatus((()=>close(res)) :: st.toClose)
-      res
-    case st => throw new Exception(s"$st")
-  }
-  def open() = status match {
-    case OpenableLifeStatus => status = new OpenLifeStatus(Nil)
-    case st => throw new Exception(s"$st")
-  }
-  def close() = status match {
-    case st: OpenLifeStatus =>
-      status = ClosingLifeStatus
-      DoClose(st.toClose)
-    case _ => ()
-  }
-  def sub() = setup(new LifeCycleImpl)(_.close())
-  def sub[R](f: LifeCycle=>R) = {
-    val c = sub()
-    try { c.open(); f(c) } finally c.close()
-  }
-}
-
-object DoClose {
-  def apply(toClose: List[()=>Unit]): Unit = toClose match {
-    case Nil => ()
-    case head :: tail => try head() finally apply(tail)
-  }
-}
 
 /*
 object ToClose {
