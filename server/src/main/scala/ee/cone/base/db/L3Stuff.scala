@@ -1,8 +1,8 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.ConnectionComponent
+import ee.cone.base.connection_api.{Registration, ConnectionComponent}
 import ee.cone.base.db.Types._
-import ee.cone.base.util.Never
+import ee.cone.base.util.{Setup, Never}
 
 import scala.collection.mutable
 
@@ -68,20 +68,6 @@ class ListFeedImpl[To](converter: (Long,Long)=>To) extends Feed {
     true
   }
 }
-
-case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck)(createNode: ObjId=>DBNode) extends PreCommitCheckAttrCalc {
-  private lazy val objIds = mutable.SortedSet[ObjId]()
-  def affectedBy = check.affectedBy.map(_.nonEmpty)
-  def beforeUpdate(objId: ObjId) = ()
-  def afterUpdate(objId: ObjId) = objIds += objId
-  def checkAll() = check.check(objIds.toSeq.map(createNode(_)))
-}
-
-class CheckAll(components: =>List[ConnectionComponent]) {
-  def apply(): Seq[ValidationFailure] =
-    components.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
-}
-
 
 class AttrCalcAdapter(inner: NodeAttrCalc)(createNode: ObjId=>DBNode) extends AttrCalc {
   def affectedBy = inner.affectedBy.map(_.nonEmpty)

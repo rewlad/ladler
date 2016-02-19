@@ -14,20 +14,9 @@ trait ComponentProvider {
   def components: List[ConnectionComponent]
 }
 
-/*
-trait Prop[Value] extends ComponentProvider {
-  def get(node: DBNode): Value
-  def set(node: DBNode, value: Value): Unit
-  def attrId: AttrId[Value]
-  def nonEmpty: Prop[Boolean]
-}
-*/
+trait TxComponent
 
 case class ValidationFailure(calc: PreCommitCheck, node: DBNode)
-
-trait PreCommitCheckAttrCalc extends AttrCalc {
-  def checkAll(): Seq[ValidationFailure]
-}
 
 trait PreCommitCheck extends {
   def affectedBy: List[Attr[_]]
