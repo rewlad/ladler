@@ -3,12 +3,12 @@ package ee.cone.base.db
 import java.util.UUID
 
 import ee.cone.base.connection_api.ConnectionComponent
-import ee.cone.base.util.Never
+import ee.cone.base.db.Types._
 
 // fail'll probably do nothing in case of outdated rel type
 
 case class RelTypeInfo (
-  label: Prop[Option[Boolean]], start: RelSideTypeInfo, end: RelSideTypeInfo,
+  label: Attr[Boolean], start: RelSideTypeInfo, end: RelSideTypeInfo,
   components: List[ConnectionComponent]
 ) extends ComponentProvider
 
@@ -20,48 +20,41 @@ case class RelSideTypeInfo(
 class RelTypeInfoFactory(
   relStartSide: RelSideInfo,
   relEndSide: RelSideInfo,
-  createProp: (AttrId,DBValueConverter[Boolean]) => Prop[Option[Boolean]],
-  createList: (SearchAttrCalc,DBValueConverter[Option[DBNode]]) => ListByValue[Option[DBNode]],
-  converter: DBValueConverter[Boolean],
+  createList: SearchAttrCalc[Option[DBNode]] => ListByValue[Option[DBNode]],
   searchIndex: SearchIndex
 ){
-  private def createForSide(labelAttrId: AttrId, side: RelSideInfo) = {
-    val composedAttrId = searchIndex.composeAttrId(labelAttrId, side.attrId)
-    val listByValue = createList(searchIndex.attrCalc(composedAttrId), side.converter)
+  private def createForSide(label: Attr[Boolean], side: RelSideInfo) = {
+    val composedAttrId = searchIndex.composeAttrId(label, side.attrId)
+    val listByValue = createList(searchIndex.attrCalc(composedAttrId))
     RelSideTypeInfo(side, listByValue, listByValue.components)
   }
-  def apply(labelAttrId: AttrId) = {
-    val label = createProp(labelAttrId,converter)
-    val start = createForSide(labelAttrId, relStartSide)
-    val end = createForSide(labelAttrId, relEndSide)
-    RelTypeInfo(label, start, end, label.components ::: start.components ::: end.components)
+  def apply(label: Attr[Boolean]) = {
+    val start = createForSide(label, relStartSide)
+    val end = createForSide(label, relEndSide)
+    RelTypeInfo(label, start, end, start.components ::: end.components)
   }
 }
 
 case class RelSideInfo(
-  attrId: AttrId,
-  prop: Prop[Option[DBNode]],
+  attrId: Attr[Option[DBNode]],
   listByValue: ListByValue[Option[DBNode]],
   components: List[ConnectionComponent]
-)(val converter: DBValueConverter[Option[DBNode]]) extends ComponentProvider
+) extends ComponentProvider
 
 class RelSideInfoFactory(
   preCommitCheck: PreCommitCheck=>AttrCalc,
-  converter: DBValueConverter[Option[DBNode]],
-  createProp: (AttrId,DBValueConverter[Option[DBNode]]) => Prop[Option[DBNode]],
-  createList: (SearchAttrCalc,DBValueConverter[Option[DBNode]]) => ListByValue[Option[DBNode]],
-  hasTypeAttr: Prop[Boolean],
+  createList: SearchAttrCalc[Option[DBNode]] => ListByValue[Option[DBNode]],
+  hasTypeAttr: Attr[Boolean],
   searchIndex: SearchIndex
 ){
-  def apply(attrId: AttrId) = {
-    val prop = createProp(attrId,converter)
-    val listByValue = createList(searchIndex.attrCalc(attrId),converter)
-    val components: List[ConnectionComponent] = prop.components ::: listByValue.components :::
-        preCommitCheck(TypeRefIntegrityPreCommitCheck(hasTypeAttr, prop, listByValue)) ::
-        preCommitCheck(SideRefIntegrityPreCommitCheck(hasTypeAttr, prop)) :: Nil
+  def apply[Value](attrId: Attr[Option[DBNode]]) = {
+    val listByValue = createList(searchIndex.attrCalc(attrId))
+    val components: List[ConnectionComponent] = listByValue.components :::
+        preCommitCheck(TypeRefIntegrityPreCommitCheck(hasTypeAttr, attrId, listByValue)) ::
+        preCommitCheck(SideRefIntegrityPreCommitCheck(hasTypeAttr, attrId)) :: Nil
 
 
-    RelSideInfo(attrId, prop, listByValue, components)(converter)
+    RelSideInfo(attrId, listByValue, components)
   }
 }
 
@@ -69,8 +62,8 @@ class RelSideInfoFactory(
 
 
 abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
-  protected def hasTypeAttr: Prop[Boolean]
-  protected def toAttr: Prop[Option[DBNode]]
+  protected def hasTypeAttr: Attr[Boolean]
+  protected def toAttr: Attr[Option[DBNode]]
   protected def checkNode(node: DBNode): Option[ValidationFailure] = node(toAttr) match {
     case None ⇒ None
     case Some(toNode) if toNode(hasTypeAttr) ⇒ None
@@ -80,8 +73,8 @@ abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
 
 //toAttrId must be indexed
 case class TypeRefIntegrityPreCommitCheck(
-  hasTypeAttr: Prop[Boolean],
-  toAttr: Prop[Option[DBNode]],
+  hasTypeAttr: Attr[Boolean],
+  toAttr: Attr[Option[DBNode]],
   listToAttr: ListByValue[Option[DBNode]]
 ) extends RefIntegrityPreCommitCheck {
   def affectedBy = hasTypeAttr :: Nil
@@ -90,7 +83,7 @@ case class TypeRefIntegrityPreCommitCheck(
 }
 
 case class SideRefIntegrityPreCommitCheck(
-  hasTypeAttr: Prop[Boolean], toAttr: Prop[Option[DBNode]]
+  hasTypeAttr: Attr[Boolean], toAttr: Attr[Option[DBNode]]
 ) extends RefIntegrityPreCommitCheck {
   def affectedBy = toAttr :: Nil
   def check(nodes: Seq[DBNode]) = nodes.flatMap(checkNode)

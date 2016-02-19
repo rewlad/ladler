@@ -39,14 +39,14 @@ class LifeCache[C] {
 ////
 
 class FindOrCreateSrcId(
-  srcId: Prop[UUID],
+  srcId: Attr[UUID],
   searchSrcId: ListByValue[UUID],
   seq: ObjIdSequence
 ) {
   def apply(value: UUID) = Single.option(searchSrcId.list(value))
     .getOrElse(Setup(seq.inc()){ node => node(srcId) = value })
 }
-class ObjIdSequence(seq: Prop[Option[DBNode]]) {
+class ObjIdSequence(seq: Attr[Option[DBNode]]) {
   def inc(): DBNode = {
     val node = new DBNodeImpl(0L)
     val res = new DBNodeImpl(node(seq).getOrElse(node).objId + 1L)

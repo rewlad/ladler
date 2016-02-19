@@ -1,13 +1,15 @@
 
 package ee.cone.base.db
 
+import ee.cone.base.db.Types._
+
 class UniqueAttrCalcList(preCommitCheck: PreCommitCheck=>AttrCalc) {
-  def apply[Value](uniqueAttr: Prop[Value], listUniqueAttr: ListByValue[Value]) =
+  def apply[Value](uniqueAttr: Attr[Value], listUniqueAttr: ListByValue[Value]) =
     preCommitCheck(UniqueAttrCalc(uniqueAttr, listUniqueAttr)) :: Nil
 }
 
 //uniqueAttrId must be indexed
-case class UniqueAttrCalc[Value](uniqueAttr: Prop[Value], listUniqueAttr: ListByValue[Value]) extends PreCommitCheck {
+case class UniqueAttrCalc[Value](uniqueAttr: Attr[Value], listUniqueAttr: ListByValue[Value]) extends PreCommitCheck {
   def affectedBy = uniqueAttr :: Nil
   def check(nodes: Seq[DBNode]) = nodes.flatMap{ node =>
     if(!node(uniqueAttr.nonEmpty)) Nil

@@ -24,9 +24,9 @@ class FactIndexImpl(
   var txOpt: Option[RawIndex] = None
   def tx = txOpt.get
   var srcObjId = 0L
-  def get[Value](objId: ObjId, attrId: AttrId[Value]) =
+  def get[Value](objId: ObjId, attrId: Attr[Value]) =
     rawFactConverter.valueFromBytes(attrId, tx.get(rawFactConverter.key(objId, attrId)))
-  def set[Value](objId: ObjId, attrId: AttrId[Value], value: Value): Unit = {
+  def set[Value](objId: ObjId, attrId: Attr[Value], value: Value): Unit = {
     val wasValue = get(objId, attrId)
     if (attrId.converter.same(wasValue,value)) { return }
     if (!rewritable && attrId.converter.nonEmpty(wasValue)) Never()
@@ -47,7 +47,7 @@ class FactIndexImpl(
 }
 
 class AttrCalcLists(components: =>List[ConnectionComponent]) {
-  lazy val value: Map[AttrId[Boolean], List[AttrCalc]] =
+  lazy val value: Map[Attr[Boolean], List[AttrCalc]] =
     components.collect { case attrCalc: AttrCalc ⇒
       attrCalc.affectedBy.map(attrId => (attrId.nonEmpty, attrCalc))
     }.flatten.groupBy(_._1).mapValues(_.map(_._2))

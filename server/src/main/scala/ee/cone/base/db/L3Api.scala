@@ -2,22 +2,26 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api.ConnectionComponent
 
+import ee.cone.base.db.Types._
+
 trait DBNode {
   def objId: Long
-  def apply[Value](attr: Prop[Value]): Value
-  def update[Value](attr: Prop[Value], value: Value): Unit
+  def apply[Value](attr: Attr[Value]): Value
+  def update[Value](attr: Attr[Value], value: Value): Unit
 }
 
 trait ComponentProvider {
   def components: List[ConnectionComponent]
 }
 
+/*
 trait Prop[Value] extends ComponentProvider {
   def get(node: DBNode): Value
   def set(node: DBNode, value: Value): Unit
   def attrId: AttrId[Value]
   def nonEmpty: Prop[Boolean]
 }
+*/
 
 case class ValidationFailure(calc: PreCommitCheck, node: DBNode)
 
@@ -26,7 +30,7 @@ trait PreCommitCheckAttrCalc extends AttrCalc {
 }
 
 trait PreCommitCheck extends {
-  def affectedBy: List[Prop[_]]
+  def affectedBy: List[Attr[_]]
   def check(nodes: Seq[DBNode]): Seq[ValidationFailure]
 }
 
@@ -40,7 +44,7 @@ trait ListByValue[Value] extends ComponentProvider {
 }
 
 trait NodeAttrCalc {
-  def affectedBy: List[Prop[_]]
+  def affectedBy: List[Attr[_]]
   def beforeUpdate(node: DBNode): Unit
   def afterUpdate(node: DBNode): Unit
 }

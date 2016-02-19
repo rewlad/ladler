@@ -159,7 +159,7 @@ class MutableSessionState(
 
 }
 
-case class DBEvent(data: Map[AttrId,DBValue])
+case class DBEvent(data: Map[Attr,DBValue])
 
 case object ResetTxMessage extends Message
 

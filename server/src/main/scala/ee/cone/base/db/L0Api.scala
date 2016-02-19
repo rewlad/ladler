@@ -8,26 +8,26 @@ object Types {
   type ObjId = Long
 }
 
-trait AttrId[Value] {
+trait Attr[Value] {
   def labelId: Long
   def propId: Long
   def converter: RawValueConverter[Value]
-  def nonEmpty: AttrId[Boolean]
+  def nonEmpty: Attr[Boolean]
 }
 
 // raw converters
 
 trait RawFactConverter {
-  def key(objId: ObjId, attrId: AttrId[_]): RawKey
+  def key(objId: ObjId, attrId: Attr[_]): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
-  def value[Value](attrId: AttrId[Value], value: Value, valueSrcId: ObjId): RawValue
-  def valueFromBytes[Value](attrId: AttrId[Value], b: RawValue): Value
+  def value[Value](attrId: Attr[Value], value: Value, valueSrcId: ObjId): RawValue
+  def valueFromBytes[Value](attrId: Attr[Value], b: RawValue): Value
   //def keyFromBytes(key: RawKey): (ObjId,AttrId)
 }
 trait RawSearchConverter {
-  def key[Value](attrId: AttrId[Value], value: Value, objId: ObjId): RawKey
-  def keyWithoutObjId[Value](attrId: AttrId[Value], value: Value): RawKey
+  def key[Value](attrId: Attr[Value], value: Value, objId: ObjId): RawKey
+  def keyWithoutObjId[Value](attrId: Attr[Value], value: Value): RawKey
   def value(on: Boolean): RawValue
 }
 trait RawKeyExtractor {
@@ -38,7 +38,6 @@ trait Feed {
 }
 trait RawValueConverter[Value] {
   def convert(): Value
-  def convert(value: Long): Value
   def convert(valueA: Long, valueB: Long): Value
   def convert(value: String): Value
   def same(valueA: Value, valueB: Value): Boolean
@@ -46,7 +45,6 @@ trait RawValueConverter[Value] {
   def allocWrite(before: Int, value: Value, after: Int): RawValue
 }
 trait InnerRawValueConverter {
-  def allocWrite(spaceBefore: Int, value: Long, spaceAfter: Int): RawValue
   def allocWrite(spaceBefore: Int, valueA: Long, valueB: Long, spaceAfter: Int): RawValue
   def allocWrite(spaceBefore: Int, value: String, spaceAfter: Int): RawValue
 }

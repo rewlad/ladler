@@ -10,7 +10,7 @@ import ee.cone.base.db.Types._
 
 class RawFactConverterImpl extends RawFactConverter {
   def head = 0L
-  def key(objId: ObjId, attrId: AttrId[_]): RawKey =
+  def key(objId: ObjId, attrId: Attr[_]): RawKey =
     key(objId, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
   def keyWithoutAttrId(objId: ObjId): RawKey =
     key(objId, 0, 0, hasObjId=true, hasAttrId=false)
@@ -27,17 +27,17 @@ class RawFactConverterImpl extends RawFactConverter {
       })
     })
   }
-  def value[Value](attrId: AttrId[Value], value: Value, valueSrcId: ObjId) =
+  def value[Value](attrId: Attr[Value], value: Value, valueSrcId: ObjId) =
     if(!attrId.converter.nonEmpty(value)) Array[Byte]()
     else OuterRawValueConverter.allocWrite[Value](0,attrId,value,valueSrcId)
-  def valueFromBytes[Value](attrId: AttrId[Value], b: RawValue): Value = {
+  def valueFromBytes[Value](attrId: Attr[Value], b: RawValue): Value = {
     if(b.length==0) return attrId.converter.convert()
     val exchangeA = CompactBytes.toReadAt(b,0)
     val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
     val exchangeC = CompactBytes.toReadAfter(b,exchangeB).checkIsLastIn(b) //exchangeC.readLong(b)
     exchangeA.head match {
-      case CompactBytes.`strHead` if exchangeB.isSplitter => attrId.converter.convert(exchangeA.readString(b))
-      case _ if exchangeB.isSplitter => attrId.converter.convert(exchangeA.readLong(b))
+      case CompactBytes.`strHead` if exchangeB.isSplitter =>
+        attrId.converter.convert(exchangeA.readString(b))
       case _ => attrId.converter.convert(exchangeA.readLong(b), exchangeB.readLong(b))
     }
   }/*
@@ -52,11 +52,11 @@ class RawFactConverterImpl extends RawFactConverter {
 
 class RawSearchConverterImpl extends RawSearchConverter {
   def head = 1L
-  def key[Value](attrId: AttrId[Value], value: Value, objId: ObjId): RawKey =
+  def key[Value](attrId: Attr[Value], value: Value, objId: ObjId): RawKey =
     key(attrId, value, objId, hasObjId=true)
-  def keyWithoutObjId[Value](attrId: AttrId[Value], value: Value): RawKey =
+  def keyWithoutObjId[Value](attrId: Attr[Value], value: Value): RawKey =
     key(attrId, value, 0L, hasObjId=false)
-  private def key[Value](attrId: AttrId[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
+  private def key[Value](attrId: Attr[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
     val labelId = attrId.labelId
     val propId = attrId.propId
     val exHead = CompactBytes.toWrite(head).at(0)
@@ -78,7 +78,7 @@ class RawSearchConverterImpl extends RawSearchConverter {
 }
 
 object OuterRawValueConverter {
-  def allocWrite[Value](spaceBefore: Int, attrId: AttrId[Value], dbValue: Value, srcValueId: ObjId): Array[Byte] = {
+  def allocWrite[Value](spaceBefore: Int, attrId: Attr[Value], dbValue: Value, srcValueId: ObjId): Array[Byte] = {
     val absEx = CompactBytes.toWrite(srcValueId)
     val res = attrId.converter.allocWrite(spaceBefore, dbValue, absEx.size)
     absEx.atTheEndOf(res).write(srcValueId, res)
@@ -86,14 +86,6 @@ object OuterRawValueConverter {
 }
 
 object InnerRawValueConverterImpl extends InnerRawValueConverter {
-  private def splitterB(exchangeA: LongByteExchange, spaceAfter: Int): Array[Byte] = {
-    val exchangeB = CompactBytes.`splitter`.after(exchangeA)
-    exchangeA.writeHead(exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
-  }
-  def allocWrite(spaceBefore: Int, value: Long, spaceAfter: Int) = {
-    val exchangeA = CompactBytes.toWrite(value).at(spaceBefore)
-    exchangeA.write(value, splitterB(exchangeA,spaceAfter))
-  }
   def allocWrite(spaceBefore: Int, valueA: Long, valueB: Long, spaceAfter: Int) = {
     val exchangeA = CompactBytes.toWrite(valueA).at(spaceBefore)
     val exchangeB = CompactBytes.toWrite(valueB).after(exchangeA)
@@ -102,7 +94,8 @@ object InnerRawValueConverterImpl extends InnerRawValueConverter {
   def allocWrite(spaceBefore: Int, value: String, spaceAfter: Int) = {
     val src = Bytes(value)
     val exchangeA = CompactBytes.toWrite(src).at(spaceBefore)
-    exchangeA.write(src, splitterB(exchangeA,spaceAfter))
+    val exchangeB = CompactBytes.`splitter`.after(exchangeA)
+    exchangeA.write(src, exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
   }
 }
 

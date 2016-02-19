@@ -1,6 +1,6 @@
 package ee.cone.base.test_react_db
 
-import ee.cone.base.db.AttrId
+import ee.cone.base.db.Attr
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -160,7 +160,7 @@ object Test4 {
   trait Prop[Value] {
     def get(node: DBNode): Value
     def set(node: DBNode, value: Value): Unit
-    def attrId: AttrId
+    def attrId: Attr
     def nonEmpty: Prop[Boolean]
   }
 
