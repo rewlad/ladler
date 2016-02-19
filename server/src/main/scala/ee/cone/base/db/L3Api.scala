@@ -8,11 +8,6 @@ trait DBNode {
   def update[Value](attr: Prop[Value], value: Value): Unit
 }
 
-trait DBValueConverter[A] {
-  def apply(value: A): DBValue
-  def apply(value: DBValue): A
-}
-
 trait ComponentProvider {
   def components: List[ConnectionComponent]
 }
@@ -20,7 +15,7 @@ trait ComponentProvider {
 trait Prop[Value] extends ComponentProvider {
   def get(node: DBNode): Value
   def set(node: DBNode, value: Value): Unit
-  def attrId: AttrId
+  def attrId: AttrId[Value]
   def nonEmpty: Prop[Boolean]
 }
 
@@ -35,7 +30,7 @@ trait PreCommitCheck extends {
   def check(nodes: Seq[DBNode]): Seq[ValidationFailure]
 }
 
-trait ListFeed[From,To] extends Feed[From] {
+trait ListFeed[From,To] extends Feed {
   def result: List[To]
 }
 

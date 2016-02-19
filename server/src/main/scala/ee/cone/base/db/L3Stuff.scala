@@ -6,31 +6,37 @@ import ee.cone.base.util.Never
 
 import scala.collection.mutable
 
-class DBNodeImpl(val objId: Long) extends DBNode {
+case class DBNodeImpl(val objId: Long) extends DBNode {
   def apply[Value](attr: Prop[Value]) = attr.get(this)
   def update[Value](attr: Prop[Value], value: Value) = attr.set(this,value)
 }
 
-class NodeValueConverter extends DBValueConverter[Option[DBNode]] {
-  def apply(value: Option[DBNode]): DBValue = value match {
-    case None => DBRemoved
-    case Some(node) => DBLongValue(node.objId)
-  }
-  def apply(value: DBValue): Option[DBNode] = value match {
-    case DBRemoved => None
-    case DBLongValue(v) => Some(new DBNodeImpl(v))
-    case _ => Never()
-  }
+class NodeValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Option[DBNode]] {
+  def convert() = None
+  def convert(value: Long) = Some(new DBNodeImpl(value))
+  def convert(valueA: Long, valueB: Long) = Never()
+  def convert(value: String) = Never()
+  def allocWrite(before: Int, value: Option[DBNode], after: Int) =
+    if(nonEmpty(value)) inner.allocWrite(before, value.get.objId, after) else Never()
+  def nonEmpty(value: Option[DBNode]) = value.nonEmpty
+  def same(valueA: Option[DBNode], valueB: Option[DBNode]) =
+    valueA.map(_.objId) == valueB.map(_.objId)
 }
 
-class BooleanValueConverter extends DBValueConverter[Boolean] {
-  def apply(value: Boolean): DBValue = if(value) DBLongValue(1L) else DBRemoved
-  def apply(value: DBValue): Boolean = value != DBRemoved
+class BooleanValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Boolean] {
+  def convert() = false
+  def convert(value: Long) = true
+  def convert(valueA: Long, valueB: Long) = true
+  def convert(value: String) = true
+  def allocWrite(before: Int, value: Boolean, after: Int) =
+    if(nonEmpty(value)) inner.allocWrite(before, 1L, after) else Never()
+  def nonEmpty(value: Boolean) = value
+  def same(valueA: Boolean, valueB: Boolean) = valueA == valueB
 }
 
-class ListByDBNode(inner: FactIndex, index: AttrId=>Prop[_]) extends Prop[List[Prop[_]]] {
+class ListByDBNode(inner: FactIndex, index: (Long,Long)=>Prop[_]) extends Prop[List[Prop[_]]] {
   def get(node: DBNode) = {
-    val feed = new ListFeedImpl[AttrId,Prop[_]](index)
+    val feed = new ListFeedImpl[Prop[_]](index)
     inner.execute(node.objId, feed)
     feed.result
   }
@@ -41,34 +47,34 @@ class ListByDBNode(inner: FactIndex, index: AttrId=>Prop[_]) extends Prop[List[P
   def components = Nil
 }
 
-case class ListByValueImpl[Value](attrCalc: SearchAttrCalc)(
-  searchIndex: SearchIndex, converter: DBValueConverter[Value]
+case class ListByValueImpl[Value](attrCalc: SearchAttrCalc[Value])(
+  searchIndex: SearchIndex
 ) extends ListByValue[Value] {
   def attrId = attrCalc.searchAttrId
   def list(value: Value): List[DBNode] = {
-    val feed = new ListFeedImpl[ObjId,DBNode](objId=>new DBNodeImpl(objId))
-    searchIndex.execute(attrId, converter(value), feed)
+    val feed = new ListFeedImpl[DBNode]((objId,_)=>new DBNodeImpl(objId))
+    searchIndex.execute(attrId, value, feed)
     feed.result.reverse
   }
   def list(value: Value, fromNode: DBNode): List[DBNode] = {
-    val feed = new ListFeedImpl[ObjId,DBNode](objId=>new DBNodeImpl(objId))
-    searchIndex.execute(attrId, converter(value), fromNode.objId, feed)
+    val feed = new ListFeedImpl[DBNode]((objId,_)=>new DBNodeImpl(objId))
+    searchIndex.execute(attrId, value, fromNode.objId, feed)
     feed.result.reverse
   }
   def components = attrCalc :: Nil
 }
 
-class ListFeedImpl[From,To](converter: From=>To) extends Feed[From] {
+class ListFeedImpl[To](converter: (Long,Long)=>To) extends Feed {
   var result: List[To] = Nil
-  override def apply(value: From) = {
-    result = converter(value) :: result
+  def apply(valueA: Long, valueB: Long) = {
+    result = converter(valueA,valueB) :: result
     true
   }
 }
 
 case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck) extends PreCommitCheckAttrCalc {
   private lazy val objIds = mutable.SortedSet[ObjId]()
-  def affectedBy = check.affectedBy.map(_.attrId)
+  def affectedBy = check.affectedBy.map(_.attrId.nonEmpty)
   def beforeUpdate(objId: ObjId) = ()
   def afterUpdate(objId: ObjId) = objIds += objId
   def checkAll() = check.check(objIds.toSeq.map(new DBNodeImpl(_)))
@@ -79,15 +85,15 @@ class CheckAll(components: =>List[ConnectionComponent]) {
     components.collect{ case i: PreCommitCheckAttrCalc => i.checkAll() }.flatten
 }
 
-case class PropImpl[Value](attrId: AttrId, nonEmpty: Prop[Boolean], components: List[AttrCalc])(
-  db: FactIndex, converter: DBValueConverter[Value]
+case class PropImpl[Value](attrId: AttrId[Value], nonEmpty: Prop[Boolean], components: List[AttrCalc])(
+  db: FactIndex
 ) extends Prop[Value] {
-  def set(node: DBNode, value: Value) = db.set(node.objId, attrId, converter(value))
-  def get(node: DBNode) = converter(db.get(node.objId, attrId))
+  def set(node: DBNode, value: Value) = db.set(node.objId, attrId, value)
+  def get(node: DBNode) = db.get(node.objId, attrId)
 }
 
 class AttrCalcAdapter(inner: NodeAttrCalc) extends AttrCalc {
-  def affectedBy = inner.affectedBy.map(_.attrId)
+  def affectedBy = inner.affectedBy.map(_.attrId.nonEmpty)
   def beforeUpdate(objId: ObjId) = inner.beforeUpdate(new DBNodeImpl(objId))
   def afterUpdate(objId: ObjId) = inner.afterUpdate(new DBNodeImpl(objId))
 }

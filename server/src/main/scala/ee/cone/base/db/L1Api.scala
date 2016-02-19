@@ -23,6 +23,6 @@ case object NotFoundStatus extends SeekStatus {
   def value = Never()
 }
 
-trait RawVisitor[T] {
-  def execute(tx: RawIndex, whileKeyPrefix: RawKey, feed: Feed[T]): Unit
+trait RawVisitor {
+  def execute(tx: RawIndex, whileKeyPrefix: RawKey, feed: Feed): Unit
 }

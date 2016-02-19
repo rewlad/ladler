@@ -18,27 +18,28 @@ class FactRawIndexRegistration(index: FactIndexImpl, tx: RawIndex) extends Regis
 class FactIndexImpl(
   rewritable: Boolean,
   rawFactConverter: RawFactConverter,
-  rawVisitor: RawVisitor[AttrId],
+  rawVisitor: RawVisitor,
   calcLists: AttrCalcLists
 ) extends FactIndex {
   var txOpt: Option[RawIndex] = None
   def tx = txOpt.get
   var srcObjId = 0L
-  def get(objId: ObjId, attrId: AttrId) =
-    rawFactConverter.valueFromBytes(tx.get(rawFactConverter.key(objId, attrId)))
-  def set(objId: ObjId, attrId: AttrId, value: DBValue): Unit = {
+  def get[Value](objId: ObjId, attrId: AttrId[Value]) =
+    rawFactConverter.valueFromBytes(attrId, tx.get(rawFactConverter.key(objId, attrId)))
+  def set[Value](objId: ObjId, attrId: AttrId[Value], value: Value): Unit = {
     val wasValue = get(objId, attrId)
-    if (value == wasValue) { return }
-    if (!rewritable && wasValue != DBRemoved) Never()
+    if (attrId.converter.same(wasValue,value)) { return }
+    if (!rewritable && attrId.converter.nonEmpty(wasValue)) Never()
+
     val key = rawFactConverter.key(objId, attrId)
-    val rawValue = rawFactConverter.value(value, srcObjId)
-    val calcList = calcLists.value(attrId)
+    val rawValue = rawFactConverter.value(attrId, value, srcObjId)
+    val calcList = calcLists.value(attrId.nonEmpty)
     if(calcList.isEmpty) throw new Exception(s"$attrId is lost")
     for(calc <- calcList) calc.beforeUpdate(objId)
     tx.set(key, rawValue)
     for(calc <- calcList) calc.afterUpdate(objId)
   }
-  def execute(objId: ObjId, feed: Feed[AttrId]): Unit = {
+  def execute(objId: ObjId, feed: Feed): Unit = {
     val key = rawFactConverter.keyWithoutAttrId(objId)
     tx.seek(key)
     rawVisitor.execute(tx, key, feed)
@@ -46,8 +47,8 @@ class FactIndexImpl(
 }
 
 class AttrCalcLists(components: =>List[ConnectionComponent]) {
-  lazy val value: Map[AttrId, List[AttrCalc]] =
+  lazy val value: Map[AttrId[Boolean], List[AttrCalc]] =
     components.collect { case attrCalc: AttrCalc ⇒
-      attrCalc.affectedBy.map(attrId => (attrId, attrCalc))
+      attrCalc.affectedBy.map(attrId => (attrId.nonEmpty, attrCalc))
     }.flatten.groupBy(_._1).mapValues(_.map(_._2))
 }

@@ -7,6 +7,14 @@ import ee.cone.base.util.Never
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
+case class AttrIdImpl[Value](labelId: Long, propId: Long)
+  (val converter: RawValueConverter[Value], val booleanConverter: RawValueConverter[Boolean])
+  (val nonEmpty: AttrId[Boolean] = new BooleanAttrId(labelId,propId)(booleanConverter))
+  extends AttrId[Value]
+case class BooleanAttrId(labelId: Long, propId: Long)(val converter: RawValueConverter[Boolean]) extends AttrId[Boolean] {
+  def nonEmpty = this
+}
+
 class SearchRawIndexRegistration(index: SearchIndexImpl, tx: RawIndex) extends Registration {
   def open() = index.txOpt = Option(tx)
   def close() = index.txOpt = None
@@ -14,59 +22,58 @@ class SearchRawIndexRegistration(index: SearchIndexImpl, tx: RawIndex) extends R
 
 class SearchAttrCalcCheck(components: =>List[ConnectionComponent]) {
   private lazy val value =
-    components.collect { case a: SearchAttrCalc ⇒ a.searchAttrId }.toSet
-  def apply(attrId: AttrId) =
+    components.collect { case a: SearchAttrCalc[_] ⇒ a.searchAttrId.nonEmpty }.toSet
+  def apply(attrId: AttrId[Boolean]) =
     if(!value(attrId)) throw new Exception(s"$attrId is lost")
 }
 
 class SearchIndexImpl(
   converter: RawSearchConverter,
-  rawVisitor: RawVisitor[ObjId],
+  rawVisitor: RawVisitor,
   direct: FactIndex,
   check: SearchAttrCalcCheck
 ) extends SearchIndex {
   var txOpt: Option[RawIndex] = None
   def tx = txOpt.get
 
-  def execute(attrId: AttrId, value: DBValue, feed: Feed[ObjId]) = {
-    check(attrId)
+  def execute[Value](attrId: AttrId[Value], value: Value, feed: Feed) = {
+    check(attrId.nonEmpty)
     val key = converter.keyWithoutObjId(attrId, value)
     tx.seek(key)
     rawVisitor.execute(tx, key, feed)
   }
-  def execute(attrId: AttrId, value: DBValue, objId: ObjId, feed: Feed[ObjId]) = {
-    check(attrId)
+  def execute[Value](attrId: AttrId[Value], value: Value, objId: ObjId, feed: Feed) = {
+    check(attrId.nonEmpty)
     tx.seek(converter.key(attrId, value, objId))
     rawVisitor.execute(tx, converter.keyWithoutObjId(attrId, value), feed)
   }
-  private def set(attrId: AttrId, value: DBValue, objId: ObjId, on: Boolean): Unit =
-    if(value != DBRemoved)
+  private def set[Value](attrId: AttrId[Value], value: Value, objId: ObjId, on: Boolean): Unit =
+    if(attrId.converter.nonEmpty(value))
       tx.set(converter.key(attrId, value, objId), converter.value(on))
 
-  def composeAttrId(labelAttrId: AttrId, propAttrId: AttrId): AttrId = {
-    val AttrId(labelAttrIdPart,0) = labelAttrId
-    val AttrId(0,propAttrIdPart) = propAttrId
-    new AttrId(labelAttrIdPart,propAttrIdPart)
-  }
-  def attrCalc(attrId: AttrId) = attrId match {
-    case AttrId(_,0) | AttrId(0,_) =>
-      new SearchAttrCalcImpl(attrId)(attrId :: Nil, (objId,on)=>{
+  def composeAttrId[Value](labelAttrId: AttrId[Boolean], propAttrId: AttrId[Value]): AttrId[Value] =
+    if(labelAttrId.propId==0L && propAttrId.labelId==0L)
+      new AttrIdImpl[Value](labelAttrId.labelId,propAttrId.propId)(propAttrId.converter,propAttrId.nonEmpty.converter)() else Never()
+
+  def attrCalc[Value](attrId: AttrId[Value]) =
+    if(attrId.labelId==0 || attrId.propId==0)
+      new SearchAttrCalcImpl(attrId)(attrId.nonEmpty :: Nil, (objId,on)=>{
         set(attrId, direct.get(objId, attrId), objId, on)
       })
-    case AttrId(labelAttrIdPart,propAttrIdPart) =>
-      val labelAttrId = new AttrId(labelAttrIdPart,0)
-      val propAttrId = new AttrId(0, propAttrIdPart)
-      new SearchAttrCalcImpl(attrId)(labelAttrId :: propAttrId :: Nil, (objId,on)=>{
-        val value = if(direct.get(objId, labelAttrId)==DBRemoved) DBRemoved
-        else direct.get(objId, propAttrId)
-        set(attrId, value, objId, on)
-      })
-  }
+    else {
+      val labelAttrId = new BooleanAttrId(attrId.labelId, 0)(attrId.nonEmpty.converter)
+      val propAttrId = new AttrIdImpl[Value](0, attrId.propId)(attrId.converter,attrId.nonEmpty.converter)()
+      new SearchAttrCalcImpl(attrId)(labelAttrId.nonEmpty :: propAttrId.nonEmpty :: Nil, (objId, on) =>
+        if (direct.get(objId, labelAttrId))
+          set(attrId, direct.get(objId, propAttrId), objId, on)
+      )
+    }
+
 }
 
-case class SearchAttrCalcImpl(searchAttrId: AttrId)(
-  val affectedBy: List[AttrId], set: (ObjId,Boolean)=>Unit
-) extends SearchAttrCalc {
+case class SearchAttrCalcImpl[Value](searchAttrId: AttrId[Value])(
+  val affectedBy: List[AttrId[Boolean]], set: (ObjId,Boolean)=>Unit
+) extends SearchAttrCalc[Value] {
   def beforeUpdate(objId: ObjId) = set(objId, false)
   def afterUpdate(objId: ObjId) = set(objId, true)
 }

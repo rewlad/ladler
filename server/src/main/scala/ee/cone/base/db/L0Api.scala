@@ -8,36 +8,45 @@ object Types {
   type ObjId = Long
 }
 
-case class AttrId(labelId: Long, propId: Long)
-
-trait Feed[T]{
-  def apply(value: T): Boolean
+trait AttrId[Value] {
+  def labelId: Long
+  def propId: Long
+  def converter: RawValueConverter[Value]
+  def nonEmpty: AttrId[Boolean]
 }
 
 // raw converters
 
 trait RawFactConverter {
-  def key(objId: ObjId, attrId: AttrId): RawKey
+  def key(objId: ObjId, attrId: AttrId[_]): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
-  def value(value: DBValue, valueSrcId: ObjId): RawValue
-  def valueFromBytes(b: RawValue): DBValue
+  def value[Value](attrId: AttrId[Value], value: Value, valueSrcId: ObjId): RawValue
+  def valueFromBytes[Value](attrId: AttrId[Value], b: RawValue): Value
   //def keyFromBytes(key: RawKey): (ObjId,AttrId)
 }
 trait RawSearchConverter {
-  def key(attrId: AttrId, value: DBValue, objId: ObjId): RawKey
-  def keyWithoutObjId(attrId: AttrId, value: DBValue): RawKey
+  def key[Value](attrId: AttrId[Value], value: Value, objId: ObjId): RawKey
+  def keyWithoutObjId[Value](attrId: AttrId[Value], value: Value): RawKey
   def value(on: Boolean): RawValue
 }
-trait RawKeyExtractor[T] {
-  def apply(keyPrefix: RawKey, key: RawKey, feed: Feed[T]): Boolean
+trait RawKeyExtractor {
+  def apply(keyPrefix: RawKey, key: RawKey, feed: Feed): Boolean
 }
-
-// DBValue
-
-sealed abstract class DBValue
-case object DBRemoved extends DBValue
-case class DBStringValue(value: String) extends DBValue
-case class DBLongValue(value: Long) extends DBValue
-case class DBLongPairValue(valueA: Long, valueB: Long) extends DBValue
-
+trait Feed {
+  def apply(valueA: Long, valueB: Long): Boolean
+}
+trait RawValueConverter[Value] {
+  def convert(): Value
+  def convert(value: Long): Value
+  def convert(valueA: Long, valueB: Long): Value
+  def convert(value: String): Value
+  def same(valueA: Value, valueB: Value): Boolean
+  def nonEmpty(value: Value): Boolean
+  def allocWrite(before: Int, value: Value, after: Int): RawValue
+}
+trait InnerRawValueConverter {
+  def allocWrite(spaceBefore: Int, value: Long, spaceAfter: Int): RawValue
+  def allocWrite(spaceBefore: Int, valueA: Long, valueB: Long, spaceAfter: Int): RawValue
+  def allocWrite(spaceBefore: Int, value: String, spaceAfter: Int): RawValue
+}
