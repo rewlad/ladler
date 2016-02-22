@@ -1,6 +1,6 @@
 package ee.cone.base.test_react_db
 
-import ee.cone.base.db.Attr
+
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -154,17 +154,99 @@ object Test3 {
   a.update(6,9)
 }
 
-object Test4 {
-  trait DBNode
+object Test5 {
+  type ObjId = Long
 
-  trait Prop[Value] {
-    def get(node: DBNode): Value
-    def set(node: DBNode, value: Value): Unit
-    def attrId: Attr
-    def nonEmpty: Prop[Boolean]
+  class DB {
+    def get[Prop,Value](objId: ObjId, attr: Attr[Prop,Value]): Value = ???
+    def set[Prop,Value](objId: ObjId, attrId: Attr[Prop,Value], value: Value): Unit = ???
+  }
+  case class Attr[Prop,Value](labelId: Long, propId: Long)
+  case class Obj[Label](objId: ObjId)(db: DB) {
+    def apply[Prop,Value](attr: Attr[Prop,Value])(implicit grant: CanRead[Label,Prop]): Value = db.get(objId, attr)
+    def update[Prop,Value](attr: Attr[Prop,Value], value: Value)(implicit grant: CanWrite[Label,Prop]) = db.set(objId, attr, value)
   }
 
-  case class Caption extends Prop[String]
+  trait CanRead[Label,Prop]
+  trait CanWrite[Label,Prop]
+
+  ////
+
+  trait Point
+  trait XCoordinate
+  trait YCoordinate
+  implicit object Grant0 extends CanWrite[Point,XCoordinate]
 
 
+  val db = new DB
+  val xAttr = Attr[XCoordinate,Int](0,0x0079)
+
+  val somePoint = Obj[Point](8)(db)
+
+  somePoint(xAttr) = 67
+
+}
+
+object Test6 {
+  object SysInterfaces {
+    type ObjId = Long
+    trait DB {
+      def get[Label,Value](objId: ObjId, attr: Attr[Label,Value]): Value
+      def set[Label,Value](objId: ObjId, attrId: Attr[Label,Value], value: Value): Unit
+    }
+    trait Converter[Value]
+    case class Attr[-Label,Value](labelId: Long, propId: Long)
+    trait Obj[Label] {
+      def objId: ObjId
+      def apply[Value](attr: Attr[Label,Value])(implicit converter: Converter[Value]): Value
+      def update[Value](attr: Attr[Label,Value], value: Value)(implicit converter: Converter[Value]): Unit
+    }
+  }
+  object SysComponents {
+    import SysInterfaces._
+    case class ObjImpl[Label](objId: ObjId)(db: DB) extends Obj[Label] {
+      def apply[Value](attr: Attr[Label,Value])(implicit converter: Converter[Value]) = db.get(objId, attr)
+      def update[Value](attr: Attr[Label,Value], value: Value)(implicit converter: Converter[Value]) = db.set(objId, attr, value)
+    }
+    object DoubleConverter extends Converter[Double]
+    class DBImpl extends DB {
+      def get[Label, Value](objId: ObjId, attr: Attr[Label, Value]): Value = ???
+      def set[Label, Value](objId: ObjId, attrId: Attr[Label, Value], value: Value): Unit = ???
+    }
+  }
+  object CustomInterfaces {
+    import SysInterfaces._
+    trait Point1D
+    trait Point2D extends Point1D
+    val xc = Attr[Point1D,Double](0,0x0005)
+    val yc = Attr[Point2D,Double](0,0x0006)
+  }
+  object CustomComponent{
+    import SysInterfaces._
+    import CustomInterfaces._
+    def test(
+        point1D: Obj[Point1D],
+        point2D: Obj[Point2D]
+    ) {
+      point1D(xc)
+      point1D(xc) = 8.0
+      // point1D(yc)
+      // point1D(yc) = 9.0
+
+      point2D(xc)
+      point2D(xc) = 8.0
+      point2D(yc)
+      point2D(yc) = 9.0
+    }
+  }
+
+  object Mix {
+    import SysComponents._
+    import CustomInterfaces._
+    import CustomComponent._
+    val db = new DBImpl
+    val point1D = ObjImpl[Point1D](7)(db)
+    val point2D = ObjImpl[Point2D](10)(db)
+    test(point1D, point2D)
+  }
 }
