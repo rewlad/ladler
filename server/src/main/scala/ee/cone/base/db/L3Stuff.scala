@@ -53,9 +53,9 @@ case class ListByValueImpl[Value](attrCalc: SearchAttrCalc[Value])(
     searchIndex.execute(attrId, value, feed)
     feed.result.reverse
   }
-  def list(value: Value, fromNode: DBNode): List[DBNode] = {
+  def list(value: Value, fromObjId: ObjId): List[DBNode] = {
     val feed = new ListFeedImpl[DBNode]((objId,_)=>createNode(objId))
-    searchIndex.execute(attrId, value, fromNode.objId, feed)
+    searchIndex.execute(attrId, value, fromObjId, feed)
     feed.result.reverse
   }
   def components = attrCalc :: Nil

@@ -130,15 +130,15 @@ class TempEventTxLayer(
     }
 
   def add(state: SessionState, ev: DBEvent): SessionState = {
-    if(state.sessionId == DBRemoved) Never()
+    if(state.sessionKey == DBRemoved) Never()
     val objId = seq.inc()
-    db(objId, SysAttrId.sessionId) = state.sessionId
+    db(objId, SysAttrId.sessionId) = state.sessionKey
     ev.data.foreach { case (attrId, value) => db(objId, attrId) = value }
     state.copy(eventList = ev :: state.eventList)
   }
 }
 
-case class SessionState(loaded: Boolean, sessionId: DBValue, eventList: List[DBEvent])
+//case class SessionState(loaded: Boolean, sessionId: DBValue, eventList: List[DBEvent])
 class MutableSessionState(
   lifeCycle: LifeCycle, env: TestEnv, sessionKey: String,
   createTxContext: (RawTx,)=>TxContext

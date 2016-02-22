@@ -36,16 +36,19 @@ object DoClose {
 
 ////
 
-trait MixBase[Component] extends CanStart {
-  def args: List[Component]
-  def lifeCycle: LifeCycle
-
-  def createComponents() = args
+trait MixBase[Component] {
+  def createComponents(): List[Component] = Nil
   lazy val components = createComponents()
+}
+
+trait AppMixBase extends MixBase[AppComponent] with CanStart {
   def start() = {
-    components.collect{ case r: Registration =>
-      lifeCycle.setup(r)(_.close()).open()
-    }
     components.collect{ case c: CanStart => c.start() }
+  }
+}
+
+class Registrar[Component](lifeCycle: LifeCycle, components: =>List[Component]){
+  def register() = components.collect{ case r: Registration =>
+    lifeCycle.setup(r)(_.close()).open()
   }
 }

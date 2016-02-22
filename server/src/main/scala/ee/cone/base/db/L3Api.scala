@@ -29,7 +29,7 @@ trait ListFeed[From,To] extends Feed {
 
 trait ListByValue[Value] extends ComponentProvider {
   def list(value: Value): List[DBNode]
-  def list(value: Value, fromNode: DBNode): List[DBNode]
+  def list(value: Value, fromObjId: ObjId): List[DBNode]
 }
 
 trait NodeAttrCalc {

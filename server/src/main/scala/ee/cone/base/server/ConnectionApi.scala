@@ -19,7 +19,7 @@ trait ConnectionRegistry {
 
 case object PeriodicMessage extends Message
 
-trait ReceiverOf[M] { def receive: PartialFunction[M,Unit] }
+trait ReceiverOfMessage { def receive: PartialFunction[Message,Unit] }
 
 class SocketOfConnection(val value: Socket) extends ConnectionComponent
 

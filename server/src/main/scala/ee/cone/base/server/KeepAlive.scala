@@ -1,6 +1,6 @@
 package ee.cone.base.server
 
-import ee.cone.base.connection_api.{Message, DictMessage}
+import ee.cone.base.connection_api.{ConnectionComponent, Message, DictMessage}
 
 class OncePer(period: Long, action: ()=>Unit) {
   private var nextTime = 0L
@@ -18,7 +18,9 @@ case object NewPingStatus extends PingStatus
 case object WaitingPingStatus extends PingStatus
 case class OKPingStatus(sessionKey: String) extends PingStatus
 
-class KeepAlive(receiver: ReceiverOfConnection, sender: SenderOfConnection) extends ReceiverOf[Message] {
+class KeepAlive(
+  receiver: ReceiverOfConnection, sender: SenderOfConnection
+) extends ReceiverOfMessage with ConnectionComponent {
   var status: PingStatus = NewPingStatus
   private def command = status match {
     case NewPingStatus => "connect"

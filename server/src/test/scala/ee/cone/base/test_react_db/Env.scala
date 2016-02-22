@@ -6,8 +6,7 @@ import java.util.concurrent.{TimeUnit, BlockingQueue}
 import java.util.concurrent.locks.ReentrantLock
 
 
-import ee.cone.base.connection_api.{AppComponent, ConnectionComponent,
-DictMessage, Message}
+import ee.cone.base.connection_api._
 
 import scala.collection.immutable.SortedMap
 
@@ -46,21 +45,60 @@ class FindOrCreateSrcId(
   def apply(value: UUID) = Single.option(searchSrcId.list(value))
     .getOrElse(Setup(seq.inc()){ node => node(srcId) = value })
 }
-class ObjIdSequence(seq: Attr[Option[DBNode]]) {
+class ObjIdSequence(
+  seqNode: DBNode, //new DBNodeImpl(0L)
+  seqAttr: Attr[Option[DBNode]]
+) {
   def inc(): DBNode = {
-    val node = new DBNodeImpl(0L)
-    val res = new DBNodeImpl(node(seq).getOrElse(node).objId + 1L)
-    node(seq) = Some(res)
+    val res = new DBNodeImpl(seqNode(seqAttr).getOrElse(seqNode).objId + 1L)
+    seqNode(seqAttr) = Some(res)
     res
   }
 }
 
 ////
 
-class RawTx(val rawIndex: RawIndex, val commit: ()=>Unit)
-trait DBEnv {
-  def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
+
+
+class TestAppMix extends ServerAppMix with DBAppMix {
+  lazy val httpPort = 5557
+  lazy val staticRoot = Paths.get("../client/build/test")
+  lazy val ssePort = 5556
+  lazy val threadCount = 5
+  lazy val mainDB = new TestEnv
+  lazy val instantDB = new TestEnv
+  lazy val createConnection =
+    (lifeCycle:LifeCycle,socketOfConnection: SocketOfConnection) ⇒
+      new TestConnectionMix(this, lifeCycle, socketOfConnection)
 }
+
+class TestConnectionMix(
+  app: TestAppMix, val lifeCycle: LifeCycle, val socket: SocketOfConnection
+) extends ServerConnectionMix with Runnable {
+  lazy val serverAppMix = app
+  lazy val allowOrigin = Some("*")
+  lazy val framePeriod = 200
+  lazy val mainDB = app.mainDB
+  lazy val run = new SnapshotRunningConnection(registrar, lifeCycle, sender, createLifeCycle, mainDB, createSnapshot)
+  lazy val createLifeCycle = () => new LifeCycleImpl(Some(lifeCycle))
+  lazy val createSnapshot =
+    (lifeCycle: LifeCycle, rawTx: RawTx) =>
+      new TestSnapshotMix(this, lifeCycle, rawTx)
+}
+
+class TestSnapshotMix(
+  connection: TestConnectionMix, val lifeCycle: LifeCycle, val rawTx: RawTx
+) extends  MixBase[TxComponent] with Runnable {
+  lazy val run = new TestSnapshot()
+}
+
+object TestApp extends App {
+  val app = new TestAppMix
+  app.start()
+  println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html")
+}
+
+////
 
 class TestEnv extends DBEnv {
   private var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
@@ -83,61 +121,115 @@ class TestEnv extends DBEnv {
       }
       new RawTx(index, commit)
     }(_=>lock.unlock())
-}
-/*
-object TestApp extends App {
-  val tempDB = new TestEnv
-  val mainDB = new TestEnv
-
-}
-*/
-class TestAppMix(val args: List[AppComponent]) extends ServerAppMix {
-  lazy val httpPort = 5557
-  lazy val staticRoot = Paths.get("../client/build/test")
-  lazy val ssePort = 5556
-  lazy val threadCount = 5
-  lazy val createSSEConnection = (cArgs:List[ConnectionComponent]) ⇒ new TestConnectionMix(this, cArgs)
+  def start() = ()
 }
 
-class TestConnectionMix(app: TestAppMix, val args: List[ConnectionComponent]) extends ServerConnectionMix with Runnable {
-  lazy val serverAppMix = app
-  lazy val allowOrigin = Some("*")
-  lazy val framePeriod = 200
-  lazy val run = new TestConnection(connectionLifeCycle,sender,incoming,framePeriod)
-}
-
-object TestApp extends App {
-  val app = new TestAppMix(Nil)
-  app.start()
-  println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html")
-}
-
-class TestConnection(
-  connectionLifeCycle: LifeCycle,
+class SnapshotRunningConnection(
+  registrar: Registrar[ConnectionComponent],
+  lifeCycle: LifeCycle,
   sender: SenderOfConnection,
-  incoming: BlockingQueue[DictMessage],
-  framePeriod: Long
-  //, keepAlive: KeepAlive, queue: BlockingQueue[DictMessage],
-  //
+  createLifeCycle: ()=>LifeCycle,
+  mainEnv: DBEnv,
+  createSnapshot: (LifeCycle,RawTx)=>Runnable
 ) {
+  private def runSnapshot() = {
+    val lifeCycle = createLifeCycle()
+    lifeCycle.open()
+    val rawTx = mainEnv.createTx(lifeCycle, rw = false)
+    val snapshot = createSnapshot(lifeCycle, rawTx)
+    snapshot.run()
+  }
   def apply(): Unit = try {
-    connectionLifeCycle.open()
-    while(true){
-      //snapshot.init
-      while(???/*snapshot.isOpenFresh*/){
-        //incrementalApply
-        //show
-        while(???/*vDom.isOpenFresh*/){
-          val message = Option(incoming.poll(framePeriod,TimeUnit.MILLISECONDS))
-          //dispatch // can close / set refresh time
-        }
-      }
-    }
+    registrar.register()
+    while(true) runSnapshot()
   } catch {
     case e: Exception ⇒
-      sender.send("fail",???)
+      sender.send("fail", "") //todo
       throw e
   } finally {
-    connectionLifeCycle.close()
+    lifeCycle.close()
   }
 }
+
+////
+
+trait SessionState {
+  def sessionKey: UUID
+}
+
+class IncrementalSnapshot(
+  sessionState: SessionState,
+  //searchCommittedSessionId: ListByValue[UUID],
+  //seqNode: DBNode,
+  instantSessionsBySessionKey: ListByValue[UUID],
+  mainSessionsBySessionId: ListByValue[Long],
+  instantSessionIdAttr: Attr[Long],
+  lastMergedRequestIdAttr: Attr[Long],
+  undoEventIdAttr: Attr[Long],
+  //reqIdAttr: Attr[Long]
+  undoBySessionId: ListByValue[Long],
+  eventsBySessionId: ListByValue[Long] // instant
+) extends TxComponent {
+  def init(): Unit = {
+    val instantSession = Single(instantSessionsBySessionKey.list(sessionState.sessionKey))
+      // or create?
+    val sessionId = instantSession.objId
+    val mainSession = Single.option(mainSessionsBySessionId.list(sessionId))
+      // or create?
+    val eventsFromId: Long = mainSession.map(_(lastMergedRequestIdAttr)+1).getOrElse(0)
+      // set by merger; set later
+
+
+
+    val undone = undoBySessionId.list(sessionId, eventsFromId).map(_(undoEventIdAttr)).toSet
+    val events = eventsBySessionId.list(sessionId, eventsFromId).filter(node => !undone(node.objId))
+
+    val lastMergedReqId = seqNode(lastMergedRequestIdAttr)
+    val commits: List[DBNode] =
+      searchCommittedSessionId.list(sessionState.sessionKey).sortBy(-_.objId)
+
+    def f(commits: List[DBNode]): List[DBNode] = {
+      val commit :: more = commits
+      val reqId = commit(reqIdAttr)
+      if(reqId <= lastMergedReqId)
+    }
+
+    ???
+  }
+  def incrementalApply(): Unit = {
+    ???
+  }
+}
+
+class TestSnapshot() extends TxComponent {
+  def closeIfNotFresh() = {
+    ???
+    System.currentTimeMillis
+  }
+  def apply() = {
+
+    //snapshot.init;
+    while(???){ // isOpen
+      // incrementalApply
+      // runVDom
+      // closeIfNotFresh
+    }
+  }
+}
+
+
+/*
+
+incoming: BlockingQueue[DictMessage],
+framePeriod: Long,
+
+//, keepAlive: KeepAlive, queue: BlockingQueue[DictMessage],
+components: =>List[ConnectionComponent]
+
+lazy val receivers = components.collect{ case r: ReceiverOfMessage => r }
+def dispatch(message: Message) = receivers.foreach(_.receive(message))
+    needFreshSnapshot()
+    needFreshVDom() //show
+    val message = Option(incoming.poll(framePeriod,TimeUnit.MILLISECONDS))
+    dispatch(message.getOrElse(PeriodicMessage)) //dispatch // can close / set refresh time
+  }*/

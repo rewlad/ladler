@@ -8,13 +8,10 @@ import ee.cone.base.connection_api._
 import ee.cone.base.util.{Single, ToRunnable, Bytes}
 
 class SSESender(
-    connectionLifeCycle: LifeCycle, allowOriginOption: Option[String],
-    components: =>List[ConnectionComponent]
+  connectionLifeCycle: LifeCycle, allowOriginOption: Option[String],
+  socket: SocketOfConnection
 ) extends SenderOfConnection {
-  private lazy val socket = Single(components.collect{ case c: SocketOfConnection ⇒
-    connectionLifeCycle.setup(c.value)(_.close())
-  })
-  private lazy val out = connectionLifeCycle.setup(socket.getOutputStream)(_.close())
+  private lazy val out = connectionLifeCycle.setup(socket.value.getOutputStream)(_.close())
   private lazy val connected = {
     val allowOrigin =
       allowOriginOption.map(v=>s"Access-Control-Allow-Origin: $v\n").getOrElse("")
@@ -29,11 +26,22 @@ class SSESender(
   }
 }
 
-class RSSEServer(ssePort: Int, pool: Executor, createConnection: List[ConnectionComponent] ⇒ Runnable) extends AppComponent with CanStart {
+class RSSEServer(
+  ssePort: Int, pool: Executor,
+  createLifeCycle: ()=>LifeCycle,
+  createConnection: (LifeCycle,List[ConnectionComponent]) ⇒ Runnable
+) extends AppComponent with CanStart {
   def start() = pool.execute(ToRunnable{
     val serverSocket = new ServerSocket(ssePort) //todo toClose
-    while(true) pool.execute(ToRunnable {
-      createConnection(new SocketOfConnection(serverSocket.accept()) :: Nil).run()
-    })
+    while(true) {
+      val socket = serverSocket.accept()
+      pool.execute(ToRunnable {
+        val lifeCycle = createLifeCycle()
+        lifeCycle.open()
+        lifeCycle.setup(socket)(_.close())
+        val connection = createConnection(lifeCycle, new SocketOfConnection(socket) :: Nil)
+        connection.run()
+      })
+    }
   })
 }

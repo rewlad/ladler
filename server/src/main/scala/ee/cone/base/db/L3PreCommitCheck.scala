@@ -2,37 +2,39 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api.{LifeCycle, Registration}
 import ee.cone.base.db.Types._
+import ee.cone.base.util.Setup
 
-class PreCommitCheckOfTx(val calc: PreCommitCheck, var objIds: List[DBNode] = Nil)
+import scala.collection.mutable
 
-class PreCommitCheckAllOfTx(lifeCycle: LifeCycle, checkAll: PreCommitCheckAllOfConnection) extends Registration with TxComponent {
-  private var checkList: List[PreCommitCheckOfTx] = Nil
-  def open() = checkAll.txOpt = Some(this)
-  def close() = checkAll.txOpt = None
-  def add(calc: PreCommitCheckAttrCalcImpl, node: DBNode) = {
-    if(calc.txOpt.isEmpty){
-      val check = lifeCycle.setup(new PreCommitCheckOfTx(calc.check))(_=>calc.txOpt = None)
-      calc.txOpt = Some(check)
-      checkList = check :: checkList
-    }
-    calc.txOpt.get.objIds = node :: calc.txOpt.get.objIds
-  }
-  def check(): Seq[ValidationFailure] =
-    checkList.flatMap(check=>check.calc.doCheckAll(check.objIds.distinct))
+class PreCommitCheckOfTx(check: PreCommitCheck){
+  var nodes: List[DBNode] = Nil
+  def add(node: DBNode): Unit = nodes = node :: nodes
+  def checkAll() = check.check(nodes.distinct)
 }
 
-case class PreCommitCheckAttrCalcImpl(check: PreCommitCheck)(
+class PreCommitCheckAllOfTx(
+  checkAllOfConnection: PreCommitCheckAllOfConnection
+) extends Registration with TxComponent {
+  private lazy val checkMap = mutable.Map[AttrCalc,PreCommitCheckOfTx]()
+  private var checkList: List[PreCommitCheckOfTx] = Nil
+  def open() = checkAllOfConnection.txOpt = Some(this)
+  def close() = checkAllOfConnection.txOpt = None
+  def of(calc: PreCommitCheckAttrCalcImpl) = checkMap.getOrElseUpdate(calc,
+    Setup(new PreCommitCheckOfTx(calc.check()))(c=>checkList = c :: checkList)
+  )
+  def checkAll(): Seq[ValidationFailure] = checkList.flatMap(check=>check.checkAll())
+}
+
+case class PreCommitCheckAttrCalcImpl(check: ()=>PreCommitCheck)(
   checkAll: PreCommitCheckAllOfConnection, createNode: ObjId=>DBNode
 ) extends AttrCalc {
   var txOpt: Option[PreCommitCheckOfTx] = None
-  def affectedBy = check.affectedBy.map(_.nonEmpty)
+  def affectedBy = check().affectedBy.map(_.nonEmpty)
   def beforeUpdate(objId: ObjId) = ()
-  def afterUpdate(objId: ObjId) = checkAll.txOpt.get.add(this, createNode(objId))
-  def doCheckAll(objIds: Seq[ObjId]) = check.check(objIds.map())
+  def afterUpdate(objId: ObjId) = checkAll.txOpt.get.of(this).add(createNode(objId))
 }
 
 class PreCommitCheckAllOfConnection {
   var txOpt: Option[PreCommitCheckAllOfTx] = None
-  def apply() = txOpt.get.check()
+  def apply() = txOpt.get.checkAll()
 }
-

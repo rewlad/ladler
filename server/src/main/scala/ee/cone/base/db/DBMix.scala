@@ -1,11 +1,16 @@
 package ee.cone.base.db
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db.Types.ObjId
 
-trait DBEnv extends AppComponent with CanStart
+case class RawTx(rawIndex: RawIndex, commit: ()=>Unit)
 
-trait DBAppMix extends MixBase[AppComponent] {
+trait DBEnv extends AppComponent with CanStart {
+  def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
+}
+
+////
+
+trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv
   def instantDB: DBEnv
   override def createComponents() = mainDB :: instantDB :: super.createComponents()
