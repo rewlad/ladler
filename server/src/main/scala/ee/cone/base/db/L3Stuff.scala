@@ -38,7 +38,7 @@ trait ListByDBNode {
 
 class ListByDBNodeImpl(inner: FactIndex, index: (Long,Long)=>Attr[_]) extends ListByDBNode {
   def list(node: DBNode) = {
-    val feed = new ListFeedImpl[Attr[_]](index)
+    val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,index)
     inner.execute(node.objId, feed)
     feed.result
   }
@@ -49,23 +49,24 @@ case class ListByValueImpl[Value](attrCalc: SearchAttrCalc[Value])(
 ) extends ListByValue[Value] {
   def attrId = attrCalc.searchAttrId
   def list(value: Value): List[DBNode] = {
-    val feed = new ListFeedImpl[DBNode]((objId,_)=>createNode(objId))
+    val feed = new ListFeedImpl[DBNode](Long.MaxValue,(objId,_)=>createNode(objId))
     searchIndex.execute(attrId, value, feed)
     feed.result.reverse
   }
-  def list(value: Value, fromObjId: ObjId): List[DBNode] = {
-    val feed = new ListFeedImpl[DBNode]((objId,_)=>createNode(objId))
+  def list(value: Value, fromObjId: ObjId, limit: Long): List[DBNode] = {
+    val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>createNode(objId))
     searchIndex.execute(attrId, value, fromObjId, feed)
     feed.result.reverse
   }
   def components = attrCalc :: Nil
 }
 
-class ListFeedImpl[To](converter: (Long,Long)=>To) extends Feed {
+class ListFeedImpl[To](limit: Long, converter: (Long,Long)=>To) extends Feed {
   var result: List[To] = Nil
   def apply(valueA: Long, valueB: Long) = {
     result = converter(valueA,valueB) :: result
-    true
+    limit -= 1L
+    limit > 0L
   }
 }
 

@@ -159,46 +159,69 @@ trait SessionState {
 
 class IncrementalSnapshot(
   sessionState: SessionState,
-  //searchCommittedSessionId: ListByValue[UUID],
-  //seqNode: DBNode,
+  createObj: Attr[Boolean]=>DBNode,
+
   instantSessionsBySessionKey: ListByValue[UUID],
+
+  isMainSessionAttr: Attr[Boolean],
+  sessionIdAttr: Attr[Option[Long]],
   mainSessionsBySessionId: ListByValue[Long],
-  instantSessionIdAttr: Attr[Long],
-  lastMergedRequestIdAttr: Attr[Long],
-  undoEventIdAttr: Attr[Long],
-  //reqIdAttr: Attr[Long]
-  undoBySessionId: ListByValue[Long],
-  eventsBySessionId: ListByValue[Long] // instant
+
+  unmergedEventsFromIdAttr: Attr[Option[Long]],
+  eventsBySessionId: ListByValue[Long], // instant
+  undoByEvent: ListByValue[DBNode],
+
+  getSeqNode: ()=>DBNode,
+  unmergedRequestsFromIdAttr: Attr[Option[Long]],
+  requestsAll: ListByValue[Boolean]
+
 ) extends TxComponent {
-  def init(): Unit = {
-    val instantSession = Single(instantSessionsBySessionKey.list(sessionState.sessionKey))
-      // or create?
-    val sessionId = instantSession.objId
-    val mainSession = Single.option(mainSessionsBySessionId.list(sessionId))
-      // or create?
-    val eventsFromId: Long = mainSession.map(_(lastMergedRequestIdAttr)+1).getOrElse(0)
-      // set by merger; set later
 
-
-
-    val undone = undoBySessionId.list(sessionId, eventsFromId).map(_(undoEventIdAttr)).toSet
-    val events = eventsBySessionId.list(sessionId, eventsFromId).filter(node => !undone(node.objId))
-
-    val lastMergedReqId = seqNode(lastMergedRequestIdAttr)
-    val commits: List[DBNode] =
-      searchCommittedSessionId.list(sessionState.sessionKey).sortBy(-_.objId)
-
-    def f(commits: List[DBNode]): List[DBNode] = {
-      val commit :: more = commits
-      val reqId = commit(reqIdAttr)
-      if(reqId <= lastMergedReqId)
+  class SimpleEventSource(sessionId: Long) extends EventSource[Long] {
+    lazy val seqNode = Single.option(mainSessionsBySessionId.list(sessionId)).getOrElse{
+      val mainSession = createObj(isMainSessionAttr)
+      mainSession(sessionIdAttr) = Some(sessionId)
+      mainSession
     }
+    def seqAttr = unmergedEventsFromIdAttr
+    def byValue = sessionId
+    def all = eventsBySessionId
+  }
+  trait EventSource[Value] {
+    def seqNode: DBNode
+    def seqAttr: Attr[Option[Long]]
+    def all: ListByValue[Value]
+    def byValue: Value
+    def poll(): Option[DBNode] = {
+      val eventsFromId: Long = seqNode(seqAttr).getOrElse(0L)
+      val eventOpt = Single.option(all.list(byValue, eventsFromId, 1L))
+      if(eventOpt.isEmpty){ return None }
+      seqNode(seqAttr) = Some(eventOpt.get.objId+1L)
+      if(undoByEvent.list(eventOpt.get).isEmpty) eventOpt else poll()
+    }
+  }
 
-    ???
+
+
+  // if(untilReqId < ev.objId){ return }
+  def sessionIncrementalApply(): Unit = {
+    val instantSession = Single(instantSessionsBySessionKey.list(sessionState.sessionKey))
+    // or create?
+    val src = new SimpleEventSource(instantSession.objId)
+    var eventOpt = src.poll()
+    while(eventOpt.nonEmpty){
+      ??? // apply
+      eventOpt = src.poll()
+    }
   }
-  def incrementalApply(): Unit = {
-    ???
+  def mergerIncrementalApply(): Unit = {
+    val seqNode = getSeqNode()
+    val requestsFromId = seqNode(unmergedRequestsFromIdAttr).getOrElse(0L)
+    val requestOpt = Single.option(requestsAll.list(true, requestsFromId, 1L))
+    if(requestOpt.isEmpty){ return }
+    val rq = requestOpt.get
   }
+
 }
 
 class TestSnapshot() extends TxComponent {
