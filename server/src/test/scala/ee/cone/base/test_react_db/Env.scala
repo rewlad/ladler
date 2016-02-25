@@ -157,10 +157,7 @@ trait SessionState {
   def sessionKey: UUID
 }
 
-case class NodeAttr[Value](node: DBNode, attr: Attr[Value]) {
-  def apply() = node(attr)
-  def update(value: Value) = node(attr) = value
-}
+
 
 class IncrementalSnapshot(
   sessionState: SessionState,
@@ -181,51 +178,50 @@ class IncrementalSnapshot(
   requestsAll: ListByValue[Boolean]
 
 ) extends TxComponent {
-  def createSimpleEventSource(sessionId: Long) = new SimpleEventSource(sessionId,
-    Single.option(mainSessionsBySessionId.list(sessionId)).getOrElse{
+  class EventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]) {
+    def poll(): Option[DBNode] = {
+      val eventsFromId: Long = seqRef().getOrElse(0L)
+      val eventOpt = Single.option(listByValue.list(value, eventsFromId, 1L))
+      if(eventOpt.isEmpty){ return None }
+      seqRef() = Some(eventOpt.get.objId+1L)
+      if(undoByEvent.list(eventOpt.get).isEmpty) eventOpt else poll()
+    }
+  }
+  def applyEvents(sessionId: Long, isNotLast: DBNode=>Boolean) = {
+    val seqNode = Single.option(mainSessionsBySessionId.list(sessionId)).getOrElse{
       val mainSession = createObj(isMainSessionAttr)
       mainSession(sessionIdAttr) = Some(sessionId)
       mainSession
     }
-  )
-
-  class SimpleEventSource(val byValue: Long, val seqNode: DBNode) extends EventSource[Long] {
-    def seqAttr = unmergedEventsFromIdAttr
-    def all = eventsBySessionId
+    val seqRef = seqNode(unmergedEventsFromIdAttr.ref)
+    val src = new EventSource(eventsBySessionId, sessionId, seqRef)
+    applyEvents(src, isNotLast)
   }
-  trait EventSource[Value] {
-    def seqNode: DBNode
-    def seqAttr: Attr[Option[Long]]
-    def all: ListByValue[Value]
-    def byValue: Value
-    def poll(): Option[DBNode] = {
-      val eventsFromId: Long = seqNode(seqAttr).getOrElse(0L)
-      val eventOpt = Single.option(all.list(byValue, eventsFromId, 1L))
-      if(eventOpt.isEmpty){ return None }
-      seqNode(seqAttr) = Some(eventOpt.get.objId+1L)
-      if(undoByEvent.list(eventOpt.get).isEmpty) eventOpt else poll()
-    }
+  def applyEvents(src: EventSource[Long], isNotLast: DBNode=>Boolean): Unit = {
+    val eventOpt = src.poll()
+    if(eventOpt.isEmpty) { return }
+    ??? // apply
+    if(isNotLast(eventOpt.get)) applyEvents(src, isNotLast)
   }
 
 
-
-  // if(untilReqId < ev.objId){ return }
   def sessionIncrementalApply(): Unit = {
     val instantSession = Single(instantSessionsBySessionKey.list(sessionState.sessionKey))
     // or create?
-    val src = new SimpleEventSource(instantSession.objId)
-    var eventOpt = src.poll()
-    while(eventOpt.nonEmpty){
-      ??? // apply
-      eventOpt = src.poll()
-    }
+    val sessionId = instantSession.objId
+    applyEvents(sessionId, (_:DBNode)=>false)
   }
   def mergerIncrementalApply(): Unit = {
-    val seqNode = getSeqNode()
-    val requestsFromId = seqNode(unmergedRequestsFromIdAttr).getOrElse(0L)
-    val requestOpt = Single.option(requestsAll.list(true, requestsFromId, 1L))
-    if(requestOpt.isEmpty){ return }
-    val rq = requestOpt.get
+    val seqRef = getSeqNode()(unmergedRequestsFromIdAttr.ref)
+    val reqSrc = new EventSource(requestsAll, true, seqRef)
+    val reqOpt = reqSrc.poll()
+    if(reqOpt.isEmpty) { return }
+    val req = reqOpt.get
+    val sessionId = req(sessionIdAttr).get
+    applyEvents(sessionId, (ev:DBNode)=>
+      if(ev.objId<req.objId) true else if(ev.objId==req.objId) false else Never()
+    )
+    // checkAll by req?
   }
 
 }
