@@ -25,13 +25,14 @@ class PreCommitCheckAllOfTx(
   def checkAll(): Seq[ValidationFailure] = checkList.flatMap(check=>check.checkAll())
 }
 
-case class PreCommitCheckAttrCalcImpl(check: ()=>PreCommitCheck)(
-  checkAll: PreCommitCheckAllOfConnection, createNode: ObjId=>DBNode
+class PreCommitCheckAttrCalcImpl(
+  val check: ()=>PreCommitCheck,
+  checkAll: PreCommitCheckAllOfConnection
 ) extends AttrCalc {
   var txOpt: Option[PreCommitCheckOfTx] = None
   def affectedBy = check().affectedBy.map(_.nonEmpty)
-  def beforeUpdate(objId: ObjId) = ()
-  def afterUpdate(objId: ObjId) = checkAll.txOpt.get.of(this).add(createNode(objId))
+  def beforeUpdate(node: DBNode) = ()
+  def afterUpdate(node: DBNode) = checkAll.txOpt.get.of(this).add(node)
 }
 
 class PreCommitCheckAllOfConnection {

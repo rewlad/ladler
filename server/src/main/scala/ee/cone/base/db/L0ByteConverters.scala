@@ -10,7 +10,7 @@ import ee.cone.base.db.Types._
 
 class RawFactConverterImpl extends RawFactConverter {
   def head = 0L
-  def key(objId: ObjId, attrId: Attr[_]): RawKey =
+  def key(objId: ObjId, attrId: RawAttr[_]): RawKey =
     key(objId, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
   def keyWithoutAttrId(objId: ObjId): RawKey =
     key(objId, 0, 0, hasObjId=true, hasAttrId=false)
@@ -27,10 +27,10 @@ class RawFactConverterImpl extends RawFactConverter {
       })
     })
   }
-  def value[Value](attrId: Attr[Value], value: Value, valueSrcId: ObjId) =
+  def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId) =
     if(!attrId.converter.nonEmpty(value)) Array[Byte]()
     else OuterRawValueConverter.allocWrite[Value](0,attrId,value,valueSrcId)
-  def valueFromBytes[Value](attrId: Attr[Value], b: RawValue): Value = {
+  def valueFromBytes[Value](attrId: RawAttr[Value], b: RawValue): Value = {
     if(b.length==0) return attrId.converter.convert()
     val exchangeA = CompactBytes.toReadAt(b,0)
     val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
@@ -52,11 +52,11 @@ class RawFactConverterImpl extends RawFactConverter {
 
 class RawSearchConverterImpl extends RawSearchConverter {
   def head = 1L
-  def key[Value](attrId: Attr[Value], value: Value, objId: ObjId): RawKey =
+  def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId): RawKey =
     key(attrId, value, objId, hasObjId=true)
-  def keyWithoutObjId[Value](attrId: Attr[Value], value: Value): RawKey =
+  def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey =
     key(attrId, value, 0L, hasObjId=false)
-  private def key[Value](attrId: Attr[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
+  private def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
     val labelId = attrId.labelId
     val propId = attrId.propId
     val exHead = CompactBytes.toWrite(head).at(0)
@@ -78,7 +78,7 @@ class RawSearchConverterImpl extends RawSearchConverter {
 }
 
 object OuterRawValueConverter {
-  def allocWrite[Value](spaceBefore: Int, attrId: Attr[Value], dbValue: Value, srcValueId: ObjId): Array[Byte] = {
+  def allocWrite[Value](spaceBefore: Int, attrId: RawAttr[Value], dbValue: Value, srcValueId: ObjId): Array[Byte] = {
     val absEx = CompactBytes.toWrite(srcValueId)
     val res = attrId.converter.allocWrite(spaceBefore, dbValue, absEx.size)
     absEx.atTheEndOf(res).write(srcValueId, res)

@@ -4,12 +4,6 @@ import ee.cone.base.connection_api.ConnectionComponent
 
 import ee.cone.base.db.Types._
 
-trait DBNode {
-  def objId: Long
-  def apply[Value](attr: Attr[Value]): Value
-  def update[Value](attr: Attr[Value], value: Value): Unit
-}
-
 trait ComponentProvider {
   def components: List[ConnectionComponent]
 }

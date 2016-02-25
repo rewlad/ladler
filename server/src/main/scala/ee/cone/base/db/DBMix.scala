@@ -27,15 +27,17 @@ trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
   lazy val objIdRawVisitor = new RawVisitorImpl(objIdExtractor)
   lazy val attrCalcLists = new AttrCalcLists(components)
   lazy val searchAttrCalcCheck = new SearchAttrCalcCheck(components)
+  lazy val factIndex =
+    new FactIndexImpl(rawFactConverter, attrIdRawVisitor, attrCalcLists)
+  lazy val booleanValueConverter =
+    new BooleanValueConverter(InnerRawValueConverterImpl)
+  lazy val attrFactory =
+    new AttrFactoryImpl(booleanValueConverter, factIndex)
 
-  lazy val mainFactIndex =
-    new FactIndexImpl(true, rawFactConverter, attrIdRawVisitor, attrCalcLists)
-  lazy val instantFactIndex =
-    new FactIndexImpl(false, rawFactConverter, attrIdRawVisitor, attrCalcLists)
   lazy val mainSearchIndex =
-    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, mainFactIndex, searchAttrCalcCheck)
+    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory, searchAttrCalcCheck)
   lazy val instantSearchIndex =
-    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, instantFactIndex, searchAttrCalcCheck)
+    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory, searchAttrCalcCheck)
 
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnection
 
@@ -48,7 +50,6 @@ trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
 
 trait DBTxMix extends MixBase[TxComponent] {
   def dbConnectionMix: DBConnectionMix
-  //new FactRawIndexRegistration()
   //new SearchRawIndexRegistration
   //new SrcObjIdRegistration()
 

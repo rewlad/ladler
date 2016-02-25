@@ -7,14 +7,6 @@ import ee.cone.base.util.Never
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
-case class AttrImpl[Value](labelId: Long, propId: Long)
-  (val converter: RawValueConverter[Value], val booleanConverter: RawValueConverter[Boolean])
-  (val nonEmpty: Attr[Boolean] = new BooleanAttr(labelId,propId)(booleanConverter))
-  extends Attr[Value]
-case class BooleanAttr(labelId: Long, propId: Long)(val converter: RawValueConverter[Boolean]) extends Attr[Boolean] {
-  def nonEmpty = this
-}
-
 class SearchRawIndexRegistration(index: SearchIndexImpl, tx: RawIndex) extends Registration {
   def open() = index.txOpt = Option(tx)
   def close() = index.txOpt = None
@@ -22,60 +14,55 @@ class SearchRawIndexRegistration(index: SearchIndexImpl, tx: RawIndex) extends R
 
 class SearchAttrCalcCheck(components: =>List[ConnectionComponent]) {
   private lazy val value =
-    components.collect { case a: SearchAttrCalc[_] ⇒ a.searchAttrId.nonEmpty }.toSet
+    components.collect { case a: SearchAttrCalc[_] ⇒ a.searchAttrId.nonEmpty.rawAttr }.toSet
   def apply(attrId: Attr[Boolean]) =
-    if(!value(attrId)) throw new Exception(s"$attrId is lost")
+    if(!value(attrId.rawAttr)) throw new Exception(s"$attrId is lost")
 }
 
 class SearchIndexImpl(
   converter: RawSearchConverter,
   rawVisitor: RawVisitor,
-  direct: FactIndex,
+  attrFactory: AttrFactory,
   check: SearchAttrCalcCheck
 ) extends SearchIndex {
   var txOpt: Option[RawIndex] = None
   def tx = txOpt.get
 
-  def execute[Value](attrId: Attr[Value], value: Value, feed: Feed) = {
-    check(attrId.nonEmpty)
-    val key = converter.keyWithoutObjId(attrId, value)
+  def execute[Value](attr: Attr[Value], value: Value, feed: Feed) = {
+    check(attr.nonEmpty)
+    val key = converter.keyWithoutObjId(attr.rawAttr, value)
     tx.seek(key)
     rawVisitor.execute(tx, key, feed)
   }
-  def execute[Value](attrId: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
-    check(attrId.nonEmpty)
-    tx.seek(converter.key(attrId, value, objId))
-    rawVisitor.execute(tx, converter.keyWithoutObjId(attrId, value), feed)
+  def execute[Value](attr: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
+    check(attr.nonEmpty)
+    tx.seek(converter.key(attr.rawAttr, value, objId))
+    rawVisitor.execute(tx, converter.keyWithoutObjId(attr.rawAttr, value), feed)
   }
-  private def set[Value](attrId: Attr[Value], value: Value, objId: ObjId, on: Boolean): Unit =
+  private def set[Value](attrId: RawAttr[Value], value: Value, node: DBNode, on: Boolean): Unit =
     if(attrId.converter.nonEmpty(value))
-      tx.set(converter.key(attrId, value, objId), converter.value(on))
+      node.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
 
-  def composeAttrId[Value](labelAttrId: Attr[Boolean], propAttrId: Attr[Value]): Attr[Value] =
-    if(labelAttrId.propId==0L && propAttrId.labelId==0L)
-      new AttrImpl[Value](labelAttrId.labelId,propAttrId.propId)(propAttrId.converter,propAttrId.nonEmpty.converter)() else Never()
-
-  def attrCalc[Value](attrId: Attr[Value]) =
-    if(attrId.labelId==0 || attrId.propId==0)
-      new SearchAttrCalcImpl(attrId)(attrId.nonEmpty :: Nil, (objId,on)=>{
-        set(attrId, direct.get(objId, attrId), objId, on)
-      })
-    else {
-      val labelAttrId = new BooleanAttr(attrId.labelId, 0)(attrId.nonEmpty.converter)
-      val propAttrId = new AttrImpl[Value](0, attrId.propId)(attrId.converter,attrId.nonEmpty.converter)()
-      new SearchAttrCalcImpl(attrId)(labelAttrId.nonEmpty :: propAttrId.nonEmpty :: Nil, (objId, on) =>
-        if (direct.get(objId, labelAttrId))
-          set(attrId, direct.get(objId, propAttrId), objId, on)
-      )
-    }
-
+  def attrCalc[Value](attr: Attr[Value]) = {
+    if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
+    new SearchAttrCalcImpl(attr)(attr.nonEmpty :: Nil, (node,on)=>{
+      set(attr.rawAttr, node(attr), node, on)
+    })
+  }
+  def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]) = {
+    if(labelAttr.rawAttr.propId!=0L || propAttr.rawAttr.labelId!=0L) Never()
+    val attr = attrFactory(labelAttr.rawAttr.labelId, propAttr.rawAttr.propId, propAttr.rawAttr.converter)
+    new SearchAttrCalcImpl(attr)(labelAttr.nonEmpty :: propAttr.nonEmpty :: Nil, (node, on) =>
+      if (node(labelAttr)) set(attr.rawAttr, node(propAttr), node, on)
+    )
+  }
 }
 
 case class SearchAttrCalcImpl[Value](searchAttrId: Attr[Value])(
-  val affectedBy: List[Attr[Boolean]], set: (ObjId,Boolean)=>Unit
+  val affectedBy: List[Attr[Boolean]], set: (DBNode,Boolean)=>Unit
 ) extends SearchAttrCalc[Value] {
-  def beforeUpdate(objId: ObjId) = set(objId, false)
-  def afterUpdate(objId: ObjId) = set(objId, true)
+  def beforeUpdate(node: DBNode) = set(node, false)
+  def afterUpdate(node: DBNode) = set(node, true)
 }
 
 

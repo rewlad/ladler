@@ -157,6 +157,11 @@ trait SessionState {
   def sessionKey: UUID
 }
 
+case class NodeAttr[Value](node: DBNode, attr: Attr[Value]) {
+  def apply() = node(attr)
+  def update(value: Value) = node(attr) = value
+}
+
 class IncrementalSnapshot(
   sessionState: SessionState,
   createObj: Attr[Boolean]=>DBNode,
@@ -176,15 +181,16 @@ class IncrementalSnapshot(
   requestsAll: ListByValue[Boolean]
 
 ) extends TxComponent {
-
-  class SimpleEventSource(sessionId: Long) extends EventSource[Long] {
-    lazy val seqNode = Single.option(mainSessionsBySessionId.list(sessionId)).getOrElse{
+  def createSimpleEventSource(sessionId: Long) = new SimpleEventSource(sessionId,
+    Single.option(mainSessionsBySessionId.list(sessionId)).getOrElse{
       val mainSession = createObj(isMainSessionAttr)
       mainSession(sessionIdAttr) = Some(sessionId)
       mainSession
     }
+  )
+
+  class SimpleEventSource(val byValue: Long, val seqNode: DBNode) extends EventSource[Long] {
     def seqAttr = unmergedEventsFromIdAttr
-    def byValue = sessionId
     def all = eventsBySessionId
   }
   trait EventSource[Value] {

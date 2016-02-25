@@ -24,8 +24,7 @@ class RelTypeInfoFactory(
   searchIndex: SearchIndex
 ){
   private def createForSide(label: Attr[Boolean], side: RelSideInfo) = {
-    val composedAttrId = searchIndex.composeAttrId(label, side.attrId)
-    val listByValue = createList(searchIndex.attrCalc(composedAttrId))
+    val listByValue = createList(searchIndex.attrCalc(label, side.attrId))
     RelSideTypeInfo(side, listByValue, listByValue.components)
   }
   def apply(label: Attr[Boolean]) = {

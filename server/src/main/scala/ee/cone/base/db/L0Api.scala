@@ -8,26 +8,25 @@ object Types {
   type ObjId = Long
 }
 
-trait Attr[Value] {
+trait RawAttr[Value] {
   def labelId: Long
   def propId: Long
   def converter: RawValueConverter[Value]
-  def nonEmpty: Attr[Boolean]
 }
 
 // raw converters
 
 trait RawFactConverter {
-  def key(objId: ObjId, attrId: Attr[_]): RawKey
+  def key(objId: ObjId, attrId: RawAttr[_]): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
-  def value[Value](attrId: Attr[Value], value: Value, valueSrcId: ObjId): RawValue
-  def valueFromBytes[Value](attrId: Attr[Value], b: RawValue): Value
+  def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId): RawValue
+  def valueFromBytes[Value](attrId: RawAttr[Value], b: RawValue): Value
   //def keyFromBytes(key: RawKey): (ObjId,AttrId)
 }
 trait RawSearchConverter {
-  def key[Value](attrId: Attr[Value], value: Value, objId: ObjId): RawKey
-  def keyWithoutObjId[Value](attrId: Attr[Value], value: Value): RawKey
+  def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId): RawKey
+  def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey
   def value(on: Boolean): RawValue
 }
 trait RawKeyExtractor {

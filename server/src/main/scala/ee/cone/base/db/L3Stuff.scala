@@ -6,9 +6,12 @@ import ee.cone.base.util.{Setup, Never}
 
 import scala.collection.mutable
 
-case class DBNodeImpl(objId: Long)(db: FactIndex) extends DBNode {
-  def apply[Value](attr: Attr[Value]) = db.get(objId, attr)
-  def update[Value](attr: Attr[Value], value: Value) = db.set(objId, attr, value)
+case class DBNodeImpl(objId: Long)(val rawIndex: RawIndex, rw: Boolean) extends DBNode {
+  def apply[Value](attr: Attr[Value]) = attr.get(this)
+  def update[Value](attr: Attr[Value], value: Value) = {
+    if(!rw) Never()
+    attr.set(this, value)
+  }
 }
 
 class NodeValueConverter(inner: InnerRawValueConverter, createNode: ObjId=>DBNode) extends RawValueConverter[Option[DBNode]] {
@@ -36,10 +39,10 @@ trait ListByDBNode {
   def list(node: DBNode): List[Attr[_]]
 }
 
-class ListByDBNodeImpl(inner: FactIndex, index: (Long,Long)=>Attr[_]) extends ListByDBNode {
+class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, booleanValueConverter: BooleanValueConverter) extends ListByDBNode {
   def list(node: DBNode) = {
-    val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,index)
-    inner.execute(node.objId, feed)
+    val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,attrFactory.apply(_,_,booleanValueConverter))
+    inner.execute(node, feed)
     feed.result
   }
 }
@@ -61,7 +64,7 @@ case class ListByValueImpl[Value](attrCalc: SearchAttrCalc[Value])(
   def components = attrCalc :: Nil
 }
 
-class ListFeedImpl[To](limit: Long, converter: (Long,Long)=>To) extends Feed {
+class ListFeedImpl[To](var limit: Long, converter: (Long,Long)=>To) extends Feed {
   var result: List[To] = Nil
   def apply(valueA: Long, valueB: Long) = {
     result = converter(valueA,valueB) :: result
@@ -70,11 +73,6 @@ class ListFeedImpl[To](limit: Long, converter: (Long,Long)=>To) extends Feed {
   }
 }
 
-class AttrCalcAdapter(inner: NodeAttrCalc)(createNode: ObjId=>DBNode) extends AttrCalc {
-  def affectedBy = inner.affectedBy.map(_.nonEmpty)
-  def beforeUpdate(objId: ObjId) = inner.beforeUpdate(createNode(objId))
-  def afterUpdate(objId: ObjId) = inner.afterUpdate(createNode(objId))
-}
 
 //lazy val keyForValue: String = propOpt.orElse(labelOpt).flatMap(_.nameOpt).get
 
