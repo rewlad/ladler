@@ -80,7 +80,7 @@ class TestConnectionMix(
   lazy val framePeriod = 200
   lazy val mainDB = app.mainDB
   lazy val run = new SnapshotRunningConnection(registrar, lifeCycle, sender, createLifeCycle, mainDB, createSnapshot)
-  lazy val createLifeCycle = () => new LifeCycleImpl(Some(lifeCycle))
+  lazy val createLifeCycle = (lifeCycle:LifeCycle) => new LifeCycleImpl(Some(lifeCycle))
   lazy val createSnapshot =
     (lifeCycle: LifeCycle, rawTx: RawTx) =>
       new TestSnapshotMix(this, lifeCycle, rawTx)
@@ -124,30 +124,87 @@ class TestEnv extends DBEnv {
   def start() = ()
 }
 
+// register
+class TxData(connection: SnapshotRunningConnection, val lifeCycle: LifeCycle) extends Registration {
+  override def open() = connection.snapshotData = Some(this)
+
+  override def close() = connection.snapshotData = None
+}
+
 class SnapshotRunningConnection(
   registrar: Registrar[ConnectionComponent],
-  lifeCycle: LifeCycle,
+  connectionLifeCycle: LifeCycle,
   sender: SenderOfConnection,
-  createLifeCycle: ()=>LifeCycle,
+  createLifeCycle: LifeCycle=>LifeCycle,
   mainEnv: DBEnv,
-  createSnapshot: (LifeCycle,RawTx)=>Runnable
+  createSnapshot: (LifeCycle,RawTx)=>CanStart,
+  eventSourceOperations:  EventSourceOperations
 ) {
-  private def runSnapshot() = {
-    val lifeCycle = createLifeCycle()
+  var snapshotData: Option[TxData] = None
+  private def needSnapshot(): TxData = {
+    if(snapshotData.isEmpty) makeSnapshot()
+    snapshotData.get
+  }
+  private def makeSnapshot(): Unit = {
+    val lifeCycle = createLifeCycle(connectionLifeCycle)
     lifeCycle.open()
     val rawTx = mainEnv.createTx(lifeCycle, rw = false)
     val snapshot = createSnapshot(lifeCycle, rawTx)
-    snapshot.run()
+    snapshot.start()
+  }
+  private def withEventTx(rw: Boolean)(actions: ⇒Unit): Unit = {
+    val lifeCycle = createLifeCycle(needSnapshot().lifeCycle)
+    lifeCycle.open()
+    val rawTx = mainEnv.createTx(lifeCycle, rw = rw)
+    val snapshot = createSnapshot(lifeCycle, rawTx)
+    snapshot.start()
+    actions
+    lifeCycle.close()
+  }
+  var vDomData: Option[()] = None
+  private def needVDom() = {
+    if(vDomData.isEmpty) makeVDom()
+    vDomData.get
+  }
+
+  private def makeVDom(){
+
+    withEventTx(rw=false){
+      eventSourceOperations.sessionIncrementalApply()
+    }
+    // gen
   }
   def apply(): Unit = try {
     registrar.register()
-    while(true) runSnapshot()
+    while(true) {
+      // may be close old Snapshot here
+
+
+
+
+    }
   } catch {
     case e: Exception ⇒
       sender.send("fail", "") //todo
       throw e
   } finally {
-    lifeCycle.close()
+    connectionLifeCycle.close()
+  }
+}
+
+class TestSnapshot() extends TxComponent {
+  def closeIfNotFresh() = {
+    ???
+    System.currentTimeMillis
+  }
+  def apply() = {
+
+    //snapshot.init;
+    while(???){ // isOpen
+      // incrementalApply
+      // runVDom
+      // closeIfNotFresh
+    }
   }
 }
 
@@ -158,8 +215,13 @@ trait SessionState {
 }
 
 
+//! lost calc-s
+//! id-ly typing
 
-class IncrementalSnapshot(
+// no SessionState? no instantSession? create
+// create event, req, undo, commit
+// apply, checkAll
+class EventSourceOperations(
   sessionState: SessionState,
   createObj: Attr[Boolean]=>DBNode,
 
@@ -177,7 +239,7 @@ class IncrementalSnapshot(
   unmergedRequestsFromIdAttr: Attr[Option[Long]],
   requestsAll: ListByValue[Boolean]
 
-) extends TxComponent {
+) {
   class EventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]) {
     def poll(): Option[DBNode] = {
       val eventsFromId: Long = seqRef().getOrElse(0L)
@@ -226,21 +288,7 @@ class IncrementalSnapshot(
 
 }
 
-class TestSnapshot() extends TxComponent {
-  def closeIfNotFresh() = {
-    ???
-    System.currentTimeMillis
-  }
-  def apply() = {
 
-    //snapshot.init;
-    while(???){ // isOpen
-      // incrementalApply
-      // runVDom
-      // closeIfNotFresh
-    }
-  }
-}
 
 
 /*
