@@ -8,8 +8,6 @@ trait ComponentProvider {
   def components: List[ConnectionComponent]
 }
 
-trait TxComponent
-
 case class ValidationFailure(calc: PreCommitCheck, node: DBNode)
 
 trait PreCommitCheck extends {
@@ -26,8 +24,7 @@ trait ListByValue[Value] extends ComponentProvider {
   def list(value: Value, fromObjId: ObjId, limit: Long): List[DBNode]
 }
 
-trait NodeAttrCalc {
-  def affectedBy: List[Attr[_]]
-  def beforeUpdate(node: DBNode): Unit
-  def afterUpdate(node: DBNode): Unit
+trait PreCommitCheckAllOfConnection {
+  def switchTx(on: Option[Unit]): Unit
+  def checkTx(): Seq[ValidationFailure]
 }

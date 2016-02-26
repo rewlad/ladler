@@ -28,14 +28,15 @@ trait AttrFactory {
 }
 
 trait FactIndex {
+  def switchSrcObjId(objId: ObjId): Unit
   def get[Value](node: DBNode, attrId: Attr[Value]): Value
   def set[Value](node: DBNode, attrId: Attr[Value], value: Value): Unit
   def execute(node: DBNode, feed: Feed): Unit
 }
 
 trait SearchIndex {
+  def switchRawIndex(value: Option[RawIndex]): Unit
   def execute[Value](attrId: Attr[Value], value: Value, feed: Feed): Unit
-
   def execute[Value](attrId: Attr[Value], value: Value, objId: ObjId, feed: Feed): Unit
   def attrCalc[Value](attrId: Attr[Value]): SearchAttrCalc[Value]
   def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]): SearchAttrCalc[Value]

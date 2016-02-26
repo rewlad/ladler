@@ -7,8 +7,15 @@ trait LifeCycled {
   def open(): Unit
   def close(): Unit
 }
+trait AliveValue[Value] {
+  def value: Value
+  def onClose(doClose: Value=>Unit): this.type
+  def updates(set: Option[Value]=>Unit): this.type
+}
 trait LifeCycle extends LifeCycled {
-  def setup[C](create: =>C)(close: C=>Unit): C
+  def onClose(doClose: ()=>Unit): Unit
+  def of[Value](create: ()=>Value): AliveValue[Value]
+  def sub(): LifeCycle
 }
 
 trait AppComponent

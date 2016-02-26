@@ -4,17 +4,13 @@ package ee.cone.base.db
 import ee.cone.base.connection_api.{ConnectionComponent, Registration}
 import ee.cone.base.db.Types._
 
-class SrcObjIdRegistration(index: FactIndexImpl, objId: ObjId) extends Registration {
-  def open() = index.srcObjId = objId
-  def close() = index.srcObjId = 0L
-}
-
 class FactIndexImpl(
   rawFactConverter: RawFactConverter,
   rawVisitor: RawVisitor,
   calcLists: AttrCalcLists
 ) extends FactIndex {
-  var srcObjId = 0L
+  private var srcObjId = 0L
+  def switchSrcObjId(objId: ObjId): Unit = srcObjId = objId
   def get[Value](node: DBNode, attr: Attr[Value]) = {
     val rawAttr = attr.rawAttr
     val key = rawFactConverter.key(node.objId, rawAttr)

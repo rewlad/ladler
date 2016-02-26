@@ -15,6 +15,7 @@ import ee.cone.base.db.Types._
 import ee.cone.base.server._
 import ee.cone.base.util.{Single, Never, Setup}
 
+/*
 class LifeCacheState[C] {
   private var state: Option[C] = None
   def apply() = state
@@ -34,6 +35,7 @@ class LifeCache[C] {
       base().get
   }
 }
+*/
 
 ////
 
@@ -46,11 +48,11 @@ class FindOrCreateSrcId(
     .getOrElse(Setup(seq.inc()){ node => node(srcId) = value })
 }
 class ObjIdSequence(
-  seqNode: DBNode, //new DBNodeImpl(0L)
   seqAttr: Attr[Option[DBNode]]
 ) {
   def inc(): DBNode = {
-    val res = new DBNodeImpl(seqNode(seqAttr).getOrElse(seqNode).objId + 1L)
+    val seqNode = new DBNodeImpl(0L)(???)
+    val res = new DBNodeImpl(seqNode(seqAttr).getOrElse(seqNode).objId + 1L)(???)
     seqNode(seqAttr) = Some(res)
     res
   }
@@ -79,17 +81,9 @@ class TestConnectionMix(
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200
   lazy val mainDB = app.mainDB
-  lazy val run = new SnapshotRunningConnection(registrar, lifeCycle, sender, createLifeCycle, mainDB, createSnapshot)
-  lazy val createLifeCycle = (lifeCycle:LifeCycle) => new LifeCycleImpl(Some(lifeCycle))
-  lazy val createSnapshot =
-    (lifeCycle: LifeCycle, rawTx: RawTx) =>
-      new TestSnapshotMix(this, lifeCycle, rawTx)
-}
-
-class TestSnapshotMix(
-  connection: TestConnectionMix, val lifeCycle: LifeCycle, val rawTx: RawTx
-) extends  MixBase[TxComponent] with Runnable {
-  lazy val run = new TestSnapshot()
+  lazy val run = new SnapshotRunningConnection(
+    registrar, lifeCycle, sender, mainDB
+  )
 }
 
 object TestApp extends App {
@@ -109,8 +103,9 @@ class TestEnv extends DBEnv {
     }
   }
   def createTx(txLifeCycle: LifeCycle, rw: Boolean) =
-    if(!rw) new RawTx(createRawIndex(), () => ())
-    else txLifeCycle.setup {
+    if(!rw) new RawTx(txLifeCycle, rw, createRawIndex(), () => ())
+    else {
+      txLifeCycle.onClose(()=>lock.unlock())
       lock.lock()
       val index = createRawIndex()
       def commit() = {
@@ -119,69 +114,58 @@ class TestEnv extends DBEnv {
           data = index.data
         }
       }
-      new RawTx(index, commit)
-    }(_=>lock.unlock())
+      new RawTx(txLifeCycle, rw, index, commit)
+    }
   def start() = ()
 }
 
-// register
-class TxData(connection: SnapshotRunningConnection, val lifeCycle: LifeCycle) extends Registration {
-  override def open() = connection.snapshotData = Some(this)
-
-  override def close() = connection.snapshotData = None
+class TxStarter(
+  connectionLifeCycle: LifeCycle, env: DBEnv, searchIndex: SearchIndex,
+  checkAll: PreCommitCheckAllOfConnection
+) {
+  var tx: Option[RawTx] = None
+  def needTx(rw: Boolean): Unit = {
+    if(tx.isEmpty) {
+      val lifeCycle = connectionLifeCycle.sub()
+      val rawTx = lifeCycle.of(()=>env.createTx(lifeCycle, rw = rw)).updates(tx=_).value
+      lifeCycle.of(()=>rawTx.rawIndex).updates(searchIndex.switchRawIndex)
+      lifeCycle.of(()=>()).updates(checkAll.switchTx)
+    }
+    if(tx.get.rw != rw) Never()
+  }
+  def commit() = {
+    if(!tx.get.rw) Never()
+    val fails = checkAll.checkTx()
+    if(fails.nonEmpty) throw new Exception(s"$fails")
+    closeTx()
+  }
+  def closeTx() = tx.foreach(_.lifeCycle.close())
 }
 
 class SnapshotRunningConnection(
   registrar: Registrar[ConnectionComponent],
   connectionLifeCycle: LifeCycle,
   sender: SenderOfConnection,
-  createLifeCycle: LifeCycle=>LifeCycle,
-  mainEnv: DBEnv,
-  createSnapshot: (LifeCycle,RawTx)=>CanStart,
-  eventSourceOperations:  EventSourceOperations
+  mainTxStarter: TxStarter,
+  instantTxStarter: TxStarter,
+  eventSourceOperations: EventSourceOperations,
+  incoming: BlockingQueue[DictMessage],
+  framePeriod: Long
 ) {
-  var snapshotData: Option[TxData] = None
-  private def needSnapshot(): TxData = {
-    if(snapshotData.isEmpty) makeSnapshot()
-    snapshotData.get
-  }
-  private def makeSnapshot(): Unit = {
-    val lifeCycle = createLifeCycle(connectionLifeCycle)
-    lifeCycle.open()
-    val rawTx = mainEnv.createTx(lifeCycle, rw = false)
-    val snapshot = createSnapshot(lifeCycle, rawTx)
-    snapshot.start()
-  }
-  private def withEventTx(rw: Boolean)(actions: ⇒Unit): Unit = {
-    val lifeCycle = createLifeCycle(needSnapshot().lifeCycle)
-    lifeCycle.open()
-    val rawTx = mainEnv.createTx(lifeCycle, rw = rw)
-    val snapshot = createSnapshot(lifeCycle, rawTx)
-    snapshot.start()
-    actions
-    lifeCycle.close()
-  }
   var vDomData: Option[()] = None
-  private def needVDom() = {
-    if(vDomData.isEmpty) makeVDom()
-    vDomData.get
-  }
-
-  private def makeVDom(){
-
-    withEventTx(rw=false){
-      eventSourceOperations.sessionIncrementalApply()
-    }
-    // gen
-  }
   def apply(): Unit = try {
     registrar.register()
     while(true) {
-      // may be close old Snapshot here
-
-
-
-
+      mainTxStarter.needTx(rw=false)
+      if(vDomData.isEmpty){
+        val lifeCycle = instantTxStarter.needTx(rw=false)
+        eventSourceOperations.sessionIncrementalApply()
+        makeVDom() // send
+        lifeCycle.close()
+      }
+      val message = Option(incoming.poll(framePeriod,TimeUnit.MILLISECONDS))
+      dispatch(message.getOrElse(PeriodicMessage)) //dispatch // can close / set refresh time
+      // may be close old mainTx/vDom here
     }
   } catch {
     case e: Exception ⇒
@@ -192,55 +176,55 @@ class SnapshotRunningConnection(
   }
 }
 
-class TestSnapshot() extends TxComponent {
-  def closeIfNotFresh() = {
-    ???
-    System.currentTimeMillis
-  }
-  def apply() = {
-
-    //snapshot.init;
-    while(???){ // isOpen
-      // incrementalApply
-      // runVDom
-      // closeIfNotFresh
-    }
-  }
-}
-
 ////
 
 trait SessionState {
   def sessionKey: UUID
 }
 
-
 //! lost calc-s
 //! id-ly typing
 
 // no SessionState? no instantSession? create
-// create event, req, undo, commit
-// apply, checkAll
+// create undo
+// apply handling, notify
 class EventSourceOperations(
   sessionState: SessionState,
-  createObj: Attr[Boolean]=>DBNode,
+  mainCreateNode: Attr[Boolean]=>DBNode,
+  factIndex: FactIndex,
+  mainTxStarter: TxStarter,
+  instantTxStarter: TxStarter,
+  instantObjIdSequence: ObjIdSequence,
+  instantCreateNode: Attr[Boolean]=>DBNode,
 
-  instantSessionsBySessionKey: ListByValue[UUID],
+  isInstantSessionAttr: Attr[Boolean],
+    sessionKeyAttr: Attr[Option[UUID]],
+    instantSessionsBySessionKey: ListByValue[UUID],
 
   isMainSessionAttr: Attr[Boolean],
-  sessionIdAttr: Attr[Option[Long]],
-  mainSessionsBySessionId: ListByValue[Long],
+    sessionIdAttr: Attr[Option[Long]],
+    mainSessionsBySessionId: ListByValue[Long],
+    unmergedEventsFromIdAttr: Attr[Option[Long]],
 
-  unmergedEventsFromIdAttr: Attr[Option[Long]],
-  eventsBySessionId: ListByValue[Long], // instant
-  undoByEvent: ListByValue[DBNode],
+  isEvent: Attr[Boolean],
+    //sessionIdAttr
+    eventsBySessionId: ListByValue[Long], // instant
 
-  getSeqNode: ()=>DBNode,
-  unmergedRequestsFromIdAttr: Attr[Option[Long]],
-  requestsAll: ListByValue[Boolean]
+  isUndo: Attr[Boolean],
+    eventIdAttr: Attr[Option[Long]],
+    undoByEvent: ListByValue[DBNode],
+
+  mainSeqNode: ()=>DBNode,
+    unmergedRequestsFromIdAttr: Attr[Option[Long]],
+
+  isRequest: Attr[Boolean],
+    requestsAll: ListByValue[Boolean],
+
+  isCommit: Attr[Boolean]
+    // eventIdAttr
 
 ) {
-  class EventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]) {
+  private class EventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]) {
     def poll(): Option[DBNode] = {
       val eventsFromId: Long = seqRef().getOrElse(0L)
       val eventOpt = Single.option(listByValue.list(value, eventsFromId, 1L))
@@ -249,9 +233,9 @@ class EventSourceOperations(
       if(undoByEvent.list(eventOpt.get).isEmpty) eventOpt else poll()
     }
   }
-  def applyEvents(sessionId: Long, isNotLast: DBNode=>Boolean) = {
+  private def applyEvents(sessionId: Long, isNotLast: DBNode=>Boolean) = {
     val seqNode = Single.option(mainSessionsBySessionId.list(sessionId)).getOrElse{
-      val mainSession = createObj(isMainSessionAttr)
+      val mainSession = mainCreateNode(isMainSessionAttr)
       mainSession(sessionIdAttr) = Some(sessionId)
       mainSession
     }
@@ -259,50 +243,67 @@ class EventSourceOperations(
     val src = new EventSource(eventsBySessionId, sessionId, seqRef)
     applyEvents(src, isNotLast)
   }
-  def applyEvents(src: EventSource[Long], isNotLast: DBNode=>Boolean): Unit = {
+  private def applyEvents(src: EventSource[Long], isNotLast: DBNode=>Boolean): Unit = {
     val eventOpt = src.poll()
     if(eventOpt.isEmpty) { return }
+    factIndex.switchSrcObjId(eventOpt.get.objId)
     ??? // apply
+    factIndex.switchSrcObjId(0L)
     if(isNotLast(eventOpt.get)) applyEvents(src, isNotLast)
   }
-
-
-  def sessionIncrementalApply(): Unit = {
+  private def findSessionId() = {
     val instantSession = Single(instantSessionsBySessionKey.list(sessionState.sessionKey))
     // or create?
-    val sessionId = instantSession.objId
-    applyEvents(sessionId, (_:DBNode)=>false)
+    instantSession.objId
+  }
+  def sessionIncrementalApplyAndView[R](view: ()=>R): R = {
+    instantTxStarter.needTx(rw=false)
+    applyEvents(findSessionId(), (_:DBNode)=>false)
+    val res = view()
+    instantTxStarter.closeTx()
+    res
   }
   def mergerIncrementalApply(): Unit = {
-    val seqRef = getSeqNode()(unmergedRequestsFromIdAttr.ref)
+    mainTxStarter.needTx(rw=true)
+    val seqRef = mainSeqNode()(unmergedRequestsFromIdAttr.ref)
     val reqSrc = new EventSource(requestsAll, true, seqRef)
     val reqOpt = reqSrc.poll()
     if(reqOpt.isEmpty) { return }
     val req = reqOpt.get
-    val sessionId = req(sessionIdAttr).get
-    applyEvents(sessionId, (ev:DBNode)=>
-      if(ev.objId<req.objId) true else if(ev.objId==req.objId) false else Never()
-    )
-    // checkAll by req?
+    var ok = false
+    try {
+      val sessionId = req(sessionIdAttr).get
+      applyEvents(sessionId, (ev:DBNode)=>
+        if(ev.objId<req.objId) true else if(ev.objId==req.objId) false else Never()
+      )
+      mainTxStarter.commit()
+      ok = true
+    } finally {
+      addEventStatus(req, ok)
+    }
+    ??? //? notify
   }
-
+  def addEvent(label: Attr[Boolean])(fill: DBNode=>Unit): Unit = addInstant(label){ ev =>
+    ev(isEvent) = true
+    ev(sessionIdAttr) = Some(findSessionId())
+    fill(ev)
+  }
+  def addRequest() = addEvent(isRequest)(_=>())
+  private def addEventStatus(event: DBNode, ok: Boolean): Unit =
+    addInstant(if(ok) isCommit else isUndo)(_(eventIdAttr) = Some(event.objId))
+  private def addInstant(label: Attr[Boolean])(fill: DBNode=>Unit): Unit = {
+    instantTxStarter.needTx(rw=true)
+    fill(instantCreateNode(label))
+    instantTxStarter.commit()
+  }
 }
 
 
 
 
 /*
-
-incoming: BlockingQueue[DictMessage],
-framePeriod: Long,
-
-//, keepAlive: KeepAlive, queue: BlockingQueue[DictMessage],
 components: =>List[ConnectionComponent]
 
 lazy val receivers = components.collect{ case r: ReceiverOfMessage => r }
 def dispatch(message: Message) = receivers.foreach(_.receive(message))
-    needFreshSnapshot()
-    needFreshVDom() //show
-    val message = Option(incoming.poll(framePeriod,TimeUnit.MILLISECONDS))
-    dispatch(message.getOrElse(PeriodicMessage)) //dispatch // can close / set refresh time
-  }*/
+*/

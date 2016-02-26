@@ -7,11 +7,6 @@ import ee.cone.base.util.Never
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
-class SearchRawIndexRegistration(index: SearchIndexImpl, tx: RawIndex) extends Registration {
-  def open() = index.txOpt = Option(tx)
-  def close() = index.txOpt = None
-}
-
 class SearchAttrCalcCheck(components: =>List[ConnectionComponent]) {
   private lazy val value =
     components.collect { case a: SearchAttrCalc[_] ⇒ a.searchAttrId.nonEmpty.rawAttr }.toSet
@@ -25,9 +20,9 @@ class SearchIndexImpl(
   attrFactory: AttrFactory,
   check: SearchAttrCalcCheck
 ) extends SearchIndex {
-  var txOpt: Option[RawIndex] = None
-  def tx = txOpt.get
-
+  private var txOpt: Option[RawIndex] = None
+  private def tx = txOpt.get
+  def switchRawIndex(value: Option[RawIndex]) = txOpt = value
   def execute[Value](attr: Attr[Value], value: Value, feed: Feed) = {
     check(attr.nonEmpty)
     val key = converter.keyWithoutObjId(attr.rawAttr, value)

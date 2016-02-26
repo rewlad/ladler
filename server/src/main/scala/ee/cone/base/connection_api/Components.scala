@@ -1,21 +1,21 @@
 package ee.cone.base.connection_api
 
+import ee.cone.base.util.Setup
+
 sealed trait LifeStatus
 case object OpenableLifeStatus extends LifeStatus
 class OpenLifeStatus(val toClose: List[()=>Unit]) extends LifeStatus
 case object ClosingLifeStatus extends LifeStatus
 class LifeCycleImpl(parent: Option[LifeCycle]) extends LifeCycle {
   protected var status: LifeStatus = OpenableLifeStatus
-  def setup[C](create: =>C)(close: C=>Unit): C = status match {
-    case st: OpenLifeStatus => // we must not create until status is ok
-      val res = create
-      status = new OpenLifeStatus((()=>close(res)) :: st.toClose)
-      res
+  def onClose(doClose: ()=>Unit): Unit = status match { // we must not create until status is ok
+    case st: OpenLifeStatus => status = new OpenLifeStatus(doClose :: st.toClose)
     case st => throw new Exception(s"$st")
   }
+  def of[Value](create: ()=>Value) = new AliveValueImpl(this, create)
   def open() = status match {
     case OpenableLifeStatus =>
-      parent.foreach(p=>p.setup(this)(_.close()))
+      parent.foreach(p=>p.onClose(close))
       status = new OpenLifeStatus(Nil)
     case st => throw new Exception(s"$st")
   }
@@ -24,6 +24,20 @@ class LifeCycleImpl(parent: Option[LifeCycle]) extends LifeCycle {
       status = ClosingLifeStatus
       DoClose(st.toClose)
     case _ => ()
+  }
+  def sub() = Setup(new LifeCycleImpl(Some(this)))(_.open())
+}
+
+class AliveValueImpl[Value](lifeCycle: LifeCycle, create: ()=>Value) extends AliveValue[Value] {
+  lazy val value = create()
+  def onClose(doClose: Value=>Unit) = {
+    lifeCycle.onClose(()=>doClose(value))
+    this
+  }
+  def updates(set: Option[Value]=>Unit) = {
+    lifeCycle.onClose(()=>set(None))
+    set(Some(value))
+    this
   }
 }
 
@@ -49,6 +63,7 @@ trait AppMixBase extends MixBase[AppComponent] with CanStart {
 
 class Registrar[Component](lifeCycle: LifeCycle, components: =>List[Component]){
   def register() = components.collect{ case r: Registration =>
-    lifeCycle.setup(r)(_.close()).open()
+    lifeCycle.onClose(()=>r.close())
+    r.open()
   }
 }

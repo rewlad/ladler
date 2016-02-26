@@ -11,7 +11,8 @@ class SSESender(
   connectionLifeCycle: LifeCycle, allowOriginOption: Option[String],
   socket: SocketOfConnection
 ) extends SenderOfConnection {
-  private lazy val out = connectionLifeCycle.setup(socket.value.getOutputStream)(_.close())
+  private lazy val out = connectionLifeCycle.of(()=>socket.value.getOutputStream)
+    .onClose(_.close()).value
   private lazy val connected = {
     val allowOrigin =
       allowOriginOption.map(v=>s"Access-Control-Allow-Origin: $v\n").getOrElse("")
@@ -38,7 +39,7 @@ class RSSEServer(
       pool.execute(ToRunnable {
         val lifeCycle = createLifeCycle()
         lifeCycle.open()
-        lifeCycle.setup(socket)(_.close())
+        lifeCycle.onClose(()=>socket.close())
         val connection = createConnection(lifeCycle, new SocketOfConnection(socket) :: Nil)
         connection.run()
       })

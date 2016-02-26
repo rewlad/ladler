@@ -14,11 +14,9 @@ class PreCommitCheckOfTx(check: PreCommitCheck){
 
 class PreCommitCheckAllOfTx(
   checkAllOfConnection: PreCommitCheckAllOfConnection
-) extends Registration with TxComponent {
+) {
   private lazy val checkMap = mutable.Map[AttrCalc,PreCommitCheckOfTx]()
   private var checkList: List[PreCommitCheckOfTx] = Nil
-  def open() = checkAllOfConnection.txOpt = Some(this)
-  def close() = checkAllOfConnection.txOpt = None
   def of(calc: PreCommitCheckAttrCalcImpl) = checkMap.getOrElseUpdate(calc,
     Setup(new PreCommitCheckOfTx(calc.check()))(c=>checkList = c :: checkList)
   )
@@ -27,15 +25,17 @@ class PreCommitCheckAllOfTx(
 
 class PreCommitCheckAttrCalcImpl(
   val check: ()=>PreCommitCheck,
-  checkAll: PreCommitCheckAllOfConnection
+  checkAll: PreCommitCheckAllOfConnectionImpl
 ) extends AttrCalc {
-  var txOpt: Option[PreCommitCheckOfTx] = None
   def affectedBy = check().affectedBy.map(_.nonEmpty)
   def beforeUpdate(node: DBNode) = ()
-  def afterUpdate(node: DBNode) = checkAll.txOpt.get.of(this).add(node)
+  def afterUpdate(node: DBNode) = checkAll.currentTx.of(this).add(node)
 }
 
-class PreCommitCheckAllOfConnection {
-  var txOpt: Option[PreCommitCheckAllOfTx] = None
-  def apply() = txOpt.get.checkAll()
+class PreCommitCheckAllOfConnectionImpl extends PreCommitCheckAllOfConnection {
+  private var txOpt: Option[PreCommitCheckAllOfTx] = None
+  def currentTx = txOpt.get
+  def switchTx(on: Option[Unit]) =
+    txOpt = on.map(_=>new PreCommitCheckAllOfTx(this))
+  def checkTx() = currentTx.checkAll()
 }

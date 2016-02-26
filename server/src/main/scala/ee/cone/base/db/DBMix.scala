@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api._
 
-case class RawTx(rawIndex: RawIndex, commit: ()=>Unit)
+case class RawTx(lifeCycle: LifeCycle, rw: Boolean, rawIndex: RawIndex, commit: ()=>Unit)
 
 trait DBEnv extends AppComponent with CanStart {
   def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
