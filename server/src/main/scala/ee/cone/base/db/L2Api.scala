@@ -49,6 +49,10 @@ trait NodeHandler[+Result] extends ConnectionComponent {
   def handle(node: DBNode): Result
 }
 
+trait NodeHandlerLists {
+  def list[R](ev: NodeEvent[R]): List[NodeHandler[R]]
+}
+
 case class BeforeUpdate(attr: Attr[Boolean]) extends NodeEvent[Unit]
 case class AfterUpdate(attr: Attr[Boolean]) extends NodeEvent[Unit]
 

@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.ConnectionComponent
 import ee.cone.base.util.Never
 
 class AttrFactoryImpl(booleanConverter: RawValueConverter[Boolean], db: FactIndexImpl) extends AttrFactory {
@@ -39,3 +40,16 @@ case class RefImpl[Value](node: DBNode, attr: Attr[Value]) extends Ref[Value] {
   def apply() = attr.get(node)
   def update(value: Value) = attr.set(node, value)
 }
+
+class NodeHandlerListsImpl(components: =>List[ConnectionComponent]) {
+  def list[R](ev: NodeEvent[R]): List[NodeHandler[R]] =
+    value.getOrElse(ev,Nil).asInstanceOf[List[NodeHandler[R]]]
+  private lazy val handlers: List[NodeHandler[_]] =
+    components.collect { case h: NodeHandler[_] ⇒ h }
+  private lazy val eventHandlers: List[(NodeEvent[_], NodeHandler[_])] =
+    for(h <- handlers; ev <- h.on) yield (ev,h)
+  private lazy val value: Map[NodeEvent[_], List[NodeHandler[_]]] =
+    eventHandlers.groupBy(_._1).mapValues(_.map(_._2))
+}
+
+

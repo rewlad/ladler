@@ -181,7 +181,38 @@ class SnapshotRunningConnection(
 trait SessionState {
   def sessionKey: UUID
 }
+trait ListByValueFactory {
+  def apply[Value](label: Attr[Boolean], prop: Attr[Option[Value]]): ListByValue[Value]
+  def apply(label: Attr[Boolean]): ListByValue[Boolean]
+}
 
+
+class EventSourceAttrs(
+  attr: AttrFactory,
+  list: ListByValueFactory,
+  booleanValueConverter: RawValueConverter[Boolean],
+  uuidValueConverter: RawValueConverter[Option[UUID]],
+  longValueConverter: RawValueConverter[Option[Long]],
+  nodeValueConverter: RawValueConverter[Option[DBNode]]
+)(
+  val isInstantSession: Attr[Boolean] = attr(0x0010, 0, booleanValueConverter),
+    val sessionKey: Attr[Option[UUID]] = attr(0, 0x0011, uuidValueConverter),
+  val isMainSession: Attr[Boolean] = attr(0x0012, 0, booleanValueConverter),
+    val sessionId: Attr[Option[Long]] = attr(0, 0x0013, longValueConverter),
+    val unmergedEventsFromId: Attr[Option[Long]] = attr(0, 0x0014, longValueConverter),
+  val isEvent: Attr[Boolean] = attr(0x0015, 0, booleanValueConverter),
+  val isUndo: Attr[Boolean] = attr(0x0016, 0, booleanValueConverter),
+    val event: Attr[Option[DBNode]] = attr(0, 0x0017, nodeValueConverter),
+  val unmergedRequestsFromId: Attr[Option[Long]] = attr(0, 0x0018, longValueConverter),
+  val isRequest: Attr[Boolean] = attr(0x0019, 0, booleanValueConverter),
+  val isCommit: Attr[Boolean] = attr(0x001A, 0, booleanValueConverter)
+)(
+  val instantSessionsBySessionKey: ListByValue[UUID] = list(isInstantSession, sessionKey),
+  val mainSessionsBySessionId: ListByValue[Long] = list(isMainSession, sessionId),
+  val eventsBySessionId: ListByValue[Long] = list(isEvent, sessionId),
+  val undoByEvent: ListByValue[DBNode] = list(isUndo, event),
+  val requestsAll: ListByValue[Boolean] = list(isRequest)
+)
 //! lost calc-s
 //! id-ly typing
 
@@ -196,6 +227,8 @@ class EventSourceOperations(
   instantTxStarter: TxStarter,
   instantObjIdSequence: ObjIdSequence,
   instantCreateNode: Attr[Boolean]=>DBNode,
+  nodeHandlerLists: NodeHandlerLists,
+  attrs: ListByDBNode,
 
   isInstantSessionAttr: Attr[Boolean],
     sessionKeyAttr: Attr[Option[UUID]],
@@ -211,7 +244,7 @@ class EventSourceOperations(
     eventsBySessionId: ListByValue[Long], // instant
 
   isUndo: Attr[Boolean],
-    eventIdAttr: Attr[Option[Long]],
+    eventAttr: Attr[Option[DBNode]],
     undoByEvent: ListByValue[DBNode],
 
   mainSeqNode: ()=>DBNode,
@@ -247,7 +280,8 @@ class EventSourceOperations(
     val eventOpt = src.poll()
     if(eventOpt.isEmpty) { return }
     factIndex.switchSrcObjId(eventOpt.get.objId)
-    ??? // apply
+    for(attr <- attrs.list(eventOpt.get))
+      nodeHandlerLists.list(ApplyEvent(attr.nonEmpty)) // apply
     factIndex.switchSrcObjId(0L)
     if(isNotLast(eventOpt.get)) applyEvents(src, isNotLast)
   }
@@ -290,7 +324,7 @@ class EventSourceOperations(
   }
   def addRequest() = addEvent(isRequest)(_=>())
   private def addEventStatus(event: DBNode, ok: Boolean): Unit =
-    addInstant(if(ok) isCommit else isUndo)(_(eventIdAttr) = Some(event.objId))
+    addInstant(if(ok) isCommit else isUndo)(_(eventAttr) = Some(event))
   private def addInstant(label: Attr[Boolean])(fill: DBNode=>Unit): Unit = {
     instantTxStarter.needTx(rw=true)
     fill(instantCreateNode(label))
@@ -298,7 +332,7 @@ class EventSourceOperations(
   }
 }
 
-
+case class ApplyEvent(attr: Attr[Boolean]) extends NodeEvent[Unit]
 
 
 /*
