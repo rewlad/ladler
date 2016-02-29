@@ -23,5 +23,3 @@ trait ConnectionComponent
 trait CanStart {
   def start(): Unit
 }
-
-trait Registration extends LifeCycled

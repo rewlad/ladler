@@ -34,6 +34,15 @@ class ConnectionRegistration(
   }
 }
 
+trait Registration extends LifeCycled
+
+class Registrar[Component](lifeCycle: LifeCycle, components: =>List[Component]){
+  def register() = components.collect{ case r: Registration =>
+    lifeCycle.onClose(()=>r.close())
+    r.open()
+  }
+}
+
 ////
 /*
 class ActivateReceivers(

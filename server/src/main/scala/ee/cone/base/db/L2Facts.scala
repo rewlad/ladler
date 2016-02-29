@@ -1,7 +1,7 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{ConnectionComponent, Registration}
+import ee.cone.base.connection_api.ConnectionComponent
 import ee.cone.base.db.Types._
 
 class FactIndexImpl(

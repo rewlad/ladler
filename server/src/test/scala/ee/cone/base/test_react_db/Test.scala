@@ -233,6 +233,7 @@ object Test6 {
       // point1D(yc)
       // point1D(yc) = 9.0
 
+
       point2D(xc)
       point2D(xc) = 8.0
       point2D(yc)
@@ -245,8 +246,8 @@ object Test6 {
     import CustomInterfaces._
     import CustomComponent._
     val db = new DBImpl
-    val point1D = ObjImpl[Point1D](7)(db)
-    val point2D = ObjImpl[Point2D](10)(db)
+    val point1D = ObjImpl[Point1D](7L)(db)
+    val point2D = ObjImpl[Point2D](10L)(db)
     test(point1D, point2D)
   }
 }

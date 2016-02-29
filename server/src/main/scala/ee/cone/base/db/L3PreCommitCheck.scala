@@ -1,7 +1,5 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{LifeCycle, Registration}
-import ee.cone.base.db.Types._
 import ee.cone.base.util.Setup
 
 import scala.collection.mutable

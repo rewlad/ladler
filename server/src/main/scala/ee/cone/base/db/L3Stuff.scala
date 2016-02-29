@@ -1,10 +1,7 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Registration, ConnectionComponent}
 import ee.cone.base.db.Types._
-import ee.cone.base.util.{Setup, Never}
-
-import scala.collection.mutable
+import ee.cone.base.util.Never
 
 case class DBNodeImpl(objId: Long)(val rawIndex: RawIndex, rw: Boolean) extends DBNode {
   def apply[Value](attr: Attr[Value]) = attr.get(this)

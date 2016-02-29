@@ -61,9 +61,3 @@ trait AppMixBase extends MixBase[AppComponent] with CanStart {
   }
 }
 
-class Registrar[Component](lifeCycle: LifeCycle, components: =>List[Component]){
-  def register() = components.collect{ case r: Registration =>
-    lifeCycle.onClose(()=>r.close())
-    r.open()
-  }
-}
