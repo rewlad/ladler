@@ -8,10 +8,11 @@ import ee.cone.base.util.Never
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
 class SearchAttrCalcCheck(components: =>List[ConnectionComponent]) {
-  private lazy val value =
-    components.collect { case a: SearchAttrCalc[_] ⇒ a.searchAttrId.nonEmpty.rawAttr }.toSet
-  def apply(attrId: Attr[Boolean]) =
-    if(!value(attrId.rawAttr)) throw new Exception(s"$attrId is lost")
+  private lazy val ids: Set[Attr[Boolean]] = components.collect{
+    case handler: SearchAttr[_] => handler.attr.nonEmpty
+  }.toSet
+  def apply(attr: Attr[_]) =
+    if(!ids(attr.nonEmpty)) throw new Exception(s"$attr is lost")
 }
 
 class SearchIndexImpl(
@@ -24,13 +25,13 @@ class SearchIndexImpl(
   private def tx = txOpt.get
   def switchRawIndex(value: Option[RawIndex]) = txOpt = value
   def execute[Value](attr: Attr[Value], value: Value, feed: Feed) = {
-    check(attr.nonEmpty)
+    check(attr)
     val key = converter.keyWithoutObjId(attr.rawAttr, value)
     tx.seek(key)
     rawVisitor.execute(tx, key, feed)
   }
   def execute[Value](attr: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
-    check(attr.nonEmpty)
+    check(attr)
     tx.seek(converter.key(attr.rawAttr, value, objId))
     rawVisitor.execute(tx, converter.keyWithoutObjId(attr.rawAttr, value), feed)
   }
@@ -38,28 +39,38 @@ class SearchIndexImpl(
     if(attrId.converter.nonEmpty(value))
       node.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
 
+  private def calcPair[Value](
+    attr: Attr[Value], on: List[Attr[Boolean]], setter: Boolean=>DBNode=>Unit
+  ): List[ConnectionComponent] =
+    new NodeHandlerImpl(on.map(BeforeUpdate), setter(false)) ::
+    new NodeHandlerImpl(on.map(AfterUpdate), setter(true)) ::
+    SearchAttr(attr) :: Nil
   def attrCalc[Value](attr: Attr[Value]) = {
     if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
-    new SearchAttrCalcImpl(attr)(attr.nonEmpty :: Nil, (node,on)=>{
-      set(attr.rawAttr, node(attr), node, on)
-    })
+    def setter(on: Boolean)(node: DBNode) = set(attr.rawAttr, node(attr), node, on)
+    calcPair(attr, attr.nonEmpty :: Nil, setter)
   }
   def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]) = {
     if(labelAttr.rawAttr.propId!=0L || propAttr.rawAttr.labelId!=0L) Never()
     val attr = attrFactory(labelAttr.rawAttr.labelId, propAttr.rawAttr.propId, propAttr.rawAttr.converter)
-    new SearchAttrCalcImpl(attr)(labelAttr.nonEmpty :: propAttr.nonEmpty :: Nil, (node, on) =>
+    def setter(on: Boolean)(node: DBNode) =
       if (node(labelAttr)) set(attr.rawAttr, node(propAttr), node, on)
-    )
+    (attr, calcPair(attr, labelAttr.nonEmpty :: propAttr.nonEmpty :: Nil, setter))
   }
 }
 
-case class SearchAttrCalcImpl[Value](searchAttrId: Attr[Value])(
-  val affectedBy: List[Attr[Boolean]], set: (DBNode,Boolean)=>Unit
-) extends SearchAttrCalc[Value] {
-  def beforeUpdate(node: DBNode) = set(node, false)
-  def afterUpdate(node: DBNode) = set(node, true)
+class NodeHandlerImpl[R](val on: List[NodeEvent[R]], doHandle: DBNode=>R) extends NodeHandler[R] {
+  def handle(node: DBNode) = doHandle(node)
 }
 
+/*
+case class SearchAttrCalcImpl[Value](searchAttrId: Attr[Value])(
+  val on: List[Attr[Boolean]], set: (DBNode,Boolean)=>Unit
+) extends SearchAttrCalc[Value] {
+  def beforeUpdate(node: DBNode) = set(node, false)
+  def handle(node: DBNode) = set(node, true)
+}
+*/
 
 
 /*

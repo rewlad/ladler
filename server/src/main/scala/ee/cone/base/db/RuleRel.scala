@@ -20,11 +20,12 @@ case class RelSideTypeInfo(
 class RelTypeInfoFactory(
   relStartSide: RelSideInfo,
   relEndSide: RelSideInfo,
-  createList: SearchAttrCalc[Option[DBNode]] => ListByValue[Option[DBNode]],
+  createList: (Attr[Option[DBNode]],List[ConnectionComponent]) => ListByValue[Option[DBNode]],
   searchIndex: SearchIndex
 ){
   private def createForSide(label: Attr[Boolean], side: RelSideInfo) = {
-    val listByValue = createList(searchIndex.attrCalc(label, side.attrId))
+    val (attr, components) = searchIndex.attrCalc(label, side.attrId)
+    val listByValue = createList(attr, components)
     RelSideTypeInfo(side, listByValue, listByValue.components)
   }
   def apply(label: Attr[Boolean]) = {
@@ -41,19 +42,19 @@ case class RelSideInfo(
 ) extends ComponentProvider
 
 class RelSideInfoFactory(
-  preCommitCheck: PreCommitCheck=>AttrCalc,
-  createList: SearchAttrCalc[Option[DBNode]] => ListByValue[Option[DBNode]],
+  preCommitCheck: PreCommitCheck=>NodeHandler[Unit],
+  createList: (Attr[Option[DBNode]],List[ConnectionComponent]) => ListByValue[Option[DBNode]],
   hasTypeAttr: Attr[Boolean],
   searchIndex: SearchIndex
 ){
-  def apply[Value](attrId: Attr[Option[DBNode]]) = {
-    val listByValue = createList(searchIndex.attrCalc(attrId))
+  def apply[Value](attr: Attr[Option[DBNode]]) = {
+    val listByValue = createList(attr, searchIndex.attrCalc(attr))
     val components: List[ConnectionComponent] = listByValue.components :::
-        preCommitCheck(TypeRefIntegrityPreCommitCheck(hasTypeAttr, attrId, listByValue)) ::
-        preCommitCheck(SideRefIntegrityPreCommitCheck(hasTypeAttr, attrId)) :: Nil
+        preCommitCheck(TypeRefIntegrityPreCommitCheck(hasTypeAttr, attr, listByValue)) ::
+        preCommitCheck(SideRefIntegrityPreCommitCheck(hasTypeAttr, attr)) :: Nil
 
 
-    RelSideInfo(attrId, listByValue, components)
+    RelSideInfo(attr, listByValue, components)
   }
 }
 

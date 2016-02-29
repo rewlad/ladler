@@ -13,7 +13,7 @@ class PreCommitCheckOfTx(check: PreCommitCheck){
 class PreCommitCheckAllOfTx(
   checkAllOfConnection: PreCommitCheckAllOfConnection
 ) {
-  private lazy val checkMap = mutable.Map[AttrCalc,PreCommitCheckOfTx]()
+  private lazy val checkMap = mutable.Map[NodeHandler[Unit],PreCommitCheckOfTx]()
   private var checkList: List[PreCommitCheckOfTx] = Nil
   def of(calc: PreCommitCheckAttrCalcImpl) = checkMap.getOrElseUpdate(calc,
     Setup(new PreCommitCheckOfTx(calc.check()))(c=>checkList = c :: checkList)
@@ -24,10 +24,9 @@ class PreCommitCheckAllOfTx(
 class PreCommitCheckAttrCalcImpl(
   val check: ()=>PreCommitCheck,
   checkAll: PreCommitCheckAllOfConnectionImpl
-) extends AttrCalc {
-  def affectedBy = check().affectedBy.map(_.nonEmpty)
-  def beforeUpdate(node: DBNode) = ()
-  def afterUpdate(node: DBNode) = checkAll.currentTx.of(this).add(node)
+) extends NodeHandler[Unit] {
+  def on = check().affectedBy.map(_.nonEmpty).map(AfterUpdate)
+  def handle(node: DBNode) = checkAll.currentTx.of(this).add(node)
 }
 
 class PreCommitCheckAllOfConnectionImpl extends PreCommitCheckAllOfConnection {

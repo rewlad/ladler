@@ -38,16 +38,18 @@ trait SearchIndex {
   def switchRawIndex(value: Option[RawIndex]): Unit
   def execute[Value](attrId: Attr[Value], value: Value, feed: Feed): Unit
   def execute[Value](attrId: Attr[Value], value: Value, objId: ObjId, feed: Feed): Unit
-  def attrCalc[Value](attrId: Attr[Value]): SearchAttrCalc[Value]
-  def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]): SearchAttrCalc[Value]
+  def attrCalc[Value](attrId: Attr[Value]): List[ConnectionComponent]
+  def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]): (Attr[Value], List[ConnectionComponent])
 }
 
-trait AttrCalc extends ConnectionComponent {
-  def affectedBy: List[Attr[Boolean]]
-  def beforeUpdate(node: DBNode): Unit
-  def afterUpdate(node: DBNode): Unit
+trait NodeEvent[+Result]
+
+trait NodeHandler[+Result] extends ConnectionComponent {
+  def on: List[NodeEvent[Result]]
+  def handle(node: DBNode): Result
 }
 
-trait SearchAttrCalc[Value] extends AttrCalc {
-  def searchAttrId: Attr[Value]
-}
+case class BeforeUpdate(attr: Attr[Boolean]) extends NodeEvent[Unit]
+case class AfterUpdate(attr: Attr[Boolean]) extends NodeEvent[Unit]
+
+case class SearchAttr[Value](attr: Attr[Value]) extends ConnectionComponent

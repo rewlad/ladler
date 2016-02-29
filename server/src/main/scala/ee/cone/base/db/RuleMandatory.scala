@@ -2,8 +2,8 @@ package ee.cone.base.db
 
 import ee.cone.base.db.Types._
 
-class MandatoryPreCommitCheckList(preCommitCheck: PreCommitCheck=>AttrCalc) {
-  def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[AttrCalc] =
+class MandatoryPreCommitCheckList(preCommitCheck: PreCommitCheck=>NodeHandler[Unit]) {
+  def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[NodeHandler[_]] =
     preCommitCheck(MandatoryPreCommitCheck(condAttr, mandatoryAttr)) :: (
       if(mutual) preCommitCheck(MandatoryPreCommitCheck(mandatoryAttr, condAttr)) :: Nil
       else Nil

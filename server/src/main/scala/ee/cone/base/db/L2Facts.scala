@@ -7,7 +7,7 @@ import ee.cone.base.db.Types._
 class FactIndexImpl(
   rawFactConverter: RawFactConverter,
   rawVisitor: RawVisitor,
-  calcLists: AttrCalcLists
+  calcLists: NodeHandlerLists
 ) extends FactIndex {
   private var srcObjId = 0L
   def switchSrcObjId(objId: ObjId): Unit = srcObjId = objId
@@ -19,13 +19,12 @@ class FactIndexImpl(
   def set[Value](node: DBNode, attr: Attr[Value], value: Value): Unit = {
     val rawAttr = attr.rawAttr
     if (rawAttr.converter.same(get(node, attr),value)) { return }
-    val calcList = calcLists.value(attr.nonEmpty.rawAttr)
-    if(calcList.isEmpty) throw new Exception(s"$attr is lost")
-    for(calc <- calcList) calc.beforeUpdate(node)
+    //if(calcList.isEmpty) throw new Exception(s"$attr is lost")
+    for(calc <- calcLists.list(BeforeUpdate(attr.nonEmpty))) calc.handle(node)
     val key = rawFactConverter.key(node.objId, rawAttr)
     val rawValue = rawFactConverter.value(rawAttr, value, srcObjId)
     node.rawIndex.set(key, rawValue)
-    for(calc <- calcList) calc.afterUpdate(node)
+    for(calc <- calcLists.list(AfterUpdate(attr.nonEmpty))) calc.handle(node)
   }
   def execute(node: DBNode, feed: Feed): Unit = {
     val key = rawFactConverter.keyWithoutAttrId(node.objId)
@@ -34,9 +33,13 @@ class FactIndexImpl(
   }
 }
 
-class AttrCalcLists(components: =>List[ConnectionComponent]) {
-  lazy val value: Map[RawAttr[Boolean], List[AttrCalc]] =
-    components.collect { case attrCalc: AttrCalc ⇒
-      attrCalc.affectedBy.map(attrId => (attrId.nonEmpty.rawAttr, attrCalc))
-    }.flatten.groupBy(_._1).mapValues(_.map(_._2))
+class NodeHandlerLists(components: =>List[ConnectionComponent]) {
+  def list[R](ev: NodeEvent[R]): List[NodeHandler[R]] =
+    value.getOrElse(ev,Nil).asInstanceOf[List[NodeHandler[R]]]
+  private lazy val handlers: List[NodeHandler[_]] =
+    components.collect { case h: NodeHandler[_] ⇒ h }
+  private lazy val eventHandlers: List[(NodeEvent[_], NodeHandler[_])] =
+    for(h <- handlers; ev <- h.on) yield (ev,h)
+  private lazy val value: Map[NodeEvent[_], List[NodeHandler[_]]] =
+    eventHandlers.groupBy(_._1).mapValues(_.map(_._2))
 }
