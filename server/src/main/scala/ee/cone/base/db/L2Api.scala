@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.ConnectionComponent
+import ee.cone.base.connection_api.{LifeCycle, ConnectionComponent}
 import ee.cone.base.db.Types._
 
 trait Attr[Value] {
@@ -13,7 +13,7 @@ trait Attr[Value] {
 
 trait DBNode {
   def objId: Long
-  def rawIndex: RawIndex
+  def tx: RawTx
   def apply[Value](attr: Attr[Value]): Value
   def update[Value](attr: Attr[Value], value: Value): Unit
 }
@@ -35,25 +35,26 @@ trait FactIndex {
 }
 
 trait SearchIndex {
-  def switchRawIndex(value: Option[RawIndex]): Unit
-  def execute[Value](attrId: Attr[Value], value: Value, feed: Feed): Unit
-  def execute[Value](attrId: Attr[Value], value: Value, objId: ObjId, feed: Feed): Unit
+  def execute[Value](tx: RawTx, attrId: Attr[Value], value: Value, feed: Feed): Unit
+  def execute[Value](tx: RawTx, attrId: Attr[Value], value: Value, objId: ObjId, feed: Feed): Unit
   def attrCalc[Value](attrId: Attr[Value]): List[ConnectionComponent]
   def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]): (Attr[Value], List[ConnectionComponent])
 }
 
-trait NodeEvent[+Result]
+trait EventKey[-In,+Out]
 
-trait NodeHandler[+Result] extends ConnectionComponent {
-  def on: List[NodeEvent[Result]]
-  def handle(node: DBNode): Result
+trait CoHandler[-In,+Out] extends ConnectionComponent {
+  def on: List[EventKey[In,Out]]
+  def handle(node: In): Out
 }
 
 trait NodeHandlerLists {
-  def list[R](ev: NodeEvent[R]): List[NodeHandler[R]]
+  def list[In,Out](ev: EventKey[In,Out]): List[CoHandler[In,Out]]
 }
 
-case class BeforeUpdate(attr: Attr[Boolean]) extends NodeEvent[Unit]
-case class AfterUpdate(attr: Attr[Boolean]) extends NodeEvent[Unit]
+case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
+case class AfterUpdate(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
 
 case class SearchAttr[Value](attr: Attr[Value]) extends ConnectionComponent
+
+class RawTx(val lifeCycle: LifeCycle, val rw: Boolean, val rawIndex: RawIndex, val commit: ()=>Unit)

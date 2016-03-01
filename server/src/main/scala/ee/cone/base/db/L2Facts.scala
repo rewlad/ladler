@@ -14,7 +14,7 @@ class FactIndexImpl(
   def get[Value](node: DBNode, attr: Attr[Value]) = {
     val rawAttr = attr.rawAttr
     val key = rawFactConverter.key(node.objId, rawAttr)
-    rawFactConverter.valueFromBytes(rawAttr, node.rawIndex.get(key))
+    rawFactConverter.valueFromBytes(rawAttr, node.tx.rawIndex.get(key))
   }
   def set[Value](node: DBNode, attr: Attr[Value], value: Value): Unit = {
     val rawAttr = attr.rawAttr
@@ -23,13 +23,13 @@ class FactIndexImpl(
     for(calc <- calcLists.list(BeforeUpdate(attr.nonEmpty))) calc.handle(node)
     val key = rawFactConverter.key(node.objId, rawAttr)
     val rawValue = rawFactConverter.value(rawAttr, value, srcObjId)
-    node.rawIndex.set(key, rawValue)
+    node.tx.rawIndex.set(key, rawValue)
     for(calc <- calcLists.list(AfterUpdate(attr.nonEmpty))) calc.handle(node)
   }
   def execute(node: DBNode, feed: Feed): Unit = {
     val key = rawFactConverter.keyWithoutAttrId(node.objId)
-    node.rawIndex.seek(key)
-    rawVisitor.execute(node.rawIndex, key, feed)
+    node.tx.rawIndex.seek(key)
+    rawVisitor.execute(node.tx.rawIndex, key, feed)
   }
 }
 

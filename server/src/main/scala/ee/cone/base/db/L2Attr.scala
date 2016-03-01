@@ -41,15 +41,12 @@ case class RefImpl[Value](node: DBNode, attr: Attr[Value]) extends Ref[Value] {
   def update(value: Value) = attr.set(node, value)
 }
 
-class NodeHandlerListsImpl(components: =>List[ConnectionComponent]) {
-  def list[R](ev: NodeEvent[R]): List[NodeHandler[R]] =
-    value.getOrElse(ev,Nil).asInstanceOf[List[NodeHandler[R]]]
-  private lazy val handlers: List[NodeHandler[_]] =
-    components.collect { case h: NodeHandler[_] ⇒ h }
-  private lazy val eventHandlers: List[(NodeEvent[_], NodeHandler[_])] =
-    for(h <- handlers; ev <- h.on) yield (ev,h)
-  private lazy val value: Map[NodeEvent[_], List[NodeHandler[_]]] =
-    eventHandlers.groupBy(_._1).mapValues(_.map(_._2))
+class NodeHandlerListsImpl(components: =>List[ConnectionComponent]) extends NodeHandlerLists {
+  def list[In,Out](ev: EventKey[In,Out]): List[CoHandler[In,Out]] =
+    value.getOrElse(ev,Nil).asInstanceOf[List[CoHandler[In,Out]]]
+  private lazy val value: Map[EventKey[_,_], List[ConnectionComponent]] =
+    components.collect { case h: CoHandler[_,_] ⇒ h.on.map(ev=>(ev:EventKey[_,_],h:ConnectionComponent)) }
+      .flatten.groupBy(_._1).mapValues(_.map(_._2))
 }
 
 

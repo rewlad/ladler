@@ -3,7 +3,7 @@ package ee.cone.base.db
 
 import ee.cone.base.db.Types._
 
-class UniqueAttrCalcList(preCommitCheck: PreCommitCheck=>NodeHandler[Unit]) {
+class UniqueAttrCalcList(preCommitCheck: PreCommitCheck=>CoHandler[DBNode,Unit]) {
   def apply[Value](uniqueAttr: Attr[Value], listUniqueAttr: ListByValue[Value]) =
     preCommitCheck(UniqueAttrCalc(uniqueAttr, listUniqueAttr)) :: Nil
 }

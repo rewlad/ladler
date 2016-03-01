@@ -25,6 +25,15 @@ trait ListByValue[Value] extends ComponentProvider {
 }
 
 trait PreCommitCheckAllOfConnection {
-  def switchTx(on: Option[Unit]): Unit
-  def checkTx(): Seq[ValidationFailure]
+  def switchTx(tx: RawTx, on: Option[Unit]): Unit
+  def checkTx(tx: RawTx): Seq[ValidationFailure]
 }
+
+trait TxManager {
+  def tx: RawTx
+  def needTx(rw: Boolean): Unit
+  def closeTx(): Unit
+  def commit(): Unit
+}
+
+

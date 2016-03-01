@@ -21,29 +21,26 @@ class SearchIndexImpl(
   attrFactory: AttrFactory,
   check: SearchAttrCalcCheck
 ) extends SearchIndex {
-  private var txOpt: Option[RawIndex] = None
-  private def tx = txOpt.get
-  def switchRawIndex(value: Option[RawIndex]) = txOpt = value
-  def execute[Value](attr: Attr[Value], value: Value, feed: Feed) = {
+  def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, feed: Feed) = {
     check(attr)
     val key = converter.keyWithoutObjId(attr.rawAttr, value)
-    tx.seek(key)
-    rawVisitor.execute(tx, key, feed)
+    tx.rawIndex.seek(key)
+    rawVisitor.execute(tx.rawIndex, key, feed)
   }
-  def execute[Value](attr: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
+  def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
     check(attr)
-    tx.seek(converter.key(attr.rawAttr, value, objId))
-    rawVisitor.execute(tx, converter.keyWithoutObjId(attr.rawAttr, value), feed)
+    tx.rawIndex.seek(converter.key(attr.rawAttr, value, objId))
+    rawVisitor.execute(tx.rawIndex, converter.keyWithoutObjId(attr.rawAttr, value), feed)
   }
   private def set[Value](attrId: RawAttr[Value], value: Value, node: DBNode, on: Boolean): Unit =
     if(attrId.converter.nonEmpty(value))
-      node.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
+      node.tx.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
 
   private def calcPair[Value](
     attr: Attr[Value], on: List[Attr[Boolean]], setter: Boolean=>DBNode=>Unit
   ): List[ConnectionComponent] =
-    new NodeHandlerImpl(on.map(BeforeUpdate), setter(false)) ::
-    new NodeHandlerImpl(on.map(AfterUpdate), setter(true)) ::
+    new CoHandlerImpl(on.map(BeforeUpdate), setter(false)) ::
+    new CoHandlerImpl(on.map(AfterUpdate), setter(true)) ::
     SearchAttr(attr) :: Nil
   def attrCalc[Value](attr: Attr[Value]) = {
     if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
@@ -59,8 +56,8 @@ class SearchIndexImpl(
   }
 }
 
-class NodeHandlerImpl[R](val on: List[NodeEvent[R]], doHandle: DBNode=>R) extends NodeHandler[R] {
-  def handle(node: DBNode) = doHandle(node)
+class CoHandlerImpl[In,Out](val on: List[EventKey[In,Out]], doHandle: In=>Out) extends CoHandler[In,Out] {
+  def handle(value: In) = doHandle(value)
 }
 
 /*

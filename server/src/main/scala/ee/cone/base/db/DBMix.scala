@@ -2,7 +2,6 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api._
 
-case class RawTx(lifeCycle: LifeCycle, rw: Boolean, rawIndex: RawIndex, commit: ()=>Unit)
 
 trait DBEnv extends AppComponent with CanStart {
   def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
@@ -18,6 +17,7 @@ trait DBAppMix extends AppMixBase {
 
 trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
   def dbAppMix: DBAppMix
+  def connectionLifeCycle: LifeCycle
 
   lazy val rawFactConverter = new RawFactConverterImpl
   lazy val rawSearchConverter = new RawSearchConverterImpl
@@ -25,7 +25,7 @@ trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
   lazy val objIdExtractor = new ObjIdExtractor
   lazy val attrIdRawVisitor = new RawVisitorImpl(attrIdExtractor)
   lazy val objIdRawVisitor = new RawVisitorImpl(objIdExtractor)
-  lazy val attrCalcLists = new NodeHandlerLists(components)
+  lazy val attrCalcLists = new NodeHandlerListsImpl(components)
   lazy val searchAttrCalcCheck = new SearchAttrCalcCheck(components)
   lazy val factIndex =
     new FactIndexImpl(rawFactConverter, attrIdRawVisitor, attrCalcLists)
@@ -33,13 +33,17 @@ trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
     new BooleanValueConverter(InnerRawValueConverterImpl)
   lazy val attrFactory =
     new AttrFactoryImpl(booleanValueConverter, factIndex)
-
-  lazy val mainSearchIndex =
+  lazy val searchIndex =
     new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory, searchAttrCalcCheck)
-  lazy val instantSearchIndex =
-    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory, searchAttrCalcCheck)
-
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl
+
+  lazy val mainTxManager =
+    new TxManagerImpl(connectionLifeCycle, dbAppMix.mainDB, preCommitCheckCheckAll)
+  lazy val instantTxManager =
+    new TxManagerImpl(connectionLifeCycle, dbAppMix.instantDB, preCommitCheckCheckAll)
+
+  lazy val eventSourceAttrs = new EventSourceAttrsImpl(???,???,???,???,???,???,???)()()()
+  lazy val eventSourceOperations = new EventSourceOperationsImpl(eventSourceAttrs,???,???,???,???,???,???)
 
   override def createComponents() = /*all prop.components*/ super.createComponents()
 }

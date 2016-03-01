@@ -42,7 +42,7 @@ case class RelSideInfo(
 ) extends ComponentProvider
 
 class RelSideInfoFactory(
-  preCommitCheck: PreCommitCheck=>NodeHandler[Unit],
+  preCommitCheck: PreCommitCheck=>CoHandler[DBNode,Unit],
   createList: (Attr[Option[DBNode]],List[ConnectionComponent]) => ListByValue[Option[DBNode]],
   hasTypeAttr: Attr[Boolean],
   searchIndex: SearchIndex
