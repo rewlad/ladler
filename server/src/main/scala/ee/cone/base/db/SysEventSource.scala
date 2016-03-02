@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-import ee.cone.base.connection_api.ConnectionComponent
+import ee.cone.base.connection_api.{CoHandlerLists, BaseCoHandler}
 import ee.cone.base.util.Single
 
 //! lost calc-s
@@ -41,7 +41,7 @@ class EventSourceAttrsImpl(
   val undoByEvent: ListByValue[DBNode] = list(asUndo, event),
   val requestsAll: ListByValue[Boolean] = list(asRequest)
 )(
-  val components: List[ConnectionComponent] =
+  val handlers: List[BaseCoHandler] =
   mandatory.mutual(asInstantSession,sessionKey) :::
     mandatory.mutual(asMainSession,sessionId) :::
     mandatory.mutual(asMainSession,unmergedEventsFromId) :::
@@ -49,13 +49,13 @@ class EventSourceAttrsImpl(
     mandatory(asUndo, asEventStatus) :::
     mandatory(asCommit, asEventStatus) :::
     mandatory(asRequest, asEvent) :::
-    instantSessionsBySessionKey.components :::
-    mainSessionsBySessionId.components :::
-    eventsBySessionId.components :::
-    undoByEvent.components :::
-    requestsAll.components :::
+    instantSessionsBySessionKey.handlers :::
+    mainSessionsBySessionId.handlers :::
+    eventsBySessionId.handlers :::
+    undoByEvent.handlers :::
+    requestsAll.handlers :::
     Nil
-) extends MergerEventSourceAttrs with SessionEventSourceAttrs
+) extends CoHandlerProvider with MergerEventSourceAttrs with SessionEventSourceAttrs
 
 class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
@@ -63,7 +63,7 @@ class EventSourceOperationsImpl(
   factIndex: FactIndex,
   mainCreateNode: Attr[Option[DBNode]]=>DBNode,
   instantCreateNode: Attr[Option[DBNode]]=>DBNode,
-  nodeHandlerLists: NodeHandlerLists,
+  nodeHandlerLists: CoHandlerLists,
   attrs: ListByDBNode
 ) extends EventSourceOperations {
   def createEventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]) =

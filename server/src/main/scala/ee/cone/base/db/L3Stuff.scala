@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.BaseCoHandler
 import ee.cone.base.db.Types._
 import ee.cone.base.util.Never
 
@@ -45,7 +46,7 @@ class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, booleanValueC
 }
 
 case class ListByValueImpl[Value](attr: Attr[Value])(
-  val components: List[CoHandler[DBNode,Unit]],
+  val handlers: List[BaseCoHandler],
   createNode: ObjId=>DBNode, searchIndex: SearchIndex, txStarter: TxManager
 ) extends ListByValue[Value] {
   def list(value: Value): List[DBNode] = {

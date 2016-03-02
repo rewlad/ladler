@@ -1,9 +1,9 @@
 package ee.cone.base.db
 
-import ee.cone.base.db.Types._
+import ee.cone.base.connection_api.BaseCoHandler
 
-class MandatoryPreCommitCheckList(preCommitCheck: PreCommitCheck=>CoHandler[DBNode,Unit]) {
-  def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[CoHandler[_,_]] =
+class MandatoryPreCommitCheckList(preCommitCheck: PreCommitCheck=>BaseCoHandler) {
+  def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[BaseCoHandler] =
     preCommitCheck(MandatoryPreCommitCheck(condAttr, mandatoryAttr)) :: (
       if(mutual) preCommitCheck(MandatoryPreCommitCheck(mandatoryAttr, condAttr)) :: Nil
       else Nil

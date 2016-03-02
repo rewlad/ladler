@@ -4,7 +4,6 @@ import java.util
 import java.util.concurrent.BlockingQueue
 
 import ee.cone.base.connection_api._
-
 import scala.collection.concurrent.TrieMap
 
 class ReceiverOfConnectionImpl(
@@ -21,27 +20,22 @@ class ConnectionRegistryImpl extends ConnectionRegistry {
 
 class ConnectionRegistration(
   registry: ConnectionRegistryImpl, item: ReceiverOfConnection
-) extends Registration with ConnectionComponent {
-  def open() = {
+) extends CoHandler[LifeCycle,Unit] {
+  def on = ConnectionRegistrationEventKey :: Nil
+  def handle(lifeCycle: LifeCycle): Unit = {
+    lifeCycle.onClose{()=>
+      val k = item.connectionKey
+      registry.store(k) = item
+      println(s"connection   register: $k")
+    }
     val k = item.connectionKey
     registry.store.remove(k)
     println(s"connection unregister: $k")
   }
-  def close() = {
-    val k = item.connectionKey
-    registry.store(k) = item
-    println(s"connection   register: $k")
-  }
 }
 
-trait Registration extends LifeCycled
 
-class Registrar[Component](lifeCycle: LifeCycle, components: =>List[Component]){
-  def register() = components.collect{ case r: Registration =>
-    lifeCycle.onClose(()=>r.close())
-    r.open()
-  }
-}
+
 
 ////
 /*

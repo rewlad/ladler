@@ -73,7 +73,7 @@ class TestConnectionMix(
   lazy val framePeriod = 200
   lazy val mainDB = app.mainDB
   lazy val run = new SnapshotRunningConnection(
-    registrar, lifeCycle, sender, mainDB
+    lifeCycle, sender, mainDB
   )
 }
 
@@ -113,24 +113,27 @@ class TestEnv extends DBEnv {
 
 
 class SnapshotRunningConnection(
-  registrar: Registrar[ConnectionComponent],
+  handlerLists: CoHandlerLists,
   connectionLifeCycle: LifeCycle,
   sender: SenderOfConnection,
   mainTxStarter: TxManager,
   instantTxStarter: TxManager,
-  eventSourceOperations: EventSourceOperations,
+  eventSourceOperations: SessionEventSourceOperations,
   incoming: BlockingQueue[DictMessage],
   framePeriod: Long
 ) {
   var vDomData: Option[()] = None
   def apply(): Unit = try {
-    registrar.register()
+    handlerLists.list(ConnectionRegistrationEventKey)
+      .foreach(_.handle(connectionLifeCycle))
     while(true) {
       mainTxStarter.needTx(rw=false)
       if(vDomData.isEmpty){
         val lifeCycle = instantTxStarter.needTx(rw=false)
-        eventSourceOperations.sessionIncrementalApply()
-        makeVDom() // send
+        eventSourceOperations.incrementalApplyAndView{ ()⇒
+          makeVDom() // send
+        }
+
         lifeCycle.close()
       }
       val message = Option(incoming.poll(framePeriod,TimeUnit.MILLISECONDS))

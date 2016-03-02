@@ -3,7 +3,7 @@ package ee.cone.base.db
 import ee.cone.base.connection_api._
 
 
-trait DBEnv extends AppComponent with CanStart {
+trait DBEnv extends CanStart {
   def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
 }
 
@@ -12,10 +12,10 @@ trait DBEnv extends AppComponent with CanStart {
 trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv
   def instantDB: DBEnv
-  override def createComponents() = mainDB :: instantDB :: super.createComponents()
+  override def toStart = mainDB :: instantDB :: super.toStart
 }
 
-trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
+trait DBConnectionMix extends CoMixBase with Runnable {
   def dbAppMix: DBAppMix
   def connectionLifeCycle: LifeCycle
 
@@ -25,16 +25,14 @@ trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
   lazy val objIdExtractor = new ObjIdExtractor
   lazy val attrIdRawVisitor = new RawVisitorImpl(attrIdExtractor)
   lazy val objIdRawVisitor = new RawVisitorImpl(objIdExtractor)
-  lazy val attrCalcLists = new NodeHandlerListsImpl(components)
-  lazy val searchAttrCalcCheck = new SearchAttrCalcCheck(components)
   lazy val factIndex =
-    new FactIndexImpl(rawFactConverter, attrIdRawVisitor, attrCalcLists)
+    new FactIndexImpl(rawFactConverter, attrIdRawVisitor, handlerLists)
   lazy val booleanValueConverter =
     new BooleanValueConverter(InnerRawValueConverterImpl)
   lazy val attrFactory =
     new AttrFactoryImpl(booleanValueConverter, factIndex)
   lazy val searchIndex =
-    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory, searchAttrCalcCheck)
+    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory)
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl
 
   lazy val mainTxManager =
@@ -45,32 +43,13 @@ trait DBConnectionMix extends MixBase[ConnectionComponent] with Runnable {
   lazy val eventSourceAttrs = new EventSourceAttrsImpl(???,???,???,???,???,???,???)()()()
   lazy val eventSourceOperations = new EventSourceOperationsImpl(eventSourceAttrs,???,???,???,???,???,???)
 
-  override def createComponents() = /*all prop.components*/ super.createComponents()
+  override def handlers = /*all prop.components*/ super.handlers
 }
 
 
 
 
 /*
-class MixedInnerIndex(
-  factHead: Long, indexHead: Long, rawIndex: RawIndex/*T*/, indexed: Long=>Boolean
-){
-  lazy val rawFactConverter = new RawFactConverterImpl(factHead, 0/*T:valueSrcId*/)
-  private lazy val rawIndexConverter = new RawIndexConverterImpl(indexHead)
-  lazy val innerIndex =
-    new InnerIndex(rawFactConverter, rawIndexConverter, rawIndex, indexed)
-  /*lazy val indexSearch =
-    new IndexSearchImpl(rawFactConverter, rawIndexConverter, RawKeyMatcherImpl, rawIndex)*/
-}
-
-class MixedUnmergedEventDBContext(rawIndex: RawIndex, indexed: Long=>Boolean){
-  private lazy val eventInnerIndex =
-    new MixedInnerIndex(0L, 1L, rawIndex, indexed)
-  lazy val eventIndex =
-    new AppendOnlyIndex(eventInnerIndex.innerIndex)
-
-}
-
 class MixedReadModelContext(attrInfoList: =>List[AttrInfo], rawIndex: RawIndex) {
   private lazy val lazyAttrInfoList = attrInfoList
   private lazy val attrCalcExecutor = new AttrCalcExecutor(lazyAttrInfoList)

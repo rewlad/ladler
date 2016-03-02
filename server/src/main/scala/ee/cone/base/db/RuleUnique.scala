@@ -1,9 +1,10 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.db.Types._
+import ee.cone.base.connection_api.BaseCoHandler
 
-class UniqueAttrCalcList(preCommitCheck: PreCommitCheck=>CoHandler[DBNode,Unit]) {
+
+class UniqueAttrCalcList(preCommitCheck: PreCommitCheck=>BaseCoHandler) {
   def apply[Value](uniqueAttr: Attr[Value], listUniqueAttr: ListByValue[Value]) =
     preCommitCheck(UniqueAttrCalc(uniqueAttr, listUniqueAttr)) :: Nil
 }

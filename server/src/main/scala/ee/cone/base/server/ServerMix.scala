@@ -11,7 +11,7 @@ trait ServerAppMix extends AppMixBase {
   def threadCount: Int
   def staticRoot: Path
   def ssePort: Int
-  def createConnection: (LifeCycle,List[ConnectionComponent]) ⇒ Runnable
+  def createConnection: (LifeCycle,SocketOfConnection) ⇒ Runnable
 
   lazy val pool = Executors.newScheduledThreadPool(threadCount)
   lazy val connectionRegistry = new ConnectionRegistryImpl
@@ -19,25 +19,24 @@ trait ServerAppMix extends AppMixBase {
   lazy val createLifeCycle = () => new LifeCycleImpl(None)
   lazy val sseServer = new RSSEServer(ssePort, pool, createLifeCycle, createConnection)
 
-  override def createComponents() = httpServer :: sseServer :: super.createComponents()
+  override def toStart = httpServer :: sseServer :: super.toStart
 }
 
-trait ServerConnectionMix extends MixBase[ConnectionComponent] {
+trait ServerConnectionMix extends CoMixBase {
   def lifeCycle: LifeCycle
   def serverAppMix: ServerAppMix
   def allowOrigin: Option[String]
   def socket: SocketOfConnection
 
-  lazy val registrar = new Registrar(lifeCycle,components)
   lazy val connectionRegistry = serverAppMix.connectionRegistry
   lazy val incoming = new LinkedBlockingQueue[DictMessage]
   lazy val receiver = new ReceiverOfConnectionImpl(connectionRegistry, incoming)
   lazy val sender = new SSESender(lifeCycle, allowOrigin, socket)
   lazy val keepAlive = new KeepAlive(receiver, sender)
 
-  override def createComponents() =
-    keepAlive ::
+  override def handlers =
+    keepAlive.handlers :::
     new ConnectionRegistration(connectionRegistry, receiver) ::
-      super.createComponents()
+      super.handlers
 }
 

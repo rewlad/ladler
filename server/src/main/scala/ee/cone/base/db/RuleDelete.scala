@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.CoHandler
 import ee.cone.base.db.Types._
 
 class DeleteAttrCalcList(

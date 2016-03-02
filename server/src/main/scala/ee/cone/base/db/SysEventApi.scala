@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-import ee.cone.base.connection_api.ConnectionComponent
+import ee.cone.base.connection_api.{EventKey, BaseCoHandler}
 import ee.cone.base.db.Types._
 
 trait SessionState {
@@ -13,8 +13,8 @@ trait ListByValueFactory {
   def apply(label: Attr[Option[DBNode]]): ListByValue[Boolean]
 }
 trait Mandatory {
-  def apply(condAttr: Attr[_], thenAttr: Attr[_]): List[ConnectionComponent]
-  def mutual(attrA: Attr[_], attrB: Attr[_]): List[ConnectionComponent]
+  def apply(condAttr: Attr[_], thenAttr: Attr[_]): List[BaseCoHandler]
+  def mutual(attrA: Attr[_], attrB: Attr[_]): List[BaseCoHandler]
 }
 case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
 

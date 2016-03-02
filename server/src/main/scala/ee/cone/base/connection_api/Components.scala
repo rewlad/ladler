@@ -50,14 +50,21 @@ object DoClose {
 
 ////
 
-trait MixBase[Component] {
-  def createComponents(): List[Component] = Nil
-  lazy val components = createComponents()
+trait AppMixBase extends CanStart {
+  def toStart: List[CanStart] = Nil
+  def start() = toStart.foreach(_.start())
 }
 
-trait AppMixBase extends MixBase[AppComponent] with CanStart {
-  def start() = {
-    components.collect{ case c: CanStart => c.start() }
-  }
+////
+trait CoMixBase {
+  def handlers: List[BaseCoHandler] = Nil
+  lazy val handlerLists: CoHandlerLists = new CoHandlerListsImpl(()⇒handlers)
 }
 
+class CoHandlerListsImpl(createHandlers: ()=>List[BaseCoHandler]) extends CoHandlerLists {
+  def list[In,Out](ev: EventKey[In,Out]): List[CoHandler[In,Out]] =
+    value.getOrElse(ev,Nil).asInstanceOf[List[CoHandler[In,Out]]]
+  private lazy val value: Map[EventKey[_,_], List[BaseCoHandler]] =
+    createHandlers().collect { case h: CoHandler[_,_] ⇒ h.on.map(ev=>(ev:EventKey[_,_],h:BaseCoHandler)) }
+      .flatten.groupBy(_._1).mapValues(_.map(_._2))
+}

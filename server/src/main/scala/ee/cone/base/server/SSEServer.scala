@@ -30,8 +30,8 @@ class SSESender(
 class RSSEServer(
   ssePort: Int, pool: Executor,
   createLifeCycle: ()=>LifeCycle,
-  createConnection: (LifeCycle,List[ConnectionComponent]) ⇒ Runnable
-) extends AppComponent with CanStart {
+  createConnection: (LifeCycle,SocketOfConnection) ⇒ Runnable
+) extends CanStart {
   def start() = pool.execute(ToRunnable{
     val serverSocket = new ServerSocket(ssePort) //todo toClose
     while(true) {
@@ -40,7 +40,7 @@ class RSSEServer(
         val lifeCycle = createLifeCycle()
         lifeCycle.open()
         lifeCycle.onClose(()=>socket.close())
-        val connection = createConnection(lifeCycle, new SocketOfConnection(socket) :: Nil)
+        val connection = createConnection(lifeCycle, new SocketOfConnection(socket))
         connection.run()
       })
     }

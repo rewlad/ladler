@@ -1,13 +1,13 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.ConnectionComponent
+import ee.cone.base.connection_api.CoHandlerLists
 import ee.cone.base.db.Types._
 
 class FactIndexImpl(
   rawFactConverter: RawFactConverter,
   rawVisitor: RawVisitor,
-  calcLists: NodeHandlerLists
+  calcLists: CoHandlerLists
 ) extends FactIndex {
   private var srcObjId = 0L
   def switchSrcObjId(objId: ObjId): Unit = srcObjId = objId

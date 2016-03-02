@@ -17,12 +17,11 @@ trait ConnectionRegistry {
   def send(bnd: DictMessage): Unit
 }
 
-case object PeriodicMessage extends Message
+case object PeriodicMessage extends EventKey[Unit,Unit]
+case object AlienDictMessageKey extends EventKey[DictMessage, Unit]
 
-trait ReceiverOfMessage { def receive: PartialFunction[Message,Unit] }
+class SocketOfConnection(val value: Socket)
 
-class SocketOfConnection(val value: Socket) extends ConnectionComponent
-
-
+case object ConnectionRegistrationEventKey extends EventKey[LifeCycle, Unit]
 
 

@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.{CoHandler, BaseCoHandler}
 import ee.cone.base.util.Setup
 
 import scala.collection.mutable
@@ -13,7 +14,7 @@ class PreCommitCheckOfTx(check: PreCommitCheck){
 class PreCommitCheckAllOfTx(
   checkAllOfConnection: PreCommitCheckAllOfConnection
 ) {
-  private lazy val checkMap = mutable.Map[CoHandler[DBNode,Unit],PreCommitCheckOfTx]()
+  private lazy val checkMap = mutable.Map[BaseCoHandler,PreCommitCheckOfTx]()
   private var checkList: List[PreCommitCheckOfTx] = Nil
   def of(calc: PreCommitCheckAttrCalcImpl) = checkMap.getOrElseUpdate(calc,
     Setup(new PreCommitCheckOfTx(calc.check()))(c=>checkList = c :: checkList)

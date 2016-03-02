@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{LifeCycle, ConnectionComponent}
+import ee.cone.base.connection_api.{EventKey, LifeCycle, BaseCoHandler}
 import ee.cone.base.db.Types._
 
 trait Attr[Value] {
@@ -37,24 +37,13 @@ trait FactIndex {
 trait SearchIndex {
   def execute[Value](tx: RawTx, attrId: Attr[Value], value: Value, feed: Feed): Unit
   def execute[Value](tx: RawTx, attrId: Attr[Value], value: Value, objId: ObjId, feed: Feed): Unit
-  def attrCalc[Value](attrId: Attr[Value]): List[ConnectionComponent]
-  def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]): (Attr[Value], List[ConnectionComponent])
+  def attrCalc[Value](attrId: Attr[Value]): List[BaseCoHandler]
+  def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]): (Attr[Value], List[BaseCoHandler])
 }
 
-trait EventKey[-In,+Out]
 
-trait CoHandler[-In,+Out] extends ConnectionComponent {
-  def on: List[EventKey[In,Out]]
-  def handle(node: In): Out
-}
-
-trait NodeHandlerLists {
-  def list[In,Out](ev: EventKey[In,Out]): List[CoHandler[In,Out]]
-}
 
 case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
 case class AfterUpdate(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
-
-case class SearchAttr[Value](attr: Attr[Value]) extends ConnectionComponent
 
 class RawTx(val lifeCycle: LifeCycle, val rw: Boolean, val rawIndex: RawIndex, val commit: ()=>Unit)

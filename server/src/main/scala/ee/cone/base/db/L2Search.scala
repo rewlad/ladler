@@ -1,34 +1,25 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.ConnectionComponent
+import ee.cone.base.connection_api.{EventKey, CoHandler, BaseCoHandler}
 import ee.cone.base.db.Types._
 import ee.cone.base.util.Never
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
-class SearchAttrCalcCheck(components: =>List[ConnectionComponent]) {
-  private lazy val ids: Set[Attr[Boolean]] = components.collect{
-    case handler: SearchAttr[_] => handler.attr.nonEmpty
-  }.toSet
-  def apply(attr: Attr[_]) =
-    if(!ids(attr.nonEmpty)) throw new Exception(s"$attr is lost")
-}
+// todo: SearchAttr check
 
 class SearchIndexImpl(
   converter: RawSearchConverter,
   rawVisitor: RawVisitor,
-  attrFactory: AttrFactory,
-  check: SearchAttrCalcCheck
+  attrFactory: AttrFactory
 ) extends SearchIndex {
   def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, feed: Feed) = {
-    check(attr)
     val key = converter.keyWithoutObjId(attr.rawAttr, value)
     tx.rawIndex.seek(key)
     rawVisitor.execute(tx.rawIndex, key, feed)
   }
   def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
-    check(attr)
     tx.rawIndex.seek(converter.key(attr.rawAttr, value, objId))
     rawVisitor.execute(tx.rawIndex, converter.keyWithoutObjId(attr.rawAttr, value), feed)
   }
@@ -38,10 +29,9 @@ class SearchIndexImpl(
 
   private def calcPair[Value](
     attr: Attr[Value], on: List[Attr[Boolean]], setter: Boolean=>DBNode=>Unit
-  ): List[ConnectionComponent] =
+  ): List[BaseCoHandler] =
     new CoHandlerImpl(on.map(BeforeUpdate), setter(false)) ::
-    new CoHandlerImpl(on.map(AfterUpdate), setter(true)) ::
-    SearchAttr(attr) :: Nil
+    new CoHandlerImpl(on.map(AfterUpdate), setter(true)) :: Nil
   def attrCalc[Value](attr: Attr[Value]) = {
     if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
     def setter(on: Boolean)(node: DBNode) = set(attr.rawAttr, node(attr), node, on)
