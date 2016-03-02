@@ -29,3 +29,6 @@ trait CoHandler[-In,+Out] extends BaseCoHandler {
 trait CoHandlerLists {
   def list[In,Out](ev: EventKey[In,Out]): List[CoHandler[In,Out]]
 }
+trait CoHandlerProvider {
+  def handlers: List[BaseCoHandler]
+}

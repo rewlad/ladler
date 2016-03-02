@@ -1,8 +1,8 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.BaseCoHandler
+import ee.cone.base.connection_api.{EventKey, CoHandlerLists, BaseCoHandler}
 import ee.cone.base.db.Types._
-import ee.cone.base.util.Never
+import ee.cone.base.util.{Single, Never}
 
 case class DBNodeImpl(objId: Long)(val tx: RawTx) extends DBNode {
   def apply[Value](attr: Attr[Value]) = attr.get(this)
@@ -45,19 +45,25 @@ class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, booleanValueC
   }
 }
 
-case class ListByValueImpl[Value](attr: Attr[Value])(
-  val handlers: List[BaseCoHandler],
-  createNode: ObjId=>DBNode, searchIndex: SearchIndex, txStarter: TxManager
-) extends ListByValue[Value] {
-  def list(value: Value): List[DBNode] = {
-    val feed = new ListFeedImpl[DBNode](Long.MaxValue,(objId,_)=>createNode(objId))
-    searchIndex.execute(txStarter.tx, attr, value, feed)
-    feed.result.reverse
-  }
-  def list(value: Value, fromObjId: ObjId, limit: Long): List[DBNode] = {
-    val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>createNode(objId))
-    searchIndex.execute(txStarter.tx, attr, value, fromObjId, feed)
-    feed.result.reverse
+class ListByValueStartImpl(
+  handlerLists: CoHandlerLists,
+  createNode: ObjId=>DBNode, searchIndex: SearchIndex, txManager: TxManager
+) extends ListByValueStart {
+  def of[Value](attr: Attr[Value]) = of(SearchByAttr[Value](attr.nonEmpty))
+  def of[Value](label: Attr[Boolean], prop: Attr[Value]) =
+    of(SearchByLabelProp[Value](label.nonEmpty, prop.nonEmpty))
+  private def of[Value](searchKey: EventKey[SearchRequest[Value],Unit]) = {
+    val handler = Single(handlerLists.list(searchKey))
+    val tx = txManager.tx
+    new ListByValue[Value] {
+      def list(value: Value) = list(value, None, Long.MaxValue)
+      def list(value: Value, fromObjId: Option[ObjId], limit: ObjId) = {
+        val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>createNode(objId))
+        val request = new SearchRequest[Value](tx, value, fromObjId, feed)
+        handler.handle(request)
+        feed.result.reverse
+      }
+    }
   }
 }
 

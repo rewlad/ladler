@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-import ee.cone.base.connection_api.BaseCoHandler
+import ee.cone.base.connection_api.{CoHandlerProvider, BaseCoHandler}
 import ee.cone.base.db.Types._
 
 // fail'll probably do nothing in case of outdated rel type
@@ -13,21 +13,18 @@ case class RelTypeInfo (
 ) extends CoHandlerProvider
 
 case class RelSideTypeInfo(
-  side: RelSideInfo, listByValue: ListByValue[Option[DBNode]],
+  side: RelSideInfo,
   handlers: List[BaseCoHandler]
 ) extends CoHandlerProvider
 
 class RelTypeInfoFactory(
   relStartSide: RelSideInfo,
   relEndSide: RelSideInfo,
-  createList: (Attr[Option[DBNode]],List[BaseCoHandler]) => ListByValue[Option[DBNode]],
   searchIndex: SearchIndex
 ){
-  private def createForSide(label: Attr[Boolean], side: RelSideInfo) = {
-    val (attr, components) = searchIndex.attrCalc(label, side.attrId)
-    val listByValue = createList(attr, components)
-    RelSideTypeInfo(side, listByValue, listByValue.handlers)
-  }
+  private def createForSide(label: Attr[Boolean], side: RelSideInfo) =
+    RelSideTypeInfo(side, searchIndex.handlers(label, side.attrId))
+
   def apply(label: Attr[Boolean]) = {
     val start = createForSide(label, relStartSide)
     val end = createForSide(label, relEndSide)
@@ -37,25 +34,33 @@ class RelTypeInfoFactory(
 
 case class RelSideInfo(
   attrId: Attr[Option[DBNode]],
-  listByValue: ListByValue[Option[DBNode]],
   handlers: List[BaseCoHandler]
 ) extends CoHandlerProvider
 
 class RelSideInfoFactory(
   preCommitCheck: PreCommitCheck=>BaseCoHandler,
-  createList: (Attr[Option[DBNode]],List[BaseCoHandler]) => ListByValue[Option[DBNode]],
   hasTypeAttr: Attr[Boolean],
-  searchIndex: SearchIndex
+  searchIndex: SearchIndex,
+  values: ListByValueStart
 ){
   def apply[Value](attr: Attr[Option[DBNode]]) = {
-    val listByValue = createList(attr, searchIndex.attrCalc(attr))
-    val components: List[BaseCoHandler] = listByValue.handlers :::
-        preCommitCheck(TypeRefIntegrityPreCommitCheck(hasTypeAttr, attr, listByValue)) ::
+    val handlers: List[BaseCoHandler] =
+      searchIndex.handlers(attr) :::
+        preCommitCheck(new TypeRefIntegrityPreCommitCheck(hasTypeAttr, attr, values)) ::
         preCommitCheck(SideRefIntegrityPreCommitCheck(hasTypeAttr, attr)) :: Nil
-
-
-    RelSideInfo(attr, listByValue, components)
+    RelSideInfo(attr, handlers)
   }
+}
+
+//toAttrId must be indexed
+class TypeRefIntegrityPreCommitCheck(
+  val hasTypeAttr: Attr[Boolean],
+  val toAttr: Attr[Option[DBNode]],
+  values: ListByValueStart
+) extends RefIntegrityPreCommitCheck {
+  def affectedBy = hasTypeAttr :: Nil
+  def check(nodes: Seq[DBNode]) =
+    nodes.flatMap(node => values.of(toAttr).list(Some(node))).flatMap(checkNode)
 }
 
   //def affectedBy = typeAttr :: propAttr :: Nil
@@ -71,16 +76,7 @@ abstract class RefIntegrityPreCommitCheck extends PreCommitCheck {
   }
 }
 
-//toAttrId must be indexed
-case class TypeRefIntegrityPreCommitCheck(
-  hasTypeAttr: Attr[Boolean],
-  toAttr: Attr[Option[DBNode]],
-  listToAttr: ListByValue[Option[DBNode]]
-) extends RefIntegrityPreCommitCheck {
-  def affectedBy = hasTypeAttr :: Nil
-  def check(nodes: Seq[DBNode]) =
-    nodes.flatMap(node => listToAttr.list(Some(node))).flatMap(checkNode)
-}
+
 
 case class SideRefIntegrityPreCommitCheck(
   hasTypeAttr: Attr[Boolean], toAttr: Attr[Option[DBNode]]

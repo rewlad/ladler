@@ -9,11 +9,26 @@ import ee.cone.base.util.Never
 
 // todo: SearchAttr check
 
+
+
 class SearchIndexImpl(
   converter: RawSearchConverter,
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory
 ) extends SearchIndex {
+  //class SearchHandler[Value](attr: Attr[Value], val on: List[EventKey[SearchRequest[Value],Unit]]) extends CoHandler[SearchRequest[Value],Unit] {
+
+  private def execute[Value](attr: Attr[Value])(in: SearchRequest[Value]) = if(in.objId.isEmpty){
+    val key = converter.keyWithoutObjId(attr.rawAttr, in.value)
+    in.tx.rawIndex.seek(key)
+    rawVisitor.execute(in.tx.rawIndex, key, in.feed)
+  } else {
+    in.tx.rawIndex.seek(converter.key(attr.rawAttr, in.value, in.objId.get))
+    rawVisitor.execute(in.tx.rawIndex, converter.keyWithoutObjId(attr.rawAttr, in.value), in.feed)
+  }
+
+
+  /*
   def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, feed: Feed) = {
     val key = converter.keyWithoutObjId(attr.rawAttr, value)
     tx.rawIndex.seek(key)
@@ -22,27 +37,35 @@ class SearchIndexImpl(
   def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
     tx.rawIndex.seek(converter.key(attr.rawAttr, value, objId))
     rawVisitor.execute(tx.rawIndex, converter.keyWithoutObjId(attr.rawAttr, value), feed)
-  }
+  }*/
   private def set[Value](attrId: RawAttr[Value], value: Value, node: DBNode, on: Boolean): Unit =
     if(attrId.converter.nonEmpty(value))
       node.tx.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
 
   private def calcPair[Value](
-    attr: Attr[Value], on: List[Attr[Boolean]], setter: Boolean=>DBNode=>Unit
+    attr: Attr[Value],
+    searchKey: EventKey[SearchRequest[Value],Unit],
+    on: List[Attr[Boolean]],
+    setter: Boolean=>DBNode=>Unit
   ): List[BaseCoHandler] =
     new CoHandlerImpl(on.map(BeforeUpdate), setter(false)) ::
-    new CoHandlerImpl(on.map(AfterUpdate), setter(true)) :: Nil
-  def attrCalc[Value](attr: Attr[Value]) = {
+    new CoHandlerImpl(on.map(AfterUpdate), setter(true)) ::
+    new CoHandlerImpl(searchKey :: Nil, execute[Value](attr)) :: Nil
+  def handlers[Value](attr: Attr[Value]) = {
     if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
     def setter(on: Boolean)(node: DBNode) = set(attr.rawAttr, node(attr), node, on)
-    calcPair(attr, attr.nonEmpty :: Nil, setter)
+    calcPair(attr, SearchByAttr(attr.nonEmpty), attr.nonEmpty :: Nil, setter)
   }
-  def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]) = {
+  def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     if(labelAttr.rawAttr.propId!=0L || propAttr.rawAttr.labelId!=0L) Never()
     val attr = attrFactory(labelAttr.rawAttr.labelId, propAttr.rawAttr.propId, propAttr.rawAttr.converter)
     def setter(on: Boolean)(node: DBNode) =
-      if (node(labelAttr)) set(attr.rawAttr, node(propAttr), node, on)
-    (attr, calcPair(attr, labelAttr.nonEmpty :: propAttr.nonEmpty :: Nil, setter))
+      if (node(labelAttr.nonEmpty)) set(attr.rawAttr, node(propAttr), node, on)
+    calcPair(attr,
+      SearchByLabelProp(labelAttr.nonEmpty, propAttr.nonEmpty),
+      labelAttr.nonEmpty :: propAttr.nonEmpty :: Nil,
+      setter
+    )
   }
 }
 

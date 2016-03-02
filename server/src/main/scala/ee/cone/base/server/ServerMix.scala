@@ -32,10 +32,9 @@ trait ServerConnectionMix extends CoMixBase {
   lazy val incoming = new LinkedBlockingQueue[DictMessage]
   lazy val receiver = new ReceiverOfConnectionImpl(connectionRegistry, incoming)
   lazy val sender = new SSESender(lifeCycle, allowOrigin, socket)
-  lazy val keepAlive = new KeepAlive(receiver, sender)
 
   override def handlers =
-    keepAlive.handlers :::
+    new KeepAlive(receiver, sender).handlers :::
     new ConnectionRegistration(connectionRegistry, receiver) ::
       super.handlers
 }

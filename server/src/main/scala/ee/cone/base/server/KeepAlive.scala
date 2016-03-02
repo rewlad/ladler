@@ -20,8 +20,8 @@ case class OKPingStatus(sessionKey: String) extends PingStatus
 
 class KeepAlive(
   receiver: ReceiverOfConnection, sender: SenderOfConnection
-) {
-  var status: PingStatus = NewPingStatus
+) extends CoHandlerProvider {
+  private var status: PingStatus = NewPingStatus
   private def command = status match {
     case NewPingStatus => "connect"
     case _: OKPingStatus => "ping"

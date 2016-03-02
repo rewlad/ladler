@@ -1,12 +1,8 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.BaseCoHandler
+import ee.cone.base.connection_api.{CoHandlerProvider, BaseCoHandler}
 
 import ee.cone.base.db.Types._
-
-trait CoHandlerProvider {
-  def handlers: List[BaseCoHandler]
-}
 
 case class ValidationFailure(calc: PreCommitCheck, node: DBNode)
 
@@ -19,9 +15,14 @@ trait ListFeed[From,To] extends Feed {
   def result: List[To]
 }
 
-trait ListByValue[Value] extends CoHandlerProvider {
+trait ListByValueStart {
+  def of[Value](attr: Attr[Value]): ListByValue[Value]
+  def of[Value](label: Attr[Boolean], prop: Attr[Value]): ListByValue[Value]
+}
+
+trait ListByValue[Value] {
   def list(value: Value): List[DBNode]
-  def list(value: Value, fromObjId: ObjId, limit: Long): List[DBNode]
+  def list(value: Value, fromObjId: Option[ObjId], limit: Long): List[DBNode]
 }
 
 trait PreCommitCheckAllOfConnection {

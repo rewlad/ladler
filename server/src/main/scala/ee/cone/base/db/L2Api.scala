@@ -35,12 +35,17 @@ trait FactIndex {
 }
 
 trait SearchIndex {
-  def execute[Value](tx: RawTx, attrId: Attr[Value], value: Value, feed: Feed): Unit
-  def execute[Value](tx: RawTx, attrId: Attr[Value], value: Value, objId: ObjId, feed: Feed): Unit
-  def attrCalc[Value](attrId: Attr[Value]): List[BaseCoHandler]
-  def attrCalc[Value](labelAttr: Attr[Boolean], propAttr: Attr[Value]): (Attr[Value], List[BaseCoHandler])
+  def handlers[Value](attrId: Attr[Value]): List[BaseCoHandler]
+  def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]): List[BaseCoHandler]
 }
 
+case class SearchByAttr[Value](attr: Attr[Boolean])
+  extends EventKey[SearchRequest[Value],Unit]
+case class SearchByLabelProp[Value](label: Attr[Boolean], prop: Attr[Boolean])
+  extends EventKey[SearchRequest[Value],Unit]
+class SearchRequest[Value](
+  val tx: RawTx, val value: Value, val objId: Option[ObjId], val feed: Feed
+)
 
 
 case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]

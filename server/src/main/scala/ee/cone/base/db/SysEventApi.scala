@@ -8,10 +8,6 @@ import ee.cone.base.db.Types._
 trait SessionState {
   def sessionKey: UUID
 }
-trait ListByValueFactory {
-  def apply[Value](label: Attr[Option[DBNode]], prop: Attr[Option[Value]]): ListByValue[Value]
-  def apply(label: Attr[Option[DBNode]]): ListByValue[Boolean]
-}
 trait Mandatory {
   def apply(condAttr: Attr[_], thenAttr: Attr[_]): List[BaseCoHandler]
   def mutual(attrA: Attr[_], attrB: Attr[_]): List[BaseCoHandler]
@@ -44,13 +40,14 @@ trait MergerEventSourceOperations {
 
 trait MergerEventSourceAttrs {
   def unmergedRequestsFromId: Attr[Option[Long]]
-  def requestsAll: ListByValue[Boolean]
   def sessionId: Attr[Option[Long]]
+  def asRequest: Attr[Option[DBNode]]
 }
 
 trait SessionEventSourceAttrs {
-  def instantSessionsBySessionKey: ListByValue[UUID]
   def asEvent: Attr[Option[DBNode]]
+  def asInstantSession: Attr[Option[DBNode]]
+  def sessionKey: Attr[Option[UUID]]
   def sessionId: Attr[Option[Long]]
   def asRequest: Attr[Option[DBNode]]
 }

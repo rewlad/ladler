@@ -2,7 +2,8 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-import ee.cone.base.connection_api.{CoHandlerLists, BaseCoHandler}
+import ee.cone.base.connection_api.{CoHandlerProvider, CoHandlerLists,
+BaseCoHandler}
 import ee.cone.base.util.Single
 
 //! lost calc-s
@@ -14,7 +15,7 @@ import ee.cone.base.util.Single
 
 class EventSourceAttrsImpl(
   attr: AttrFactory,
-  list: ListByValueFactory,
+  searchIndex: SearchIndex,
   selfValueConverter: RawValueConverter[Option[DBNode]],
   uuidValueConverter: RawValueConverter[Option[UUID]],
   longValueConverter: RawValueConverter[Option[Long]],
@@ -33,15 +34,7 @@ class EventSourceAttrsImpl(
   val asCommit: Attr[Option[DBNode]] = attr(0x0019, 0, selfValueConverter),
   val unmergedRequestsFromId: Attr[Option[Long]] = attr(0, 0x001A, longValueConverter),
   val asRequest: Attr[Option[DBNode]] = attr(0x001B, 0, selfValueConverter)
-
-)(
-  val instantSessionsBySessionKey: ListByValue[UUID] = list(asInstantSession, sessionKey),
-  val mainSessionsBySessionId: ListByValue[Long] = list(asMainSession, sessionId),
-  val eventsBySessionId: ListByValue[Long] = list(asEvent, sessionId),
-  val undoByEvent: ListByValue[DBNode] = list(asUndo, event),
-  val requestsAll: ListByValue[Boolean] = list(asRequest)
-)(
-  val handlers: List[BaseCoHandler] =
+)(val handlers: List[BaseCoHandler] =
   mandatory.mutual(asInstantSession,sessionKey) :::
     mandatory.mutual(asMainSession,sessionId) :::
     mandatory.mutual(asMainSession,unmergedEventsFromId) :::
@@ -49,11 +42,11 @@ class EventSourceAttrsImpl(
     mandatory(asUndo, asEventStatus) :::
     mandatory(asCommit, asEventStatus) :::
     mandatory(asRequest, asEvent) :::
-    instantSessionsBySessionKey.handlers :::
-    mainSessionsBySessionId.handlers :::
-    eventsBySessionId.handlers :::
-    undoByEvent.handlers :::
-    requestsAll.handlers :::
+    searchIndex.handlers(asInstantSession.nonEmpty, sessionKey) :::
+    searchIndex.handlers(asMainSession, sessionId) :::
+    searchIndex.handlers(asEvent, sessionId) :::
+    searchIndex.handlers(asUndo, event) :::
+    searchIndex.handlers(asRequest) :::
     Nil
 ) extends CoHandlerProvider with MergerEventSourceAttrs with SessionEventSourceAttrs
 
@@ -64,26 +57,30 @@ class EventSourceOperationsImpl(
   mainCreateNode: Attr[Option[DBNode]]=>DBNode,
   instantCreateNode: Attr[Option[DBNode]]=>DBNode,
   nodeHandlerLists: CoHandlerLists,
-  attrs: ListByDBNode
+  attrs: ListByDBNode,
+  mainValues: ListByValueStart,
+  instantValues: ListByValueStart
 ) extends EventSourceOperations {
   def createEventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]) =
     new EventSource {
       def poll(): Option[DBNode] = {
         val eventsFromId: Long = seqRef().getOrElse(0L)
-        val eventOpt = Single.option(listByValue.list(value, eventsFromId, 1L))
+        val eventOpt = Single.option(listByValue.list(value, Some(eventsFromId), 1L))
         if(eventOpt.isEmpty){ return None }
         seqRef() = Some(eventOpt.get.objId+1L)
-        if(at.undoByEvent.list(eventOpt.get).isEmpty) eventOpt else poll()
+        if(instantValues.of(at.asUndo.nonEmpty, at.event).list(eventOpt).isEmpty) eventOpt
+        else poll()
       }
     }
   def applyEvents(sessionId: Long, isNotLast: DBNode=>Boolean): Unit = {
-    val seqNode = Single.option(at.mainSessionsBySessionId.list(sessionId)).getOrElse{
+    val sessions = mainValues.of(at.asMainSession.nonEmpty, at.sessionId).list(Some(sessionId))
+    val seqNode = Single.option(sessions).getOrElse{
       val mainSession = mainCreateNode(at.asMainSession)
       mainSession(at.sessionId) = Some(sessionId)
       mainSession
     }
     val seqRef = seqNode(at.unmergedEventsFromId.ref)
-    val src = createEventSource(at.eventsBySessionId, sessionId, seqRef)
+    val src = createEventSource[Option[Long]](instantValues.of(at.asEvent.nonEmpty, at.sessionId), Some(sessionId), seqRef)
     applyEvents(src, isNotLast)
   }
   private def applyEvents(src: EventSource, isNotLast: DBNode=>Boolean): Unit = {

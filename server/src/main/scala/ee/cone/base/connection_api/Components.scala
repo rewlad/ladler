@@ -56,7 +56,7 @@ trait AppMixBase extends CanStart {
 }
 
 ////
-trait CoMixBase {
+trait CoMixBase extends CoHandlerProvider {
   def handlers: List[BaseCoHandler] = Nil
   lazy val handlerLists: CoHandlerLists = new CoHandlerListsImpl(()⇒handlers)
 }
