@@ -33,7 +33,7 @@ class RelTypeInfoFactory(
 }
 
 case class RelSideInfo(
-  attrId: Attr[Option[DBNode]],
+  attrId: Attr[DBNode],
   handlers: List[BaseCoHandler]
 ) extends CoHandlerProvider
 
@@ -43,7 +43,7 @@ class RelSideInfoFactory(
   searchIndex: SearchIndex,
   values: ListByValueStart[MainEnvKey]
 ){
-  def apply[Value](attr: Attr[Option[DBNode]]) = {
+  def apply[Value](attr: Attr[DBNode]) = {
     val handlers: List[BaseCoHandler] =
       searchIndex.handlers(attr) :::
         toHandler(new TypeRefIntegrityPreCommitCheck(hasTypeAttr, attr, values)) ::
@@ -57,12 +57,12 @@ class RelSideInfoFactory(
 //toAttrId must be indexed
 class TypeRefIntegrityPreCommitCheck(
   val hasTypeAttr: Attr[Boolean],
-  val toAttr: Attr[Option[DBNode]],
+  val toAttr: Attr[DBNode],
   values: ListByValueStart[MainEnvKey]
 ) extends RefIntegrityPreCommitCheck {
   def affectedBy = hasTypeAttr
   def check(nodes: Seq[DBNode]) =
-    nodes.flatMap(node => values.of(toAttr).list(Some(node))).flatMap(checkNode)
+    nodes.flatMap(node => values.of(toAttr).list(node)).flatMap(checkNode)
 }
 
   //def affectedBy = typeAttr :: propAttr :: Nil
@@ -71,17 +71,17 @@ abstract class RefIntegrityPreCommitCheck {
   def affectedBy: Attr[Boolean]
   def check(nodes: Seq[DBNode]): Seq[ValidationFailure]
   protected def hasTypeAttr: Attr[Boolean]
-  protected def toAttr: Attr[Option[DBNode]]
-  protected def checkNode(node: DBNode): Option[ValidationFailure] = node(toAttr) match {
-    case None ⇒ None
-    case Some(toNode) if toNode(hasTypeAttr) ⇒ None
-    case v => Some(ValidationFailure("refs",node)) //, s"attr $toAttrId should refer to valid object, but $v found")
+  protected def toAttr: Attr[DBNode]
+  protected def checkNode(node: DBNode): Option[ValidationFailure] = {
+    val toNode = node(toAttr)
+    if(!toNode.nonEmpty || toNode(hasTypeAttr)) None
+    else Some(ValidationFailure("refs",node)) //, s"attr $toAttrId should refer to valid object, but $v found")
   }
 }
 
 class SideRefIntegrityPreCommitCheck(
-  val hasTypeAttr: Attr[Boolean], val toAttr: Attr[Option[DBNode]]
+  val hasTypeAttr: Attr[Boolean], val toAttr: Attr[DBNode]
 ) extends RefIntegrityPreCommitCheck {
-  def affectedBy = toAttr.nonEmpty
+  def affectedBy = toAttr.defined
   def check(nodes: Seq[DBNode]) = nodes.flatMap(checkNode)
 }

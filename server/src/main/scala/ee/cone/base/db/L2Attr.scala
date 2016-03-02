@@ -16,12 +16,12 @@ case class AttrImpl[Value](labelId: Long, propId: Long)(
   def get(node: DBNode) = rawAttr.factIndex.get(node, rawAttr)
   def set(node: DBNode, value: Value) = rawAttr.factIndex.set(node, rawAttr, value)
   lazy val ref = new RefAttr(this)
-  def nonEmpty: Attr[Boolean] = getNonEmpty(this)
+  def defined: Attr[Boolean] = getNonEmpty(this)
   def rawAttr = this
 }
 
 case class RefAttr[Value](inner: Attr[Value]) extends Attr[Ref[Value]] {
-  lazy val nonEmpty = TrueAttr(inner.nonEmpty.rawAttr)
+  lazy val defined = TrueAttr(inner.defined.rawAttr)
   def set(node: DBNode, value: Ref[Value]) = Never()
   def get(node: DBNode) = RefImpl[Value](node, inner)
   def rawAttr = Never()
@@ -29,7 +29,7 @@ case class RefAttr[Value](inner: Attr[Value]) extends Attr[Ref[Value]] {
 }
 
 case class TrueAttr(rawAttr: RawAttr[Boolean]) extends Attr[Boolean] {
-  def nonEmpty = this
+  def defined = this
   def set(node: DBNode, value: Boolean) = if(!value) Never()
   def get(node: DBNode) = true
   lazy val ref = new RefAttr(this)

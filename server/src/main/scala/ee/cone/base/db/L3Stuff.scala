@@ -1,10 +1,21 @@
 package ee.cone.base.db
 
+import java.util.UUID
+
 import ee.cone.base.connection_api.{EventKey, CoHandlerLists, BaseCoHandler}
 import ee.cone.base.db.Types._
 import ee.cone.base.util.{Single, Never}
 
+case object NoDBNode extends DBNode {
+  def nonEmpty = false
+  def objId = Never()
+  def apply[Value](attr: Attr[Value]) = Never()
+  def update[Value](attr: Attr[Value], value: Value) = Never()
+  def tx = Never()
+}
+
 case class DBNodeImpl(objId: Long)(val tx: RawTx) extends DBNode {
+  def nonEmpty = true
   def apply[Value](attr: Attr[Value]) = attr.get(this)
   def update[Value](attr: Attr[Value], value: Value) = {
     if(!tx.rw) Never()
@@ -12,30 +23,36 @@ case class DBNodeImpl(objId: Long)(val tx: RawTx) extends DBNode {
   }
 }
 
-class NodeValueConverter(inner: InnerRawValueConverter, createNode: ObjId=>DBNode) extends RawValueConverter[Option[DBNode]] {
-  def convert() = None
-  def convert(valueA: Long, valueB: Long) = if(valueB==0) Some(createNode(valueA)) else Never()
+class NodeValueConverter(inner: InnerRawValueConverter, createNode: ObjId=>DBNode) extends RawValueConverter[DBNode] {
+  def convert() = NoDBNode
+  def convert(valueA: Long, valueB: Long) = if(valueB==0) createNode(valueA) else Never()
   def convert(value: String) = Never()
-  def allocWrite(before: Int, value: Option[DBNode], after: Int) =
-    if(nonEmpty(value)) inner.allocWrite(before, value.get.objId, 0L, after) else Never()
-  def nonEmpty(value: Option[DBNode]) = value.nonEmpty
-  def same(valueA: Option[DBNode], valueB: Option[DBNode]) =
-    valueA.map(_.objId) == valueB.map(_.objId)
+  def allocWrite(before: Int, value: DBNode, after: Int) =
+    if(nonEmpty(value)) inner.allocWrite(before, value.objId, 0L, after) else Never()
+  def nonEmpty(value: DBNode) = value.nonEmpty
 }
 
-class BooleanValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Boolean] {
+class UUIDValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Option[UUID]] {
+  def convert() = None
+  def convert(valueA: Long, valueB: Long) = Some(new UUID(valueA,valueB))
+  def convert(value: String) = Never()
+  def allocWrite(before: Int, value: Option[UUID], after: Int) =
+    if(nonEmpty(value)) inner.allocWrite(before, value.get.getMostSignificantBits, value.get.getLeastSignificantBits, after) else Never()
+  def nonEmpty(value: Option[UUID]) = value.nonEmpty
+}
+
+// for true Boolean converter? if(nonEmpty(value)) inner.allocWrite(before, 1L, 0L, after) else Never()
+class DefinedValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Boolean] {
   def convert() = false
   def convert(valueA: Long, valueB: Long) = true
   def convert(value: String) = true
-  def allocWrite(before: Int, value: Boolean, after: Int) =
-    if(nonEmpty(value)) inner.allocWrite(before, 1L, 0L, after) else Never()
+  def allocWrite(before: Int, value: Boolean, after: Int) = Never()
   def nonEmpty(value: Boolean) = value
-  def same(valueA: Boolean, valueB: Boolean) = valueA == valueB
 }
 
-class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, booleanValueConverter: BooleanValueConverter) extends ListByDBNode {
+class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, definedValueConverter: DefinedValueConverter) extends ListByDBNode {
   def list(node: DBNode) = {
-    val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,attrFactory.apply(_,_,booleanValueConverter))
+    val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,attrFactory.apply(_,_,definedValueConverter))
     inner.execute(node, feed)
     feed.result
   }
@@ -45,9 +62,9 @@ class ListByValueStartImpl[DBEnvKey](
   handlerLists: CoHandlerLists,
   searchIndex: SearchIndex, txManager: TxManager[DBEnvKey], createNode: ObjId=>DBNode
 ) extends ListByValueStart[DBEnvKey] {
-  def of[Value](attr: Attr[Value]) = of(SearchByAttr[Value](attr.nonEmpty))
+  def of[Value](attr: Attr[Value]) = of(SearchByAttr[Value](attr.defined))
   def of[Value](label: Attr[Boolean], prop: Attr[Value]) =
-    of(SearchByLabelProp[Value](label.nonEmpty, prop.nonEmpty))
+    of(SearchByLabelProp[Value](label.defined, prop.defined))
   private def of[Value](searchKey: EventKey[SearchRequest[Value],Unit]) = {
     val handler = Single(handlerLists.list(searchKey))
     val tx = txManager.tx
@@ -73,13 +90,15 @@ class ListFeedImpl[To](var limit: Long, converter: (Long,Long)=>To) extends Feed
 }
 
 class ObjIdSequence(
-  seqAttr: Attr[Option[DBNode]],
+  seqAttr: Attr[DBNode],
   createNode: ObjId=>DBNode
 ) {
   def inc(): DBNode = {
     val seqNode = createNode(0L)
-    val res = createNode(seqNode(seqAttr).getOrElse(seqNode).objId + 1L)
-    seqNode(seqAttr) = Some(res)
+    val lastNode = seqNode(seqAttr)
+    val nextObjId = if(lastNode.nonEmpty) lastNode.objId + 1L else 1L
+    val res = createNode(nextObjId)
+    seqNode(seqAttr) = res
     res
   }
 }

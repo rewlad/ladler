@@ -35,11 +35,12 @@ trait RawKeyExtractor {
 trait Feed {
   def apply(valueA: Long, valueB: Long): Boolean
 }
+
+// Value should deal with equal properly for fact update need check
 trait RawValueConverter[Value] {
   def convert(): Value
   def convert(valueA: Long, valueB: Long): Value
   def convert(value: String): Value
-  def same(valueA: Value, valueB: Value): Boolean
   def nonEmpty(value: Value): Boolean
   def allocWrite(before: Int, value: Value, after: Int): RawValue
 }

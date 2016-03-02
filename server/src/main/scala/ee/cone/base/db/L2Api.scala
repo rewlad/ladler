@@ -4,7 +4,7 @@ import ee.cone.base.connection_api.{EventKey, LifeCycle, BaseCoHandler}
 import ee.cone.base.db.Types._
 
 trait Attr[Value] {
-  def nonEmpty: Attr[Boolean]
+  def defined: Attr[Boolean]
   def ref: Attr[Ref[Value]]
   def get(node: DBNode): Value
   def set(node: DBNode, value: Value): Unit
@@ -12,6 +12,7 @@ trait Attr[Value] {
 }
 
 trait DBNode {
+  def nonEmpty: Boolean
   def objId: Long
   def tx: RawTx
   def apply[Value](attr: Attr[Value]): Value

@@ -11,9 +11,9 @@ class UniqueImpl[DBEnvKey](
 ) {
   def apply[Value](uniqueAttr: Attr[Value]) =
     searchIndex.handlers(uniqueAttr) :::
-    CoHandler(AfterUpdate(uniqueAttr.nonEmpty) :: Nil)(preCommitCheck.create{ nodes =>
+    CoHandler(AfterUpdate(uniqueAttr.defined) :: Nil)(preCommitCheck.create{ nodes =>
       nodes.flatMap{ node =>
-        if(!node(uniqueAttr.nonEmpty)) Nil
+        if(!node(uniqueAttr.defined)) Nil
         else values.of(uniqueAttr).list(node(uniqueAttr)) match {
           case _ :: Nil => Nil
           case ns => ns.map(ValidationFailure("unique",_))

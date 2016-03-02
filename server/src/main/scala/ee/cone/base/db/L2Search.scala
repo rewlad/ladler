@@ -54,16 +54,16 @@ class SearchIndexImpl(
   def handlers[Value](attr: Attr[Value]) = {
     if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
     def setter(on: Boolean)(node: DBNode) = set(attr.rawAttr, node(attr), node, on)
-    calcPair(attr, SearchByAttr(attr.nonEmpty), attr.nonEmpty :: Nil, setter)
+    calcPair(attr, SearchByAttr(attr.defined), attr.defined :: Nil, setter)
   }
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     if(labelAttr.rawAttr.propId!=0L || propAttr.rawAttr.labelId!=0L) Never()
     val attr = attrFactory(labelAttr.rawAttr.labelId, propAttr.rawAttr.propId, propAttr.rawAttr.converter)
     def setter(on: Boolean)(node: DBNode) =
-      if (node(labelAttr.nonEmpty)) set(attr.rawAttr, node(propAttr), node, on)
+      if (node(labelAttr.defined)) set(attr.rawAttr, node(propAttr), node, on)
     calcPair(attr,
-      SearchByLabelProp(labelAttr.nonEmpty, propAttr.nonEmpty),
-      labelAttr.nonEmpty :: propAttr.nonEmpty :: Nil,
+      SearchByLabelProp(labelAttr.defined, propAttr.defined),
+      labelAttr.defined :: propAttr.defined :: Nil,
       setter
     )
   }

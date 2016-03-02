@@ -18,13 +18,13 @@ class FactIndexImpl(
   }
   def set[Value](node: DBNode, attr: Attr[Value], value: Value): Unit = {
     val rawAttr = attr.rawAttr
-    if (rawAttr.converter.same(get(node, attr),value)) { return }
+    if (get(node, attr) == value) { return }
     //if(calcList.isEmpty) throw new Exception(s"$attr is lost")
-    for(calc <- calcLists.list(BeforeUpdate(attr.nonEmpty))) calc(node)
+    for(calc <- calcLists.list(BeforeUpdate(attr.defined))) calc(node)
     val key = rawFactConverter.key(node.objId, rawAttr)
     val rawValue = rawFactConverter.value(rawAttr, value, srcObjId)
     node.tx.rawIndex.set(key, rawValue)
-    for(calc <- calcLists.list(AfterUpdate(attr.nonEmpty))) calc(node)
+    for(calc <- calcLists.list(AfterUpdate(attr.defined))) calc(node)
   }
   def execute(node: DBNode, feed: Feed): Unit = {
     val key = rawFactConverter.keyWithoutAttrId(node.objId)

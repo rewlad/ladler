@@ -9,7 +9,7 @@ class SessionEventSourceOperationsImpl(
   mainValues: ListByValueStart[MainEnvKey]
 ) extends SessionEventSourceOperations {
   private def findSessionId() = {
-    val instantSession = Single(mainValues.of(at.asInstantSession.nonEmpty, at.sessionKey).list(Some(sessionState.sessionKey)))
+    val instantSession = Single(mainValues.of(at.asInstantSession.defined, at.sessionKey).list(Some(sessionState.sessionKey)))
     // or create?
     instantSession.objId
   }
@@ -20,9 +20,9 @@ class SessionEventSourceOperationsImpl(
     instantTxStarter.closeTx()
     res
   }
-  def addEvent(label: Attr[Option[DBNode]])(fill: DBNode=>Unit): Unit = ops.addInstant(label){ ev =>
+  def addEvent(label: Attr[DBNode])(fill: DBNode=>Unit): Unit = ops.addInstant(label){ ev =>
     ev(at.asEvent) = Some(ev)
-    ev(at.sessionId) = Some(findSessionId())
+    ev(at.instantSession) = Some(findSessionId())
     fill(ev)
   }
   def addRequest() = addEvent(at.asRequest)(_=>())

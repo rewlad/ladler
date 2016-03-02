@@ -17,7 +17,7 @@ trait EventSourceOperations {
   def addEventStatus(event: DBNode, ok: Boolean): Unit
   def applyEvents(sessionId: Long, isNotLast: DBNode=>Boolean): Unit
   def createEventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]): EventSource
-  def addInstant(label: Attr[Option[DBNode]])(fill: DBNode=>Unit): Unit
+  def addInstant(label: Attr[DBNode])(fill: DBNode=>Unit): Unit
 }
 
 trait EventSource {
@@ -26,7 +26,7 @@ trait EventSource {
 
 trait SessionEventSourceOperations {
   def incrementalApplyAndView[R](view: ()=>R): R
-  def addEvent(label: Attr[Option[DBNode]])(fill: DBNode=>Unit): Unit
+  def addEvent(label: Attr[DBNode])(fill: DBNode=>Unit): Unit
   def addRequest(): Unit
   def addUndo(eventObjId: ObjId): Unit
 }
@@ -36,15 +36,15 @@ trait MergerEventSourceOperations {
 }
 
 trait MergerEventSourceAttrs {
-  def unmergedRequestsFromId: Attr[Option[Long]]
-  def sessionId: Attr[Option[Long]]
-  def asRequest: Attr[Option[DBNode]]
+  def unmergedRequestsFrom: Attr[DBNode]
+  def instantSession: Attr[DBNode]
+  def asRequest: Attr[DBNode]
 }
 
 trait SessionEventSourceAttrs {
-  def asEvent: Attr[Option[DBNode]]
-  def asInstantSession: Attr[Option[DBNode]]
+  def asEvent: Attr[DBNode]
+  def asInstantSession: Attr[DBNode]
   def sessionKey: Attr[Option[UUID]]
-  def sessionId: Attr[Option[Long]]
-  def asRequest: Attr[Option[DBNode]]
+  def instantSession: Attr[DBNode]
+  def asRequest: Attr[DBNode]
 }

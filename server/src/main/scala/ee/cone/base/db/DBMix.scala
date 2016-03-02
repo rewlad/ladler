@@ -20,15 +20,15 @@ trait DBConnectionMix extends CoMixBase with Runnable {
   lazy val objIdRawVisitor = new RawVisitorImpl(objIdExtractor)
   lazy val factIndex =
     new FactIndexImpl(rawFactConverter, attrIdRawVisitor, handlerLists)
-  lazy val booleanValueConverter =
-    new BooleanValueConverter(InnerRawValueConverterImpl)
+  lazy val definedValueConverter =
+    new DefinedValueConverter(InnerRawValueConverterImpl)
   lazy val attrFactory =
-    new AttrFactoryImpl(booleanValueConverter, factIndex)
+    new AttrFactoryImpl(definedValueConverter, factIndex)
   lazy val searchIndex =
     new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory)
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl
   lazy val listByDBNode =
-    new ListByDBNodeImpl(factIndex,attrFactory,booleanValueConverter)
+    new ListByDBNodeImpl(factIndex,attrFactory,definedValueConverter)
   lazy val mandatory = new MandatoryImpl(preCommitCheckCheckAll)
 
   lazy val mainTxManager =
