@@ -116,8 +116,8 @@ class SnapshotRunningConnection(
   handlerLists: CoHandlerLists,
   connectionLifeCycle: LifeCycle,
   sender: SenderOfConnection,
-  mainTxStarter: TxManager,
-  instantTxStarter: TxManager,
+  mainTxStarter: TxManager[MainEnvKey],
+  instantTxStarter: TxManager[InstantEnvKey],
   eventSourceOperations: SessionEventSourceOperations,
   incoming: BlockingQueue[DictMessage],
   framePeriod: Long
@@ -125,7 +125,7 @@ class SnapshotRunningConnection(
   var vDomData: Option[()] = None
   def apply(): Unit = try {
     handlerLists.list(ConnectionRegistrationEventKey)
-      .foreach(_.handle(connectionLifeCycle))
+      .foreach(_(connectionLifeCycle))
     while(true) {
       mainTxStarter.needTx(rw=false)
       if(vDomData.isEmpty){

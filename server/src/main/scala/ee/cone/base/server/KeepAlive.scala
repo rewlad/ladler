@@ -31,14 +31,11 @@ class KeepAlive(
     sender.send(command,receiver.connectionKey)
     status = WaitingPingStatus
   })
-  def handlers: List[BaseCoHandler] = new CoHandler[Unit,Unit] {
-    def on = PeriodicMessage :: Nil
-    def handle(in: Unit) = periodicFrame()
-  } :: new CoHandler[DictMessage,Unit] {
-    def on = AlienDictMessageKey :: Nil
-    def handle(message: DictMessage) =
-      message.value.get("X-r-session").foreach(sessionKey => status = OKPingStatus(sessionKey))
-  } :: Nil
+  def handlers: List[BaseCoHandler] =
+    CoHandler[Unit,Unit](PeriodicMessage :: Nil){ in => periodicFrame() } ::
+      CoHandler[DictMessage,Unit](AlienDictMessageKey :: Nil){ message =>
+        message.value.get("X-r-session").foreach(sessionKey => status = OKPingStatus(sessionKey))
+      } :: Nil
 }
 
 

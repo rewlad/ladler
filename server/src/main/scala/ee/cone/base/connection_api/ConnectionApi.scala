@@ -22,12 +22,11 @@ trait CanStart {
 
 trait EventKey[-In,+Out]
 trait BaseCoHandler
-trait CoHandler[-In,+Out] extends BaseCoHandler {
-  def on: List[EventKey[In,Out]]
-  def handle(in: In): Out
-}
+case class CoHandler[In,Out](on: List[EventKey[In,Out]])(val handle: In=>Out)
+  extends BaseCoHandler
+
 trait CoHandlerLists {
-  def list[In,Out](ev: EventKey[In,Out]): List[CoHandler[In,Out]]
+  def list[In,Out](ev: EventKey[In,Out]): List[In=>Out]
 }
 trait CoHandlerProvider {
   def handlers: List[BaseCoHandler]

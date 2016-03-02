@@ -1,18 +1,15 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.BaseCoHandler
+import ee.cone.base.connection_api.{CoHandler, BaseCoHandler}
 
-class MandatoryPreCommitCheckList(preCommitCheck: PreCommitCheck=>BaseCoHandler) {
+class MandatoryImpl(preCommitCheck: PreCommitCheckAllOfConnection) extends Mandatory {
   def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[BaseCoHandler] =
-    preCommitCheck(MandatoryPreCommitCheck(condAttr, mandatoryAttr)) :: (
-      if(mutual) preCommitCheck(MandatoryPreCommitCheck(mandatoryAttr, condAttr)) :: Nil
-      else Nil
-    )
-}
-
-case class MandatoryPreCommitCheck(condAttr: Attr[_], mandatoryAttr: Attr[_]) extends PreCommitCheck {
-  def affectedBy = condAttr :: mandatoryAttr :: Nil
-  def check(nodes: Seq[DBNode]) =
-    for(node ← nodes if node(condAttr.nonEmpty) && !node(mandatoryAttr.nonEmpty))
-      yield ValidationFailure(this, node)
+    apply(condAttr, mandatoryAttr) ::: (if(mutual) apply(mandatoryAttr, condAttr) ::: Nil else Nil)
+  def apply(condAttr: Attr[_], mandatoryAttr: Attr[_]): List[BaseCoHandler] = {
+    val affectedBy = condAttr.nonEmpty :: mandatoryAttr.nonEmpty :: Nil
+    CoHandler(affectedBy.map(AfterUpdate))(preCommitCheck.create(nodes=>
+      for(node ← nodes if node(condAttr.nonEmpty) && !node(mandatoryAttr.nonEmpty))
+      yield ValidationFailure("mandatory", node)
+    )) :: Nil
+  }
 }

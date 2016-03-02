@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import ee.cone.base.util.Never
 
-class AttrFactoryImpl(booleanConverter: RawValueConverter[Boolean], db: FactIndexImpl) extends AttrFactory {
+class AttrFactoryImpl(booleanConverter: RawValueConverter[Boolean], db: FactIndex) extends AttrFactory {
   def apply[Value](labelId: Long, propId: Long, converter: RawValueConverter[Value]) = {
     val booleanAttr = AttrImpl[Boolean](labelId, propId)(db, booleanConverter, identity)
     AttrImpl(labelId, propId)(db, converter, _=>booleanAttr)
@@ -10,7 +10,7 @@ class AttrFactoryImpl(booleanConverter: RawValueConverter[Boolean], db: FactInde
 }
 
 case class AttrImpl[Value](labelId: Long, propId: Long)(
-  val factIndex: FactIndexImpl, val converter: RawValueConverter[Value],
+  val factIndex: FactIndex, val converter: RawValueConverter[Value],
   getNonEmpty: Attr[Value]=>Attr[Boolean]
 ) extends Attr[Value] with RawAttr[Value] {
   def get(node: DBNode) = rawAttr.factIndex.get(node, rawAttr)

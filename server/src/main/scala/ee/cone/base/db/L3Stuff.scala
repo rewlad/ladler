@@ -33,10 +33,6 @@ class BooleanValueConverter(inner: InnerRawValueConverter) extends RawValueConve
   def same(valueA: Boolean, valueB: Boolean) = valueA == valueB
 }
 
-trait ListByDBNode {
-  def list(node: DBNode): List[Attr[_]]
-}
-
 class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, booleanValueConverter: BooleanValueConverter) extends ListByDBNode {
   def list(node: DBNode) = {
     val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,attrFactory.apply(_,_,booleanValueConverter))
@@ -45,10 +41,10 @@ class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, booleanValueC
   }
 }
 
-class ListByValueStartImpl(
+class ListByValueStartImpl[DBEnvKey](
   handlerLists: CoHandlerLists,
-  createNode: ObjId=>DBNode, searchIndex: SearchIndex, txManager: TxManager
-) extends ListByValueStart {
+  searchIndex: SearchIndex, txManager: TxManager[DBEnvKey], createNode: ObjId=>DBNode
+) extends ListByValueStart[DBEnvKey] {
   def of[Value](attr: Attr[Value]) = of(SearchByAttr[Value](attr.nonEmpty))
   def of[Value](label: Attr[Boolean], prop: Attr[Value]) =
     of(SearchByLabelProp[Value](label.nonEmpty, prop.nonEmpty))
@@ -60,7 +56,7 @@ class ListByValueStartImpl(
       def list(value: Value, fromObjId: Option[ObjId], limit: ObjId) = {
         val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>createNode(objId))
         val request = new SearchRequest[Value](tx, value, fromObjId, feed)
-        handler.handle(request)
+        handler(request)
         feed.result.reverse
       }
     }

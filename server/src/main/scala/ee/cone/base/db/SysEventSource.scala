@@ -35,13 +35,13 @@ class EventSourceAttrsImpl(
   val unmergedRequestsFromId: Attr[Option[Long]] = attr(0, 0x001A, longValueConverter),
   val asRequest: Attr[Option[DBNode]] = attr(0x001B, 0, selfValueConverter)
 )(val handlers: List[BaseCoHandler] =
-  mandatory.mutual(asInstantSession,sessionKey) :::
-    mandatory.mutual(asMainSession,sessionId) :::
-    mandatory.mutual(asMainSession,unmergedEventsFromId) :::
-    mandatory.mutual(asEventStatus,event) :::
-    mandatory(asUndo, asEventStatus) :::
-    mandatory(asCommit, asEventStatus) :::
-    mandatory(asRequest, asEvent) :::
+  mandatory(asInstantSession,sessionKey,mutual = true) :::
+    mandatory(asMainSession,sessionId,mutual = true) :::
+    mandatory(asMainSession,unmergedEventsFromId,mutual = true) :::
+    mandatory(asEventStatus,event,mutual = true) :::
+    mandatory(asUndo, asEventStatus, mutual = false) :::
+    mandatory(asCommit, asEventStatus, mutual = false) :::
+    mandatory(asRequest, asEvent, mutual = false) :::
     searchIndex.handlers(asInstantSession.nonEmpty, sessionKey) :::
     searchIndex.handlers(asMainSession, sessionId) :::
     searchIndex.handlers(asEvent, sessionId) :::
@@ -52,14 +52,14 @@ class EventSourceAttrsImpl(
 
 class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
-  instantTxStarter: TxManager,
+  instantTxStarter: TxManager[InstantEnvKey],
   factIndex: FactIndex,
-  mainCreateNode: Attr[Option[DBNode]]=>DBNode,
-  instantCreateNode: Attr[Option[DBNode]]=>DBNode,
   nodeHandlerLists: CoHandlerLists,
   attrs: ListByDBNode,
-  mainValues: ListByValueStart,
-  instantValues: ListByValueStart
+  mainValues: ListByValueStart[MainEnvKey],
+  instantValues: ListByValueStart[InstantEnvKey],
+  mainCreateNode: Attr[Option[DBNode]]=>DBNode,
+  instantCreateNode: Attr[Option[DBNode]]=>DBNode
 ) extends EventSourceOperations {
   def createEventSource[Value](listByValue: ListByValue[Value], value: Value, seqRef: Ref[Option[Long]]) =
     new EventSource {

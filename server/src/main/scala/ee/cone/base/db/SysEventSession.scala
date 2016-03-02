@@ -5,8 +5,8 @@ import ee.cone.base.util.Single
 
 class SessionEventSourceOperationsImpl(
   ops: EventSourceOperations, at: SessionEventSourceAttrs,
-  instantTxStarter: TxManager, sessionState: SessionState,
-  mainValues: ListByValueStart
+  instantTxStarter: TxManager[InstantEnvKey], sessionState: SessionState,
+  mainValues: ListByValueStart[MainEnvKey]
 ) extends SessionEventSourceOperations {
   private def findSessionId() = {
     val instantSession = Single(mainValues.of(at.asInstantSession.nonEmpty, at.sessionKey).list(Some(sessionState.sessionKey)))

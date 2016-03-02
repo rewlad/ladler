@@ -2,13 +2,6 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api._
 
-
-trait DBEnv extends CanStart {
-  def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
-}
-
-////
-
 trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv
   def instantDB: DBEnv
@@ -34,16 +27,27 @@ trait DBConnectionMix extends CoMixBase with Runnable {
   lazy val searchIndex =
     new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory)
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl
+  lazy val listByDBNode =
+    new ListByDBNodeImpl(factIndex,attrFactory,booleanValueConverter)
+  lazy val mandatory = new MandatoryImpl(preCommitCheckCheckAll)
 
   lazy val mainTxManager =
-    new TxManagerImpl(connectionLifeCycle, dbAppMix.mainDB, preCommitCheckCheckAll)
+    new TxManagerImpl[MainEnvKey](connectionLifeCycle, dbAppMix.mainDB, preCommitCheckCheckAll)
   lazy val instantTxManager =
-    new TxManagerImpl(connectionLifeCycle, dbAppMix.instantDB, preCommitCheckCheckAll)
+    new TxManagerImpl[InstantEnvKey](connectionLifeCycle, dbAppMix.instantDB, preCommitCheckCheckAll)
+  lazy val mainValues = new ListByValueStartImpl[MainEnvKey](handlerLists, searchIndex, mainTxManager, ???)
+  lazy val instantValues = new ListByValueStartImpl[InstantEnvKey](handlerLists, searchIndex, instantTxManager, ???)
 
-  lazy val eventSourceAttrs = new EventSourceAttrsImpl(???,???,???,???,???,???,???)()()
-  lazy val eventSourceOperations = new EventSourceOperationsImpl(eventSourceAttrs,???,???,???,???,???,???,???,???)
+  lazy val eventSourceAttrs =
+    new EventSourceAttrsImpl(attrFactory,searchIndex,???,???,???,???, mandatory)()()
+  lazy val eventSourceOperations =
+    new EventSourceOperationsImpl(eventSourceAttrs,instantTxManager,factIndex,handlerLists,listByDBNode,mainValues,instantValues,???,???)
+  lazy val mergerEventSourceOperations =
+    new MergerEventSourceOperationsImpl(eventSourceOperations,eventSourceAttrs,mainTxManager,instantTxManager,???,instantValues)
+  lazy val sessionEventSourceOperations =
+    new SessionEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, ???, mainValues)
 
-  override def handlers = /*all prop.components*/ super.handlers
+  override def handlers = eventSourceAttrs.handlers ::: super.handlers
 }
 
 

@@ -20,9 +20,8 @@ class ConnectionRegistryImpl extends ConnectionRegistry {
 
 class ConnectionRegistration(
   registry: ConnectionRegistryImpl, item: ReceiverOfConnection
-) extends CoHandler[LifeCycle,Unit] {
-  def on = ConnectionRegistrationEventKey :: Nil
-  def handle(lifeCycle: LifeCycle): Unit = {
+) extends CoHandlerProvider {
+  def handlers = CoHandler[LifeCycle,Unit](ConnectionRegistrationEventKey :: Nil){lifeCycle =>
     lifeCycle.onClose{()=>
       val k = item.connectionKey
       registry.store(k) = item
@@ -31,7 +30,7 @@ class ConnectionRegistration(
     val k = item.connectionKey
     registry.store.remove(k)
     println(s"connection unregister: $k")
-  }
+  } :: Nil
 }
 
 

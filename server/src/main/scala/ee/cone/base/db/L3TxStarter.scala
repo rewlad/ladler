@@ -3,10 +3,10 @@ package ee.cone.base.db
 import ee.cone.base.connection_api.LifeCycle
 import ee.cone.base.util.Never
 
-class TxManagerImpl(
+class TxManagerImpl[DBEnvKey](
   connectionLifeCycle: LifeCycle, env: DBEnv,
   checkAll: PreCommitCheckAllOfConnection
-) extends TxManager {
+) extends TxManager[DBEnvKey] {
   var txOpt: Option[RawTx] = None
   def tx = txOpt.get
   def needTx(rw: Boolean): Unit = {

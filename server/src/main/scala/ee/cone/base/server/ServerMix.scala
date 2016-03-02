@@ -35,7 +35,7 @@ trait ServerConnectionMix extends CoMixBase {
 
   override def handlers =
     new KeepAlive(receiver, sender).handlers :::
-    new ConnectionRegistration(connectionRegistry, receiver) ::
+    new ConnectionRegistration(connectionRegistry, receiver).handlers :::
       super.handlers
 }
 

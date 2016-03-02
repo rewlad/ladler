@@ -1,29 +1,23 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.BaseCoHandler
+import ee.cone.base.connection_api.{CoHandler, BaseCoHandler}
 
 
-class UniqueAttrCalcList(
-  preCommitCheck: PreCommitCheck=>BaseCoHandler,
+class UniqueImpl[DBEnvKey](
+  preCommitCheck: PreCommitCheckAllOfConnection,
   searchIndex: SearchIndex,
-  values: ListByValueStart
+  values: ListByValueStart[DBEnvKey]
 ) {
   def apply[Value](uniqueAttr: Attr[Value]) =
     searchIndex.handlers(uniqueAttr) :::
-    preCommitCheck(new UniqueAttrCalc(uniqueAttr, values)) :: Nil
-}
-
-//uniqueAttrId must be indexed
-class UniqueAttrCalc[Value](
-  uniqueAttr: Attr[Value], values: ListByValueStart
-) extends PreCommitCheck {
-  def affectedBy = uniqueAttr :: Nil
-  def check(nodes: Seq[DBNode]) = nodes.flatMap{ node =>
-    if(!node(uniqueAttr.nonEmpty)) Nil
-    else values.of(uniqueAttr).list(node(uniqueAttr)) match {
-      case _ :: Nil => Nil
-      case ns => ns.map(ValidationFailure(this,_))
-    }
-  }
+    CoHandler(AfterUpdate(uniqueAttr.nonEmpty) :: Nil)(preCommitCheck.create{ nodes =>
+      nodes.flatMap{ node =>
+        if(!node(uniqueAttr.nonEmpty)) Nil
+        else values.of(uniqueAttr).list(node(uniqueAttr)) match {
+          case _ :: Nil => Nil
+          case ns => ns.map(ValidationFailure("unique",_))
+        }
+      }
+    }) :: Nil
 }

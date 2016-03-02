@@ -8,10 +8,7 @@ import ee.cone.base.db.Types._
 trait SessionState {
   def sessionKey: UUID
 }
-trait Mandatory {
-  def apply(condAttr: Attr[_], thenAttr: Attr[_]): List[BaseCoHandler]
-  def mutual(attrA: Attr[_], attrB: Attr[_]): List[BaseCoHandler]
-}
+
 case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
 
 ////

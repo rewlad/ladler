@@ -4,9 +4,9 @@ import ee.cone.base.util.Never
 
 class MergerEventSourceOperationsImpl(
   ops: EventSourceOperations, at: MergerEventSourceAttrs,
-  mainTxManager: TxManager, instantTxStarter: TxManager,
+  mainTxManager: TxManager[MainEnvKey], instantTxStarter: TxManager[InstantEnvKey],
   mainSeqNode: ()=>DBNode,
-  instantValues: ListByValueStart
+  instantValues: ListByValueStart[InstantEnvKey]
 ) extends MergerEventSourceOperations {
   def incrementalApplyAndCommit(): Unit = {
     mainTxManager.needTx(rw=true)

@@ -48,9 +48,9 @@ class SearchIndexImpl(
     on: List[Attr[Boolean]],
     setter: Boolean=>DBNode=>Unit
   ): List[BaseCoHandler] =
-    new CoHandlerImpl(on.map(BeforeUpdate), setter(false)) ::
-    new CoHandlerImpl(on.map(AfterUpdate), setter(true)) ::
-    new CoHandlerImpl(searchKey :: Nil, execute[Value](attr)) :: Nil
+    CoHandler(on.map(BeforeUpdate))(setter(false)) ::
+    CoHandler(on.map(AfterUpdate))(setter(true)) ::
+    CoHandler(searchKey :: Nil)(execute[Value](attr)) :: Nil
   def handlers[Value](attr: Attr[Value]) = {
     if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
     def setter(on: Boolean)(node: DBNode) = set(attr.rawAttr, node(attr), node, on)
@@ -69,9 +69,6 @@ class SearchIndexImpl(
   }
 }
 
-class CoHandlerImpl[In,Out](val on: List[EventKey[In,Out]], doHandle: In=>Out) extends CoHandler[In,Out] {
-  def handle(value: In) = doHandle(value)
-}
 
 /*
 case class SearchAttrCalcImpl[Value](searchAttrId: Attr[Value])(
