@@ -32,13 +32,13 @@ class NodeValueConverter(inner: InnerRawValueConverter, createNode: ObjId=>DBNod
   def nonEmpty(value: DBNode) = value.nonEmpty
 }
 
-class UUIDValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Option[UUID]] {
-  def convert() = None
-  def convert(valueA: Long, valueB: Long) = Some(new UUID(valueA,valueB))
+class UUIDValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[UUID] {
+  def convert() = Never()
+  def convert(valueA: Long, valueB: Long) = new UUID(valueA,valueB)
   def convert(value: String) = Never()
-  def allocWrite(before: Int, value: Option[UUID], after: Int) =
-    if(nonEmpty(value)) inner.allocWrite(before, value.get.getMostSignificantBits, value.get.getLeastSignificantBits, after) else Never()
-  def nonEmpty(value: Option[UUID]) = value.nonEmpty
+  def allocWrite(before: Int, value: UUID, after: Int) =
+    if(nonEmpty(value)) inner.allocWrite(before, value.getMostSignificantBits, value.getLeastSignificantBits, after) else Never()
+  def nonEmpty(value: UUID) = true
 }
 
 // for true Boolean converter? if(nonEmpty(value)) inner.allocWrite(before, 1L, 0L, after) else Never()
@@ -69,10 +69,9 @@ class ListByValueStartImpl[DBEnvKey](
     val handler = Single(handlerLists.list(searchKey))
     val tx = txManager.tx
     new ListByValue[Value] {
-      def list(value: Value) = list(value, None, Long.MaxValue)
-      def list(value: Value, fromObjId: Option[ObjId], limit: ObjId) = {
-        val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>createNode(objId))
-        val request = new SearchRequest[Value](tx, value, fromObjId, feed)
+      def list(value: Value) = {
+        val feed = new ListFeedImpl[DBNode](Long.MaxValue,(objId,_)=>createNode(objId))
+        val request = new SearchRequest[Value](tx, value, None, feed)
         handler(request)
         feed.result.reverse
       }

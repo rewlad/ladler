@@ -11,15 +11,14 @@ class MergerEventSourceOperationsImpl(
   def incrementalApplyAndCommit(): Unit = {
     mainTxManager.needTx(rw=true)
     instantTxStarter.needTx(rw=false)
-    val seqRef = mainSeqNode()(at.unmergedRequestsFrom.ref)
-    val reqSrc = ops.createEventSource(instantValues.of(at.asRequest.defined), true, seqRef)
-    val reqOpt = reqSrc.poll()
-    if(reqOpt.isEmpty) { return }
-    val req = reqOpt.get
+    val seqRef: Ref[DBNode] = mainSeqNode()(at.lastMergedRequest.ref)
+    val reqSrc = ops.createEventSource(at.requested, ops.requested, seqRef)
+    val req = reqSrc.poll()
+    if(!req.nonEmpty) { return }
     var ok = false
     try {
-      val sessionId = req(at.instantSession).get
-      ops.applyEvents(sessionId, (ev:DBNode)=>
+      val instantSession = req(at.instantSession)
+      ops.applyEvents(instantSession, (ev:DBNode)=>
         if(ev.objId<req.objId) true else if(ev.objId==req.objId) false else Never()
       )
       instantTxStarter.closeTx()

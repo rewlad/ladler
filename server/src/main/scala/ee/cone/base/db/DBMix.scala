@@ -41,7 +41,7 @@ trait DBConnectionMix extends CoMixBase with Runnable {
   lazy val eventSourceAttrs =
     new EventSourceAttrsImpl(attrFactory,searchIndex,???,???,???,???, mandatory)()()
   lazy val eventSourceOperations =
-    new EventSourceOperationsImpl(eventSourceAttrs,instantTxManager,factIndex,handlerLists,listByDBNode,mainValues,instantValues,???,???)
+    new EventSourceOperationsImpl(eventSourceAttrs,instantTxManager,factIndex,handlerLists,listByDBNode,mainValues,instantValues,???,???,???)
   lazy val mergerEventSourceOperations =
     new MergerEventSourceOperationsImpl(eventSourceOperations,eventSourceAttrs,mainTxManager,instantTxManager,???,instantValues)
   lazy val sessionEventSourceOperations =

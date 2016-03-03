@@ -1,9 +1,9 @@
 package ee.cone.base.db
 
-import java.util.UUID
+
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider, BaseCoHandler}
-import ee.cone.base.db.Types._
+
 
 // fail'll probably do nothing in case of outdated rel type
 

@@ -16,28 +16,13 @@ class SearchIndexImpl(
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory
 ) extends SearchIndex {
-  //class SearchHandler[Value](attr: Attr[Value], val on: List[EventKey[SearchRequest[Value],Unit]]) extends CoHandler[SearchRequest[Value],Unit] {
-
-  private def execute[Value](attr: Attr[Value])(in: SearchRequest[Value]) = if(in.objId.isEmpty){
-    val key = converter.keyWithoutObjId(attr.rawAttr, in.value)
-    in.tx.rawIndex.seek(key)
-    rawVisitor.execute(in.tx.rawIndex, key, in.feed)
-  } else {
-    in.tx.rawIndex.seek(converter.key(attr.rawAttr, in.value, in.objId.get))
-    rawVisitor.execute(in.tx.rawIndex, converter.keyWithoutObjId(attr.rawAttr, in.value), in.feed)
+  private def execute[Value](attr: Attr[Value])(in: SearchRequest[Value]) = {
+    val whileKey = converter.keyWithoutObjId(attr.rawAttr, in.value)
+    val fromKey = if(in.objId.isEmpty) whileKey
+      else converter.key(attr.rawAttr, in.value, in.objId.get)
+    in.tx.rawIndex.seek(fromKey)
+    rawVisitor.execute(in.tx.rawIndex, whileKey, in.feed)
   }
-
-
-  /*
-  def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, feed: Feed) = {
-    val key = converter.keyWithoutObjId(attr.rawAttr, value)
-    tx.rawIndex.seek(key)
-    rawVisitor.execute(tx.rawIndex, key, feed)
-  }
-  def execute[Value](tx: RawTx, attr: Attr[Value], value: Value, objId: ObjId, feed: Feed) = {
-    tx.rawIndex.seek(converter.key(attr.rawAttr, value, objId))
-    rawVisitor.execute(tx.rawIndex, converter.keyWithoutObjId(attr.rawAttr, value), feed)
-  }*/
   private def set[Value](attrId: RawAttr[Value], value: Value, node: DBNode, on: Boolean): Unit =
     if(attrId.converter.nonEmpty(value))
       node.tx.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
