@@ -21,6 +21,9 @@ class SessionEventSourceOperationsImpl(
 
 
 
-  def addRequest() = addEvent(ev=> ev(at.requested)=ops.requested)
+  def addRequest() = addEvent(ev=>
+    ev(at.asRequest) = ev
+    ev(at.requested)=ops.requested
+  )
   def addUndo(eventObjId: ObjId) = ???
 }

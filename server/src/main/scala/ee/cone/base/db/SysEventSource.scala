@@ -32,20 +32,23 @@ class EventSourceAttrsImpl(
   val asUndo: Attr[DBNode] = attr(0x0018, 0, nodeValueConverter),
   val asCommit: Attr[DBNode] = attr(0x0019, 0, nodeValueConverter),
   val lastMergedRequest: Attr[DBNode] = attr(0, 0x001A, nodeValueConverter),
-  val requested: Attr[String] = attr(0x001B, 0, stringValueConverter)
+  val asRequest: Attr[DBNode] = attr(0x001B, 0, nodeValueConverter),
+  val requested: Attr[String] = attr(0, 0x001C, stringValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asInstantSession,sessionKey,mutual = true) :::
     mandatory(asMainSession,instantSession,mutual = true) :::
     mandatory(asMainSession,lastMergedEvent,mutual = true) :::
     mandatory(asEventStatus,event,mutual = true) :::
+    mandatory(asRequest,requested,mutual = true) :::
+    mandatory(asRequest,asEvent,mutual = false) :::
     mandatory(asUndo, asEventStatus, mutual = false) :::
     mandatory(asCommit, asEventStatus, mutual = false) :::
-    mandatory(requested, asEvent, mutual = false) :::
     searchIndex.handlers(asInstantSession.defined, sessionKey) :::
     searchIndex.handlers(asMainSession, instantSession) :::
     searchIndex.handlers(asEvent, instantSession) :::
     searchIndex.handlers(asUndo, event) :::
     searchIndex.handlers(asEvent, requested) :::
+    searchIndex.handlers(asRequest, instantSession) :::
     Nil
 ) extends CoHandlerProvider with MergerEventSourceAttrs with SessionEventSourceAttrs
 
@@ -59,32 +62,28 @@ class EventSourceOperationsImpl(
   instantNodes: DBNodes[InstantEnvKey],
   nodeFactory: NodeFactory
 ) extends EventSourceOperations {
-  def createEventSource[Value](prop: Attr[Value], value: Value, seqRef: Ref[DBNode]) =
+  def isUndone(event: DBNode) =
+    instantNodes.where(at.asUndo.defined, at.event, event).nonEmpty
+  def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode]) =
     new EventSource {
       def poll(): DBNode = {
         val lastNode = seqRef()
         val fromObjId = if(lastNode.nonEmpty) Some(lastNode.objId+1) else None
-
-        val tx = instantTxManager.tx
-        val label = at.asEvent
         val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
-        val handler = Single(nodeHandlerLists.list(searchKey))
-        val feed = new Feed {
-          var result: DBNode = nodeFactory.noNode
-          def apply(valueA: Long, valueB: Long) = {
-            result = nodeFactory.toNode(tx,valueA)
-            false
-          }
-        }
-        val request = new SearchRequest[Value](tx, value, fromObjId, feed)
-        handler(request)
-        val event = feed.result
-        if(!event.nonEmpty){ return event }
+        val result = instantNodes.where(searchKey, value, fromObjId, 1L)
+        if(result.isEmpty){ return nodeFactory.noNode }
+        val event :: Nil = result
         seqRef() = event
-        if(instantNodes.where(at.asUndo.defined, at.event, event).isEmpty) event
-        else poll()
+        if(isUndone(event)) poll() else event
       }
     }
+  def addUndo(event: DBNode) = {
+    val instantSession = event(at.instantSession) //check
+    val searchKey = SearchByLabelProp[DBNode](at.asRequest.defined,at.instantSession.defined)
+    val requests = instantNodes.where(searchKey,instantSession,Some(event.objId),Long.MaxValue)
+    if(requests.exists(!isUndone(_))) throw new Exception("")
+  }
+
   def applyEvents(instantSessionNode: DBNode, isNotLast: DBNode=>Boolean): Unit = {
     val sessions = mainNodes.where(at.asMainSession.defined, at.instantSession, instantSessionNode)
     val seqNode = Single.option(sessions).getOrElse{
@@ -93,7 +92,7 @@ class EventSourceOperationsImpl(
       mainSession
     }
     val seqRef = seqNode(at.lastMergedEvent.ref)
-    val src = createEventSource(at.instantSession, instantSessionNode, seqRef)
+    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef)
     applyEvents(src, isNotLast)
   }
   private def applyEvents(src: EventSource, isNotLast: DBNode=>Boolean): Unit = {

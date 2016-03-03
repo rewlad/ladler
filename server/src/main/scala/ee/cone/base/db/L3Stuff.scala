@@ -22,13 +22,14 @@ class DBNodesImpl[DBEnvKey](
   searchIndex: SearchIndex, txManager: TxManager[DBEnvKey],
   nodeFactory: NodeFactory, at: SysAttrs
 ) extends DBNodes[DBEnvKey] {
-  def where[Value](attr: Attr[Value], value: Value) = where(SearchByAttr[Value](attr.defined), value)
+  def where[Value](attr: Attr[Value], value: Value) =
+    where(SearchByAttr[Value](attr.defined), value, None, Long.MaxValue)
   def where[Value](label: Attr[Boolean], prop: Attr[Value], value: Value) =
-    where(SearchByLabelProp[Value](label.defined, prop.defined), value)
-  private def where[Value](searchKey: EventKey[SearchRequest[Value],Unit], value: Value) = {
+    where(SearchByLabelProp[Value](label.defined, prop.defined), value, None, Long.MaxValue)
+  def where[Value](searchKey: EventKey[SearchRequest[Value],Unit], value: Value, from: Option[Long], limit: Long) = {
     val handler = Single(handlerLists.list(searchKey))
     val tx = txManager.tx
-    val feed = new ListFeedImpl[DBNode](Long.MaxValue,(objId,_)=>nodeFactory.toNode(tx,objId))
+    val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>nodeFactory.toNode(tx,objId))
     val request = new SearchRequest[Value](tx, value, None, feed)
     handler(request)
     feed.result.reverse

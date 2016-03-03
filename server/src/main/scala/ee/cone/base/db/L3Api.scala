@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{LifeCycle, CanStart}
+import ee.cone.base.connection_api.{EventKey, LifeCycle, CanStart}
 import ee.cone.base.db.Types._
 
 case class ValidationFailure(hint: String, node: DBNode)
@@ -14,6 +14,7 @@ trait NodeFactory {
 trait DBNodes[DBEnvKey] {
   def where[Value](attr: Attr[Value], value: Value): List[DBNode]
   def where[Value](label: Attr[Boolean], prop: Attr[Value], value: Value): List[DBNode]
+  def where[Value](searchKey: EventKey[SearchRequest[Value],Unit], value: Value, from: Option[Long], limit: Long): List[DBNode]
   def create(label: Attr[DBNode]): DBNode
 }
 

@@ -9,15 +9,17 @@ class UniqueImpl[DBEnvKey](
   searchIndex: SearchIndex,
   allNodes: DBNodes[DBEnvKey]
 ) {
-  def apply[Value](uniqueAttr: Attr[Value]) =
+  def apply[Value](label: Attr[DBNode], uniqueAttr: Attr[Value]) =
     searchIndex.handlers(uniqueAttr) :::
-    CoHandler(AfterUpdate(uniqueAttr.defined) :: Nil)(preCommitCheck.create{ nodes =>
-      nodes.flatMap{ node =>
-        if(!node(uniqueAttr.defined)) Nil
-        else allNodes.where(uniqueAttr,node(uniqueAttr)) match {
-          case _ :: Nil => Nil
-          case ns => ns.map(ValidationFailure("unique",_))
+    CoHandler(AfterUpdate(label.defined) :: AfterUpdate(uniqueAttr.defined) :: Nil)(
+      preCommitCheck.create{ nodes =>
+        nodes.flatMap{ node =>
+          if(!node(uniqueAttr.defined)) Nil
+          else allNodes.where(uniqueAttr,node(uniqueAttr)) match {
+            case _ :: Nil => Nil
+            case ns => ns.map(ValidationFailure("unique",_))
+          }
         }
       }
-    }) :: Nil
+    ) :: Nil
 }

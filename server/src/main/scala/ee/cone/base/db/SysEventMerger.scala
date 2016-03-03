@@ -13,7 +13,7 @@ class MergerEventSourceOperationsImpl(
     instantTxStarter.needTx(rw=false)
     val seqNode = nodeFactory.seqNode(mainTxManager.tx)
     val seqRef: Ref[DBNode] = seqNode(at.lastMergedRequest.ref)
-    val reqSrc = ops.createEventSource(at.requested, ops.requested, seqRef)
+    val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef)
     val req = reqSrc.poll()
     if(!req.nonEmpty) { return }
     var ok = false
