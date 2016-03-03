@@ -41,12 +41,12 @@ class RelSideInfoFactory(
   preCommitCheck: PreCommitCheckAllOfConnection,
   hasTypeAttr: Attr[Boolean],
   searchIndex: SearchIndex,
-  values: ListByValueStart[MainEnvKey]
+  nodes: DBNodes[MainEnvKey]
 ){
   def apply[Value](attr: Attr[DBNode]) = {
     val handlers: List[BaseCoHandler] =
       searchIndex.handlers(attr) :::
-        toHandler(new TypeRefIntegrityPreCommitCheck(hasTypeAttr, attr, values)) ::
+        toHandler(new TypeRefIntegrityPreCommitCheck(hasTypeAttr, attr, nodes)) ::
         toHandler(new SideRefIntegrityPreCommitCheck(hasTypeAttr, attr)) :: Nil
     RelSideInfo(attr, handlers)
   }
@@ -58,11 +58,11 @@ class RelSideInfoFactory(
 class TypeRefIntegrityPreCommitCheck(
   val hasTypeAttr: Attr[Boolean],
   val toAttr: Attr[DBNode],
-  values: ListByValueStart[MainEnvKey]
+  allNodes: DBNodes[MainEnvKey]
 ) extends RefIntegrityPreCommitCheck {
   def affectedBy = hasTypeAttr
   def check(nodes: Seq[DBNode]) =
-    nodes.flatMap(node => values.of(toAttr).list(node)).flatMap(checkNode)
+    nodes.flatMap(node => allNodes.where(toAttr,node)).flatMap(checkNode)
 }
 
   //def affectedBy = typeAttr :: propAttr :: Nil

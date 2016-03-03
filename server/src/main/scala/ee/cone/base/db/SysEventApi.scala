@@ -17,7 +17,7 @@ trait EventSourceOperations {
   def addEventStatus(event: DBNode, ok: Boolean): Unit
   def applyEvents(instantSession: DBNode, isNotLast: DBNode=>Boolean): Unit
   def createEventSource[Value](prop: Attr[Value], value: Value, seqRef: Ref[DBNode]): EventSource
-  def addInstant(label: Attr[DBNode])(fill: DBNode=>Unit): Unit
+  def addEvent(instantSession: DBNode, fill: DBNode=>Unit): Unit
   def requested: String
 }
 
@@ -43,9 +43,7 @@ trait MergerEventSourceAttrs {
 }
 
 trait SessionEventSourceAttrs {
-  def asEvent: Attr[DBNode]
   def asInstantSession: Attr[DBNode]
   def sessionKey: Attr[UUID]
-  def instantSession: Attr[DBNode]
   def requested: Attr[String]
 }

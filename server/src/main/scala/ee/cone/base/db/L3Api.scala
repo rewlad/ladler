@@ -1,19 +1,20 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{LifeCycle, CanStart, CoHandlerProvider,
-BaseCoHandler}
-
+import ee.cone.base.connection_api.{LifeCycle, CanStart}
 import ee.cone.base.db.Types._
 
 case class ValidationFailure(hint: String, node: DBNode)
 
-trait ListByValueStart[DBEnvKey] {
-  def of[Value](attr: Attr[Value]): ListByValue[Value]
-  def of[Value](label: Attr[Boolean], prop: Attr[Value]): ListByValue[Value]
+trait NodeFactory {
+  def noNode: DBNode
+  def toNode(tx: RawTx, objId: ObjId): DBNode
+  def seqNode(tx: RawTx): DBNode
 }
 
-trait ListByValue[Value] {
-  def list(value: Value): List[DBNode]
+trait DBNodes[DBEnvKey] {
+  def where[Value](attr: Attr[Value], value: Value): List[DBNode]
+  def where[Value](label: Attr[Boolean], prop: Attr[Value], value: Value): List[DBNode]
+  def create(label: Attr[DBNode]): DBNode
 }
 
 trait ListByDBNode {

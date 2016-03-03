@@ -16,22 +16,21 @@ import ee.cone.base.util.Single
 class EventSourceAttrsImpl(
   attr: AttrFactory,
   searchIndex: SearchIndex,
-  selfValueConverter: RawValueConverter[DBNode],
-  uuidValueConverter: RawValueConverter[UUID],
   nodeValueConverter: RawValueConverter[DBNode],
+  uuidValueConverter: RawValueConverter[UUID],
   stringValueConverter: RawValueConverter[String],
   mandatory: Mandatory
 ) (
-  val asInstantSession: Attr[DBNode] = attr(0x0010, 0, selfValueConverter),
+  val asInstantSession: Attr[DBNode] = attr(0x0010, 0, nodeValueConverter),
   val sessionKey: Attr[UUID] = attr(0, 0x0011, uuidValueConverter),
-  val asMainSession: Attr[DBNode] = attr(0x0012, 0, selfValueConverter),
+  val asMainSession: Attr[DBNode] = attr(0x0012, 0, nodeValueConverter),
   val instantSession: Attr[DBNode] = attr(0, 0x0013, nodeValueConverter),
   val lastMergedEvent: Attr[DBNode] = attr(0, 0x0014, nodeValueConverter),
-  val asEvent: Attr[DBNode] = attr(0x0015, 0, selfValueConverter),
-  val asEventStatus: Attr[DBNode] = attr(0x0016, 0, selfValueConverter),
+  val asEvent: Attr[DBNode] = attr(0x0015, 0, nodeValueConverter),
+  val asEventStatus: Attr[DBNode] = attr(0x0016, 0, nodeValueConverter),
   val event: Attr[DBNode] = attr(0, 0x0017, nodeValueConverter),
-  val asUndo: Attr[DBNode] = attr(0x0018, 0, selfValueConverter),
-  val asCommit: Attr[DBNode] = attr(0x0019, 0, selfValueConverter),
+  val asUndo: Attr[DBNode] = attr(0x0018, 0, nodeValueConverter),
+  val asCommit: Attr[DBNode] = attr(0x0019, 0, nodeValueConverter),
   val lastMergedRequest: Attr[DBNode] = attr(0, 0x001A, nodeValueConverter),
   val requested: Attr[String] = attr(0x001B, 0, stringValueConverter)
 )(val handlers: List[BaseCoHandler] =
@@ -50,31 +49,15 @@ class EventSourceAttrsImpl(
     Nil
 ) extends CoHandlerProvider with MergerEventSourceAttrs with SessionEventSourceAttrs
 
-/**
-  * val handler = Single(handlerLists.list(searchKey))
-  * val tx = txManager.tx
-  * new ListByValue[Value] {
-  * def list(value: Value) = {
-  * val feed = new ListFeedImpl[DBNode](Long.MaxValue,(objId,_)=>createNode(objId))
-  * val request = new SearchRequest[Value](tx, value, None, feed)
-  * handler(request)
-  * feed.result.reverse
-  * }
-  * }
-  *
-  * */
-
 class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
   instantTxManager: TxManager[InstantEnvKey],
   factIndex: FactIndex,
   nodeHandlerLists: CoHandlerLists,
   attrs: ListByDBNode,
-  mainValues: ListByValueStart[MainEnvKey],
-  instantValues: ListByValueStart[InstantEnvKey],
-  mainCreateNode: Attr[DBNode]=>DBNode,
-  instantCreateNode: Attr[DBNode]=>DBNode,
-  nodeValueConverter: RawValueConverter[DBNode]
+  mainNodes: DBNodes[MainEnvKey],
+  instantNodes: DBNodes[InstantEnvKey],
+  nodeFactory: NodeFactory
 ) extends EventSourceOperations {
   def createEventSource[Value](prop: Attr[Value], value: Value, seqRef: Ref[DBNode]) =
     new EventSource {
@@ -87,9 +70,9 @@ class EventSourceOperationsImpl(
         val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
         val handler = Single(nodeHandlerLists.list(searchKey))
         val feed = new Feed {
-          var result: DBNode = nodeValueConverter.convert()
+          var result: DBNode = nodeFactory.noNode
           def apply(valueA: Long, valueB: Long) = {
-            result = nodeValueConverter.convert(0L,valueA)
+            result = nodeFactory.toNode(tx,valueA)
             false
           }
         }
@@ -98,14 +81,14 @@ class EventSourceOperationsImpl(
         val event = feed.result
         if(!event.nonEmpty){ return event }
         seqRef() = event
-        if(instantValues.of(at.asUndo.defined, at.event).list(event).isEmpty) event
+        if(instantNodes.where(at.asUndo.defined, at.event, event).isEmpty) event
         else poll()
       }
     }
   def applyEvents(instantSessionNode: DBNode, isNotLast: DBNode=>Boolean): Unit = {
-    val sessions = mainValues.of(at.asMainSession.defined, at.instantSession).list(instantSessionNode)
+    val sessions = mainNodes.where(at.asMainSession.defined, at.instantSession, instantSessionNode)
     val seqNode = Single.option(sessions).getOrElse{
-      val mainSession = mainCreateNode(at.asMainSession)
+      val mainSession = mainNodes.create(at.asMainSession)
       mainSession(at.instantSession) = instantSessionNode
       mainSession
     }
@@ -122,14 +105,18 @@ class EventSourceOperationsImpl(
     factIndex.switchSrcObjId(0L)
     if(isNotLast(event)) applyEvents(src, isNotLast)
   }
-  def addEventStatus(event: DBNode, ok: Boolean): Unit =
-    addInstant(at.asEventStatus){ ev =>
-      ev(if(ok) at.asCommit else at.asUndo) = ev
-      ev(at.event) = event
-    }
-  def addInstant(label: Attr[DBNode])(fill: DBNode=>Unit): Unit = {
+  def addEventStatus(event: DBNode, ok: Boolean) = {
     instantTxManager.needTx(rw=true)
-    fill(instantCreateNode(label))
+    val ev = instantNodes.create(at.asEventStatus)
+    ev(if(ok) at.asCommit else at.asUndo) = ev
+    ev(at.event) = event
+    instantTxManager.commit()
+  }
+  def addEvent(instantSession: DBNode, fill: DBNode=>Unit): Unit = {
+    instantTxManager.needTx(rw=true)
+    val ev = instantNodes.create(at.asEvent)
+    ev(at.instantSession) = instantSession
+    fill(ev)
     instantTxManager.commit()
   }
   def requested = "Y"

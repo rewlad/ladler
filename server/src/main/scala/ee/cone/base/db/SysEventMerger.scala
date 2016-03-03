@@ -5,13 +5,14 @@ import ee.cone.base.util.Never
 class MergerEventSourceOperationsImpl(
   ops: EventSourceOperations, at: MergerEventSourceAttrs,
   mainTxManager: TxManager[MainEnvKey], instantTxStarter: TxManager[InstantEnvKey],
-  mainSeqNode: ()=>DBNode,
-  instantValues: ListByValueStart[InstantEnvKey]
+  nodeFactory: NodeFactory,
+  instantNodes: DBNodes[InstantEnvKey]
 ) extends MergerEventSourceOperations {
   def incrementalApplyAndCommit(): Unit = {
     mainTxManager.needTx(rw=true)
     instantTxStarter.needTx(rw=false)
-    val seqRef: Ref[DBNode] = mainSeqNode()(at.lastMergedRequest.ref)
+    val seqNode = nodeFactory.seqNode(mainTxManager.tx)
+    val seqRef: Ref[DBNode] = seqNode(at.lastMergedRequest.ref)
     val reqSrc = ops.createEventSource(at.requested, ops.requested, seqRef)
     val req = reqSrc.poll()
     if(!req.nonEmpty) { return }
