@@ -17,8 +17,11 @@ class TxManagerImpl[DBEnvKey](
   def needTx(rw: Boolean): Unit = {
     if(currentTx.value.isEmpty) {
       val lifeCycle = connectionLifeCycle.sub()
-      val rawTx = lifeCycle.of(()=>env.createTx(lifeCycle, rw = rw)).updates(currentTx.value=_).value
-      lifeCycle.of(()=>()).updates(checkAll.switchTx(rawTx,_))
+      val rawTx = env.createTx(lifeCycle, rw = rw)
+      lifeCycle.onClose(()=>currentTx.value=None)
+      currentTx.value = Some(rawTx)
+      lifeCycle.onClose(()=>checkAll.switchTx(rawTx,on=false))
+      checkAll.switchTx(rawTx,on=true)
     }
     if(currentTx().rw != rw) Never()
   }

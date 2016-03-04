@@ -6,10 +6,11 @@ class MandatoryImpl(preCommitCheck: PreCommitCheckAllOfConnection) extends Manda
   def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[BaseCoHandler] =
     apply(condAttr, mandatoryAttr) ::: (if(mutual) apply(mandatoryAttr, condAttr) ::: Nil else Nil)
   def apply(condAttr: Attr[_], mandatoryAttr: Attr[_]): List[BaseCoHandler] = {
-    val affectedBy = condAttr.defined :: mandatoryAttr.defined :: Nil
-    CoHandler(affectedBy.map(AfterUpdate))(preCommitCheck.create(nodes=>
-      for(node ← nodes if node(condAttr.defined) && !node(mandatoryAttr.defined))
-      yield ValidationFailure("mandatory", node)
-    )) :: Nil
+    (condAttr :: mandatoryAttr :: Nil).map{ a =>
+      CoHandler(AfterUpdate(a.defined))(preCommitCheck.create(nodes=>
+        for(node ← nodes if node(condAttr.defined) && !node(mandatoryAttr.defined))
+          yield ValidationFailure("mandatory", node)
+      ))
+    }
   }
 }

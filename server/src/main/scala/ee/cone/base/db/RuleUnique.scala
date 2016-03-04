@@ -17,8 +17,10 @@ class UniqueImpl(
       }
 
     searchIndex.handlers(label,uniqueAttr) :::
-      CoHandler(AfterUpdate(label.defined) :: AfterUpdate(uniqueAttr.defined) :: Nil)(
-        preCommitCheck.create{ nodes => nodes.flatMap(checkNode) }
-      ) :: Nil
+      (label :: uniqueAttr :: Nil).map{ a =>
+        CoHandler(AfterUpdate(a.defined))(
+          preCommitCheck.create{ nodes => nodes.flatMap(checkNode) }
+        )
+      }
   }
 }

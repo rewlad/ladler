@@ -2,8 +2,8 @@ package ee.cone.base.vdom
 
 import java.util.Base64
 
-import ee.cone.base.connection_api.{Message, DictMessage}
-import ee.cone.base.util.UTF8String
+import ee.cone.base.connection_api.DictMessage
+import ee.cone.base.util.{Never, UTF8String}
 
 
 object Input {
@@ -17,7 +17,7 @@ object Input {
 }
 
 object OnChange {
-  def unapply(message: Message): Option[String] = message match {
+  def unapply(message: DictMessage): Option[String] = message match {
     case DictMessage(mv) if mv.getOrElse("X-r-action","") == "change" =>
       Some(UTF8String(Base64.getDecoder.decode(mv("X-r-vdom-value-base64"))))
     case _ => None
@@ -25,42 +25,19 @@ object OnChange {
 }
 
 object OnClick {
-  def unapply(message: Message): Option[Unit] = message match {
+  def unapply(message: DictMessage): Option[Unit] = message match {
     case DictMessage(mv) if mv.getOrElse("X-r-action","") == "click" => Some(())
     case _ => None
   }
 }
 
-class VersionObserver {
-  private var prevVer: Option[String] = None
-  def apply(version: String)(f: =>Unit): Unit = {
-    val nextVer = Some(version)
-    if(prevVer.isEmpty || prevVer != nextVer){
-      f
-      prevVer = nextVer
-    }
-  }
+object WasNoValueImpl extends WasNoValue {
+  def appendJson(builder: JsonBuilder): Unit = Never()
 }
 
-trait MessageTransformer {
-  def transformMessage: PartialFunction[DictMessage,Message]
-}
 
-object WithVDomPath {
-  def unapply(message: DictMessage): Option[List[String]] =
-    message.value.get("X-r-vdom-path").map(_.split("/").toList).collect{
-      case "" :: parts => parts
-    }
-}
 
-object ResolveValue {
-  def apply(value: Value, path: List[String]): Option[Value] =
-    if(path.isEmpty) Some(value) else Some(value).collect{
-      case m: MapValue => m.pairs.collectFirst{
-        case pair if pair.jsonKey == path.head => apply(pair.value, path.tail)
-      }.flatten
-    }.flatten
-}
+
 /*
 def apply(path: List[String], message: Message): Option[Message] = {
 

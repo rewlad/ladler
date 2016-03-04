@@ -50,7 +50,7 @@ class A {
     val node = ResolveValue(vDom(), path)
       .getOrElse(throw new Exception(s"$path not found"))
     val transformer = node match {
-      case v: MessageTransformer => v
+      case v: MessageReceiver => v
     }
     transformer.transformMessage.lift(message).get
   }

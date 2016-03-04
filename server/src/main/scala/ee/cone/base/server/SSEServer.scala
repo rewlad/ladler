@@ -1,18 +1,19 @@
 
 package ee.cone.base.server
 
-import java.net.ServerSocket
+import java.io.OutputStream
+import java.net.{Socket, ServerSocket}
 import java.util.concurrent.Executor
 
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Single, ToRunnable, Bytes}
 
 class SSESender(
-  connectionLifeCycle: LifeCycle, allowOriginOption: Option[String],
-  socket: SocketOfConnection
-) extends SenderOfConnection {
-  private lazy val out = connectionLifeCycle.of(()=>socket.value.getOutputStream)
-    .onClose(_.close()).value
+  allowOriginOption: Option[String]
+) extends SenderOfConnection with CoHandlerProvider {
+  private var outOpt: Option[OutputStream] = None
+  private def out: OutputStream = outOpt.get
+  def handlers = CoHandler(SetOutput){ out => outOpt = Option(out) } :: Nil
   private lazy val connected = {
     val allowOrigin =
       allowOriginOption.map(v=>s"Access-Control-Allow-Origin: $v\n").getOrElse("")
@@ -30,7 +31,7 @@ class SSESender(
 class RSSEServer(
   ssePort: Int, pool: Executor,
   createLifeCycle: ()=>LifeCycle,
-  createConnection: (LifeCycle,SocketOfConnection) ⇒ Runnable
+  createConnection: LifeCycle ⇒ CoMixBase
 ) extends CanStart {
   def start() = pool.execute(ToRunnable{
     val serverSocket = new ServerSocket(ssePort) //todo toClose
@@ -38,11 +39,23 @@ class RSSEServer(
       val socket = serverSocket.accept()
       pool.execute(ToRunnable {
         val lifeCycle = createLifeCycle()
-        lifeCycle.open()
-        lifeCycle.onClose(()=>socket.close())
-        val connection = createConnection(lifeCycle, new SocketOfConnection(socket))
-        connection.run()
+        try{
+          lifeCycle.open()
+          lifeCycle.onClose(()=>socket.close())
+          val out = socket.getOutputStream
+          lifeCycle.onClose(()=>out.close())
+          val connection = createConnection(lifeCycle)
+          try{
+            connection.handlerLists.list(SetOutput).foreach(_(out))
+            while(true) Single(connection.handlerLists.list(ActivateReceiver))()
+          } catch {
+            case e: Exception ⇒
+              connection.handlerLists.list(FailEventKey).foreach(_(e))
+              throw e
+          }
+        } finally lifeCycle.close()
       })
     }
   })
 }
+

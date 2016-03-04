@@ -34,12 +34,14 @@ class KeepAlive(
     status = WaitingPingStatus
   })
   def handlers: List[BaseCoHandler] =
-    CoHandler[Unit,Unit](PeriodicMessage :: Nil){ in => periodicFrame() } ::
-    CoHandler[DictMessage,Unit](AlienDictMessageKey :: Nil){ message =>
-      message.value.get("X-r-session").foreach{ sessionKey =>
-        handlerLists.list(SwitchSession).foreach(_(UUID.fromString(sessionKey)))
-        status = OKPingStatus(sessionKey)
+    CoHandler(AlienDictMessageKey){ messageOpt =>
+      messageOpt.foreach{ message =>
+        message.value.get("X-r-session").foreach{ sessionKey =>
+          handlerLists.list(SwitchSession).foreach(_(UUID.fromString(sessionKey)))
+          status = OKPingStatus(sessionKey)
+        }
       }
+      periodicFrame()
     } :: Nil
 }
 

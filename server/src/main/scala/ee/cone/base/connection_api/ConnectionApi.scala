@@ -2,19 +2,10 @@ package ee.cone.base.connection_api
 
 import java.util.UUID
 
-trait Message
-case class DictMessage(value: Map[String,String]) extends Message
-
-trait AliveValue[Value] {
-  def value: Value
-  def onClose(doClose: Value=>Unit): this.type
-  def updates(set: Option[Value]=>Unit): this.type
-}
 trait LifeCycle {
   def open(): Unit
   def close(): Unit
   def onClose(doClose: ()=>Unit): Unit
-  def of[Value](create: ()=>Value): AliveValue[Value]
   def sub(): LifeCycle
 }
 
@@ -24,7 +15,7 @@ trait CanStart {
 
 trait EventKey[-In,+Out]
 trait BaseCoHandler
-case class CoHandler[In,Out](on: List[EventKey[In,Out]])(val handle: In=>Out)
+case class CoHandler[In,Out](on: EventKey[In,Out])(val handle: In=>Out)
   extends BaseCoHandler
 
 trait CoHandlerLists {
@@ -36,4 +27,11 @@ trait CoHandlerProvider {
 
 ////
 
+trait SenderOfConnection {
+  def send(event: String, data: String): Unit
+}
+
 case object SwitchSession extends EventKey[UUID,Unit]
+
+case object AlienDictMessageKey extends EventKey[Option[DictMessage], Unit]
+case class DictMessage(value: Map[String,String])

@@ -1,6 +1,6 @@
 package ee.cone.base.vdom
 
-object JsonToString {
+object JsonToStringImpl extends JsonToString {
   def apply(value: Value): String = {
     val builder = new JsonBuilderImpl()
     value.appendJson(builder)

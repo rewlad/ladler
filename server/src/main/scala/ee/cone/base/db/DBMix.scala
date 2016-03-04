@@ -1,7 +1,6 @@
 package ee.cone.base.db
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db.Types.ObjId
 
 trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv
@@ -9,9 +8,9 @@ trait DBAppMix extends AppMixBase {
   override def toStart = mainDB :: instantDB :: super.toStart
 }
 
-trait DBConnectionMix extends CoMixBase with Runnable {
+trait DBConnectionMix extends CoMixBase {
   def dbAppMix: DBAppMix
-  def connectionLifeCycle: LifeCycle
+  def lifeCycle: LifeCycle
 
   lazy val rawFactConverter = new RawFactConverterImpl
   lazy val rawSearchConverter = new RawSearchConverterImpl
@@ -45,9 +44,9 @@ trait DBConnectionMix extends CoMixBase with Runnable {
   lazy val allNodes = new DBNodesImpl(handlerLists, nodeFactory, sysAttrs)
 
   lazy val instantTxManager =
-    new TxManagerImpl[InstantEnvKey](connectionLifeCycle, dbAppMix.instantDB, instantTx, preCommitCheckCheckAll)
+    new TxManagerImpl[InstantEnvKey](lifeCycle, dbAppMix.instantDB, instantTx, preCommitCheckCheckAll)
   lazy val mainTxManager =
-    new TxManagerImpl[MainEnvKey](connectionLifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
+    new TxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
 
   lazy val eventSourceAttrs =
     new EventSourceAttrsImpl(attrFactory,searchIndex,nodeValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()

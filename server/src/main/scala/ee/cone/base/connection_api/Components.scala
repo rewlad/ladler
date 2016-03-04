@@ -12,7 +12,6 @@ class LifeCycleImpl(parent: Option[LifeCycle]) extends LifeCycle {
     case st: OpenLifeStatus => status = new OpenLifeStatus(doClose :: st.toClose)
     case st => throw new Exception(s"$st")
   }
-  def of[Value](create: ()=>Value) = new AliveValueImpl(this, create)
   def open() = status match {
     case OpenableLifeStatus =>
       parent.foreach(p=>p.onClose(close))
@@ -26,19 +25,6 @@ class LifeCycleImpl(parent: Option[LifeCycle]) extends LifeCycle {
     case _ => ()
   }
   def sub() = Setup(new LifeCycleImpl(Some(this)))(_.open())
-}
-
-class AliveValueImpl[Value](lifeCycle: LifeCycle, create: ()=>Value) extends AliveValue[Value] {
-  lazy val value = create()
-  def onClose(doClose: Value=>Unit) = {
-    lifeCycle.onClose(()=>doClose(value))
-    this
-  }
-  def updates(set: Option[Value]=>Unit) = {
-    lifeCycle.onClose(()=>set(None))
-    set(Some(value))
-    this
-  }
 }
 
 object DoClose {
@@ -64,7 +50,6 @@ trait CoMixBase extends CoHandlerProvider {
 class CoHandlerListsImpl(createHandlers: ()=>List[BaseCoHandler]) extends CoHandlerLists {
   def list[In,Out](ev: EventKey[In,Out]): List[In=>Out] =
     value.getOrElse(ev,Nil).asInstanceOf[List[In=>Out]]
-  private lazy val value: Map[EventKey[_,_], _=>_] =
-    createHandlers().collect { case h: CoHandler[_,_] ⇒ h.on.map(ev=>(ev:EventKey[_,_],h.handle:(_=>_))) }
-      .flatten.groupBy(_._1).mapValues(_.map(_._2))
+  private lazy val value = createHandlers().map{ case h: CoHandler[_,_] ⇒ h }
+      .groupBy(_.on).mapValues(_.map(_.handle))
 }

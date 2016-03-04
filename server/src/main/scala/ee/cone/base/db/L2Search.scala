@@ -28,10 +28,11 @@ class SearchIndexImpl(
     def setter(on: Boolean)(node: DBNode) =
       if (node(labelAttr.defined)) set(attr.rawAttr, node(propAttr), node, on)
     val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
-    val on = labelAttr.defined :: propAttr.defined :: Nil
-    CoHandler(on.map(BeforeUpdate))(setter(on=false)) ::
-      CoHandler(on.map(AfterUpdate))(setter(on=true)) ::
-      CoHandler(searchKey :: Nil)(execute[Value](attr)) :: Nil
+    CoHandler(searchKey)(execute[Value](attr)) ::
+      (labelAttr :: propAttr :: Nil).flatMap{ a =>
+        CoHandler(BeforeUpdate(a.defined))(setter(on=false)) ::
+        CoHandler(AfterUpdate(a.defined))(setter(on=true)) :: Nil
+      }
   }
 }
 

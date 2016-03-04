@@ -1,12 +1,11 @@
 package ee.cone.base.test_react_db
 
 import java.nio.file.Paths
-import java.util.UUID
-import java.util.concurrent.{TimeUnit, BlockingQueue}
 import java.util.concurrent.locks.ReentrantLock
 
 
 import ee.cone.base.connection_api._
+import ee.cone.base.vdom._
 
 import scala.collection.immutable.SortedMap
 
@@ -39,6 +38,7 @@ class LifeCache[C] {
 
 ////
 
+/*
 class FindOrCreateSrcId(
   srcId: Attr[UUID],
   searchSrcId: ListByValue[UUID],
@@ -47,7 +47,7 @@ class FindOrCreateSrcId(
   def apply(value: UUID) = Single.option(searchSrcId.list(value))
     .getOrElse(Setup(seq.inc()){ node => node(srcId) = value })
 }
-
+*/
 
 ////
 
@@ -61,20 +61,21 @@ class TestAppMix extends ServerAppMix with DBAppMix {
   lazy val mainDB = new TestEnv
   lazy val instantDB = new TestEnv
   lazy val createConnection =
-    (lifeCycle:LifeCycle,socketOfConnection: SocketOfConnection) ⇒
-      new TestConnectionMix(this, lifeCycle, socketOfConnection)
+    (lifeCycle:LifeCycle) ⇒ new TestConnectionMix(this, lifeCycle)
 }
 
 class TestConnectionMix(
-  app: TestAppMix, val lifeCycle: LifeCycle, val socket: SocketOfConnection
-) extends ServerConnectionMix with Runnable {
+  app: TestAppMix, val lifeCycle: LifeCycle
+) extends ServerConnectionMix with SessionDBConnectionMix with VDomConnectionMix {
   lazy val serverAppMix = app
+  lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200
-  lazy val mainDB = app.mainDB
-  lazy val run = new SnapshotRunningConnection(
-    lifeCycle, sender, mainDB
-  )
+  //lazy val mainDB = app.mainDB
+  override def handlers =
+    new FailOfConnection(sender).handlers :::
+    new DynEdit().handlers :::
+    super.handlers
 }
 
 object TestApp extends App {
@@ -110,38 +111,24 @@ class TestEnv extends DBEnv {
   def start() = ()
 }
 
-
-
-class SnapshotRunningConnection(
-  handlerLists: CoHandlerLists,
-  connectionLifeCycle: LifeCycle,
-  sender: SenderOfConnection,
-  receiver: ReceiverOfConnection,
-  eventSourceOperations: SessionEventSourceOperations,
-
-) {
-  var vDomData: Option[()] = None
-  def apply(): Unit = try {
-    handlerLists.list(ConnectionRegistrationEventKey)
-      .foreach(_(connectionLifeCycle))
-    while(true) {
-      if(vDomData.isEmpty)
-        eventSourceOperations.incrementalApplyAndView{ ()⇒
-          makeVDom() // send
-        }
-    receiver.activate() //dispatches incoming message // can close / set refresh time
-      // may be close old mainTx/vDom here
-    }
-  } catch {
-    case e: Exception ⇒
-      sender.send("fail", "") //todo
-      throw e
-  } finally {
-    connectionLifeCycle.close()
-  }
+class FailOfConnection(
+  sender: SenderOfConnection
+) extends CoHandlerProvider {
+  def handlers = CoHandler(FailEventKey){ e =>
+    sender.send("fail",e.toString) //todo
+  } :: Nil
 }
 
-////
+class DynEdit(
+  eventSourceOperations: SessionEventSourceOperations
+) extends CoHandlerProvider {
+  def handlers = CoHandler(ViewPath("/db")){ pf =>
+    eventSourceOperations.incrementalApplyAndView{ ()⇒
+      ???
+    }
+  } :: Nil
+}
+
 
 
 
@@ -149,8 +136,10 @@ class SnapshotRunningConnection(
 
 
 /*
-components: =>List[ConnectionComponent]
 
-lazy val receivers = components.collect{ case r: ReceiverOfMessage => r }
-def dispatch(message: Message) = receivers.foreach(_.receive(message))
-*/
+  makeVDom() // send
+}*/
+
+//
+
+////

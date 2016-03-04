@@ -7,25 +7,26 @@ import ee.cone.base.connection_api._
 import scala.collection.concurrent.TrieMap
 
 class ReceiverOfConnectionImpl(
+    lifeCycle: LifeCycle,
     handlerLists: CoHandlerLists,
     registry: ConnectionRegistryImpl,
     framePeriod: Long
 ) extends ReceiverOfConnection with CoHandlerProvider {
   lazy val queue = new LinkedBlockingQueue[DictMessage]
-  lazy val connectionKey = util.UUID.randomUUID.toString
-  def handlers = CoHandler[LifeCycle,Unit](ConnectionRegistrationEventKey :: Nil){lifeCycle =>
+  lazy val connectionKey = {
+    val key = util.UUID.randomUUID.toString
     lifeCycle.onClose{()=>
-      registry.store.remove(connectionKey)
-      println(s"connection unregister: $connectionKey")
+      registry.store.remove(key)
+      println(s"connection unregister: $key")
     }
-    registry.store(connectionKey) = this
-    println(s"connection   register: $connectionKey")
-  } :: Nil
-  def activate() = {
-    val message = Option(queue.poll(framePeriod,TimeUnit.MILLISECONDS))
-    if(message.nonEmpty) handlerLists.list(AlienDictMessageKey).foreach(_(message.get))
-    else handlerLists.list(PeriodicMessage).foreach(_())
+    registry.store(key) = this
+    println(s"connection   register: $key")
+    key
   }
+  def handlers = CoHandler(ActivateReceiver){_ =>
+    val message = Option(queue.poll(framePeriod,TimeUnit.MILLISECONDS))
+    handlerLists.list(AlienDictMessageKey).foreach(_(message))
+  } :: Nil
 }
 
 class ConnectionRegistryImpl extends ConnectionRegistry {

@@ -59,5 +59,5 @@ class SessionEventSourceOperationsImpl(
     findOrAddSession()
     instantTxManager.commit()
   }
-  def handlers = CoHandler(SwitchSession :: Nil)(handleSessionKey) :: Nil
+  def handlers = CoHandler(SwitchSession)(handleSessionKey) :: Nil
 }

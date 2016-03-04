@@ -1,6 +1,10 @@
 package ee.cone.base.vdom
 
-import ee.cone.base.connection_api.Message
+import ee.cone.base.connection_api.{DictMessage, EventKey}
+
+trait JsonToString {
+  def apply(value: Value): String
+}
 
 trait JsonBuilder {
   def startArray(): JsonBuilder
@@ -15,6 +19,8 @@ trait ToJson {
 
 trait Value extends ToJson
 
+trait WasNoValue extends Value
+
 trait VPair {
   def jsonKey: String
   def sameKey(other: VPair): Boolean
@@ -27,5 +33,16 @@ trait MapValue extends Value {
 }
 
 trait Diff {
-  def diff(prevValue: Value, currValue: Value): Option[MapValue]
+  def diff(vDom: Value): Option[MapValue]
+}
+
+case class ViewPath(path: String) extends EventKey[String,Value]
+
+trait CurrentView {
+  def invalidate(): Unit
+  def until(value: Long): Unit
+}
+
+trait MessageReceiver {
+  def receive: PartialFunction[DictMessage,Unit]
 }

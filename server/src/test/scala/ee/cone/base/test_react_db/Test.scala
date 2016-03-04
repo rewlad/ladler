@@ -67,11 +67,11 @@ object Test {
   }
 
   class XMod {
-    lazy val xProps =
+    //lazy val xProps =
 
     def createXObj(objId: Long) = new XObj(objId) {
-      def xProp = xProps(objId)
-      def yProp = yProps(objId)
+      def xProp = ??? //xProps(objId)
+      def yProp = ??? //yProps(objId)
     }
     lazy val searchByXProp = new SearchByImpl[String,XObj](createXObj)
     lazy val xCtl = new XCtl(searchByXProp)

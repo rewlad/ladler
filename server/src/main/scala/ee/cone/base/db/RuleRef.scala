@@ -18,12 +18,15 @@ class RefIntegrityImpl(
       }
     mandatory(toAttr,existsA, mutual=false) :::
       searchIndex.handlers(existsA,toAttr) :::
-      CoHandler(AfterUpdate(existsB)::Nil)(
+      CoHandler(AfterUpdate(existsB))(
         preCommitCheck.create{ nodesB =>
           checkPairs(nodesB.flatMap(nodeB => allNodes.where(nodeB.tx,existsA,toAttr,nodeB)))
         }
       ) ::
-      CoHandler(AfterUpdate(existsA)::AfterUpdate(toAttr.defined)::Nil)(
+      CoHandler(AfterUpdate(existsA))(
+        preCommitCheck.create(checkPairs)
+      ) ::
+      CoHandler(AfterUpdate(toAttr.defined))(
         preCommitCheck.create(checkPairs)
       ) :: Nil
   }

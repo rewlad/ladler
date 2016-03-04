@@ -22,7 +22,7 @@ trait ListByDBNode {
 }
 
 trait PreCommitCheckAllOfConnection {
-  def switchTx(tx: RawTx, on: Option[Unit]): Unit
+  def switchTx(tx: RawTx, on: Boolean): Unit
   def checkTx(tx: RawTx): Seq[ValidationFailure]
   def create(later: Seq[DBNode]=>Seq[ValidationFailure]): DBNode=>Unit
 }

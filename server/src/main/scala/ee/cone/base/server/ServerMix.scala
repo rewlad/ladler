@@ -11,7 +11,7 @@ trait ServerAppMix extends AppMixBase {
   def threadCount: Int
   def staticRoot: Path
   def ssePort: Int
-  def createConnection: (LifeCycle,SocketOfConnection) ⇒ Runnable
+  def createConnection: LifeCycle ⇒ CoMixBase
 
   lazy val pool = Executors.newScheduledThreadPool(threadCount)
   lazy val connectionRegistry = new ConnectionRegistryImpl
@@ -26,16 +26,16 @@ trait ServerConnectionMix extends CoMixBase {
   def lifeCycle: LifeCycle
   def serverAppMix: ServerAppMix
   def allowOrigin: Option[String]
-  def socket: SocketOfConnection
   def framePeriod: Long
 
   lazy val connectionRegistry = serverAppMix.connectionRegistry
-  lazy val receiver = new ReceiverOfConnectionImpl(handlerLists,connectionRegistry,framePeriod)
-  lazy val sender = new SSESender(lifeCycle, allowOrigin, socket)
+  lazy val receiver = new ReceiverOfConnectionImpl(lifeCycle,handlerLists,connectionRegistry,framePeriod)
+  lazy val sender = new SSESender(allowOrigin)
 
   override def handlers =
     new KeepAlive(handlerLists,receiver, sender).handlers :::
       receiver.handlers :::
+      sender.handlers :::
       super.handlers
 }
 

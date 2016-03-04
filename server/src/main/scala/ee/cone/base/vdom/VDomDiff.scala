@@ -7,12 +7,9 @@ case class DoSetPair(value: Value) extends VPair {
   def sameKey(other: VPair) = Never()
   def withValue(value: Value) = Never()
 }
-object WasNoValue extends Value {
-  override def appendJson(builder: JsonBuilder): Unit = Never()
-}
 
-class DiffImpl(createMapValue: List[VPair]=>MapValue) extends Diff {
-  var prevVDom: Value = WasNoValue
+class DiffImpl(createMapValue: List[VPair]=>MapValue, wasNoValue: WasNoValue) extends Diff {
+  var prevVDom: Value = wasNoValue
   def diff(vDom: Value): Option[MapValue] = if(prevVDom eq vDom) None
     else Setup(diff(prevVDom, vDom)){ _ => prevVDom = vDom }
   private def set(value: Value) = Some(createMapValue(DoSetPair(value)::Nil))
@@ -24,7 +21,7 @@ class DiffImpl(createMapValue: List[VPair]=>MapValue) extends Diff {
         var res: List[VPair] = Nil
         while(current.nonEmpty){
           if(previous.isEmpty || !current.head.sameKey(previous.head))
-            previous = current.head.withValue(WasNoValue) :: previous
+            previous = current.head.withValue(wasNoValue) :: previous
           val d = diff(previous.head.value, current.head.value)
           if (d.nonEmpty) res = current.head.withValue(d.get) :: res
           previous = previous.tail
