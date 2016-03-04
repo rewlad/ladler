@@ -27,15 +27,15 @@ trait ServerConnectionMix extends CoMixBase {
   def serverAppMix: ServerAppMix
   def allowOrigin: Option[String]
   def socket: SocketOfConnection
+  def framePeriod: Long
 
   lazy val connectionRegistry = serverAppMix.connectionRegistry
-  lazy val incoming = new LinkedBlockingQueue[DictMessage]
-  lazy val receiver = new ReceiverOfConnectionImpl(connectionRegistry, incoming)
+  lazy val receiver = new ReceiverOfConnectionImpl(handlerLists,connectionRegistry,framePeriod)
   lazy val sender = new SSESender(lifeCycle, allowOrigin, socket)
 
   override def handlers =
-    new KeepAlive(receiver, sender).handlers :::
-    new ConnectionRegistration(connectionRegistry, receiver).handlers :::
+    new KeepAlive(handlerLists,receiver, sender).handlers :::
+      receiver.handlers :::
       super.handlers
 }
 

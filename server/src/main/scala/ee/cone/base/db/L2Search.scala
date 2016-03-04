@@ -1,15 +1,10 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{EventKey, CoHandler, BaseCoHandler}
-import ee.cone.base.db.Types._
+import ee.cone.base.connection_api.CoHandler
 import ee.cone.base.util.Never
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
-
-// todo: SearchAttr check
-
-
 
 class SearchIndexImpl(
   converter: RawSearchConverter,
@@ -27,30 +22,16 @@ class SearchIndexImpl(
     if(attrId.converter.nonEmpty(value))
       node.tx.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
 
-  private def calcPair[Value](
-    attr: Attr[Value],
-    searchKey: EventKey[SearchRequest[Value],Unit],
-    on: List[Attr[Boolean]],
-    setter: Boolean=>DBNode=>Unit
-  ): List[BaseCoHandler] =
-    CoHandler(on.map(BeforeUpdate))(setter(false)) ::
-    CoHandler(on.map(AfterUpdate))(setter(true)) ::
-    CoHandler(searchKey :: Nil)(execute[Value](attr)) :: Nil
-  def handlers[Value](attr: Attr[Value]) = {
-    if(attr.rawAttr.propId!=0L && attr.rawAttr.labelId!=0L) Never()
-    def setter(on: Boolean)(node: DBNode) = set(attr.rawAttr, node(attr), node, on)
-    calcPair(attr, SearchByAttr(attr.defined), attr.defined :: Nil, setter)
-  }
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     if(labelAttr.rawAttr.propId!=0L || propAttr.rawAttr.labelId!=0L) Never()
     val attr = attrFactory(labelAttr.rawAttr.labelId, propAttr.rawAttr.propId, propAttr.rawAttr.converter)
     def setter(on: Boolean)(node: DBNode) =
       if (node(labelAttr.defined)) set(attr.rawAttr, node(propAttr), node, on)
-    calcPair(attr,
-      SearchByLabelProp(labelAttr.defined, propAttr.defined),
-      labelAttr.defined :: propAttr.defined :: Nil,
-      setter
-    )
+    val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
+    val on = labelAttr.defined :: propAttr.defined :: Nil
+    CoHandler(on.map(BeforeUpdate))(setter(on=false)) ::
+      CoHandler(on.map(AfterUpdate))(setter(on=true)) ::
+      CoHandler(searchKey :: Nil)(execute[Value](attr)) :: Nil
   }
 }
 

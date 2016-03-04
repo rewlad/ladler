@@ -1,5 +1,7 @@
 package ee.cone.base.connection_api
 
+import java.util.UUID
+
 trait Message
 case class DictMessage(value: Map[String,String]) extends Message
 
@@ -31,3 +33,7 @@ trait CoHandlerLists {
 trait CoHandlerProvider {
   def handlers: List[BaseCoHandler]
 }
+
+////
+
+case object SwitchSession extends EventKey[UUID,Unit]

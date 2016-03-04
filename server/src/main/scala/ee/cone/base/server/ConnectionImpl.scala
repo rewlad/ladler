@@ -1,36 +1,36 @@
 package ee.cone.base.server
 
 import java.util
-import java.util.concurrent.BlockingQueue
+import java.util.concurrent.{TimeUnit, LinkedBlockingQueue, BlockingQueue}
 
 import ee.cone.base.connection_api._
 import scala.collection.concurrent.TrieMap
 
 class ReceiverOfConnectionImpl(
-  registry: ConnectionRegistry, val queue: BlockingQueue[DictMessage] //Linked*
-) extends ReceiverOfConnection {
-  def registries = registry :: Nil
+    handlerLists: CoHandlerLists,
+    registry: ConnectionRegistryImpl,
+    framePeriod: Long
+) extends ReceiverOfConnection with CoHandlerProvider {
+  lazy val queue = new LinkedBlockingQueue[DictMessage]
   lazy val connectionKey = util.UUID.randomUUID.toString
+  def handlers = CoHandler[LifeCycle,Unit](ConnectionRegistrationEventKey :: Nil){lifeCycle =>
+    lifeCycle.onClose{()=>
+      registry.store.remove(connectionKey)
+      println(s"connection unregister: $connectionKey")
+    }
+    registry.store(connectionKey) = this
+    println(s"connection   register: $connectionKey")
+  } :: Nil
+  def activate() = {
+    val message = Option(queue.poll(framePeriod,TimeUnit.MILLISECONDS))
+    if(message.nonEmpty) handlerLists.list(AlienDictMessageKey).foreach(_(message.get))
+    else handlerLists.list(PeriodicMessage).foreach(_())
+  }
 }
 
 class ConnectionRegistryImpl extends ConnectionRegistry {
-  lazy val store = TrieMap[String, ReceiverOfConnection]()
+  lazy val store = TrieMap[String, ReceiverOfConnectionImpl]()
   def send(bnd: DictMessage) = store(bnd.value("X-r-connection")).queue.add(bnd)
-}
-
-class ConnectionRegistration(
-  registry: ConnectionRegistryImpl, item: ReceiverOfConnection
-) extends CoHandlerProvider {
-  def handlers = CoHandler[LifeCycle,Unit](ConnectionRegistrationEventKey :: Nil){lifeCycle =>
-    lifeCycle.onClose{()=>
-      val k = item.connectionKey
-      registry.store(k) = item
-      println(s"connection   register: $k")
-    }
-    val k = item.connectionKey
-    registry.store.remove(k)
-    println(s"connection unregister: $k")
-  } :: Nil
 }
 
 

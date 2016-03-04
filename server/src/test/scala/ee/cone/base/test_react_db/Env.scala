@@ -116,28 +116,20 @@ class SnapshotRunningConnection(
   handlerLists: CoHandlerLists,
   connectionLifeCycle: LifeCycle,
   sender: SenderOfConnection,
-  mainTxStarter: TxManager[MainEnvKey],
-  instantTxStarter: TxManager[InstantEnvKey],
+  receiver: ReceiverOfConnection,
   eventSourceOperations: SessionEventSourceOperations,
-  incoming: BlockingQueue[DictMessage],
-  framePeriod: Long
+
 ) {
   var vDomData: Option[()] = None
   def apply(): Unit = try {
     handlerLists.list(ConnectionRegistrationEventKey)
       .foreach(_(connectionLifeCycle))
     while(true) {
-      mainTxStarter.needTx(rw=false)
-      if(vDomData.isEmpty){
-        val lifeCycle = instantTxStarter.needTx(rw=false)
+      if(vDomData.isEmpty)
         eventSourceOperations.incrementalApplyAndView{ ()⇒
           makeVDom() // send
         }
-
-        lifeCycle.close()
-      }
-      val message = Option(incoming.poll(framePeriod,TimeUnit.MILLISECONDS))
-      dispatch(message.getOrElse(PeriodicMessage)) //dispatch // can close / set refresh time
+    receiver.activate() //dispatches incoming message // can close / set refresh time
       // may be close old mainTx/vDom here
     }
   } catch {

@@ -9,18 +9,17 @@ import java.lang.Math.toIntExact
 
 class NodeValueConverter(
   inner: InnerRawValueConverter, nodeFactory: NodeFactory,
-  instantTxManager: TxManager[InstantEnvKey],
-  mainTxManager: TxManager[MainEnvKey]
+  instantTx: CurrentTx[InstantEnvKey], mainTx: CurrentTx[MainEnvKey]
 )(
-  managers: Array[TxManager[_]] = Array(instantTxManager,mainTxManager)
+  currentTx: Array[CurrentTx[_]] = Array(instantTx,mainTx)
 ) extends RawValueConverter[DBNode] {
   def convert() = nodeFactory.noNode
   def convert(valueA: Long, valueB: Long) =
-    nodeFactory.toNode(managers(toIntExact(valueA)).tx,valueB)
+    nodeFactory.toNode(currentTx(toIntExact(valueA))(),valueB)
   def convert(value: String) = Never()
   def allocWrite(before: Int, node: DBNode, after: Int): RawValue = {
     var pos = 0
-    while(true) if(node.tx == managers(pos).tx)
+    while(true) if(node.tx == currentTx(pos)())
       return inner.allocWrite(before, pos, node.objId, after)
     Never()
   }

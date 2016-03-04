@@ -17,25 +17,21 @@ class SysAttrs(
   val seq: Attr[DBNode] = attr(0, 0x0001, nodeValueConverter)
 )
 
-class DBNodesImpl[DBEnvKey](
+class DBNodesImpl(
   handlerLists: CoHandlerLists,
-  searchIndex: SearchIndex, txManager: TxManager[DBEnvKey],
   nodeFactory: NodeFactory, at: SysAttrs
-) extends DBNodes[DBEnvKey] {
-  def where[Value](attr: Attr[Value], value: Value) =
-    where(SearchByAttr[Value](attr.defined), value, None, Long.MaxValue)
-  def where[Value](label: Attr[Boolean], prop: Attr[Value], value: Value) =
-    where(SearchByLabelProp[Value](label.defined, prop.defined), value, None, Long.MaxValue)
-  def where[Value](searchKey: EventKey[SearchRequest[Value],Unit], value: Value, from: Option[Long], limit: Long) = {
+) extends DBNodes {
+  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value) =
+    where(tx, label, prop, value, None, Long.MaxValue)
+  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long) = {
+    val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
     val handler = Single(handlerLists.list(searchKey))
-    val tx = txManager.tx
     val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>nodeFactory.toNode(tx,objId))
     val request = new SearchRequest[Value](tx, value, None, feed)
     handler(request)
     feed.result.reverse
   }
-  def create(label: Attr[DBNode]): DBNode = {
-    val tx = txManager.tx
+  def create(tx: RawTx, label: Attr[DBNode]): DBNode = {
     val seqNode = nodeFactory.seqNode(tx)
     val lastNode = seqNode(at.seq)
     val nextObjId = if(lastNode.nonEmpty) lastNode.objId + 1L else 1L

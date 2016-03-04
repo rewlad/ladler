@@ -11,11 +11,10 @@ trait NodeFactory {
   def seqNode(tx: RawTx): DBNode
 }
 
-trait DBNodes[DBEnvKey] {
-  def where[Value](attr: Attr[Value], value: Value): List[DBNode]
-  def where[Value](label: Attr[Boolean], prop: Attr[Value], value: Value): List[DBNode]
-  def where[Value](searchKey: EventKey[SearchRequest[Value],Unit], value: Value, from: Option[Long], limit: Long): List[DBNode]
-  def create(label: Attr[DBNode]): DBNode
+trait DBNodes {
+  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value): List[DBNode]
+  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long): List[DBNode]
+  def create(tx: RawTx, label: Attr[DBNode]): DBNode
 }
 
 trait ListByDBNode {
@@ -28,8 +27,11 @@ trait PreCommitCheckAllOfConnection {
   def create(later: Seq[DBNode]=>Seq[ValidationFailure]): DBNode=>Unit
 }
 
+trait CurrentTx[DBEnvKey] {
+  def apply(): RawTx
+}
+
 trait TxManager[DBEnvKey] {
-  def tx: RawTx
   def needTx(rw: Boolean): Unit
   def closeTx(): Unit
   def commit(): Unit

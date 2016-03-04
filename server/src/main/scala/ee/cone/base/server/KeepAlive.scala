@@ -1,5 +1,6 @@
 package ee.cone.base.server
 
+import java.util.UUID
 import ee.cone.base.connection_api._
 
 class OncePer(period: Long, action: ()=>Unit) {
@@ -19,7 +20,8 @@ case object WaitingPingStatus extends PingStatus
 case class OKPingStatus(sessionKey: String) extends PingStatus
 
 class KeepAlive(
-  receiver: ReceiverOfConnection, sender: SenderOfConnection
+    handlerLists: CoHandlerLists,
+    receiver: ReceiverOfConnection, sender: SenderOfConnection
 ) extends CoHandlerProvider {
   private var status: PingStatus = NewPingStatus
   private def command = status match {
@@ -33,9 +35,12 @@ class KeepAlive(
   })
   def handlers: List[BaseCoHandler] =
     CoHandler[Unit,Unit](PeriodicMessage :: Nil){ in => periodicFrame() } ::
-      CoHandler[DictMessage,Unit](AlienDictMessageKey :: Nil){ message =>
-        message.value.get("X-r-session").foreach(sessionKey => status = OKPingStatus(sessionKey))
-      } :: Nil
+    CoHandler[DictMessage,Unit](AlienDictMessageKey :: Nil){ message =>
+      message.value.get("X-r-session").foreach{ sessionKey =>
+        handlerLists.list(SwitchSession).foreach(_(UUID.fromString(sessionKey)))
+        status = OKPingStatus(sessionKey)
+      }
+    } :: Nil
 }
 
 

@@ -11,7 +11,7 @@ trait SenderOfConnection {
 
 trait ReceiverOfConnection extends {
   def connectionKey: String
-  def queue: BlockingQueue[DictMessage]
+  def activate(): Unit
 }
 trait ConnectionRegistry {
   def send(bnd: DictMessage): Unit

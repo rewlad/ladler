@@ -9,8 +9,7 @@ import ee.cone.base.util.Single
 //! lost calc-s
 //! id-ly typing
 
-// no SessionState? no instantSession? create
-// create undo
+// no Session?
 // apply handling, notify
 
 class EventSourceAttrsImpl(
@@ -54,40 +53,32 @@ class EventSourceAttrsImpl(
 
 class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
-  instantTxManager: TxManager[InstantEnvKey],
-  factIndex: FactIndex,
-  nodeHandlerLists: CoHandlerLists,
-  attrs: ListByDBNode,
-  mainNodes: DBNodes[MainEnvKey],
-  instantNodes: DBNodes[InstantEnvKey],
-  nodeFactory: NodeFactory
+  factIndex: FactIndex, //u
+  nodeHandlerLists: CoHandlerLists, //u
+  attrs: ListByDBNode, //u
+  allNodes: DBNodes,
+  nodeFactory: NodeFactory, //u
+  instantTx: CurrentTx[InstantEnvKey], //u
+  mainTx: CurrentTx[MainEnvKey] //u
 ) extends EventSourceOperations {
   def isUndone(event: DBNode) =
-    instantNodes.where(at.asUndo.defined, at.event, event).nonEmpty
+    allNodes.where(instantTx(), at.asUndo.defined, at.event, event).nonEmpty
   def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode]) =
     new EventSource {
       def poll(): DBNode = {
         val lastNode = seqRef()
         val fromObjId = if(lastNode.nonEmpty) Some(lastNode.objId+1) else None
-        val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
-        val result = instantNodes.where(searchKey, value, fromObjId, 1L)
+        val result = allNodes.where(instantTx(), label.defined, prop, value, fromObjId, 1L)
         if(result.isEmpty){ return nodeFactory.noNode }
         val event :: Nil = result
         seqRef() = event
         if(isUndone(event)) poll() else event
       }
     }
-  def addUndo(event: DBNode) = {
-    val instantSession = event(at.instantSession) //check
-    val searchKey = SearchByLabelProp[DBNode](at.asRequest.defined,at.instantSession.defined)
-    val requests = instantNodes.where(searchKey,instantSession,Some(event.objId),Long.MaxValue)
-    if(requests.exists(!isUndone(_))) throw new Exception("")
-  }
-
   def applyEvents(instantSessionNode: DBNode, isNotLast: DBNode=>Boolean): Unit = {
-    val sessions = mainNodes.where(at.asMainSession.defined, at.instantSession, instantSessionNode)
+    val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode)
     val seqNode = Single.option(sessions).getOrElse{
-      val mainSession = mainNodes.create(at.asMainSession)
+      val mainSession = allNodes.create(mainTx(), at.asMainSession)
       mainSession(at.instantSession) = instantSessionNode
       mainSession
     }
@@ -105,18 +96,9 @@ class EventSourceOperationsImpl(
     if(isNotLast(event)) applyEvents(src, isNotLast)
   }
   def addEventStatus(event: DBNode, ok: Boolean) = {
-    instantTxManager.needTx(rw=true)
-    val ev = instantNodes.create(at.asEventStatus)
-    ev(if(ok) at.asCommit else at.asUndo) = ev
-    ev(at.event) = event
-    instantTxManager.commit()
-  }
-  def addEvent(instantSession: DBNode, fill: DBNode=>Unit): Unit = {
-    instantTxManager.needTx(rw=true)
-    val ev = instantNodes.create(at.asEvent)
-    ev(at.instantSession) = instantSession
-    fill(ev)
-    instantTxManager.commit()
+    val status = allNodes.create(event.tx, at.asEventStatus)
+    status(if(ok) at.asCommit else at.asUndo) = status
+    status(at.event) = event
   }
   def requested = "Y"
 }

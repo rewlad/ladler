@@ -1,25 +1,24 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{CoHandler, BaseCoHandler}
+import ee.cone.base.connection_api.CoHandler
 
-
-class UniqueImpl[DBEnvKey](
+class UniqueImpl(
   preCommitCheck: PreCommitCheckAllOfConnection,
   searchIndex: SearchIndex,
-  allNodes: DBNodes[DBEnvKey]
-) {
-  def apply[Value](label: Attr[DBNode], uniqueAttr: Attr[Value]) =
-    searchIndex.handlers(uniqueAttr) :::
-    CoHandler(AfterUpdate(label.defined) :: AfterUpdate(uniqueAttr.defined) :: Nil)(
-      preCommitCheck.create{ nodes =>
-        nodes.flatMap{ node =>
-          if(!node(uniqueAttr.defined)) Nil
-          else allNodes.where(uniqueAttr,node(uniqueAttr)) match {
-            case _ :: Nil => Nil
-            case ns => ns.map(ValidationFailure("unique",_))
-          }
-        }
+  allNodes: DBNodes
+) extends Unique {
+  def apply[Value](label: Attr[_], uniqueAttr: Attr[Value]) = {
+    def checkNode(node: DBNode): List[ValidationFailure] =
+      if(!node(label.defined) || !node(uniqueAttr.defined)) Nil
+      else allNodes.where(node.tx, label.defined, uniqueAttr, node(uniqueAttr)) match {
+        case _ :: Nil => Nil
+        case ns => ns.map(ValidationFailure("unique",_))
       }
-    ) :: Nil
+
+    searchIndex.handlers(label,uniqueAttr) :::
+      CoHandler(AfterUpdate(label.defined) :: AfterUpdate(uniqueAttr.defined) :: Nil)(
+        preCommitCheck.create{ nodes => nodes.flatMap(checkNode) }
+      ) :: Nil
+  }
 }

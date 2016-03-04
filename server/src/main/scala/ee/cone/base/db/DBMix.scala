@@ -33,38 +33,39 @@ trait DBConnectionMix extends CoMixBase with Runnable {
     new ListByDBNodeImpl(factIndex,attrFactory,definedValueConverter)
   lazy val mandatory = new MandatoryImpl(preCommitCheckCheckAll)
   lazy val nodeFactory = new NodeFactoryImpl
-  //lazy val toNode = (tx:RawTx,objId:ObjId)=>DBNodeImpl(objId)(???)
 
-  lazy val mainTxManager =
-    new TxManagerImpl[MainEnvKey](connectionLifeCycle, dbAppMix.mainDB, preCommitCheckCheckAll)
-  lazy val instantTxManager =
-    new TxManagerImpl[InstantEnvKey](connectionLifeCycle, dbAppMix.instantDB, preCommitCheckCheckAll)
+  lazy val instantTx = new CurrentTxImpl[InstantEnvKey]
+  lazy val mainTx = new CurrentTxImpl[MainEnvKey]
 
-  lazy val nodeValueConverter = new NodeValueConverter(InnerRawValueConverterImpl,nodeFactory,instantTxManager,mainTxManager)()
+  lazy val nodeValueConverter = new NodeValueConverter(InnerRawValueConverterImpl,nodeFactory,instantTx,mainTx)()
   lazy val uuidValueConverter = new UUIDValueConverter(InnerRawValueConverterImpl)
   lazy val stringValueConverter = new StringValueConverter(InnerRawValueConverterImpl)
 
   lazy val sysAttrs = new SysAttrs(attrFactory,nodeValueConverter)()
+  lazy val allNodes = new DBNodesImpl(handlerLists, nodeFactory, sysAttrs)
 
-  lazy val mainValues = new DBNodesImpl[MainEnvKey](handlerLists, searchIndex, mainTxManager, nodeFactory, sysAttrs)
-  lazy val instantValues = new DBNodesImpl[InstantEnvKey](handlerLists, searchIndex, instantTxManager, nodeFactory, sysAttrs)
+  lazy val instantTxManager =
+    new TxManagerImpl[InstantEnvKey](connectionLifeCycle, dbAppMix.instantDB, instantTx, preCommitCheckCheckAll)
+  lazy val mainTxManager =
+    new TxManagerImpl[MainEnvKey](connectionLifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
 
   lazy val eventSourceAttrs =
     new EventSourceAttrsImpl(attrFactory,searchIndex,nodeValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
   lazy val eventSourceOperations =
-    new EventSourceOperationsImpl(eventSourceAttrs,instantTxManager,factIndex,handlerLists,listByDBNode,mainValues,instantValues,nodeFactory)
+    new EventSourceOperationsImpl(eventSourceAttrs,factIndex,handlerLists,listByDBNode,allNodes,nodeFactory,instantTx,mainTx)
 
   override def handlers = eventSourceAttrs.handlers ::: super.handlers
 }
 
 trait MergerDBConnectionMix extends DBConnectionMix {
   lazy val mergerEventSourceOperations =
-    new MergerEventSourceOperationsImpl(eventSourceOperations,eventSourceAttrs,mainTxManager,instantTxManager,nodeFactory,instantValues)
+    new MergerEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, mainTx)
 }
 
 trait SessionDBConnectionMix extends DBConnectionMix {
   lazy val sessionEventSourceOperations =
-    new SessionEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, ???, mainValues)
+    new SessionEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, allNodes, instantTx)
+  override def handlers = sessionEventSourceOperations.handlers ::: super.handlers
 }
 
 /*
