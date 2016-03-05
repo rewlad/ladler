@@ -1,35 +1,85 @@
 package ee.cone.base.db
 
 import ee.cone.base.connection_api.LifeCycle
-import ee.cone.base.util.Never
+import ee.cone.base.util.{Setup, Never}
 
 class CurrentTxImpl[DBEnvKey] extends CurrentTx[DBEnvKey] {
+  var value: Option[BoundToTx] = None
   def apply() = value.get
-  var value: Option[RawTx] = None
 }
 
-class TxManagerImpl[DBEnvKey](
-  connectionLifeCycle: LifeCycle, env: DBEnv, currentTx: CurrentTxImpl[DBEnvKey],
-  checkAll: PreCommitCheckAllOfConnection
-) extends TxManager[DBEnvKey] {
+abstract class BaseTxManager[DBEnvKey] {
+  protected def currentTx: CurrentTxImpl[DBEnvKey]
+  protected def checkAll: PreCommitCheckAllOfConnection
 
-  def tx = currentTx()
-  def needTx(rw: Boolean): Unit = {
-    if(currentTx.value.isEmpty) {
-      val lifeCycle = connectionLifeCycle.sub()
-      val rawTx = env.createTx(lifeCycle, rw = rw)
-      lifeCycle.onClose(()=>currentTx.value=None)
-      currentTx.value = Some(rawTx)
-      lifeCycle.onClose(()=>checkAll.switchTx(rawTx,on=false))
-      checkAll.switchTx(rawTx,on=true)
+  private var busy = false
+  protected def withBusy[R](f: () ⇒ R) = {
+    if (busy) Never()
+    busy = true
+    Setup(f())(_ ⇒ busy = false)
+  }
+  protected def register(tx: BoundToTx, on: Boolean) = {
+    currentTx.value = if(on) Some(tx) else None
+    checkAll.switchTx(tx,on)
+  }
+}
+
+//*Instant, MergerMain
+class DefaultTxManagerImpl[DBEnvKey](
+    connectionLifeCycle: LifeCycle, env: DBEnv,
+    val currentTx: CurrentTxImpl[DBEnvKey],
+    val checkAll: PreCommitCheckAllOfConnection
+) extends BaseTxManager[DBEnvKey] with DefaultTxManager[DBEnvKey] {
+  def rwTx[R](f: () ⇒ R) = withBusy { () ⇒
+    env.rwTx { rawIndex ⇒
+      val tx = new ProtectedBoundToTx(rawIndex, true)
+      register(tx,on=true)
+      val res = f()
+      val fails = checkAll.checkTx(currentTx())
+      if(fails.nonEmpty) throw new Exception(s"$fails")
+      register(tx,on=false)
+      res
     }
-    if(currentTx().rw != rw) Never()
   }
-  def commit() = {
-    if(!currentTx().rw) Never()
-    val fails = checkAll.checkTx(currentTx())
-    if(fails.nonEmpty) throw new Exception(s"$fails")
-    closeTx()
+  def roTx[R](f: () ⇒ R) = withBusy { () ⇒
+    val lifeCycle = connectionLifeCycle.sub()
+    val rawIndex = env.roTx(lifeCycle)
+    val tx = new ProtectedBoundToTx(rawIndex, true)
+    register(tx,on=true)
+    val res = f()
+    register(tx,on=false)
+    lifeCycle.close()
+    res
   }
-  def closeTx() = currentTx.value.foreach(_.lifeCycle.close())
 }
+
+class SessionMainTxManagerImpl(
+    connectionLifeCycle: LifeCycle, mainEnv: DBEnv,
+    val currentTx: CurrentTxImpl[MainEnvKey],
+    val checkAll: PreCommitCheckAllOfConnection,
+    muxFactory: MuxFactory
+) extends BaseTxManager[MainEnvKey] with SessionMainTxManager {
+  class Mux(val tx: ProtectedBoundToTx, val lifeCycle: LifeCycle)
+  private var mux: Option[Mux] = None
+  def muxTx[R](f: ()⇒R) = withBusy{ () ⇒
+    if(mux.isEmpty){
+      val lifeCycle = connectionLifeCycle.sub()
+      val rawIndex = muxFactory.wrap(mainEnv.roTx(lifeCycle))
+      val tx = new ProtectedBoundToTx(rawIndex, false)
+      mux = Some(new Mux(tx, lifeCycle))
+      register(tx,on=true)
+    }
+    mux.get.tx.enabled = true
+    val res = f()
+    mux.get.tx.enabled = false
+    res
+  }
+  def invalidate() = withBusy{ () ⇒
+    mux.foreach{ m ⇒
+      register(m.tx,on=false)
+      mux = None
+      m.lifeCycle.close()
+    }
+  }
+}
+

@@ -26,3 +26,7 @@ case object NotFoundStatus extends SeekStatus {
 trait RawVisitor {
   def execute(tx: RawIndex, whileKeyPrefix: RawKey, feed: Feed): Unit
 }
+
+trait MuxFactory {
+  def wrap(rawIndex: RawIndex): RawIndex
+}

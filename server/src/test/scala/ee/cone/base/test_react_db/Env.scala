@@ -74,7 +74,7 @@ class TestConnectionMix(
   //lazy val mainDB = app.mainDB
   override def handlers =
     new FailOfConnection(sender).handlers :::
-    new DynEdit().handlers :::
+    new DynEdit(sessionEventSourceOperations).handlers :::
     super.handlers
 }
 
@@ -88,26 +88,15 @@ object TestApp extends App {
 
 class TestEnv extends DBEnv {
   private var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
-  private lazy val lock = new ReentrantLock
   private def createRawIndex() = Setup(new NonEmptyUnmergedIndex) { i =>
-    synchronized {
-      i.data = data
-    }
+    synchronized { i.data = data }
   }
-  def createTx(txLifeCycle: LifeCycle, rw: Boolean) =
-    if(!rw) new RawTx(txLifeCycle, rw, createRawIndex(), () => ())
-    else {
-      txLifeCycle.onClose(()=>lock.unlock())
-      lock.lock()
-      val index = createRawIndex()
-      def commit() = {
-        if(!lock.isHeldByCurrentThread) Never()
-        synchronized {
-          data = index.data
-        }
-      }
-      new RawTx(txLifeCycle, rw, index, commit)
-    }
+  def roTx(txLifeCycle: LifeCycle) = createRawIndex()
+  private object RW
+  def rwTx[R](f: RawIndex ⇒ R): R = RW.synchronized{
+    val index = createRawIndex()
+    Setup(f(index))(_ ⇒ synchronized { data = index.data })
+  }
   def start() = ()
 }
 

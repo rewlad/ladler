@@ -11,16 +11,19 @@ class SearchIndexImpl(
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory
 ) extends SearchIndex {
+  private def toRawIndex(tx: BoundToTx) =
+    if(tx.enabled) tx.asInstanceOf[ProtectedBoundToTx].rawIndex else Never()
   private def execute[Value](attr: Attr[Value])(in: SearchRequest[Value]) = {
     val whileKey = converter.keyWithoutObjId(attr.rawAttr, in.value)
     val fromKey = if(in.objId.isEmpty) whileKey
       else converter.key(attr.rawAttr, in.value, in.objId.get)
-    in.tx.rawIndex.seek(fromKey)
-    rawVisitor.execute(in.tx.rawIndex, whileKey, in.feed)
+    val rawIndex = toRawIndex(in.tx)
+    rawIndex.seek(fromKey)
+    rawVisitor.execute(rawIndex, whileKey, in.feed)
   }
   private def set[Value](attrId: RawAttr[Value], value: Value, node: DBNode, on: Boolean): Unit =
     if(attrId.converter.nonEmpty(value))
-      node.tx.rawIndex.set(converter.key(attrId, value, node.objId), converter.value(on))
+      toRawIndex(node.tx).set(converter.key(attrId, value, node.objId), converter.value(on))
 
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     if(labelAttr.rawAttr.propId!=0L || propAttr.rawAttr.labelId!=0L) Never()

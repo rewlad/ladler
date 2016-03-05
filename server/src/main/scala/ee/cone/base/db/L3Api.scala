@@ -7,14 +7,14 @@ case class ValidationFailure(hint: String, node: DBNode)
 
 trait NodeFactory {
   def noNode: DBNode
-  def toNode(tx: RawTx, objId: ObjId): DBNode
-  def seqNode(tx: RawTx): DBNode
+  def toNode(tx: BoundToTx, objId: ObjId): DBNode
+  def seqNode(tx: BoundToTx): DBNode
 }
 
 trait DBNodes {
-  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value): List[DBNode]
-  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long): List[DBNode]
-  def create(tx: RawTx, label: Attr[DBNode]): DBNode
+  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value): List[DBNode]
+  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long): List[DBNode]
+  def create(tx: BoundToTx, label: Attr[DBNode]): DBNode
 }
 
 trait ListByDBNode {
@@ -22,24 +22,29 @@ trait ListByDBNode {
 }
 
 trait PreCommitCheckAllOfConnection {
-  def switchTx(tx: RawTx, on: Boolean): Unit
-  def checkTx(tx: RawTx): Seq[ValidationFailure]
+  def switchTx(tx: BoundToTx, on: Boolean): Unit
+  def checkTx(tx: BoundToTx): Seq[ValidationFailure]
   def create(later: Seq[DBNode]=>Seq[ValidationFailure]): DBNode=>Unit
 }
 
 trait CurrentTx[DBEnvKey] {
-  def apply(): RawTx
-}
-
-trait TxManager[DBEnvKey] {
-  def needTx(rw: Boolean): Unit
-  def closeTx(): Unit
-  def commit(): Unit
+  def apply(): BoundToTx
 }
 
 trait DBEnv extends CanStart {
-  def createTx(txLifeCycle: LifeCycle, rw: Boolean): RawTx
+  def roTx(txLifeCycle: LifeCycle): RawIndex
+  def rwTx[R](f: RawIndex⇒R): R
 }
 
 trait MainEnvKey
 trait InstantEnvKey
+
+trait DefaultTxManager[DBEnvKey] {
+  def roTx[R](f: () ⇒ R): R
+  def rwTx[R](f: () ⇒ R): R
+  def currentTx: CurrentTx[DBEnvKey]
+}
+trait SessionMainTxManager {
+  def muxTx[R](f: ()⇒R): R
+  def invalidate(): Unit
+}

@@ -21,9 +21,9 @@ class DBNodesImpl(
   handlerLists: CoHandlerLists,
   nodeFactory: NodeFactory, at: SysAttrs
 ) extends DBNodes {
-  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value) =
+  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value) =
     where(tx, label, prop, value, None, Long.MaxValue)
-  def where[Value](tx: RawTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long) = {
+  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long) = {
     val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
     val handler = Single(handlerLists.list(searchKey))
     val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>nodeFactory.toNode(tx,objId))
@@ -31,7 +31,7 @@ class DBNodesImpl(
     handler(request)
     feed.result.reverse
   }
-  def create(tx: RawTx, label: Attr[DBNode]): DBNode = {
+  def create(tx: BoundToTx, label: Attr[DBNode]): DBNode = {
     val seqNode = nodeFactory.seqNode(tx)
     val lastNode = seqNode(at.seq)
     val nextObjId = if(lastNode.nonEmpty) lastNode.objId + 1L else 1L

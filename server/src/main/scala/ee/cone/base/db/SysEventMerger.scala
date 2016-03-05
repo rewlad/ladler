@@ -1,33 +1,38 @@
 package ee.cone.base.db
 
+import ee.cone.base.db.Types.ObjId
 import ee.cone.base.util.Never
+
+class CurrentRequest(var value: Option[ObjId])
 
 class MergerEventSourceOperationsImpl(
     ops: EventSourceOperations, at: MergerEventSourceAttrs,
-    instantTxManager: TxManager[InstantEnvKey], mainTxManager: TxManager[MainEnvKey],
-    nodeFactory: NodeFactory, mainTx: CurrentTx[MainEnvKey]
+    instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: DefaultTxManager[MainEnvKey],
+    nodeFactory: NodeFactory, currentRequest: CurrentRequest
 ) extends MergerEventSourceOperations {
-  def incrementalApplyAndCommit(): Unit = {
-    mainTxManager.needTx(rw=true)
-    instantTxManager.needTx(rw=false)
-    val req = nextRequest()
-    if(!req.nonEmpty) { return }
-    var ok = false
-    try {
-      applyEvents(req)
-      instantTxManager.closeTx()
-      mainTxManager.commit()
-      ok = true
-    } finally {
-      instantTxManager.closeTx()
-      instantTxManager.needTx(rw=true)
-      ops.addEventStatus(req, ok)
-      instantTxManager.commit()
+  def setRequestOK(ok: Boolean): Unit = currentRequest.value.foreach{ objId ⇒
+    currentRequest.value = None
+    instantTxManager.rwTx{ ()⇒
+      ops.addEventStatus(nodeFactory.toNode(instantTxManager.currentTx(),objId), ok)
     }
+  }
+
+  def incrementalApplyAndCommit(): Unit = {
+    setRequestOK(false)
+    mainTxManager.rwTx { () ⇒
+      instantTxManager.roTx { () ⇒
+        val req = nextRequest()
+        if (req.nonEmpty) {
+          currentRequest.value = Some(req.objId)
+          applyEvents(req)
+        }
+      }
+    }
+    setRequestOK(true)
     //? then notify
   }
   private def nextRequest(): DBNode = {
-    val seqNode = nodeFactory.seqNode(mainTx())
+    val seqNode = nodeFactory.seqNode(mainTxManager.currentTx())
     val seqRef: Ref[DBNode] = seqNode(at.lastMergedRequest.ref)
     val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef)
     reqSrc.poll()

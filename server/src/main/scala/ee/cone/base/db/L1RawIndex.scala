@@ -90,3 +90,8 @@ object UnsignedBytesOrdering extends math.Ordering[Array[Byte]] {
     default
   }
 }
+
+class MuxFactoryImpl extends MuxFactory {
+  override def wrap(rawIndex: RawIndex): RawIndex =
+    new MuxUnmergedIndex(new NonEmptyUnmergedIndex,rawIndex)
+}

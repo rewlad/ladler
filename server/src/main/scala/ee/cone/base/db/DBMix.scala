@@ -5,6 +5,7 @@ import ee.cone.base.connection_api._
 trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv
   def instantDB: DBEnv
+  lazy val mergerCurrentRequest = new CurrentRequest(None)
   override def toStart = mainDB :: instantDB :: super.toStart
 }
 
@@ -44,9 +45,8 @@ trait DBConnectionMix extends CoMixBase {
   lazy val allNodes = new DBNodesImpl(handlerLists, nodeFactory, sysAttrs)
 
   lazy val instantTxManager =
-    new TxManagerImpl[InstantEnvKey](lifeCycle, dbAppMix.instantDB, instantTx, preCommitCheckCheckAll)
-  lazy val mainTxManager =
-    new TxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
+    new DefaultTxManagerImpl[InstantEnvKey](lifeCycle, dbAppMix.instantDB, instantTx, preCommitCheckCheckAll)
+
 
   lazy val eventSourceAttrs =
     new EventSourceAttrsImpl(attrFactory,searchIndex,nodeValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
@@ -57,13 +57,19 @@ trait DBConnectionMix extends CoMixBase {
 }
 
 trait MergerDBConnectionMix extends DBConnectionMix {
+  lazy val currentRequest = dbAppMix.mergerCurrentRequest
+  lazy val mainTxManager =
+    new DefaultTxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
   lazy val mergerEventSourceOperations =
-    new MergerEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, mainTx)
+    new MergerEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, currentRequest)
 }
 
 trait SessionDBConnectionMix extends DBConnectionMix {
+  lazy val muxFactory = new MuxFactoryImpl
+  lazy val mainTxManager =
+    new SessionMainTxManagerImpl(lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll, muxFactory)
   lazy val sessionEventSourceOperations =
-    new SessionEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, allNodes, instantTx)
+    new SessionEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, allNodes)
   override def handlers = sessionEventSourceOperations.handlers ::: super.handlers
 }
 

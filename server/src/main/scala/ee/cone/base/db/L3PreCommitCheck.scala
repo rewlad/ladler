@@ -23,10 +23,10 @@ class PreCommitCheckAllOfTx(
 }
 
 class PreCommitCheckAllOfConnectionImpl extends PreCommitCheckAllOfConnection {
-  private var txs = mutable.Map[RawTx,PreCommitCheckAllOfTx]()
-  def switchTx(tx: RawTx, on: Boolean) =
+  private var txs = mutable.Map[BoundToTx,PreCommitCheckAllOfTx]()
+  def switchTx(tx: BoundToTx, on: Boolean) =
     if(on) txs(tx) = new PreCommitCheckAllOfTx(this) else txs.remove(tx)
-  def checkTx(tx: RawTx) = txs(tx).checkAll()
+  def checkTx(tx: BoundToTx) = txs(tx).checkAll()
   def create(later: Seq[DBNode]=>Seq[ValidationFailure]): DBNode=>Unit =
     node => txs(node.tx).of(later).add(node)
 }
