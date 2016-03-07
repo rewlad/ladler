@@ -37,14 +37,12 @@ class MergerEventSourceOperationsImpl(
   private def nextRequest(): DBNode = {
     val seqNode = nodeFactory.seqNode(mainTxManager.currentTx())
     val seqRef: Ref[DBNode] = seqNode(at.lastMergedRequest.ref)
-    val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef)
+    val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef, (_:DBNode) => true)
     reqSrc.poll()
   }
   private def applyEvents(req: DBNode) = {
     val instantSession = req(at.instantSession)
-    ops.applyEvents(instantSession, (ev:DBNode)=>
-      if(ev.objId<req.objId) true else if(ev.objId==req.objId) false else Never()
-    )
+    ops.applyEvents(instantSession, (ev:DBNode)=> ev.objId<req.objId)
   }
 
 }

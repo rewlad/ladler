@@ -60,8 +60,3 @@ class ExecutionManagerImpl(
     } finally lifeCycle.close()
   })
 }
-
-trait AppMixBaseImpl extends AppMixBase {
-  def threadCount: Int
-  lazy val executionManager = new ExecutionManagerImpl(toStart, threadCount)
-}

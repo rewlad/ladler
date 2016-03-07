@@ -37,9 +37,11 @@ class EventSourceAttrsImpl(
   mandatory(asInstantSession,sessionKey,mutual = true) :::
     mandatory(asMainSession,instantSession,mutual = true) :::
     mandatory(asMainSession,lastMergedEvent,mutual = true) :::
-    mandatory(asEventStatus,event,mutual = true) :::
+    mandatory(asEvent,instantSession,mutual = true) :::
+    mandatory(asEventStatus,instantSession,mutual = true) :::
     mandatory(asRequest,requested,mutual = true) :::
-    mandatory(asRequest,asEvent,mutual = false) :::
+    mandatory(event,asEventStatus,mutual = false) :::
+    mandatory(asRequest,asEventStatus,mutual = false) :::
     mandatory(asUndo, asEventStatus, mutual = false) :::
     mandatory(asCommit, asEventStatus, mutual = false) :::
     searchIndex.handlers(asInstantSession.defined, sessionKey) :::
@@ -63,7 +65,7 @@ class EventSourceOperationsImpl(
 ) extends EventSourceOperations {
   def isUndone(event: DBNode) =
     allNodes.where(instantTx(), at.asUndo.defined, at.event, event).nonEmpty
-  def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode]) =
+  def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode], cond: DBNode=>Boolean) =
     new EventSource {
       def poll(): DBNode = {
         val lastNode = seqRef()
@@ -71,11 +73,12 @@ class EventSourceOperationsImpl(
         val result = allNodes.where(instantTx(), label.defined, prop, value, fromObjId, 1L)
         if(result.isEmpty){ return nodeFactory.noNode }
         val event :: Nil = result
+        if(!cond(event)){ return nodeFactory.noNode }
         seqRef() = event
         if(isUndone(event)) poll() else event
       }
     }
-  def applyEvents(instantSessionNode: DBNode, isNotLast: DBNode=>Boolean): Unit = {
+  def applyEvents(instantSessionNode: DBNode, cond: DBNode=>Boolean): Unit = {
     val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode)
     val seqNode = Single.option(sessions).getOrElse{
       val mainSession = allNodes.create(mainTx(), at.asMainSession)
@@ -83,22 +86,21 @@ class EventSourceOperationsImpl(
       mainSession
     }
     val seqRef = seqNode(at.lastMergedEvent.ref)
-    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef)
-    applyEvents(src, isNotLast)
-  }
-  private def applyEvents(src: EventSource, isNotLast: DBNode=>Boolean): Unit = {
-    val event = src.poll()
-    if(!event.nonEmpty) { return }
-    factIndex.switchSrcObjId(event.objId)
-    for(attr <- attrs.list(event))
-      nodeHandlerLists.list(ApplyEvent(attr.defined)) // apply
-    factIndex.switchSrcObjId(0L)
-    if(isNotLast(event)) applyEvents(src, isNotLast)
+    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef, cond)
+    var event = src.poll()
+    while(event.nonEmpty){
+      factIndex.switchSrcObjId(event.objId)
+      for(attr <- attrs.list(event))
+        nodeHandlerLists.list(ApplyEvent(attr.defined)) // apply
+      factIndex.switchSrcObjId(0L)
+      event = src.poll()
+    }
   }
   def addEventStatus(event: DBNode, ok: Boolean) = {
     val status = allNodes.create(event.tx, at.asEventStatus)
     status(if(ok) at.asCommit else at.asUndo) = status
     status(at.event) = event
+    status(at.instantSession) = instantSession
   }
   def requested = "Y"
 }

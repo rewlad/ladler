@@ -61,7 +61,12 @@ class SessionMainTxManagerImpl(
 ) extends BaseTxManager[MainEnvKey] with SessionMainTxManager {
   class Mux(val tx: ProtectedBoundToTx, val lifeCycle: LifeCycle)
   private var mux: Option[Mux] = None
-  def muxTx[R](f: ()⇒R) = withBusy{ () ⇒
+  def muxTx[R](recreate: Boolean)(f: ()⇒R) = withBusy{ () ⇒
+    if(recreate)mux.foreach{ m ⇒
+      register(m.tx,on=false)
+      mux = None
+      m.lifeCycle.close()
+    }
     if(mux.isEmpty){
       val lifeCycle = connectionLifeCycle.sub()
       val rawIndex = muxFactory.wrap(mainEnv.roTx(lifeCycle))
@@ -73,13 +78,6 @@ class SessionMainTxManagerImpl(
     val res = f()
     mux.get.tx.enabled = false
     res
-  }
-  def invalidate() = withBusy{ () ⇒
-    mux.foreach{ m ⇒
-      register(m.tx,on=false)
-      mux = None
-      m.lifeCycle.close()
-    }
   }
 }
 

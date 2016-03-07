@@ -11,12 +11,12 @@ trait ServerAppMix extends AppMixBase {
   def threadCount: Int
   def staticRoot: Path
   def ssePort: Int
-  def createConnection: LifeCycle ⇒ CoMixBase
+  def createAlienConnection: LifeCycle ⇒ CoMixBase
 
   lazy val connectionRegistry = new ConnectionRegistryImpl
   lazy val httpServer = new RHttpServer(httpPort, staticRoot, executionManager, connectionRegistry)
 
-  lazy val sseServer = new RSSEServer(ssePort, executionManager, createConnection)
+  lazy val sseServer = new RSSEServer(ssePort, executionManager, createAlienConnection)
 
   override def toStart = httpServer :: sseServer :: super.toStart
 }

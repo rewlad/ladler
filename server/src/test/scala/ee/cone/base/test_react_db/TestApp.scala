@@ -6,11 +6,48 @@ import java.util.concurrent.locks.ReentrantLock
 import ee.cone.base.util.{Single, Never, Setup}
 import scala.collection.immutable.SortedMap
 
-import ee.cone.base.connection_api.{DictMessage, Message}
+import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.db._
 import ee.cone.base.db.Types.{RawValue, RawKey}
 import ee.cone.base.server._
 import ee.cone.base.vdom._
+
+/*
+class LifeCacheState[C] {
+  private var state: Option[C] = None
+  def apply() = state
+  def set(lifeCycle: LifeCycle, value: =>C) = {
+    if(state.nonEmpty) Never()
+    lifeCycle.setup()(_ => state = None)
+    state = Option(value)
+  }
+}
+
+class LifeCache[C] {
+  lazy val lifeCycle = new LifeCacheState[LifeCycle]
+  def apply(create: =>C): ()=>C = {
+    val base = new LifeCacheState[C]
+    () =>
+      if(base().isEmpty) base.set(lifeCycle().get, create)
+      base().get
+  }
+}
+*/
+
+////
+
+/*
+class FindOrCreateSrcId(
+  srcId: Attr[UUID],
+  searchSrcId: ListByValue[UUID],
+  seq: ObjIdSequence
+) {
+  def apply(value: UUID) = Single.option(searchSrcId.list(value))
+    .getOrElse(Setup(seq.inc()){ node => node(srcId) = value })
+}
+*/
+
+////
 
 /*
 trait Model

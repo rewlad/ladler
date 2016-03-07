@@ -45,6 +45,5 @@ trait DefaultTxManager[DBEnvKey] {
   def currentTx: CurrentTx[DBEnvKey]
 }
 trait SessionMainTxManager {
-  def muxTx[R](f: ()⇒R): R
-  def invalidate(): Unit
+  def muxTx[R](recreate: Boolean)(f: ()⇒R): R
 }
