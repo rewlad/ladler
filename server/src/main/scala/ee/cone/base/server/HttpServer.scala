@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 import java.nio.file.{Path, Files}
 import java.util.concurrent.Executor
 import com.sun.net.httpserver.{HttpServer, HttpExchange, HttpHandler}
-import ee.cone.base.connection_api.{CanStart, DictMessage}
+import ee.cone.base.connection_api.{ExecutionManager, CanStart, DictMessage}
 import ee.cone.base.util.{Single, Trace}
 import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
@@ -32,12 +32,12 @@ class ConnectionHandler(connectionRegistry: ConnectionRegistry) extends HttpHand
 class RHttpServer(
   httpPort: Int,
   staticRoot: Path,
-  pool: Executor,
+  lifeCycleManager: ExecutionManager,
   connectionRegistry: ConnectionRegistry
 ) extends CanStart {
   def start() = {
     val server = HttpServer.create(new InetSocketAddress(httpPort),0)
-    server.setExecutor(pool)
+    server.setExecutor(lifeCycleManager.pool)
     server.createContext("/", new StaticHandler(staticRoot))
     server.createContext("/connection", new ConnectionHandler(connectionRegistry))
     server.start()

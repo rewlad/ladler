@@ -32,10 +32,6 @@ trait SessionEventSourceOperations {
   def addUndo(eventObjId: ObjId): Unit
 }
 
-trait MergerEventSourceOperations {
-  def incrementalApplyAndCommit(): Unit
-}
-
 trait MergerEventSourceAttrs {
   def lastMergedRequest: Attr[DBNode]
   def instantSession: Attr[DBNode]

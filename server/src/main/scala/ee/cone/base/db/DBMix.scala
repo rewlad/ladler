@@ -1,12 +1,16 @@
 package ee.cone.base.db
 
+import java.util.concurrent.ExecutorService
+
 import ee.cone.base.connection_api._
 
 trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv
   def instantDB: DBEnv
+  def createMergerConnection: LifeCycle=>CoMixBase
   lazy val mergerCurrentRequest = new CurrentRequest(None)
-  override def toStart = mainDB :: instantDB :: super.toStart
+  override def toStart =
+    mainDB :: instantDB :: new Merger(executionManager,createMergerConnection) :: super.toStart
 }
 
 trait DBConnectionMix extends CoMixBase {
@@ -60,8 +64,9 @@ trait MergerDBConnectionMix extends DBConnectionMix {
   lazy val currentRequest = dbAppMix.mergerCurrentRequest
   lazy val mainTxManager =
     new DefaultTxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
-  lazy val mergerEventSourceOperations =
-    new MergerEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, currentRequest)
+  override def handlers =
+    new MergerEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, nodeFactory, currentRequest).handlers :::
+    super.handlers
 }
 
 trait SessionDBConnectionMix extends DBConnectionMix {

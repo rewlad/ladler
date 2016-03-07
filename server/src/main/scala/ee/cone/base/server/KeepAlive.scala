@@ -30,11 +30,11 @@ class KeepAlive(
     case WaitingPingStatus => throw new Exception("endOfLife")
   }
   private lazy val periodicFrame = new OncePer(5000, () => {
-    sender.send(command,receiver.connectionKey)
+    sender.sendToAlien(command,receiver.connectionKey)
     status = WaitingPingStatus
   })
   def handlers: List[BaseCoHandler] =
-    CoHandler(AlienDictMessageKey){ messageOpt =>
+    CoHandler(FromAlienDictMessageKey){ messageOpt =>
       messageOpt.foreach{ message =>
         message.value.get("X-r-session").foreach{ sessionKey =>
           handlerLists.list(SwitchSession).foreach(_(UUID.fromString(sessionKey)))

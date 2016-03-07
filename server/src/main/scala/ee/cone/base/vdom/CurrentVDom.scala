@@ -34,7 +34,7 @@ class CurrentVDom(
       }
     }
 
-  def handlers = CoHandler(AlienDictMessageKey){ messageOpt =>
+  def handlers = CoHandler(FromAlienDictMessageKey){ messageOpt =>
     messageOpt.foreach{ message => //dispatches incoming message // can close / set refresh time
       relocate(message)
       dispatch(message)
@@ -43,7 +43,7 @@ class CurrentVDom(
     if(vDom == wasNoValue){
       until = Long.MaxValue
       vDom = view(hashForView,"")
-      diff.diff(vDom).foreach(d=>sender.send("showDiff", jsonToString(d)))
+      diff.diff(vDom).foreach(d=>sender.sendToAlien("showDiff", jsonToString(d)))
     }
   } :: Nil
   private lazy val PathSplit = """(.*)(/[^/]*)""".r

@@ -25,7 +25,7 @@ class ReceiverOfConnectionImpl(
   }
   def handlers = CoHandler(ActivateReceiver){_ =>
     val message = Option(queue.poll(framePeriod,TimeUnit.MILLISECONDS))
-    handlerLists.list(AlienDictMessageKey).foreach(_(message))
+    handlerLists.list(FromAlienDictMessageKey).foreach(_(message))
   } :: Nil
 }
 

@@ -1,6 +1,9 @@
-package ee.cone.base.connection_api
+package ee.cone.base.lifecycle
 
-import ee.cone.base.util.Setup
+import java.util.concurrent.Executors
+
+import ee.cone.base.connection_api._
+import ee.cone.base.util._
 
 sealed trait LifeStatus
 case object OpenableLifeStatus extends LifeStatus
@@ -34,22 +37,31 @@ object DoClose {
   }
 }
 
-////
-
-trait AppMixBase extends CanStart {
-  def toStart: List[CanStart] = Nil
+class ExecutionManagerImpl(
+  toStart: List[CanStart], threadCount: Int
+) extends ExecutionManager {
+  lazy val pool = Executors.newScheduledThreadPool(threadCount)
   def start() = toStart.foreach(_.start())
+  def startServer(iteration: ()=>Unit) = pool.execute(ToRunnable {
+    while(true) iteration()
+  })
+  def startConnection(setup: LifeCycle=>CoMixBase) = pool.submit(ToRunnable {
+    val lifeCycle = new LifeCycleImpl(None)
+    try{
+      lifeCycle.open()
+      val connection = setup(lifeCycle)
+      try{
+        while(true) Single(connection.handlerLists.list(ActivateReceiver))()
+      } catch {
+        case e: Exception ⇒
+          connection.handlerLists.list(FailEventKey).foreach(_(e))
+          throw e
+      }
+    } finally lifeCycle.close()
+  })
 }
 
-////
-trait CoMixBase extends CoHandlerProvider {
-  def handlers: List[BaseCoHandler] = Nil
-  lazy val handlerLists: CoHandlerLists = new CoHandlerListsImpl(()⇒handlers)
-}
-
-class CoHandlerListsImpl(createHandlers: ()=>List[BaseCoHandler]) extends CoHandlerLists {
-  def list[In,Out](ev: EventKey[In,Out]): List[In=>Out] =
-    value.getOrElse(ev,Nil).asInstanceOf[List[In=>Out]]
-  private lazy val value = createHandlers().map{ case h: CoHandler[_,_] ⇒ h }
-      .groupBy(_.on).mapValues(_.map(_.handle))
+trait AppMixBaseImpl extends AppMixBase {
+  def threadCount: Int
+  lazy val executionManager = new ExecutionManagerImpl(toStart, threadCount)
 }

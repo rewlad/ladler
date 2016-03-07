@@ -61,10 +61,10 @@ class TestAppMix extends ServerAppMix with DBAppMix {
   lazy val mainDB = new TestEnv
   lazy val instantDB = new TestEnv
   lazy val createConnection =
-    (lifeCycle:LifeCycle) ⇒ new TestConnectionMix(this, lifeCycle)
+    (lifeCycle:LifeCycle) ⇒ new TestSessionConnectionMix(this, lifeCycle)
 }
 
-class TestConnectionMix(
+class TestSessionConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle
 ) extends ServerConnectionMix with SessionDBConnectionMix with VDomConnectionMix {
   lazy val serverAppMix = app
@@ -76,6 +76,12 @@ class TestConnectionMix(
     new FailOfConnection(sender).handlers :::
     new DynEdit(sessionEventSourceOperations).handlers :::
     super.handlers
+}
+
+class TestMergerConnectionMix(
+  app: TestAppMix, val lifeCycle: LifeCycle
+) extends MergerDBConnectionMix {
+  def dbAppMix = app
 }
 
 object TestApp extends App {
@@ -104,13 +110,14 @@ class FailOfConnection(
   sender: SenderOfConnection
 ) extends CoHandlerProvider {
   def handlers = CoHandler(FailEventKey){ e =>
-    sender.send("fail",e.toString) //todo
+    sender.sendToAlien("fail",e.toString) //todo
   } :: Nil
 }
 
 class DynEdit(
   eventSourceOperations: SessionEventSourceOperations
 ) extends CoHandlerProvider {
+  //lazy val
   def handlers = CoHandler(ViewPath("/db")){ pf =>
     eventSourceOperations.incrementalApplyAndView{ ()⇒
       ???
