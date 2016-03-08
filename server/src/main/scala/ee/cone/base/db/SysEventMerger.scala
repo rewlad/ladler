@@ -27,7 +27,7 @@ class MergerEventSourceOperationsImpl(
         val req = nextRequest()
         if (req.nonEmpty) {
           currentRequest.value = Some(req.objId)
-          applyEvents(req)
+          ops.applyEvents(req(at.instantSession), req.objId)
         } else Thread.sleep(1000)
       }
     }
@@ -37,14 +37,9 @@ class MergerEventSourceOperationsImpl(
   private def nextRequest(): DBNode = {
     val seqNode = nodeFactory.seqNode(mainTxManager.currentTx())
     val seqRef: Ref[DBNode] = seqNode(at.lastMergedRequest.ref)
-    val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef, (_:DBNode) => true)
+    val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef, Long.MaxValue)
     reqSrc.poll()
   }
-  private def applyEvents(req: DBNode) = {
-    val instantSession = req(at.instantSession)
-    ops.applyEvents(instantSession, (ev:DBNode)=> ev.objId<req.objId)
-  }
-
 }
 
 class Merger(
@@ -52,9 +47,7 @@ class Merger(
   createConnection: LifeCycle ⇒ CoMixBase
 ) extends CanStart {
   def start() = lifeCycleManager.startServer { ()=>
-    lifeCycleManager.startConnection { lifeCycle =>
-      createConnection(lifeCycle)
-    }.get()
+    lifeCycleManager.startConnection(createConnection).get()
     Thread.sleep(1000)
   }
 }

@@ -15,8 +15,8 @@ case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
 
 trait EventSourceOperations {
   def isUndone(event: DBNode): Boolean
-  def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode], cond: DBNode=>Boolean): EventSource
-  def applyEvents(instantSession: DBNode, isNotLast: DBNode=>Boolean): Unit
+  def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode], max: ObjId): EventSource
+  def applyEvents(instantSession: DBNode, max: ObjId): Unit
   def addEventStatus(event: DBNode, ok: Boolean): Unit
   def requested: String
 }

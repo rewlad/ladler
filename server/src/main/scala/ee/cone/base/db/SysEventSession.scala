@@ -1,8 +1,7 @@
 package ee.cone.base.db
 
 import java.util.UUID
-import ee.cone.base.connection_api.{SwitchSession, CoHandler, BaseCoHandler,
-CoHandlerProvider}
+import ee.cone.base.connection_api.{SwitchSession, CoHandler, CoHandlerProvider}
 import ee.cone.base.db.Types._
 import ee.cone.base.util.{Never, Single}
 
@@ -29,7 +28,7 @@ class SessionEventSourceOperationsImpl(
     instantTxManager.roTx { () ⇒
       val instantSession = findSession().get
       mainTxManager.muxTx(needRecreate(instantSession)){ () ⇒
-        ops.applyEvents(instantSession, (_: DBNode) => true)
+        ops.applyEvents(instantSession, Long.MaxValue)
         view()
       }
     }

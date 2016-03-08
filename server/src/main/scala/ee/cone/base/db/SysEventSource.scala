@@ -4,6 +4,7 @@ import java.util.UUID
 
 import ee.cone.base.connection_api.{CoHandlerProvider, CoHandlerLists,
 BaseCoHandler}
+import ee.cone.base.db.Types.ObjId
 import ee.cone.base.util.Single
 
 //! lost calc-s
@@ -44,12 +45,13 @@ class EventSourceAttrsImpl(
     mandatory(asRequest,asEventStatus,mutual = false) :::
     mandatory(asUndo, asEventStatus, mutual = false) :::
     mandatory(asCommit, asEventStatus, mutual = false) :::
-    searchIndex.handlers(asInstantSession.defined, sessionKey) :::
-    searchIndex.handlers(asMainSession, instantSession) :::
-    searchIndex.handlers(asEvent, instantSession) :::
-    searchIndex.handlers(asUndo, event) :::
-    searchIndex.handlers(asEvent, requested) :::
-    searchIndex.handlers(asRequest, instantSession) :::
+    searchIndex.handlers(asInstantSession, sessionKey) ::: ////
+    searchIndex.handlers(asMainSession, instantSession) ::: //
+    searchIndex.handlers(asEvent, instantSession) ::: //
+    searchIndex.handlers(asUndo, event) ::: //
+    searchIndex.handlers(asRequest, requested) ::: ///
+    searchIndex.handlers(asEventStatus, instantSession) ::: ////
+    searchIndex.handlers(asRequest, instantSession) ::: ////
     Nil
 ) extends CoHandlerProvider with MergerEventSourceAttrs with SessionEventSourceAttrs
 
@@ -65,20 +67,22 @@ class EventSourceOperationsImpl(
 ) extends EventSourceOperations {
   def isUndone(event: DBNode) =
     allNodes.where(instantTx(), at.asUndo.defined, at.event, event).nonEmpty
-  def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode], cond: DBNode=>Boolean) =
-    new EventSource {
-      def poll(): DBNode = {
-        val lastNode = seqRef()
-        val fromObjId = if(lastNode.nonEmpty) Some(lastNode.objId+1) else None
-        val result = allNodes.where(instantTx(), label.defined, prop, value, fromObjId, 1L)
-        if(result.isEmpty){ return nodeFactory.noNode }
-        val event :: Nil = result
-        if(!cond(event)){ return nodeFactory.noNode }
-        seqRef() = event
-        if(isUndone(event)) poll() else event
-      }
+  def createEventSource[Value](
+      label: Attr[DBNode], prop: Attr[Value], value: Value,
+      seqRef: Ref[DBNode], max: ObjId
+  ) =  new EventSource {
+    def poll(): DBNode = {
+      val lastNode = seqRef()
+      val fromObjId = if(lastNode.nonEmpty) Some(lastNode.objId+1) else None
+      val result = allNodes.where(instantTx(), label.defined, prop, value, fromObjId, 1L)
+      if(result.isEmpty){ return nodeFactory.noNode }
+      val event :: Nil = result
+      if(max < event.objId){ return nodeFactory.noNode }
+      seqRef() = event
+      if(isUndone(event)) poll() else event
     }
-  def applyEvents(instantSessionNode: DBNode, cond: DBNode=>Boolean): Unit = {
+  }
+  def applyEvents(instantSessionNode: DBNode, max: ObjId): Unit = {
     val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode)
     val seqNode = Single.option(sessions).getOrElse{
       val mainSession = allNodes.create(mainTx(), at.asMainSession)
@@ -86,7 +90,7 @@ class EventSourceOperationsImpl(
       mainSession
     }
     val seqRef = seqNode(at.lastMergedEvent.ref)
-    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef, cond)
+    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef, max)
     var event = src.poll()
     while(event.nonEmpty){
       factIndex.switchSrcObjId(event.objId)
@@ -100,7 +104,7 @@ class EventSourceOperationsImpl(
     val status = allNodes.create(event.tx, at.asEventStatus)
     status(if(ok) at.asCommit else at.asUndo) = status
     status(at.event) = event
-    status(at.instantSession) = instantSession
+    status(at.instantSession) = event(at.instantSession)
   }
   def requested = "Y"
 }
