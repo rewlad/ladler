@@ -5,9 +5,8 @@ import java.util.Base64
 import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.util.{Never, UTF8String}
 
-
-object Input {
-  def appendJsonAttributes(builder: JsonBuilder, value: String, deferSend: Boolean): Unit = {
+object InputAttributesImpl extends InputAttributes {
+  def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit = {
     builder.append("value").append(value)
     if(deferSend){
       builder.append("onChange").append("local")
@@ -16,7 +15,7 @@ object Input {
   }
 }
 
-object OnChange {
+object OnChangeImpl extends OnChange {
   def unapply(message: DictMessage): Option[String] = message match {
     case DictMessage(mv) if mv.getOrElse("X-r-action","") == "change" =>
       Some(UTF8String(Base64.getDecoder.decode(mv("X-r-vdom-value-base64"))))
@@ -24,7 +23,7 @@ object OnChange {
   }
 }
 
-object OnClick {
+object OnClickImpl extends OnClick {
   def unapply(message: DictMessage): Option[Unit] = message match {
     case DictMessage(mv) if mv.getOrElse("X-r-action","") == "click" => Some(())
     case _ => None

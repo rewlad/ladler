@@ -21,12 +21,12 @@ case class ChildOrderValue(value: List[Long]) extends Value { //priv
   }
 }
 
-class ChildPairFactory(createMapValue: List[VPair]=>MapValue) {
+class ChildPairFactoryImpl(createMapValue: List[VPair]=>MapValue) extends ChildPairFactory {
   def apply[C](
     key: Long,
-    theElement: ElementValue,
+    theElement: Value,
     elements: List[ChildPair[_]]
-  ): ChildPair[C] = ChildPair[C](key, createMapValue(
+  ): ChildPair[C] = ChildPairImpl[C](key, createMapValue(
     TheKeyPair :: TheElementPair(theElement) :: (
       if(elements.isEmpty) Nil
       else ChildOrderPair(ChildOrderValue(elements.map(_.key))) :: elements
@@ -35,7 +35,7 @@ class ChildPairFactory(createMapValue: List[VPair]=>MapValue) {
 }
 
 object LongJsonKey { def apply(key: Long) = s":$key" }
-case class ChildPair[C](key: Long, value: Value) extends VPair { //pub
+case class ChildPairImpl[C](key: Long, value: Value) extends ChildPair[C] { //pub
   def jsonKey = LongJsonKey(key)
   def sameKey(other: VPair) = other match {
     case o: ChildPair[_] => key == o.key
@@ -64,13 +64,4 @@ case class TheElementPair(value: Value) extends VPair { //priv
   def withValue(value: Value) = copy(value=value)
 }
 
-abstract class ElementValue extends Value {
-  def elementType: String
-  def appendJsonAttributes(builder: JsonBuilder): Unit
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-      .append("tp").append(elementType)
-    appendJsonAttributes(builder)
-    builder.end()
-  }
-}
+

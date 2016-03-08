@@ -46,3 +46,25 @@ trait CurrentView {
 trait MessageReceiver {
   def receive: PartialFunction[DictMessage,Unit]
 }
+
+////
+
+trait ChildPairFactory {
+  def apply[C](key: Long, theElement: Value, elements: List[ChildPair[_]]): ChildPair[C]
+}
+
+trait ChildPair[C] extends VPair {
+  def key: Long
+}
+
+trait InputAttributes {
+  def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit
+}
+
+trait OnChange {
+  def unapply(message: DictMessage): Option[String]
+}
+
+trait OnClick {
+  def unapply(message: DictMessage): Option[Unit]
+}
