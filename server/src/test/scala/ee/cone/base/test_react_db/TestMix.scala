@@ -27,7 +27,7 @@ class TestSessionConnectionMix(
   lazy val serverAppMix = app
   lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
-  lazy val framePeriod = 200
+  lazy val framePeriod = 200L
   //lazy val mainDB = app.mainDB
   override def handlers =
     new FailOfConnection(sender).handlers :::

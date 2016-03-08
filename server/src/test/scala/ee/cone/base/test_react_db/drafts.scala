@@ -5,6 +5,69 @@ package ee.cone.base.test_react_db
 import scala.collection.mutable.ArrayBuffer
 
 /*
+class LifeCacheState[C] {
+  private var state: Option[C] = None
+  def apply() = state
+  def set(lifeCycle: LifeCycle, value: =>C) = {
+    if(state.nonEmpty) Never()
+    lifeCycle.setup()(_ => state = None)
+    state = Option(value)
+  }
+}
+
+class LifeCache[C] {
+  lazy val lifeCycle = new LifeCacheState[LifeCycle]
+  def apply(create: =>C): ()=>C = {
+    val base = new LifeCacheState[C]
+    () =>
+      if(base().isEmpty) base.set(lifeCycle().get, create)
+      base().get
+  }
+}
+*/
+
+////
+
+/*
+class FindOrCreateSrcId(
+  srcId: Attr[UUID],
+  searchSrcId: ListByValue[UUID],
+  seq: ObjIdSequence
+) {
+  def apply(value: UUID) = Single.option(searchSrcId.list(value))
+    .getOrElse(Setup(seq.inc()){ node => node(srcId) = value })
+}
+*/
+
+////
+
+/*
+trait Model
+trait View {
+  def modelVersion: String
+  def generateDom: Value
+}
+
+class IndexView extends View {
+  def modelVersion = "index"
+  def generateDom = {
+    import Tag._
+    root(
+      anchor(0,"#big","[big]")::
+        anchor(1,"#interactive","[interactive]")::
+        Nil
+    )
+  }
+}
+*/
+
+// ? periodic re-snap
+// ? periodicFullReset = new OncePer(1000, reset)
+// notify session using db
+
+
+
+/*
 trait IA_SomeAttr {
   def someAttr: String
 }
@@ -227,7 +290,7 @@ object Test6 {
     def test(
         point1D: Obj[Point1D],
         point2D: Obj[Point2D]
-    ) {
+    )(implicit converter: Converter[Double]) {
       point1D(xc)
       point1D(xc) = 8.0
       // point1D(yc)
@@ -248,6 +311,6 @@ object Test6 {
     val db = new DBImpl
     val point1D = ObjImpl[Point1D](7L)(db)
     val point2D = ObjImpl[Point2D](10L)(db)
-    test(point1D, point2D)
+    test(point1D, point2D)(DoubleConverter)
   }
 }
