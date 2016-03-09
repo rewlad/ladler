@@ -29,7 +29,7 @@ trait CoMixBase extends CoHandlerProvider {
 
 // Single shared app object of a project gathers all shared app-level components;
 // app extends AppMixBase;
-// call app.executionManager.start() in main method of a project;
+// call app.start() in main method of a project;
 // override app.toStart to include components to be started;
 // implement CanStart.start() in those components;
 // startServer(...) can be used inside start();
@@ -37,12 +37,12 @@ trait CoMixBase extends CoHandlerProvider {
 trait CanStart {
   def start(): Unit
 }
-trait ExecutionManager extends CanStart {
+trait ExecutionManager {
   def pool: ExecutorService
   def startServer(iteration: ()=>Unit): Unit
   def startConnection(setup: LifeCycle=>CoMixBase): Future[_]
 }
-trait AppMixBase {
+trait AppMixBase extends CanStart {
   def toStart: List[CanStart] = Nil
   def executionManager: ExecutionManager
 }

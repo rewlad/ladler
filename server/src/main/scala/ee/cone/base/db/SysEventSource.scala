@@ -17,6 +17,7 @@ class EventSourceAttrsImpl(
   attr: AttrFactory,
   searchIndex: SearchIndex,
   nodeValueConverter: RawValueConverter[DBNode],
+  attrValueConverter: RawValueConverter[Attr[Boolean]],
   uuidValueConverter: RawValueConverter[UUID],
   stringValueConverter: RawValueConverter[String],
   mandatory: Mandatory
@@ -33,12 +34,14 @@ class EventSourceAttrsImpl(
   val asCommit: Attr[DBNode] = attr(0x0019, 0, nodeValueConverter),
   val lastMergedRequest: Attr[DBNode] = attr(0, 0x001A, nodeValueConverter),
   val asRequest: Attr[DBNode] = attr(0x001B, 0, nodeValueConverter),
-  val requested: Attr[String] = attr(0, 0x001C, stringValueConverter)
+  val requested: Attr[String] = attr(0, 0x001C, stringValueConverter),
+  val applyAttr: Attr[Attr[Boolean]] = attr(0, 0x001D, attrValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asInstantSession,sessionKey,mutual = true) :::
     mandatory(asMainSession,instantSession,mutual = true) :::
     mandatory(asMainSession,lastMergedEvent,mutual = true) :::
     mandatory(asEvent,instantSession,mutual = true) :::
+    mandatory(asEvent,applyAttr,mutual = true) :::
     mandatory(asEventStatus,instantSession,mutual = true) :::
     mandatory(asRequest,requested,mutual = true) :::
     mandatory(event,asEventStatus,mutual = false) :::
@@ -59,7 +62,6 @@ class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
   factIndex: FactIndex, //u
   nodeHandlerLists: CoHandlerLists, //u
-  attrs: ListByDBNode, //u
   allNodes: DBNodes,
   nodeFactory: NodeFactory, //u
   instantTx: CurrentTx[InstantEnvKey], //u
@@ -82,6 +84,10 @@ class EventSourceOperationsImpl(
       if(isUndone(event)) poll() else event
     }
   }
+  def ref(node: DBNode, attr: Attr[DBNode]) = new Ref[DBNode] {
+    def apply() = node(attr)
+    def update(value: DBNode) = node(attr) = value
+  }
   def applyEvents(instantSessionNode: DBNode, max: ObjId): Unit = {
     val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode)
     val seqNode = Single.option(sessions).getOrElse{
@@ -89,13 +95,12 @@ class EventSourceOperationsImpl(
       mainSession(at.instantSession) = instantSessionNode
       mainSession
     }
-    val seqRef = seqNode(at.lastMergedEvent.ref)
+    val seqRef = ref(seqNode, at.lastMergedEvent)
     val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef, max)
     var event = src.poll()
     while(event.nonEmpty){
       factIndex.switchSrcObjId(event.objId)
-      for(attr <- attrs.list(event))
-        nodeHandlerLists.list(ApplyEvent(attr.defined)) // apply
+      Single(nodeHandlerLists.list(ApplyEvent(event(at.applyAttr))))(event)
       factIndex.switchSrcObjId(0L)
       event = src.poll()
     }

@@ -5,10 +5,8 @@ import ee.cone.base.db.Types._
 
 trait Attr[Value] {
   def defined: Attr[Boolean]
-  def ref: Attr[Ref[Value]]
   def get(node: DBNode): Value
   def set(node: DBNode, value: Value): Unit
-  def rawAttr: RawAttr[Value]
 }
 
 trait BoundToTx { def enabled: Boolean }
@@ -28,13 +26,13 @@ trait Ref[Value] {
 }
 
 trait AttrFactory {
-  def apply[V](labelId: Long, propId: Long, converter: RawValueConverter[V]): Attr[V]
+  def apply[V](labelId: Long, propId: Long, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
 }
 
 trait FactIndex {
   def switchSrcObjId(objId: ObjId): Unit
-  def get[Value](node: DBNode, attrId: Attr[Value]): Value
-  def set[Value](node: DBNode, attrId: Attr[Value], value: Value): Unit
+  def get[Value](node: DBNode, attr: RawAttr[Value]): Value
+  def set[Value](node: DBNode, attr: Attr[Value] with RawAttr[Value], value: Value): Unit
   def execute(node: DBNode, feed: Feed): Unit
 }
 

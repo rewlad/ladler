@@ -44,6 +44,21 @@ class UUIDValueConverter(inner: InnerRawValueConverter) extends RawValueConverte
   def nonEmpty(value: UUID) = true
 }
 
+class AttrValueConverter(
+  inner: InnerRawValueConverter,
+  attrFactory: AttrFactory, definedValueConverter: RawValueConverter[Boolean]
+) extends RawValueConverter[Attr[Boolean]] {
+  def convert() = Never()
+  def convert(valueA: Long, valueB: Long) = attrFactory(valueA,valueB,definedValueConverter)
+  def convert(value: String) = Never()
+  def allocWrite(before: Int, value: Attr[Boolean], after: Int) =
+    if(nonEmpty(value)) {
+      val attr = value.asInstanceOf[RawAttr[Boolean]]
+      inner.allocWrite(before, attr.labelId, attr.propId, after)
+    } else Never()
+  def nonEmpty(value: Attr[Boolean]) = true
+}
+
 // for true Boolean converter? if(nonEmpty(value)) inner.allocWrite(before, 1L, 0L, after) else Never()
 class DefinedValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Boolean] {
   def convert() = false

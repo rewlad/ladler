@@ -8,7 +8,6 @@ class DeleteAttrCalcList(
   attrs: ListByDBNode
 ) {
   def apply() = CoHandler[DBNode,Unit](AfterUpdate(typeId.defined)){ node =>
-    if(!node(typeId.defined))
-      attrs.list(node).foreach(attr => node(attr.defined) = false)
+    if(!node(typeId.defined)) node(attrs) = Nil
   } :: Nil
 }

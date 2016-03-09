@@ -1,14 +1,17 @@
 package ee.cone.base.db
 
 import ee.cone.base.connection_api.{EventKey, CoHandlerLists}
-import ee.cone.base.util.Single
+import ee.cone.base.util.{Never, Single}
 
 class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, definedValueConverter: RawValueConverter[Boolean]) extends ListByDBNode {
-  def list(node: DBNode) = {
+  def defined = Never()
+  def get(node: DBNode) = {
     val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,attrFactory.apply(_,_,definedValueConverter))
     inner.execute(node, feed)
     feed.result
   }
+  def set(node: DBNode, value: List[Attr[_]]) = if(value.nonEmpty) Never()
+    else node(this).foreach(attr => node(attr.defined) = false)
 }
 
 class SysAttrs(

@@ -13,10 +13,10 @@ class SearchIndexImpl(
 ) extends SearchIndex {
   private def toRawIndex(tx: BoundToTx) =
     if(tx.enabled) tx.asInstanceOf[ProtectedBoundToTx].rawIndex else Never()
-  private def execute[Value](attr: Attr[Value])(in: SearchRequest[Value]) = {
-    val whileKey = converter.keyWithoutObjId(attr.rawAttr, in.value)
+  private def execute[Value](attr: RawAttr[Value])(in: SearchRequest[Value]) = {
+    val whileKey = converter.keyWithoutObjId(attr, in.value)
     val fromKey = if(in.objId.isEmpty) whileKey
-      else converter.key(attr.rawAttr, in.value, in.objId.get)
+      else converter.key(attr, in.value, in.objId.get)
     val rawIndex = toRawIndex(in.tx)
     rawIndex.seek(fromKey)
     rawVisitor.execute(rawIndex, whileKey, in.feed)
@@ -26,10 +26,15 @@ class SearchIndexImpl(
       toRawIndex(node.tx).set(converter.key(attrId, value, node.objId), converter.value(on))
 
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
-    if(labelAttr.rawAttr.propId!=0L || propAttr.rawAttr.labelId!=0L) Never()
-    val attr = attrFactory(labelAttr.rawAttr.labelId, propAttr.rawAttr.propId, propAttr.rawAttr.converter)
+    val labelRawAttr = labelAttr.asInstanceOf[RawAttr[_]]
+    val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
+    if(labelRawAttr.propId!=0L)
+      throw new Exception(s"bad index on label: $labelAttr")
+    if(propRawAttr.labelId!=0L)
+      throw new Exception(s"bad index on prop: $propAttr")
+    val attr = attrFactory(labelRawAttr.labelId, propRawAttr.propId, propRawAttr.converter)
     def setter(on: Boolean)(node: DBNode) =
-      if (node(labelAttr.defined)) set(attr.rawAttr, node(propAttr), node, on)
+      if (node(labelAttr.defined)) set(attr, node(propAttr), node, on)
     val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
     CoHandler(searchKey)(execute[Value](attr)) ::
       (labelAttr :: propAttr :: Nil).flatMap{ a =>

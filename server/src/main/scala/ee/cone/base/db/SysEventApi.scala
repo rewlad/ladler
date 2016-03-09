@@ -15,6 +15,7 @@ case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
 
 trait EventSourceOperations {
   def isUndone(event: DBNode): Boolean
+  def ref(node: DBNode, attr: Attr[DBNode]): Ref[DBNode]
   def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode], max: ObjId): EventSource
   def applyEvents(instantSession: DBNode, max: ObjId): Unit
   def addEventStatus(event: DBNode, ok: Boolean): Unit
@@ -27,7 +28,7 @@ trait EventSource {
 
 trait SessionEventSourceOperations {
   def incrementalApplyAndView[R](view: ()=>R): R
-  def addEvent(fill: DBNode=>Unit): Unit
+  def addEvent(applyAttr: Attr[Boolean])(fill: DBNode=>Unit): Unit
   def addRequest(): Unit
   def addUndo(eventObjId: ObjId): Unit
 }
@@ -47,4 +48,5 @@ trait SessionEventSourceAttrs {
   def asRequest: Attr[DBNode]
   def asEventStatus: Attr[DBNode]
   def requested: Attr[String]
+  def applyAttr: Attr[Attr[Boolean]]
 }

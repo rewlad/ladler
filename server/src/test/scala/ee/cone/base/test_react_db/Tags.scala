@@ -3,6 +3,8 @@ package ee.cone.base.test_react_db
 import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.util.Never
 import ee.cone.base.vdom.{MessageReceiver, OnChange, OnClick, JsonBuilder, Value, InputAttributes, ChildPairFactory, ChildPair}
+import ee.cone.base.vdom.Types.VDomKey
+import ee.cone.base.db.Ref
 
 abstract class ElementValue extends Value {
   def elementType: String
@@ -20,6 +22,7 @@ abstract class SimpleElement extends ElementValue {
 }
 object WrappingElement extends SimpleElement { def elementType = "span" }
 object DivElement extends SimpleElement { def elementType = "div" }
+
 
 case class TextContentElement(content: String) extends ElementValue {
   def elementType = "span"
@@ -51,11 +54,6 @@ case class InputTextElement(value: String, deferSend: Boolean)(
 
 trait OfDiv
 
-trait StrProp {
-  def get: String
-  def set(value: String): Unit
-}
-
 trait Action {
   def invoke(): Unit
 }
@@ -65,15 +63,18 @@ class Tags(
   onChange: OnChange, onClick: OnClick
 ) {
   def root(children: List[ChildPair[OfDiv]]) =
-    child(0, WrappingElement, children).value
-  def text(key: Long, label: String) =
+    child("root", WrappingElement, children).value
+  def span(key: VDomKey, children: List[ChildPair[OfDiv]]) =
+    child[OfDiv](key, WrappingElement, children)
+
+  def text(key: VDomKey, label: String) =
     child[OfDiv](key, TextContentElement(label), Nil)
-  def input(key: Long, prop: StrProp, deferSend: Boolean) =
-    child[OfDiv](key, InputTextElement(prop.get, deferSend)(inputAttributes){
-      case `onChange`(v) => prop.set(v)
+  def input(prop: AlienRef[String]) =
+    child[OfDiv](prop.key, InputTextElement(prop.value, deferSend=true)(inputAttributes){
+      case `onChange`(v) => prop.onChange(v)
       case _ => Never()
     }, Nil)
-  def button(key: Long, caption: String, action: Action) =
+  def button(key: VDomKey, caption: String, action: Action) =
     child[OfDiv](key, ButtonElement(caption){
       case `onClick`() => action.invoke()
     }, Nil)

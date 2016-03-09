@@ -7,9 +7,9 @@ import Feedback      from "../main/feedback"
 function TestShow(){
     var dataToShow
 
-    function show(event){
+    function show(data){
         // console.log((new Date).getTime() % 10000,event.data % 100)
-        dataToShow = event.data //+ " " + connectionKeyState + " " + sessionKey(function(){})
+        dataToShow = data //+ " " + connectionKeyState + " " + sessionKey(function(){})
     }
     function animationFrame(){
         document.body.textContent = dataToShow
@@ -21,5 +21,5 @@ function TestShow(){
     return ({show})
 }
 
-const receivers = [Feedback.receivers, TestShow()]
+const receivers = [Feedback().receivers, TestShow()]
 SSEConnection("http://localhost:5556/sse",receivers,5)

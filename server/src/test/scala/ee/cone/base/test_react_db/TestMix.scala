@@ -6,7 +6,7 @@ import ee.cone.base.connection_api.LifeCycle
 import ee.cone.base.db.{MergerDBConnectionMix, SessionDBConnectionMix, DBAppMix}
 import ee.cone.base.lifecycle.{BaseConnectionMix, BaseAppMix}
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
-import ee.cone.base.vdom.VDomConnectionMix
+import ee.cone.base.vdom._
 
 class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
   lazy val httpPort = 5557
@@ -28,10 +28,19 @@ class TestSessionConnectionMix(
   lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
-  //lazy val mainDB = app.mainDB
+
+  lazy val alienAccessAttrs = new AlienAccessAttrs(attrFactory, searchIndex, nodeValueConverter, uuidValueConverter, stringValueConverter, mandatory)()()
+  lazy val alienCanChange = new AlienCanChange(alienAccessAttrs,sessionEventSourceOperations,allNodes,mainTx)
+  lazy val testAttrs = new TestAttrs(attrFactory, searchIndex, nodeValueConverter, uuidValueConverter, stringValueConverter, mandatory, alienCanChange)()()
+  lazy val childPairFactory = new ChildPairFactoryImpl(MapValueImpl)
+  lazy val tags = new Tags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
+  lazy val alienAttrFactory = new AlienAttrFactory(handlerLists,currentView)
   override def handlers =
+    alienAccessAttrs.handlers :::
+    testAttrs.handlers :::
     new FailOfConnection(sender).handlers :::
-      new DynEdit(sessionEventSourceOperations).handlers :::
+    new TestView(testAttrs,alienAccessAttrs,handlerLists,allNodes,mainTx,sessionEventSourceOperations, tags, alienAttrFactory).handlers :::
+      //new DynEdit(sessionEventSourceOperations).handlers :::
       super.handlers
 }
 
@@ -43,6 +52,6 @@ class TestMergerConnectionMix(
 
 object TestApp extends App {
   val app = new TestAppMix
-  app.executionManager.start()
+  app.start()
   println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html")
 }

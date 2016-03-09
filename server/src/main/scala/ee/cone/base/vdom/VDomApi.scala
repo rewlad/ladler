@@ -1,6 +1,7 @@
 package ee.cone.base.vdom
 
 import ee.cone.base.connection_api.{DictMessage, EventKey}
+import ee.cone.base.vdom.Types.VDomKey
 
 trait JsonToString {
   def apply(value: Value): String
@@ -49,12 +50,16 @@ trait MessageReceiver {
 
 ////
 
+object Types {
+  type VDomKey = String
+}
+
 trait ChildPairFactory {
-  def apply[C](key: Long, theElement: Value, elements: List[ChildPair[_]]): ChildPair[C]
+  def apply[C](key: VDomKey, theElement: Value, elements: List[ChildPair[_]]): ChildPair[C]
 }
 
 trait ChildPair[C] extends VPair {
-  def key: Long
+  def key: VDomKey
 }
 
 trait InputAttributes {

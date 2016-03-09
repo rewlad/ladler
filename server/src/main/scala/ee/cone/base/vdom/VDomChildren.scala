@@ -1,6 +1,7 @@
 package ee.cone.base.vdom
 
 import ee.cone.base.util.Never
+import ee.cone.base.vdom.Types.VDomKey
 
 case class ChildOrderPair(value: Value) extends VPair { //priv
   def jsonKey = "chl"
@@ -10,7 +11,7 @@ case class ChildOrderPair(value: Value) extends VPair { //priv
   }
   def withValue(value: Value) = copy(value=value)
 }
-case class ChildOrderValue(value: List[Long]) extends Value { //priv
+case class ChildOrderValue(value: List[VDomKey]) extends Value { //priv
   def appendJson(builder: JsonBuilder) = {
     if(value.size != value.distinct.size)
       throw new Exception(s"duplicate keys: $value")
@@ -23,7 +24,7 @@ case class ChildOrderValue(value: List[Long]) extends Value { //priv
 
 class ChildPairFactoryImpl(createMapValue: List[VPair]=>MapValue) extends ChildPairFactory {
   def apply[C](
-    key: Long,
+    key: VDomKey,
     theElement: Value,
     elements: List[ChildPair[_]]
   ): ChildPair[C] = ChildPairImpl[C](key, createMapValue(
@@ -34,8 +35,8 @@ class ChildPairFactoryImpl(createMapValue: List[VPair]=>MapValue) extends ChildP
   ))
 }
 
-object LongJsonKey { def apply(key: Long) = s":$key" }
-case class ChildPairImpl[C](key: Long, value: Value) extends ChildPair[C] { //pub
+object LongJsonKey { def apply(key: VDomKey) = s":$key" }
+case class ChildPairImpl[C](key: VDomKey, value: Value) extends ChildPair[C] { //pub
   def jsonKey = LongJsonKey(key)
   def sameKey(other: VPair) = other match {
     case o: ChildPair[_] => key == o.key

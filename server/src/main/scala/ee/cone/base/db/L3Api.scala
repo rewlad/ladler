@@ -17,9 +17,7 @@ trait DBNodes {
   def create(tx: BoundToTx, label: Attr[DBNode]): DBNode
 }
 
-trait ListByDBNode {
-  def list(node: DBNode): List[Attr[_]]
-}
+trait ListByDBNode extends Attr[List[Attr[_]]]
 
 trait PreCommitCheckAllOfConnection {
   def switchTx(tx: BoundToTx, on: Boolean): Unit

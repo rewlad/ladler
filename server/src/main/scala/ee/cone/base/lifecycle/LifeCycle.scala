@@ -37,11 +37,10 @@ object DoClose {
   }
 }
 
-class ExecutionManagerImpl(
-  toStart: List[CanStart], threadCount: Int
-) extends ExecutionManager {
+
+
+class ExecutionManagerImpl(threadCount: Int) extends ExecutionManager {
   lazy val pool = Executors.newScheduledThreadPool(threadCount)
-  def start() = toStart.foreach(_.start())
   def startServer(iteration: ()=>Unit) = pool.execute(ToRunnable {
     while(true) iteration()
   })
@@ -54,6 +53,8 @@ class ExecutionManagerImpl(
         while(true) Single(connection.handlerLists.list(ActivateReceiver))()
       } catch {
         case e: Exception ⇒
+          //println(e)
+          e.printStackTrace()
           connection.handlerLists.list(FailEventKey).foreach(_(e))
           throw e
       }

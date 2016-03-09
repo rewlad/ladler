@@ -40,6 +40,7 @@ class RSSEServer(
       lifeCycle.onClose(()=>socket.close())
       val out = socket.getOutputStream
       lifeCycle.onClose(()=>out.close())
+
       val connection = createConnection(lifeCycle)
       connection.handlerLists.list(SetOutput).foreach(_(out))
       connection

@@ -58,10 +58,11 @@ class SessionEventSourceOperationsImpl(
     if (requests.exists(!ops.isUndone(_))) throw new Exception("event is requested")
     ops.addEventStatus(event, ok = false)
   }
-  def addEvent(fill: DBNode=>Unit): Unit = instantTxManager.rwTx { () ⇒
+  def addEvent(applyAttr: Attr[Boolean])(fill: DBNode=>Unit): Unit = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val ev = allNodes.create(instantSession.tx, at.asEvent)
     ev(at.instantSession) = instantSession
+    ev(at.applyAttr) = applyAttr
     fill(ev)
   }
 

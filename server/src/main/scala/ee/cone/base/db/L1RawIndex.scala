@@ -6,20 +6,20 @@ import ee.cone.base.db.Types._
 
 import scala.collection.immutable.SortedMap
 
-class EmptyUnmergedIndex extends RawIndex {
+class EmptyUnmergedIndex(merged: RawIndex) extends RawIndex {
   def set(key: RawKey, value: RawValue) = Never()
-  def get(key: RawKey) = Never()
+  def get(key: RawKey) = merged.get(key)
   def peek = NotFoundStatus
   def seek(from: RawKey) = ()
   def seekNext() = ()
 }
 
-class NonEmptyUnmergedIndex extends RawIndex {
+class NonEmptyUnmergedIndex(pass: RawKey=>RawValue) extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
   var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
   private var iterator: Iterator[(RawKey, RawValue)] = VoidKeyIterator
   def set(key: RawKey, value: RawValue) = data = data + (key -> value)
-  def get(key: RawKey) = data(key)
+  def get(key: RawKey) = data.getOrElse(key,pass(key))
   def seek(from: RawKey) = {
     iterator = data.from(from).iterator
     seekNext()
@@ -33,14 +33,11 @@ class NonEmptyUnmergedIndex extends RawIndex {
 
 class MuxUnmergedIndex(var unmerged: RawIndex, merged: RawIndex) extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
-  def get(key: RawKey): RawValue = unmerged match {
-    case tx: NonEmptyUnmergedIndex ⇒ tx.data.getOrElse(key,merged.get(key))
-    case _ ⇒ merged.get(key)
-  }
+  def get(key: RawKey): RawValue = unmerged.get(key)
   def set(key: RawKey, value: RawValue): Unit = {
     unmerged match {
       case tx: NonEmptyUnmergedIndex ⇒ ()
-      case _ ⇒ unmerged = new NonEmptyUnmergedIndex
+      case _ ⇒ unmerged = new NonEmptyUnmergedIndex(merged.get)
     }
     unmerged.set(key, value)
   }
@@ -93,5 +90,5 @@ object UnsignedBytesOrdering extends math.Ordering[Array[Byte]] {
 
 class MuxFactoryImpl extends MuxFactory {
   override def wrap(rawIndex: RawIndex): RawIndex =
-    new MuxUnmergedIndex(new NonEmptyUnmergedIndex,rawIndex)
+    new MuxUnmergedIndex(new EmptyUnmergedIndex(rawIndex),rawIndex)
 }

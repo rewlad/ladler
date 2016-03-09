@@ -41,6 +41,7 @@ trait DBConnectionMix extends CoMixBase {
   lazy val instantTx = new CurrentTxImpl[InstantEnvKey]
   lazy val mainTx = new CurrentTxImpl[MainEnvKey]
 
+  lazy val attrValueConverter = new AttrValueConverter(InnerRawValueConverterImpl,attrFactory,definedValueConverter)
   lazy val nodeValueConverter = new NodeValueConverter(InnerRawValueConverterImpl,nodeFactory,instantTx,mainTx)()
   lazy val uuidValueConverter = new UUIDValueConverter(InnerRawValueConverterImpl)
   lazy val stringValueConverter = new StringValueConverter(InnerRawValueConverterImpl)
@@ -53,9 +54,9 @@ trait DBConnectionMix extends CoMixBase {
 
 
   lazy val eventSourceAttrs =
-    new EventSourceAttrsImpl(attrFactory,searchIndex,nodeValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
+    new EventSourceAttrsImpl(attrFactory,searchIndex,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
   lazy val eventSourceOperations =
-    new EventSourceOperationsImpl(eventSourceAttrs,factIndex,handlerLists,listByDBNode,allNodes,nodeFactory,instantTx,mainTx)
+    new EventSourceOperationsImpl(eventSourceAttrs,factIndex,handlerLists,allNodes,nodeFactory,instantTx,mainTx)
 
   override def handlers = eventSourceAttrs.handlers ::: super.handlers
 }

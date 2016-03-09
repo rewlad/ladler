@@ -4,7 +4,8 @@ import ee.cone.base.connection_api.{AppMixBase, CoMixBase}
 
 trait BaseAppMix extends AppMixBase {
   def threadCount: Int
-  lazy val executionManager = new ExecutionManagerImpl(toStart, threadCount)
+  lazy val executionManager = new ExecutionManagerImpl(threadCount)
+  def start() = toStart.foreach(_.start())
 }
 
 trait BaseConnectionMix extends CoMixBase {

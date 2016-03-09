@@ -36,7 +36,7 @@ class MergerEventSourceOperationsImpl(
   } :: Nil
   private def nextRequest(): DBNode = {
     val seqNode = nodeFactory.seqNode(mainTxManager.currentTx())
-    val seqRef: Ref[DBNode] = seqNode(at.lastMergedRequest.ref)
+    val seqRef: Ref[DBNode] = ops.ref(seqNode, at.lastMergedRequest)
     val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef, Long.MaxValue)
     reqSrc.poll()
   }
