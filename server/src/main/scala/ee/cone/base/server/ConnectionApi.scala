@@ -4,6 +4,9 @@ import java.io.OutputStream
 
 import ee.cone.base.connection_api._
 
+trait SenderOfConnection {
+  def sendToAlien(event: String, data: String): Unit
+}
 trait ReceiverOfConnection extends {
   def connectionKey: String
 }

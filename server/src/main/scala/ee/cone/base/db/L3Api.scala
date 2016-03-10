@@ -1,20 +1,25 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{EventKey, LifeCycle, CanStart}
+import java.util.UUID
+
+import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
 
-case class ValidationFailure(hint: String, node: DBNode)
+case class ValidationFailure(hint: String, node: Obj)
 
-trait NodeFactory {
-  def noNode: DBNode
-  def toNode(tx: BoundToTx, objId: ObjId): DBNode
-  def seqNode(tx: BoundToTx): DBNode
-}
+trait SearchOption
+case class FindAfter(node: Obj) extends SearchOption
+case class FindFrom(node: Obj) extends SearchOption
+case class FindUpTo(node: Obj) extends SearchOption
+case object FindFirstOnly extends SearchOption
+case object FindLastOnly extends SearchOption
 
 trait DBNodes {
-  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value): List[DBNode]
-  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long): List[DBNode]
-  def create(tx: BoundToTx, label: Attr[DBNode]): DBNode
+  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, options: List[SearchOption]): List[Obj]
+  def create(tx: BoundToTx, label: Attr[Obj]): Obj
+  def whereSrcId(tx: BoundToTx, srcId: UUID): Obj
+  def srcId: Attr[Option[UUID]]
+  def seqNode(tx: BoundToTx): Obj
 }
 
 trait ListByDBNode extends Attr[List[Attr[_]]]
@@ -22,14 +27,17 @@ trait ListByDBNode extends Attr[List[Attr[_]]]
 trait PreCommitCheckAllOfConnection {
   def switchTx(tx: BoundToTx, on: Boolean): Unit
   def checkTx(tx: BoundToTx): Seq[ValidationFailure]
-  def create(later: Seq[DBNode]=>Seq[ValidationFailure]): DBNode=>Unit
+  def create(later: Seq[Obj]=>Seq[ValidationFailure]): Obj=>Unit
 }
 
 trait CurrentTx[DBEnvKey] {
+  def dbId: Long
+  def value: Option[BoundToTx]
   def apply(): BoundToTx
 }
 
-trait DBEnv extends CanStart {
+trait DBEnv[DBEnvKey] extends CanStart {
+  def dbId: Long
   def roTx(txLifeCycle: LifeCycle): RawIndex
   def rwTx[R](f: RawIndex⇒R): R
 }

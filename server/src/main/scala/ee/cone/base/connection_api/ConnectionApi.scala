@@ -49,6 +49,21 @@ trait AppMixBase extends CanStart {
 
 ////////////////////////////////
 
+trait BoundToTx
+trait Obj {
+  def nonEmpty: Boolean
+  def apply[Value](attr: Attr[Value]): Value
+  def update[Value](attr: Attr[Value], value: Value): Unit
+  def tx: BoundToTx
+}
+trait Attr[Value] {
+  def defined: Attr[Boolean]
+  def get(node: Obj): Value
+  def set(node: Obj, value: Value): Unit
+}
+
+////////////////////////////////
+
 // subscribe to implement iteration of connection
 case object ActivateReceiver extends EventKey[Unit,Unit]
 // subscribe to failures (fatal) of connection
@@ -57,8 +72,8 @@ case object FailEventKey extends EventKey[Exception,Unit]
 case object SwitchSession extends EventKey[UUID,Unit]
 
 // exchange with alien (user agent)
-trait SenderOfConnection {
-  def sendToAlien(event: String, data: String): Unit
-}
-case object FromAlienDictMessageKey extends EventKey[Option[DictMessage], Unit]
+case object FromAlienDictMessage extends EventKey[DictMessage, Unit]
 case class DictMessage(value: Map[String,String])
+case object ShowToAlien extends EventKey[Unit,List[(String,String)]]
+
+case class ChangeEventAdder[Value](attr: Attr[Value]) extends EventKey[Obj,Value=>Unit]

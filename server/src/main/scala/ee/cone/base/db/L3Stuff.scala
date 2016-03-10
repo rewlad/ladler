@@ -1,56 +1,102 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{EventKey, CoHandlerLists}
+import java.util.UUID
+
+import ee.cone.base.connection_api._
+import ee.cone.base.db.Types.ObjId
 import ee.cone.base.util.{Never, Single}
 
-class ListByDBNodeImpl(inner: FactIndex, attrFactory: AttrFactory, definedValueConverter: RawValueConverter[Boolean]) extends ListByDBNode {
+class ListByDBNodeImpl(
+  inner: FactIndex, attrValueConverter: RawValueConverter[Attr[Boolean]]
+) extends ListByDBNode {
   def defined = Never()
-  def get(node: DBNode) = {
-    val feed = new ListFeedImpl[Attr[_]](Long.MaxValue,attrFactory.apply(_,_,definedValueConverter))
+  def get(node: Obj) = {
+    val feed = new AttrListFeedImpl(attrValueConverter)
     inner.execute(node, feed)
     feed.result
   }
-  def set(node: DBNode, value: List[Attr[_]]) = if(value.nonEmpty) Never()
+  def set(node: Obj, value: List[Attr[_]]) = if(value.nonEmpty) Never()
     else node(this).foreach(attr => node(attr.defined) = false)
 }
 
 class SysAttrs(
-  attr: AttrFactory, nodeValueConverter: RawValueConverter[DBNode]
+  attr: AttrFactory,
+  searchIndex: SearchIndex,
+  nodeValueConverter: RawValueConverter[Obj],
+  uuidValueConverter: RawValueConverter[Option[UUID]],
+  mandatory: Mandatory
 )(
-  val seq: Attr[DBNode] = attr(0, 0x0001, nodeValueConverter)
-)
+  val seq: Attr[Obj] = attr(0, 0x0001, nodeValueConverter),
+  val asSrcIdentifiable: Attr[Obj] = attr(0x0002, 0, nodeValueConverter),
+  val srcId: Attr[Option[UUID]] = attr(0, 0x0003, uuidValueConverter)
+)(val handlers: List[BaseCoHandler] =
+  mandatory(asSrcIdentifiable, srcId, mutual = true) :::
+  searchIndex.handlers(asSrcIdentifiable, srcId) :::
+  Nil
+) extends CoHandlerProvider
 
 class DBNodesImpl(
-  handlerLists: CoHandlerLists,
+  handlerLists: CoHandlerLists, converter: RawValueConverter[Obj],
   nodeFactory: NodeFactory, at: SysAttrs
 ) extends DBNodes {
-  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value) =
-    where(tx, label, prop, value, None, Long.MaxValue)
-  def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, from: Option[Long], limit: Long) = {
+  def where[Value](
+    tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value,
+    options: List[SearchOption]
+  ) = {
+    var from: Option[ObjId] = None
+    var upTo = Long.MaxValue
+    var limit = Long.MaxValue
+    var lastOnly = false
+    options.foreach{
+      case FindFirstOnly if limit == Long.MaxValue => limit = 1L
+      case FindLastOnly => lastOnly = true
+      case FindFrom(node) if from.isEmpty => from = Some(node(nodeFactory.objId))
+      case FindAfter(node) if from.isEmpty => from = Some(node(nodeFactory.objId)+1L)
+      case FindUpTo(node) if upTo == Long.MaxValue => upTo = node(nodeFactory.objId)
+    }
     val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
     val handler = Single(handlerLists.list(searchKey))
-    val feed = new ListFeedImpl[DBNode](limit,(objId,_)=>nodeFactory.toNode(tx,objId))
-    val request = new SearchRequest[Value](tx, value, None, feed)
+    val feed = new NodeListFeedImpl(upTo,limit,converter)
+    val request = new SearchRequest[Value](tx, value, from, feed)
     handler(request)
-    feed.result.reverse
+    if(lastOnly) feed.result.head :: Nil else feed.result.reverse
   }
-  def create(tx: BoundToTx, label: Attr[DBNode]): DBNode = {
-    val seqNode = nodeFactory.seqNode(tx)
-    val lastNode = seqNode(at.seq)
-    val nextObjId = if(lastNode.nonEmpty) lastNode.objId + 1L else 1L
+  def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
+    where(tx, at.asSrcIdentifiable.defined, at.srcId, Some(srcId), Nil) match {
+      case Nil => converter.convert()
+      case node :: Nil => node
+      case _ => Never()
+    }
+  def srcId = at.srcId
+  def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,0L)
+  def create(tx: BoundToTx, label: Attr[Obj]): Obj = {
+    val sNode = seqNode(tx)
+    val lastNode = sNode(at.seq)
+    val nextObjId = if(lastNode.nonEmpty) lastNode(nodeFactory.objId) + 1L else 1L
     val res = nodeFactory.toNode(tx,nextObjId)
-    seqNode(at.seq) = res
+    sNode(at.seq) = res
     res(label) = res
+    res(at.asSrcIdentifiable) = res
+    res(at.srcId) = Some(UUID.randomUUID)
     res
   }
 }
 
-class ListFeedImpl[To](var limit: Long, converter: (Long,Long)=>To) extends Feed {
-  var result: List[To] = Nil
-  def apply(valueA: Long, valueB: Long) = {
-    result = converter(valueA,valueB) :: result
+class NodeListFeedImpl(upTo: Long, var limit: Long, converter: RawValueConverter[Obj]) extends Feed {
+  var result: List[Obj] = Nil
+  def apply(valueA: Long, valueB: Long): Boolean = {
+    if(valueB > upTo){ return false }
+    result = converter.convert(valueA,valueB) :: result
     limit -= 1L
     limit > 0L
+  }
+}
+
+class AttrListFeedImpl(converter: RawValueConverter[Attr[Boolean]]) extends Feed {
+  var result: List[Attr[Boolean]] = Nil
+  def apply(valueA: Long, valueB: Long) = {
+    result = converter.convert(valueA,valueB) :: result
+    true
   }
 }
 

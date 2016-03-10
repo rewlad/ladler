@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-import ee.cone.base.connection_api.{EventKey, BaseCoHandler}
+import ee.cone.base.connection_api.{Obj, Attr, EventKey, BaseCoHandler}
 import ee.cone.base.db.Types._
 
 trait SessionState {
@@ -11,42 +11,47 @@ trait SessionState {
 
 ////
 
-case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[DBNode,Unit]
+case object AddEvent extends EventKey[Obj=>Attr[Boolean],Unit]
+case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[Obj,Unit]
+
+trait Ref[Value] {
+  def apply(): Value
+  def update(value: Value): Unit
+}
 
 trait EventSourceOperations {
-  def isUndone(event: DBNode): Boolean
-  def ref(node: DBNode, attr: Attr[DBNode]): Ref[DBNode]
-  def createEventSource[Value](label: Attr[DBNode], prop: Attr[Value], value: Value, seqRef: Ref[DBNode], max: ObjId): EventSource
-  def applyEvents(instantSession: DBNode, max: ObjId): Unit
-  def addEventStatus(event: DBNode, ok: Boolean): Unit
+  def isUndone(event: Obj): Boolean
+  def ref(node: Obj, attr: Attr[Obj]): Ref[Obj]
+  def createEventSource[Value](label: Attr[Obj], prop: Attr[Value], value: Value, seqRef: Ref[Obj], options: List[SearchOption]): EventSource
+  def applyEvents(instantSession: Obj, options: List[SearchOption]): Unit
+  def addEventStatus(event: Obj, ok: Boolean): Unit
   def requested: String
 }
 
 trait EventSource {
-  def poll(): DBNode
+  def poll(): Obj
 }
 
 trait SessionEventSourceOperations {
   def incrementalApplyAndView[R](view: ()=>R): R
-  def addEvent(applyAttr: Attr[Boolean])(fill: DBNode=>Unit): Unit
   def addRequest(): Unit
-  def addUndo(eventObjId: ObjId): Unit
+  def addUndo(eventSrcId: UUID): Unit
 }
 
 trait MergerEventSourceAttrs {
-  def lastMergedRequest: Attr[DBNode]
-  def instantSession: Attr[DBNode]
-  def asRequest: Attr[DBNode]
+  def lastMergedRequest: Attr[Obj]
+  def instantSession: Attr[Obj]
+  def asRequest: Attr[Obj]
   def requested: Attr[String]
 }
 
 trait SessionEventSourceAttrs {
-  def asInstantSession: Attr[DBNode]
-  def instantSession: Attr[DBNode]
-  def sessionKey: Attr[UUID]
-  def asEvent: Attr[DBNode]
-  def asRequest: Attr[DBNode]
-  def asEventStatus: Attr[DBNode]
+  def asInstantSession: Attr[Obj]
+  def instantSession: Attr[Obj]
+  def sessionKey: Attr[Option[UUID]]
+  def asEvent: Attr[Obj]
+  def asRequest: Attr[Obj]
+  def asEventStatus: Attr[Obj]
   def requested: Attr[String]
   def applyAttr: Attr[Attr[Boolean]]
 }

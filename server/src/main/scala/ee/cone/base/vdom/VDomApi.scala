@@ -1,6 +1,6 @@
 package ee.cone.base.vdom
 
-import ee.cone.base.connection_api.{DictMessage, EventKey}
+import ee.cone.base.connection_api.{Attr, DictMessage, EventKey}
 import ee.cone.base.vdom.Types.VDomKey
 
 trait JsonToString {
@@ -72,4 +72,10 @@ trait OnChange {
 
 trait OnClick {
   def unapply(message: DictMessage): Option[Unit]
+}
+
+case class AlienRef[Value](key: VDomKey, value: Value)(val onChange: Value=>Unit)
+
+trait AlienAttrFactory {
+  def apply[Value](attr: Attr[Value], key: VDomKey): Attr[AlienRef[Value]]
 }

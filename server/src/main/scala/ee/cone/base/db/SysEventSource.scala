@@ -2,8 +2,7 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-import ee.cone.base.connection_api.{CoHandlerProvider, CoHandlerLists,
-BaseCoHandler}
+import ee.cone.base.connection_api._
 import ee.cone.base.db.Types.ObjId
 import ee.cone.base.util.Single
 
@@ -16,24 +15,24 @@ import ee.cone.base.util.Single
 class EventSourceAttrsImpl(
   attr: AttrFactory,
   searchIndex: SearchIndex,
-  nodeValueConverter: RawValueConverter[DBNode],
+  nodeValueConverter: RawValueConverter[Obj],
   attrValueConverter: RawValueConverter[Attr[Boolean]],
-  uuidValueConverter: RawValueConverter[UUID],
+  uuidValueConverter: RawValueConverter[Option[UUID]],
   stringValueConverter: RawValueConverter[String],
   mandatory: Mandatory
 ) (
-  val asInstantSession: Attr[DBNode] = attr(0x0010, 0, nodeValueConverter),
-  val sessionKey: Attr[UUID] = attr(0, 0x0011, uuidValueConverter),
-  val asMainSession: Attr[DBNode] = attr(0x0012, 0, nodeValueConverter),
-  val instantSession: Attr[DBNode] = attr(0, 0x0013, nodeValueConverter),
-  val lastMergedEvent: Attr[DBNode] = attr(0, 0x0014, nodeValueConverter),
-  val asEvent: Attr[DBNode] = attr(0x0015, 0, nodeValueConverter),
-  val asEventStatus: Attr[DBNode] = attr(0x0016, 0, nodeValueConverter),
-  val event: Attr[DBNode] = attr(0, 0x0017, nodeValueConverter),
-  val asUndo: Attr[DBNode] = attr(0x0018, 0, nodeValueConverter),
-  val asCommit: Attr[DBNode] = attr(0x0019, 0, nodeValueConverter),
-  val lastMergedRequest: Attr[DBNode] = attr(0, 0x001A, nodeValueConverter),
-  val asRequest: Attr[DBNode] = attr(0x001B, 0, nodeValueConverter),
+  val asInstantSession: Attr[Obj] = attr(0x0010, 0, nodeValueConverter),
+  val sessionKey: Attr[Option[UUID]] = attr(0, 0x0011, uuidValueConverter),
+  val asMainSession: Attr[Obj] = attr(0x0012, 0, nodeValueConverter),
+  val instantSession: Attr[Obj] = attr(0, 0x0013, nodeValueConverter),
+  val lastMergedEvent: Attr[Obj] = attr(0, 0x0014, nodeValueConverter),
+  val asEvent: Attr[Obj] = attr(0x0015, 0, nodeValueConverter),
+  val asEventStatus: Attr[Obj] = attr(0x0016, 0, nodeValueConverter),
+  val event: Attr[Obj] = attr(0, 0x0017, nodeValueConverter),
+  val asUndo: Attr[Obj] = attr(0x0018, 0, nodeValueConverter),
+  val asCommit: Attr[Obj] = attr(0x0019, 0, nodeValueConverter),
+  val lastMergedRequest: Attr[Obj] = attr(0, 0x001A, nodeValueConverter),
+  val asRequest: Attr[Obj] = attr(0x001B, 0, nodeValueConverter),
   val requested: Attr[String] = attr(0, 0x001C, stringValueConverter),
   val applyAttr: Attr[Attr[Boolean]] = attr(0, 0x001D, attrValueConverter)
 )(val handlers: List[BaseCoHandler] =
@@ -67,45 +66,44 @@ class EventSourceOperationsImpl(
   instantTx: CurrentTx[InstantEnvKey], //u
   mainTx: CurrentTx[MainEnvKey] //u
 ) extends EventSourceOperations {
-  def isUndone(event: DBNode) =
-    allNodes.where(instantTx(), at.asUndo.defined, at.event, event).nonEmpty
+  def isUndone(event: Obj) =
+    allNodes.where(instantTx(), at.asUndo.defined, at.event, event, Nil).nonEmpty
   def createEventSource[Value](
-      label: Attr[DBNode], prop: Attr[Value], value: Value,
-      seqRef: Ref[DBNode], max: ObjId
+      label: Attr[Obj], prop: Attr[Value], value: Value,
+      seqRef: Ref[Obj], options: List[SearchOption]
   ) =  new EventSource {
-    def poll(): DBNode = {
+    def poll(): Obj = {
       val lastNode = seqRef()
-      val fromObjId = if(lastNode.nonEmpty) Some(lastNode.objId+1) else None
-      val result = allNodes.where(instantTx(), label.defined, prop, value, fromObjId, 1L)
+      val from = if(lastNode.nonEmpty) FindAfter(lastNode) :: Nil else Nil
+      val result = allNodes.where(instantTx(), label.defined, prop, value, FindFirstOnly :: from ::: options)
       if(result.isEmpty){ return nodeFactory.noNode }
       val event :: Nil = result
-      if(max < event.objId){ return nodeFactory.noNode }
       seqRef() = event
       if(isUndone(event)) poll() else event
     }
   }
-  def ref(node: DBNode, attr: Attr[DBNode]) = new Ref[DBNode] {
+  def ref(node: Obj, attr: Attr[Obj]) = new Ref[Obj] {
     def apply() = node(attr)
-    def update(value: DBNode) = node(attr) = value
+    def update(value: Obj) = node(attr) = value
   }
-  def applyEvents(instantSessionNode: DBNode, max: ObjId): Unit = {
-    val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode)
+  def applyEvents(instantSessionNode: Obj, options: List[SearchOption]): Unit = {
+    val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode, Nil)
     val seqNode = Single.option(sessions).getOrElse{
       val mainSession = allNodes.create(mainTx(), at.asMainSession)
       mainSession(at.instantSession) = instantSessionNode
       mainSession
     }
     val seqRef = ref(seqNode, at.lastMergedEvent)
-    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef, max)
+    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef, options)
     var event = src.poll()
     while(event.nonEmpty){
-      factIndex.switchSrcObjId(event.objId)
+      factIndex.switchReason(event)
       Single(nodeHandlerLists.list(ApplyEvent(event(at.applyAttr))))(event)
-      factIndex.switchSrcObjId(0L)
+      factIndex.switchReason(nodeFactory.noNode)
       event = src.poll()
     }
   }
-  def addEventStatus(event: DBNode, ok: Boolean) = {
+  def addEventStatus(event: Obj, ok: Boolean) = {
     val status = allNodes.create(event.tx, at.asEventStatus)
     status(if(ok) at.asCommit else at.asUndo) = status
     status(at.event) = event

@@ -28,8 +28,7 @@ class RawFactConverterImpl extends RawFactConverter {
     })
   }
   def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId) =
-    if(!attrId.converter.nonEmpty(value)) Array[Byte]()
-    else OuterRawValueConverter.allocWrite[Value](0,attrId,value,valueSrcId)
+    OuterRawValueConverter.allocWrite[Value](0,attrId,value,valueSrcId,hasIdAfter=true,allowEmptyValue=true)
   def valueFromBytes[Value](attrId: RawAttr[Value], b: RawValue): Value = {
     if(b.length==0) return attrId.converter.convert()
     val exchangeA = CompactBytes.toReadAt(b,0)
@@ -64,8 +63,7 @@ class RawSearchConverterImpl extends RawSearchConverter {
     val exPropId = CompactBytes.toWrite(propId).after(exLabelId)
     val valuePos = exPropId.nextPos
     exHead.write(head, exLabelId.write(labelId, exPropId.write(propId,
-      if(hasObjId) OuterRawValueConverter.allocWrite(valuePos, attrId, value, objId)
-      else attrId.converter.allocWrite(valuePos, value, 0)
+      OuterRawValueConverter.allocWrite(valuePos, attrId, value, objId, hasObjId, allowEmptyValue = false)
     )))
   }
   def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {
@@ -78,10 +76,18 @@ class RawSearchConverterImpl extends RawSearchConverter {
 }
 
 object OuterRawValueConverter {
-  def allocWrite[Value](spaceBefore: Int, attrId: RawAttr[Value], dbValue: Value, srcValueId: ObjId): Array[Byte] = {
-    val absEx = CompactBytes.toWrite(srcValueId)
-    val res = attrId.converter.allocWrite(spaceBefore, dbValue, absEx.size)
-    absEx.atTheEndOf(res).write(srcValueId, res)
+  def allocWrite[Value](
+    spaceBefore: Int, attrId: RawAttr[Value], dbValue: Value,
+    idAfter: ObjId, hasIdAfter: Boolean, allowEmptyValue: Boolean
+  ): Array[Byte] = {
+    val converter = attrId.converter
+    if(!converter.nonEmpty(dbValue)){
+      if(allowEmptyValue) new Array[Byte](spaceBefore) else Never()
+    }
+    if(!hasIdAfter) return converter.allocWrite(spaceBefore, dbValue, 0)
+    val absEx = CompactBytes.toWrite(idAfter)
+    val res = converter.allocWrite(spaceBefore, dbValue, absEx.size)
+    absEx.atTheEndOf(res).write(idAfter, res)
   }
 }
 
@@ -113,22 +119,27 @@ object BytesSame {
   }
 }
 
-class ObjIdExtractor extends RawKeyExtractor {
-  def apply(keyPrefix: RawKey, key: RawKey, feed: Feed): Boolean = {
+/*
+trait ValueObjFeed {
+  def apply(valueA: Long, valueB: Long, objId: ObjId): Boolean
+  def apply(value: String, objId: ObjId): Boolean
+}
+class ObjIdExtractor extends RawKeyExtractor[ValueObjFeed] {
+  def apply(keyPrefix: RawKey, key: RawKey, feed: ValueObjFeed): Boolean = {
     if(!BytesSame.part(keyPrefix, key, keyPrefix.length)) return false
     val ex = CompactBytes.toReadAt(key, keyPrefix.length).checkIsLastIn(key)
     feed(ex.readLong(key), 0L)
   }
 }
-class AttrIdExtractor extends RawKeyExtractor {
-  def apply(keyPrefix: RawKey, key: RawKey, feed: Feed): Boolean = {
+class AttrIdExtractor extends RawKeyExtractor[AttrFeed] {
+  def apply(keyPrefix: RawKey, key: RawKey, feed: AttrFeed): Boolean = {
     if(!BytesSame.part(keyPrefix, key, keyPrefix.length)) return false
     val exLabelId = CompactBytes.toReadAt(key, keyPrefix.length)
     val exPropId = CompactBytes.toReadAfter(key, exLabelId).checkIsLastIn(key)
     feed(exLabelId.readLong(key), exPropId.readLong(key))
   }
 }
-
+*/
 
 
 // bytes ///////////////////////////////////////////////////////////////////////

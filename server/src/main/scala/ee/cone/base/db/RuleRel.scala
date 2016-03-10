@@ -1,10 +1,12 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.{Obj, Attr}
+
 // fail'll probably do nothing in case of outdated rel type
 
 class RelTypeImpl(
-  relStartSide: Attr[DBNode],
-  relEndSide: Attr[DBNode],
+  relStartSide: Attr[Obj],
+  relEndSide: Attr[Obj],
   searchIndex: SearchIndex
 ) extends RelType {
   def apply(label: Attr[_]) =

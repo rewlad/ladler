@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.CoHandler
+import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 
 class RefIntegrityImpl(
     preCommitCheck: PreCommitCheckAllOfConnection,
@@ -8,9 +8,9 @@ class RefIntegrityImpl(
     allNodes: DBNodes,
     mandatory: Mandatory
 ) extends RefIntegrity {
-  def apply(existsA: Attr[Boolean], toAttr: Attr[DBNode], existsB: Attr[Boolean]) = {
+  def apply(existsA: Attr[Boolean], toAttr: Attr[Obj], existsB: Attr[Boolean]) = {
     // if A exists and there's link from A to B then B should exist
-    def checkPairs(nodesA: Seq[DBNode]): Seq[ValidationFailure] =
+    def checkPairs(nodesA: Seq[Obj]): Seq[ValidationFailure] =
       nodesA.flatMap{ nodeA =>
         val nodeB = nodeA(toAttr)
         if(!nodeA(existsA) || !nodeB.nonEmpty || nodeB(existsB)) None
@@ -20,7 +20,7 @@ class RefIntegrityImpl(
       searchIndex.handlers(existsA,toAttr) :::
       CoHandler(AfterUpdate(existsB))(
         preCommitCheck.create{ nodesB =>
-          checkPairs(nodesB.flatMap(nodeB => allNodes.where(nodeB.tx,existsA,toAttr,nodeB)))
+          checkPairs(nodesB.flatMap(nodeB => allNodes.where(nodeB.tx,existsA,toAttr,nodeB,Nil)))
         }
       ) ::
       CoHandler(AfterUpdate(existsA))(

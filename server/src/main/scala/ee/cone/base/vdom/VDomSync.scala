@@ -2,8 +2,26 @@ package ee.cone.base.vdom
 
 import java.util.Base64
 
-import ee.cone.base.connection_api.DictMessage
-import ee.cone.base.util.{Never, UTF8String}
+import ee.cone.base.connection_api._
+import ee.cone.base.util.{Single, Never, UTF8String}
+import ee.cone.base.vdom.Types._
+
+class AlienAttrFactoryImpl(handlerLists: CoHandlerLists, currentVDom: CurrentVDom) extends AlienAttrFactory {
+  def apply[Value](attr: Attr[Value], key: VDomKey) = { //when handlers are are available
+    val eventAdder = Single(handlerLists.list(ChangeEventAdder(attr)))
+    new Attr[AlienRef[Value]] {
+      def defined = Never()
+      def get(node: Obj) = { // when making input tag
+      val addEvent = eventAdder(node) // remembers srcId
+        AlienRef(key, node(attr)){ newValue =>
+          addEvent(newValue)
+          currentVDom.invalidate()
+        }
+      }
+      def set(node: Obj, value: AlienRef[Value]) = Never()
+    }
+  }
+}
 
 object InputAttributesImpl extends InputAttributes {
   def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit = {

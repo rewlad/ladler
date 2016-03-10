@@ -2,9 +2,8 @@ package ee.cone.base.test_react_db
 
 import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.util.Never
-import ee.cone.base.vdom.{MessageReceiver, OnChange, OnClick, JsonBuilder, Value, InputAttributes, ChildPairFactory, ChildPair}
+import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types.VDomKey
-import ee.cone.base.db.Ref
 
 abstract class ElementValue extends Value {
   def elementType: String

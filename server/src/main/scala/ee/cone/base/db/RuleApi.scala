@@ -1,13 +1,13 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.BaseCoHandler
+import ee.cone.base.connection_api.{Obj, Attr, BaseCoHandler}
 
 trait Mandatory {
   def apply(condAttr: Attr[_], thenAttr: Attr[_], mutual: Boolean): List[BaseCoHandler]
 }
 
 trait RefIntegrity {
-  def apply(existsA: Attr[Boolean], toAttr: Attr[DBNode], existsB: Attr[Boolean]): List[BaseCoHandler]
+  def apply(existsA: Attr[Boolean], toAttr: Attr[Obj], existsB: Attr[Boolean]): List[BaseCoHandler]
 }
 
 trait RelType {

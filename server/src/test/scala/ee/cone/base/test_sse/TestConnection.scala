@@ -2,9 +2,9 @@ package ee.cone.base.test_sse
 
 import ee.cone.base.connection_api._
 
-class TestConnection(sender: SenderOfConnection) extends CoHandlerProvider {
-  def handlers = CoHandler(FromAlienDictMessageKey){ messageOpt =>
+class TestConnection() extends CoHandlerProvider {
+  def handlers = CoHandler(ShowToAlien){ _ =>
     val time: Long = System.currentTimeMillis
-    sender.sendToAlien("show",s"$time")
+    ("show",s"$time") :: Nil
   } :: Nil
 }

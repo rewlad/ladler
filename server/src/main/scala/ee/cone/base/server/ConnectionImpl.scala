@@ -7,10 +7,11 @@ import ee.cone.base.connection_api._
 import scala.collection.concurrent.TrieMap
 
 class ReceiverOfConnectionImpl(
-    lifeCycle: LifeCycle,
-    handlerLists: CoHandlerLists,
-    registry: ConnectionRegistryImpl,
-    framePeriod: Long
+  lifeCycle: LifeCycle,
+  handlerLists: CoHandlerLists,
+  registry: ConnectionRegistryImpl,
+  framePeriod: Long,
+  sender: SenderOfConnection
 ) extends ReceiverOfConnection with CoHandlerProvider {
   lazy val queue = new LinkedBlockingQueue[DictMessage]
   lazy val connectionKey = {
@@ -24,10 +25,16 @@ class ReceiverOfConnectionImpl(
     key
   }
   def handlers = CoHandler(ActivateReceiver){_ =>
-    val message = Option(queue.poll(framePeriod,TimeUnit.MILLISECONDS))
-    handlerLists.list(FromAlienDictMessageKey).foreach(_(message))
+    Option(queue.poll(framePeriod,TimeUnit.MILLISECONDS)).foreach(message=>
+      handlerLists.list(FromAlienDictMessage).foreach(_(message))
+    )
+    handlerLists.list(ShowToAlien).flatMap(_()).foreach{
+      case (command,content) => sender.sendToAlien(command,content)
+    }
   } :: Nil
 }
+
+
 
 class ConnectionRegistryImpl extends ConnectionRegistry {
   lazy val store = TrieMap[String, ReceiverOfConnectionImpl]()

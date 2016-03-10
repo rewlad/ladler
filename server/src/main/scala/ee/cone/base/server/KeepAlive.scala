@@ -2,47 +2,47 @@ package ee.cone.base.server
 
 import java.util.UUID
 import ee.cone.base.connection_api._
+import ee.cone.base.util.Never
 
-class OncePer(period: Long, action: ()=>Unit) {
+class OncePer(period: Long) {
   private var nextTime = 0L
-  def apply() = {
+  def apply(): Boolean = {
     val time = System.currentTimeMillis
     if(nextTime < time) {
       nextTime = time + period
-      action()
-    }
+      true
+    } else false
   }
 }
 
 sealed trait PingStatus
 case object NewPingStatus extends PingStatus
 case object WaitingPingStatus extends PingStatus
-case class OKPingStatus(sessionKey: String) extends PingStatus
+case class OKPingStatus(connectionKey: String) extends PingStatus
 
 class KeepAlive(
-    handlerLists: CoHandlerLists,
-    receiver: ReceiverOfConnection, sender: SenderOfConnection
+  handlerLists: CoHandlerLists, receiver: ReceiverOfConnection
 ) extends CoHandlerProvider {
   private var status: PingStatus = NewPingStatus
-  private def command = status match {
-    case NewPingStatus => "connect"
-    case _: OKPingStatus => "ping"
-    case WaitingPingStatus => throw new Exception("endOfLife")
-  }
-  private lazy val periodicFrame = new OncePer(5000, () => {
-    sender.sendToAlien(command,receiver.connectionKey)
+  private lazy val periodic = new OncePer(5000)
+  private def handleMessage(message: DictMessage) =
+    message.value.get("X-r-connection").foreach{ connectionKey =>
+      if(connectionKey != receiver.connectionKey) Never()
+      status = OKPingStatus(connectionKey)
+    }
+  private def periodicPingAlien(dummy:Unit) = if(periodic()){
+    val command = status match {
+      case NewPingStatus => "connect"
+      case _: OKPingStatus => "ping"
+      case WaitingPingStatus => throw new Exception("endOfLife")
+    }
     status = WaitingPingStatus
-  })
+    (command,receiver.connectionKey) :: Nil
+  } else Nil
   def handlers: List[BaseCoHandler] =
-    CoHandler(FromAlienDictMessageKey){ messageOpt =>
-      messageOpt.foreach{ message =>
-        message.value.get("X-r-session").foreach{ sessionKey =>
-          handlerLists.list(SwitchSession).foreach(_(UUID.fromString(sessionKey)))
-          status = OKPingStatus(sessionKey)
-        }
-      }
-      periodicFrame()
-    } :: Nil
+    CoHandler(FromAlienDictMessage)(handleMessage) ::
+    CoHandler(ShowToAlien)(periodicPingAlien) ::
+    Nil
 }
 
 

@@ -2,6 +2,7 @@ package ee.cone.base.db
 
 import java.util.UUID
 
+import ee.cone.base.connection_api.{Obj, Attr}
 import ee.cone.base.db.Types._
 import ee.cone.base.util.Never
 
@@ -11,19 +12,27 @@ class NodeValueConverter(
   inner: InnerRawValueConverter, nodeFactory: NodeFactory,
   instantTx: CurrentTx[InstantEnvKey], mainTx: CurrentTx[MainEnvKey]
 )(
-  currentTx: Array[CurrentTx[_]] = Array(instantTx,mainTx)
-) extends RawValueConverter[DBNode] {
+  currentTx: List[CurrentTx[_]] = instantTx :: mainTx :: Nil
+) extends RawValueConverter[Obj] {
   def convert() = nodeFactory.noNode
-  def convert(valueA: Long, valueB: Long) =
-    nodeFactory.toNode(currentTx(toIntExact(valueA))(),valueB)
-  def convert(value: String) = Never()
-  def allocWrite(before: Int, node: DBNode, after: Int): RawValue = {
-    var pos = 0
-    while(true) if(node.tx == currentTx(pos)())
-      return inner.allocWrite(before, pos, node.objId, after)
-    Never()
+  private def get(currentTx: List[CurrentTx[_]], dbId: Long, objId: ObjId): Obj =
+    if(currentTx.head.dbId == dbId) nodeFactory.toNode(currentTx.head(),objId)
+    else get(currentTx.tail,dbId,objId)
+  def convert(valueA: Long, valueB: Long) = {
+    println("NodeValueConverter",valueA,valueB)
+    get(currentTx.tail,valueA,valueB)
   }
-  def nonEmpty(value: DBNode) = value.nonEmpty
+  def convert(value: String) = Never()
+  def allocWrite(before: Int, node: Obj, after: Int): RawValue = {
+    def set(currentTx: List[CurrentTx[_]]): RawValue = {
+      val tx = currentTx.head.value
+      if(tx.nonEmpty && node.tx == tx.get)
+        inner.allocWrite(before, currentTx.head.dbId, node(nodeFactory.objId), after)
+      else set(currentTx.tail)
+    }
+    set(currentTx)
+  }
+  def nonEmpty(value: Obj) = value.nonEmpty
 }
 
 class StringValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[String] {
@@ -31,31 +40,30 @@ class StringValueConverter(inner: InnerRawValueConverter) extends RawValueConver
   def convert(valueA: Long, valueB: Long) = Never()
   def convert(value: String) = value
   def allocWrite(before: Int, value: String, after: Int) =
-    if(nonEmpty(value)) inner.allocWrite(before, value, after) else Never()
+    inner.allocWrite(before, value, after)
   def nonEmpty(value: String) = value.nonEmpty
 }
 
-class UUIDValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[UUID] {
-  def convert() = Never()
-  def convert(valueA: Long, valueB: Long) = new UUID(valueA,valueB)
+class UUIDValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Option[UUID]] {
+  def convert() = None
+  def convert(valueA: Long, valueB: Long) = Option(new UUID(valueA,valueB))
   def convert(value: String) = Never()
-  def allocWrite(before: Int, value: UUID, after: Int) =
-    if(nonEmpty(value)) inner.allocWrite(before, value.getMostSignificantBits, value.getLeastSignificantBits, after) else Never()
-  def nonEmpty(value: UUID) = true
+  def allocWrite(before: Int, value: Option[UUID], after: Int) =
+    inner.allocWrite(before, value.get.getMostSignificantBits, value.get.getLeastSignificantBits, after)
+  def nonEmpty(value: Option[UUID]) = value.nonEmpty
 }
 
 class AttrValueConverter(
   inner: InnerRawValueConverter,
   attrFactory: AttrFactory, definedValueConverter: RawValueConverter[Boolean]
 ) extends RawValueConverter[Attr[Boolean]] {
-  def convert() = Never()
+  def convert() = attrFactory.noAttr
   def convert(valueA: Long, valueB: Long) = attrFactory(valueA,valueB,definedValueConverter)
   def convert(value: String) = Never()
-  def allocWrite(before: Int, value: Attr[Boolean], after: Int) =
-    if(nonEmpty(value)) {
-      val attr = value.asInstanceOf[RawAttr[Boolean]]
-      inner.allocWrite(before, attr.labelId, attr.propId, after)
-    } else Never()
+  def allocWrite(before: Int, value: Attr[Boolean], after: Int) = {
+    val attr = value.asInstanceOf[RawAttr[Boolean]]
+    inner.allocWrite(before, attr.labelId, attr.propId, after)
+  }
   def nonEmpty(value: Attr[Boolean]) = true
 }
 

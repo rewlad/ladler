@@ -29,7 +29,7 @@ trait RawSearchConverter {
   def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey
   def value(on: Boolean): RawValue
 }
-trait RawKeyExtractor {
+trait RawKeyExtractor[Feed] {
   def apply(keyPrefix: RawKey, key: RawKey, feed: Feed): Boolean
 }
 trait Feed {

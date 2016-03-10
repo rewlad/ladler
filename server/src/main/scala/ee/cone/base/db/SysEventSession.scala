@@ -1,69 +1,72 @@
 package ee.cone.base.db
 
 import java.util.UUID
-import ee.cone.base.connection_api.{SwitchSession, CoHandler, CoHandlerProvider}
+import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
 import ee.cone.base.util.{Never, Single}
 
 class SessionEventSourceOperationsImpl(
   ops: EventSourceOperations, at: SessionEventSourceAttrs,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
-  nodeFactory: NodeFactory, allNodes: DBNodes
+  allNodes: DBNodes
 ) extends SessionEventSourceOperations with CoHandlerProvider {
   private var sessionKeyOpt: Option[UUID] = None
-  private def findSession(): Option[DBNode] = {
+  private def findSession(): Option[Obj] = {
     val tx = instantTxManager.currentTx()
     Single.option(allNodes.where(
       tx, at.asInstantSession.defined,
-      at.sessionKey, sessionKeyOpt.get
+      at.sessionKey, sessionKeyOpt,
+      Nil
     ))
   }
   private def findOrAddSession() = findSession().getOrElse{
     val tx = instantTxManager.currentTx()
     val instantSession = allNodes.create(tx, at.asInstantSession)
-    instantSession(at.sessionKey) = sessionKeyOpt.get
+    instantSession(at.sessionKey) = sessionKeyOpt
     instantSession
   }
   def incrementalApplyAndView[R](view: () => R) = {
     instantTxManager.roTx { () ⇒
       val instantSession = findSession().get
       mainTxManager.muxTx(needRecreate(instantSession)){ () ⇒
-        ops.applyEvents(instantSession, Long.MaxValue)
+        ops.applyEvents(instantSession, Nil)
         view()
       }
     }
   }
-  private var lastStatusId: ObjId = 0
-  private def needRecreate(instantSession: DBNode): Boolean = {
+  private var lastStatusSrcId: Option[UUID] = None
+  private def needRecreate(instantSession: Obj): Boolean = {
     val tx = instantTxManager.currentTx()
-    val newStatusIds = allNodes.where(
+    val findAfter =
+      lastStatusSrcId.map(uuid=>FindAfter(allNodes.whereSrcId(tx, uuid))).toList
+    val newStatuses = allNodes.where(
       tx, at.asEventStatus.defined,
       at.instantSession, instantSession,
-      Some(lastStatusId+1), Long.MaxValue
-    ).map(_.objId)
-    if(newStatusIds.isEmpty) return false
-    lastStatusId = newStatusIds.max
+      FindLastOnly :: findAfter
+    )
+    if(newStatuses.isEmpty) return false
+    val newStatus :: Nil = newStatuses
+    lastStatusSrcId = newStatus(allNodes.srcId)
     true
   }
-  def addUndo(eventObjId: ObjId) = instantTxManager.rwTx { () ⇒
+  def addUndo(eventSrcId: UUID) = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val tx = instantTxManager.currentTx()
-    val event = nodeFactory.toNode(tx, eventObjId)
+    val event = allNodes.whereSrcId(tx, eventSrcId)
     if (event(at.instantSession) != instantSession) Never()
     val requests = allNodes.where(
       tx, at.asRequest.defined,
       at.instantSession, instantSession,
-      Some(eventObjId), Long.MaxValue
+      FindFrom(event) :: Nil
     )
     if (requests.exists(!ops.isUndone(_))) throw new Exception("event is requested")
     ops.addEventStatus(event, ok = false)
   }
-  def addEvent(applyAttr: Attr[Boolean])(fill: DBNode=>Unit): Unit = instantTxManager.rwTx { () ⇒
+  private def addEvent(fill: Obj=>Attr[Boolean]): Unit = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val ev = allNodes.create(instantSession.tx, at.asEvent)
     ev(at.instantSession) = instantSession
-    ev(at.applyAttr) = applyAttr
-    fill(ev)
+    ev(at.applyAttr) = fill(ev)
   }
 
   def addRequest() = instantTxManager.rwTx { () ⇒
@@ -79,5 +82,7 @@ class SessionEventSourceOperationsImpl(
     sessionKeyOpt = uuidOpt
     instantTxManager.rwTx{ () ⇒ findOrAddSession() }
   }
-  def handlers = CoHandler(SwitchSession)(handleSessionKey) :: Nil
+  def handlers =
+    CoHandler(AddEvent)(addEvent) ::
+    CoHandler(SwitchSession)(handleSessionKey) :: Nil
 }

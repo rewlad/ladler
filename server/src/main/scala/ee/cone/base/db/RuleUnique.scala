@@ -1,7 +1,7 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.CoHandler
+import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 
 class UniqueImpl(
   preCommitCheck: PreCommitCheckAllOfConnection,
@@ -9,9 +9,9 @@ class UniqueImpl(
   allNodes: DBNodes
 ) extends Unique {
   def apply[Value](label: Attr[_], uniqueAttr: Attr[Value]) = {
-    def checkNode(node: DBNode): List[ValidationFailure] =
+    def checkNode(node: Obj): List[ValidationFailure] =
       if(!node(label.defined) || !node(uniqueAttr.defined)) Nil
-      else allNodes.where(node.tx, label.defined, uniqueAttr, node(uniqueAttr)) match {
+      else allNodes.where(node.tx, label.defined, uniqueAttr, node(uniqueAttr),Nil) match {
         case _ :: Nil => Nil
         case ns => ns.map(ValidationFailure("unique",_))
       }

@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{CoHandler, BaseCoHandler}
+import ee.cone.base.connection_api.{Attr, CoHandler, BaseCoHandler}
 
 class MandatoryImpl(preCommitCheck: PreCommitCheckAllOfConnection) extends Mandatory {
   def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[BaseCoHandler] =

@@ -24,7 +24,7 @@ class TestIndex extends RawIndex {
   }
 }
 
-class TestEnv extends DBEnv {
+class TestEnv[DBEnvKey](val dbId: Long) extends DBEnv[DBEnvKey] {
   private var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
   private def createRawIndex() = Setup(new TestIndex) { i =>
     synchronized { i.data = data }

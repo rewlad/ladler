@@ -1,5 +1,7 @@
 package ee.cone.base.vdom
 
+import java.util.UUID
+
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, Single}
 
@@ -7,7 +9,6 @@ class CurrentVDom(
   handlerLists: CoHandlerLists,
   diff: Diff,
   jsonToString: JsonToString,
-  sender: SenderOfConnection,
   wasNoValue: WasNoValue
 ) extends CurrentView with CoHandlerProvider {
   def invalidate() = vDom = wasNoValue
@@ -33,26 +34,31 @@ class CurrentVDom(
         case _ => Never()
       }
     }
-
-  def handlers = CoHandler(FromAlienDictMessageKey){ messageOpt =>
-    messageOpt.foreach{ message => //dispatches incoming message // can close / set refresh time
-      relocate(message)
-      dispatch(message)
+  private def switchSession(message: DictMessage) =
+    for(sessionKey <- message.value.get("X-r-session")){
+      handlerLists.list(SwitchSession).foreach(_(UUID.fromString(sessionKey)))
     }
+  private def showToAlien(dummy:Unit) = {
     if(until <= System.currentTimeMillis) invalidate()
-    if(vDom == wasNoValue){
+    if(vDom != wasNoValue) Nil else {
       until = Long.MaxValue
       vDom = view(hashForView,"")
-      diff.diff(vDom).foreach(d=>sender.sendToAlien("showDiff", jsonToString(d)))
+      diff.diff(vDom).map(d=>("showDiff", jsonToString(d))).toList
     }
-  } :: Nil
+  }
+  def handlers =
+    CoHandler(FromAlienDictMessage)(switchSession) ::
+    CoHandler(FromAlienDictMessage)(relocate) ::
+    CoHandler(FromAlienDictMessage)(dispatch) ::    //dispatches incoming message // can close / set refresh time
+    CoHandler(ShowToAlien)(showToAlien) ::
+    Nil
   private lazy val PathSplit = """(.*)(/[^/]*)""".r
   private def view(pathPrefix: String, pathPostfix: String): Value =
     Single.option(handlerLists.list(ViewPath(pathPrefix))).map(_(pathPostfix))
-      .getOrElse{
-        val PathSplit(nextPrefix,nextPostfix) = pathPrefix
-        view(nextPrefix,s"$nextPostfix$pathPostfix")
-      }
+      .getOrElse(pathPrefix match {
+        case PathSplit(nextPrefix,nextPostfix) =>
+          view(nextPrefix,s"$nextPostfix$pathPostfix")
+      })
 }
 
 object ResolveValue {
