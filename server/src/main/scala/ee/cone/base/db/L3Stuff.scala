@@ -72,17 +72,20 @@ class DBNodesImpl(
     }
   def srcId = at.srcId
   def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,new ObjId(0L))
-  def create(tx: BoundToTx, label: Attr[Obj]): Obj = {
+  def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj = {
     val sNode = seqNode(tx)
     val lastNode = sNode(at.seq)
     val nextObjId = (if(lastNode.nonEmpty) lastNode else sNode)(nodeFactory.nextObjId)
     val res = nodeFactory.toNode(tx,nextObjId)
     sNode(at.seq) = res
+
     res(label) = res
     res(at.asSrcIdentifiable) = res
-    res(at.srcId) = Some(UUID.randomUUID)
+    res(at.srcId) = Some(srcId)
+
     res
   }
+  def noNode = nodeFactory.noNode
 }
 
 class NodeListFeedImpl(needSameValue: Boolean, upTo: ObjId, var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {

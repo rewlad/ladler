@@ -17,10 +17,11 @@ case object FindNextValues extends SearchOption
 
 trait DBNodes {
   def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, options: List[SearchOption]): List[Obj]
-  def create(tx: BoundToTx, label: Attr[Obj]): Obj
+  def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj
   def srcId: Attr[Option[UUID]]
   def seqNode(tx: BoundToTx): Obj
+  def noNode: Obj
 }
 
 trait ListByDBNode extends Attr[List[Attr[_]]]

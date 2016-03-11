@@ -21,7 +21,7 @@ class SessionEventSourceOperationsImpl(
   }
   private def findOrAddSession() = findSession().getOrElse{
     val tx = instantTxManager.currentTx()
-    val instantSession = allNodes.create(tx, at.asInstantSession)
+    val instantSession = ops.addInstant(allNodes.noNode, at.asInstantSession)
     instantSession(at.sessionKey) = sessionKeyOpt
     instantSession
   }
@@ -64,15 +64,13 @@ class SessionEventSourceOperationsImpl(
   }
   private def addEvent(fill: Obj=>Attr[Boolean]): Unit = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
-    val ev = allNodes.create(instantSession.tx, at.asEvent)
-    ev(at.instantSession) = instantSession
+    val ev = ops.addInstant(instantSession, at.asEvent)
     ev(at.applyAttr) = fill(ev)
   }
 
   def addRequest() = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
-    val status = allNodes.create(instantSession.tx, at.asEventStatus)
-    status(at.instantSession) = instantSession
+    val status = ops.addInstant(instantSession, at.asEventStatus)
     status(at.asRequest) = status
     status(at.requested) = ops.requested
   }

@@ -70,10 +70,10 @@ class Tags(
     child[OfDiv](key, TextContentElement(label), Nil)
   def input(prop: AlienRef[String]) =
     child[OfDiv](prop.key, InputTextElement(prop.value, deferSend=true)(inputAttributes){
-      case `onChange`(v) => prop.onChange(v)
+      case `onChange`(v) => prop.invoke(v)
       case _ => Never()
     }, Nil)
-  def button(key: VDomKey, caption: String, action: Action) =
+  def button(key: String, caption: String, action: Action) =
     child[OfDiv](key, ButtonElement(caption){
       case `onClick` => action.invoke()
     }, Nil)

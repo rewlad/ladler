@@ -36,6 +36,7 @@ class TestAttrs(
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
+  definedValueConverter: RawValueConverter[Unit],
   nodeValueConverter: RawValueConverter[Obj],
   uuidValueConverter: RawValueConverter[Option[UUID]],
   stringValueConverter: RawValueConverter[String],
@@ -44,7 +45,9 @@ class TestAttrs(
 )(
   val asTestTask: Attr[Obj] = label(0x6600),
   val testState: Attr[String] = attr(new PropId(0x6601), stringValueConverter),
-  val comments: Attr[String] = attr(new PropId(0x6602), stringValueConverter)
+  val comments: Attr[String] = attr(new PropId(0x6602), stringValueConverter),
+  val createTaskEvent: Attr[Boolean] = attr(new PropId(0x6603), definedValueConverter),
+  val removeTaskEvent: Attr[Boolean] = attr(new PropId(0x6604), definedValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asTestTask,testState, mutual = true) :::
   mandatory(asTestTask,comments, mutual = true) :::
@@ -61,24 +64,30 @@ class TestView(
   tags: Tags,
   alienAttr: AlienAttrFactory
 ) extends CoHandlerProvider {
-  def handlers =
-    CoHandler(ViewPath("")) { pf =>
-      tags.root(tags.text("text","Loading...")::Nil)
-    } ::
-    CoHandler(ViewPath("/test")) { pf =>
-      eventSourceOperations.incrementalApplyAndView { () ⇒
-        val commentsRef = alienAttr(at.comments,"comments")
-        val spans = allNodes.where(mainTx(), at.asTestTask.defined, at.testState, "A", Nil).map(
-          task =>
-            tags.span(task(allNodes.srcId).toString,
-              tags.input(task(commentsRef)) ::
-                // btn
-                Nil
-            )
+  private def emptyView(pf: String) = tags.root(tags.text("text","Loading...")::Nil)
+  private def testView(pf: String) = eventSourceOperations.incrementalApplyAndView { () ⇒
+    val commentsRef = alienAttr(at.comments,"comments")
+    val removeRef =
+    val spans = allNodes.where(mainTx(), at.asTestTask.defined, at.testState, "A", Nil).map{
+      task =>
+        tags.span(
+          task(allNodes.srcId).toString,
+          tags.input(task(commentsRef)) ::
+            tags.button("remove", "-", removeRef(task)) ::
+            Nil
         )
-        tags.root(spans)
-      }
-    } :: Nil
+    }
+    tags.root(spans)
+  }
+
+  private def applyCreateTask(ev: Obj): Unit = {
+    ev(at.target)
+  }
+
+  def handlers =
+    CoHandler(ApplyEvent(at.createTaskEvent))(applyCreateTask) ::
+    CoHandler(ViewPath(""))(emptyView) ::
+    CoHandler(ViewPath("/test"))(testView) :: Nil
 }
 
 

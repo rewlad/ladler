@@ -25,6 +25,7 @@ trait EventSourceOperations {
   def createEventSource[Value](label: Attr[Obj], prop: Attr[Value], value: Value, seqRef: Ref[Obj], options: List[SearchOption]): EventSource
   def applyEvents(instantSession: Obj, options: List[SearchOption]): Unit
   def addEventStatus(event: Obj, ok: Boolean): Unit
+  def addInstant(instantSession: Obj, label: Attr[Obj]): Obj
   def requested: String
 }
 

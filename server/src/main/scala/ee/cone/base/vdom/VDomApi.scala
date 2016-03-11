@@ -74,7 +74,7 @@ trait OnClick {
   def unapply(message: DictMessage): Option[Unit]
 }
 
-case class AlienRef[Value](key: VDomKey, value: Value)(val onChange: Value=>Unit)
+case class AlienRef[Value](key: VDomKey, value: Value)(val invoke: Value=>Unit)
 
 trait AlienAttrFactory {
   def apply[Value](attr: Attr[Value], key: VDomKey): Attr[AlienRef[Value]]

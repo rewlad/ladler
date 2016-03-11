@@ -62,7 +62,6 @@ class EventSourceOperationsImpl(
   factIndex: FactIndex, //u
   nodeHandlerLists: CoHandlerLists, //u
   allNodes: DBNodes,
-  nodeFactory: NodeFactory, //u
   instantTx: CurrentTx[InstantEnvKey], //u
   mainTx: CurrentTx[MainEnvKey] //u
 ) extends EventSourceOperations {
@@ -76,7 +75,7 @@ class EventSourceOperationsImpl(
       val lastNode = seqRef()
       val from = if(lastNode.nonEmpty) FindAfter(lastNode) :: Nil else Nil
       val result = allNodes.where(instantTx(), label.defined, prop, value, FindFirstOnly :: from ::: options)
-      if(result.isEmpty){ return nodeFactory.noNode }
+      if(result.isEmpty){ return allNodes.noNode }
       val event :: Nil = result
       seqRef() = event
       if(isUndone(event)) poll() else event
@@ -89,6 +88,9 @@ class EventSourceOperationsImpl(
   def applyEvents(instantSessionNode: Obj, options: List[SearchOption]): Unit = {
     val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode, Nil)
     val seqNode = Single.option(sessions).getOrElse{
+
+      UUID.nameUUIDFromBytes()
+
       val mainSession = allNodes.create(mainTx(), at.asMainSession)
       mainSession(at.instantSession) = instantSessionNode
       mainSession
@@ -99,15 +101,19 @@ class EventSourceOperationsImpl(
     while(event.nonEmpty){
       factIndex.switchReason(event)
       nodeHandlerLists.single(ApplyEvent(event(at.applyAttr)))(event)
-      factIndex.switchReason(nodeFactory.noNode)
+      factIndex.switchReason(allNodes.noNode)
       event = src.poll()
     }
   }
   def addEventStatus(event: Obj, ok: Boolean) = {
-    val status = allNodes.create(event.tx, at.asEventStatus)
+    val status = addInstant(event(at.instantSession), at.asEventStatus)
     status(if(ok) at.asCommit else at.asUndo) = status
     status(at.event) = event
-    status(at.instantSession) = event(at.instantSession)
+  }
+  def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
+    val res = allNodes.create(instantTx(), label, UUID.randomUUID)
+    res(at.instantSession) = instantSession
+    res
   }
   def requested = "Y"
 }
