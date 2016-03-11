@@ -14,7 +14,7 @@ class NodeValueConverter(
 )(
   currentTx: List[CurrentTx[_]] = instantTx :: mainTx :: Nil
 ) extends RawValueConverter[Obj] {
-  def convert() = nodeFactory.noNode
+  def convertEmpty() = nodeFactory.noNode
   private def get(currentTx: List[CurrentTx[_]], dbId: Long, objId: ObjId): Obj =
     if(currentTx.head.dbId == dbId) nodeFactory.toNode(currentTx.head(),objId)
     else get(currentTx.tail,dbId,objId)
@@ -36,7 +36,7 @@ class NodeValueConverter(
 }
 
 class StringValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[String] {
-  def convert() = ""
+  def convertEmpty() = ""
   def convert(valueA: Long, valueB: Long) = Never()
   def convert(value: String) = value
   def allocWrite(before: Int, value: String, after: Int) =
@@ -45,7 +45,7 @@ class StringValueConverter(inner: InnerRawValueConverter) extends RawValueConver
 }
 
 class UUIDValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Option[UUID]] {
-  def convert() = None
+  def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(new UUID(valueA,valueB))
   def convert(value: String) = Never()
   def allocWrite(before: Int, value: Option[UUID], after: Int) =
@@ -57,7 +57,7 @@ class AttrValueConverter(
   inner: InnerRawValueConverter,
   attrFactory: AttrFactory, definedValueConverter: RawValueConverter[Boolean]
 ) extends RawValueConverter[Attr[Boolean]] {
-  def convert() = attrFactory.noAttr
+  def convertEmpty() = attrFactory.noAttr
   def convert(valueA: Long, valueB: Long) = attrFactory(valueA,valueB,definedValueConverter)
   def convert(value: String) = Never()
   def allocWrite(before: Int, value: Attr[Boolean], after: Int) = {
@@ -69,7 +69,7 @@ class AttrValueConverter(
 
 // for true Boolean converter? if(nonEmpty(value)) inner.allocWrite(before, 1L, 0L, after) else Never()
 class DefinedValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Boolean] {
-  def convert() = false
+  def convertEmpty() = false
   def convert(valueA: Long, valueB: Long) = true
   def convert(value: String) = true
   def allocWrite(before: Int, value: Boolean, after: Int) = Never()

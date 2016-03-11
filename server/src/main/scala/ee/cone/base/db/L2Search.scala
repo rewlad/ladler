@@ -13,13 +13,14 @@ class SearchIndexImpl(
   nodeFactory: NodeFactory
 ) extends SearchIndex {
   private def execute[Value](attr: RawAttr[Value])(in: SearchRequest[Value]) = {
-    val whileKey = converter.keyWithoutObjId(attr, in.value)
+    val minKey = converter.keyWithoutObjId(attr, attr.converter.convertEmpty())
+    val whileKey = converter.keyWithoutObjId(attr, in.value) // not protected from empty
     val fromKey = if(in.objId.isEmpty) whileKey
       else converter.key(attr, in.value, in.objId.get)
     val tx = in.tx.asInstanceOf[ProtectedBoundToTx[_]]
     val rawIndex = if(tx.enabled) tx.rawIndex else Never()
     rawIndex.seek(fromKey)
-    rawVisitor.execute(rawIndex, whileKey, in.feed)
+    rawVisitor.execute(rawIndex, whileKey, minKey.length, in.feed)
   }
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     val labelRawAttr = labelAttr.asInstanceOf[RawAttr[_]]

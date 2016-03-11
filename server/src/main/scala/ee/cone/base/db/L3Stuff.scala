@@ -47,23 +47,25 @@ class DBNodesImpl(
     var upTo = Long.MaxValue
     var limit = Long.MaxValue
     var lastOnly = false
+    var needSameValue = true
     options.foreach{
       case FindFirstOnly if limit == Long.MaxValue => limit = 1L
       case FindLastOnly => lastOnly = true
       case FindFrom(node) if from.isEmpty => from = Some(node(nodeFactory.objId))
       case FindAfter(node) if from.isEmpty => from = Some(node(nodeFactory.objId)+1L)
       case FindUpTo(node) if upTo == Long.MaxValue => upTo = node(nodeFactory.objId)
+      case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
     val handler = Single(handlerLists.list(searchKey))
-    val feed = new NodeListFeedImpl(upTo,limit,converter)
+    val feed = new NodeListFeedImpl(needSameValue,upTo,limit,nodeFactory,tx)
     val request = new SearchRequest[Value](tx, value, from, feed)
     handler(request)
     if(lastOnly) feed.result.head :: Nil else feed.result.reverse
   }
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
     where(tx, at.asSrcIdentifiable.defined, at.srcId, Some(srcId), Nil) match {
-      case Nil => converter.convert()
+      case Nil => converter.convertEmpty()
       case node :: Nil => node
       case _ => Never()
     }
@@ -82,11 +84,11 @@ class DBNodesImpl(
   }
 }
 
-class NodeListFeedImpl(upTo: Long, var limit: Long, converter: RawValueConverter[Obj]) extends Feed {
+class NodeListFeedImpl(needSameValue: Boolean, upTo: Long, var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {
   var result: List[Obj] = Nil
-  def apply(valueA: Long, valueB: Long): Boolean = {
-    if(valueB > upTo){ return false }
-    result = converter.convert(valueA,valueB) :: result
+  def apply(diff: Long, objId: Long): Boolean = {
+    if(needSameValue && diff > 0 || objId > upTo){ return false }
+    result = nodeFactory.toNode(tx,objId) :: result
     limit -= 1L
     limit > 0L
   }

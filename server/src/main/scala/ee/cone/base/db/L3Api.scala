@@ -13,6 +13,7 @@ case class FindFrom(node: Obj) extends SearchOption
 case class FindUpTo(node: Obj) extends SearchOption
 case object FindFirstOnly extends SearchOption
 case object FindLastOnly extends SearchOption
+case object FindNextValues extends SearchOption
 
 trait DBNodes {
   def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, options: List[SearchOption]): List[Obj]

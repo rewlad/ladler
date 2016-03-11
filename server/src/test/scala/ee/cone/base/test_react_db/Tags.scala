@@ -75,6 +75,6 @@ class Tags(
     }, Nil)
   def button(key: VDomKey, caption: String, action: Action) =
     child[OfDiv](key, ButtonElement(caption){
-      case `onClick`() => action.invoke()
+      case `onClick` => action.invoke()
     }, Nil)
 }

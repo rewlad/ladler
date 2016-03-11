@@ -17,7 +17,7 @@ class FactIndexImpl(
   def get[Value](node: Obj, attr: RawAttr[Value]) = {
     val key = rawFactConverter.key(node(nodeFactory.objId), attr)
     val rawIndex = node(nodeFactory.rawIndex)
-    rawFactConverter.valueFromBytes(attr, rawIndex.get(key))
+    rawFactConverter.valueFromBytes(attr.converter, rawIndex.get(key))
   }
   def set[Value](node: Obj, attr: Attr[Value] with RawAttr[Value], value: Value): Unit = {
     if (get(node, attr) == value) { return } // we can't fail on empty values
@@ -33,7 +33,7 @@ class FactIndexImpl(
     val key = rawFactConverter.keyWithoutAttrId(node(nodeFactory.objId))
     val rawIndex = node(nodeFactory.rawIndex)
     rawIndex.seek(key)
-    rawVisitor.execute(rawIndex, key, feed)
+    rawVisitor.execute(rawIndex, key, key.length, feed)
   }
 }
 

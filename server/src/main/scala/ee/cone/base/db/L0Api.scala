@@ -21,7 +21,7 @@ trait RawFactConverter {
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
   def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId): RawValue
-  def valueFromBytes[Value](attrId: RawAttr[Value], b: RawValue): Value
+  def valueFromBytes[Value](converter: RawValueConverter[Value], b: RawValue): Value
   //def keyFromBytes(key: RawKey): (ObjId,AttrId)
 }
 trait RawSearchConverter {
@@ -29,8 +29,8 @@ trait RawSearchConverter {
   def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey
   def value(on: Boolean): RawValue
 }
-trait RawKeyExtractor[Feed] {
-  def apply(keyPrefix: RawKey, key: RawKey, feed: Feed): Boolean
+trait RawKeyExtractor {
+  def apply(keyPrefix: RawKey, minSame: Int, key: RawKey, feed: Feed): Boolean
 }
 trait Feed {
   def apply(valueA: Long, valueB: Long): Boolean
@@ -38,7 +38,7 @@ trait Feed {
 
 // Value should deal with equal properly for fact update need check
 trait RawValueConverter[Value] {
-  def convert(): Value
+  def convertEmpty(): Value
   def convert(valueA: Long, valueB: Long): Value
   def convert(value: String): Value
   def nonEmpty(value: Value): Boolean
