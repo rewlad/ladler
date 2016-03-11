@@ -3,7 +3,6 @@ package ee.cone.base.db
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db.Types.ObjId
 import ee.cone.base.util.{Never, Single}
 
 class ListByDBNodeImpl(
@@ -21,14 +20,15 @@ class ListByDBNodeImpl(
 
 class SysAttrs(
   attr: AttrFactory,
+  label: LabelFactory,
   searchIndex: SearchIndex,
   nodeValueConverter: RawValueConverter[Obj],
   uuidValueConverter: RawValueConverter[Option[UUID]],
   mandatory: Mandatory
 )(
-  val seq: Attr[Obj] = attr(0, 0x0001, nodeValueConverter),
-  val asSrcIdentifiable: Attr[Obj] = attr(0x0002, 0, nodeValueConverter),
-  val srcId: Attr[Option[UUID]] = attr(0, 0x0003, uuidValueConverter)
+  val seq: Attr[Obj] = attr(new PropId(0x0001), nodeValueConverter),
+  val asSrcIdentifiable: Attr[Obj] = label(0x0002),
+  val srcId: Attr[Option[UUID]] = attr(new PropId(0x0003), uuidValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asSrcIdentifiable, srcId, mutual = true) :::
   searchIndex.handlers(asSrcIdentifiable, srcId) :::
@@ -44,7 +44,7 @@ class DBNodesImpl(
     options: List[SearchOption]
   ) = {
     var from: Option[ObjId] = None
-    var upTo = Long.MaxValue
+    var upTo = new ObjId(Long.MaxValue)
     var limit = Long.MaxValue
     var lastOnly = false
     var needSameValue = true
@@ -52,16 +52,17 @@ class DBNodesImpl(
       case FindFirstOnly if limit == Long.MaxValue => limit = 1L
       case FindLastOnly => lastOnly = true
       case FindFrom(node) if from.isEmpty => from = Some(node(nodeFactory.objId))
-      case FindAfter(node) if from.isEmpty => from = Some(node(nodeFactory.objId)+1L)
-      case FindUpTo(node) if upTo == Long.MaxValue => upTo = node(nodeFactory.objId)
+      case FindAfter(node) if from.isEmpty => from = Some(node(nodeFactory.nextObjId))
+      case FindUpTo(node) if upTo.value == Long.MaxValue => upTo = node(nodeFactory.objId)
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
-    val handler = Single(handlerLists.list(searchKey))
+    println(s"searchKey: $searchKey")
+    val handler = handlerLists.single(searchKey)
     val feed = new NodeListFeedImpl(needSameValue,upTo,limit,nodeFactory,tx)
     val request = new SearchRequest[Value](tx, value, from, feed)
     handler(request)
-    if(lastOnly) feed.result.head :: Nil else feed.result.reverse
+    if(lastOnly) feed.result.headOption.toList else feed.result.reverse
   }
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
     where(tx, at.asSrcIdentifiable.defined, at.srcId, Some(srcId), Nil) match {
@@ -70,11 +71,11 @@ class DBNodesImpl(
       case _ => Never()
     }
   def srcId = at.srcId
-  def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,0L)
+  def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,new ObjId(0L))
   def create(tx: BoundToTx, label: Attr[Obj]): Obj = {
     val sNode = seqNode(tx)
     val lastNode = sNode(at.seq)
-    val nextObjId = if(lastNode.nonEmpty) lastNode(nodeFactory.objId) + 1L else 1L
+    val nextObjId = (if(lastNode.nonEmpty) lastNode else sNode)(nodeFactory.nextObjId)
     val res = nodeFactory.toNode(tx,nextObjId)
     sNode(at.seq) = res
     res(label) = res
@@ -84,11 +85,11 @@ class DBNodesImpl(
   }
 }
 
-class NodeListFeedImpl(needSameValue: Boolean, upTo: Long, var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {
+class NodeListFeedImpl(needSameValue: Boolean, upTo: ObjId, var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {
   var result: List[Obj] = Nil
   def apply(diff: Long, objId: Long): Boolean = {
-    if(needSameValue && diff > 0 || objId > upTo){ return false }
-    result = nodeFactory.toNode(tx,objId) :: result
+    if(needSameValue && diff > 0 || objId > upTo.value){ return false }
+    result = nodeFactory.toNode(tx,new ObjId(objId)) :: result
     limit -= 1L
     limit > 0L
   }

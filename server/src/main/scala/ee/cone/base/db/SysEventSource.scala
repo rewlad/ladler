@@ -3,7 +3,6 @@ package ee.cone.base.db
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db.Types.ObjId
 import ee.cone.base.util.Single
 
 //! lost calc-s
@@ -14,6 +13,7 @@ import ee.cone.base.util.Single
 
 class EventSourceAttrsImpl(
   attr: AttrFactory,
+  label: LabelFactory,
   searchIndex: SearchIndex,
   nodeValueConverter: RawValueConverter[Obj],
   attrValueConverter: RawValueConverter[Attr[Boolean]],
@@ -21,20 +21,20 @@ class EventSourceAttrsImpl(
   stringValueConverter: RawValueConverter[String],
   mandatory: Mandatory
 ) (
-  val asInstantSession: Attr[Obj] = attr(0x0010, 0, nodeValueConverter),
-  val sessionKey: Attr[Option[UUID]] = attr(0, 0x0011, uuidValueConverter),
-  val asMainSession: Attr[Obj] = attr(0x0012, 0, nodeValueConverter),
-  val instantSession: Attr[Obj] = attr(0, 0x0013, nodeValueConverter),
-  val lastMergedEvent: Attr[Obj] = attr(0, 0x0014, nodeValueConverter),
-  val asEvent: Attr[Obj] = attr(0x0015, 0, nodeValueConverter),
-  val asEventStatus: Attr[Obj] = attr(0x0016, 0, nodeValueConverter),
-  val event: Attr[Obj] = attr(0, 0x0017, nodeValueConverter),
-  val asUndo: Attr[Obj] = attr(0x0018, 0, nodeValueConverter),
-  val asCommit: Attr[Obj] = attr(0x0019, 0, nodeValueConverter),
-  val lastMergedRequest: Attr[Obj] = attr(0, 0x001A, nodeValueConverter),
-  val asRequest: Attr[Obj] = attr(0x001B, 0, nodeValueConverter),
-  val requested: Attr[String] = attr(0, 0x001C, stringValueConverter),
-  val applyAttr: Attr[Attr[Boolean]] = attr(0, 0x001D, attrValueConverter)
+  val asInstantSession: Attr[Obj] = label(0x0010),
+  val sessionKey: Attr[Option[UUID]] = attr(new PropId(0x0011), uuidValueConverter),
+  val asMainSession: Attr[Obj] = label(0x0012),
+  val instantSession: Attr[Obj] = attr(new PropId(0x0013), nodeValueConverter),
+  val lastMergedEvent: Attr[Obj] = attr(new PropId(0x0014), nodeValueConverter),
+  val asEvent: Attr[Obj] = label(0x0015),
+  val asEventStatus: Attr[Obj] = label(0x0016),
+  val event: Attr[Obj] = attr(new PropId(0x0017), nodeValueConverter),
+  val asUndo: Attr[Obj] = label(0x0018),
+  val asCommit: Attr[Obj] = label(0x0019),
+  val lastMergedRequest: Attr[Obj] = attr(new PropId(0x001A), nodeValueConverter),
+  val asRequest: Attr[Obj] = label(0x001B),
+  val requested: Attr[String] = attr(new PropId(0x001C), stringValueConverter),
+  val applyAttr: Attr[Attr[Boolean]] = attr(new PropId(0x001D), attrValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asInstantSession,sessionKey,mutual = true) :::
     mandatory(asMainSession,instantSession,mutual = true) :::
@@ -98,7 +98,7 @@ class EventSourceOperationsImpl(
     var event = src.poll()
     while(event.nonEmpty){
       factIndex.switchReason(event)
-      Single(nodeHandlerLists.list(ApplyEvent(event(at.applyAttr))))(event)
+      nodeHandlerLists.single(ApplyEvent(event(at.applyAttr)))(event)
       factIndex.switchReason(nodeFactory.noNode)
       event = src.poll()
     }

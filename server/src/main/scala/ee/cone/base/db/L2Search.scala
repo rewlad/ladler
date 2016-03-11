@@ -25,9 +25,9 @@ class SearchIndexImpl(
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     val labelRawAttr = labelAttr.asInstanceOf[RawAttr[_]]
     val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
-    if(labelRawAttr.propId!=0L)
+    if(labelRawAttr.propId.value != 0L)
       throw new Exception(s"bad index on label: $labelAttr")
-    if(propRawAttr.labelId!=0L)
+    if(propRawAttr.labelId.value != 0L)
       throw new Exception(s"bad index on prop: $propAttr")
     val attr = attrFactory(labelRawAttr.labelId, propRawAttr.propId, propRawAttr.converter)
     def setter(on: Boolean)(node: Obj) =

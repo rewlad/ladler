@@ -13,7 +13,7 @@ case object NoDBNode extends Obj {
   def tx = Never()
 }
 
-case class DBNodeImpl(objId: Long)(val tx: ProtectedBoundToTx[_]) extends Obj {
+case class DBNodeImpl(objId: ObjId)(val tx: ProtectedBoundToTx[_]) extends Obj {
   def nonEmpty = true
   def apply[Value](attr: Attr[Value]) = attr.get(this)
   def update[Value](attr: Attr[Value], value: Value) = attr.set(this, value)
@@ -25,6 +25,12 @@ case object ObjIdAttr extends Attr[ObjId] {
   def get(node: Obj) = node.asInstanceOf[DBNodeImpl].objId
 }
 
+case object NextObjIdAttr extends Attr[ObjId] {
+  def defined = Never()
+  def set(node: Obj, value: ObjId) = Never()
+  def get(node: Obj) = new ObjId(node.asInstanceOf[DBNodeImpl].objId.value + 1L)
+}
+
 case object RawIndexAttr extends Attr[RawIndex] {
   def defined = Never()
   def set(node: Obj, value: RawIndex) = Never()
@@ -34,7 +40,11 @@ case object RawIndexAttr extends Attr[RawIndex] {
   }
 }
 
-class NodeFactoryImpl(val objId: Attr[ObjId] = ObjIdAttr, val rawIndex: Attr[RawIndex] = RawIndexAttr) extends NodeFactory {
+class NodeFactoryImpl(
+  val objId: Attr[ObjId] = ObjIdAttr,
+  val nextObjId: Attr[ObjId] = NextObjIdAttr,
+  val rawIndex: Attr[RawIndex] = RawIndexAttr
+) extends NodeFactory {
   def noNode = NoDBNode
   def toNode(tx: BoundToTx, objId: ObjId) = new DBNodeImpl(objId)(tx.asInstanceOf[ProtectedBoundToTx[_]])
 }

@@ -1,11 +1,8 @@
 package ee.cone.base.db
 
 import java.util.UUID
-import java.util.concurrent.{ExecutorService, Executor}
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db.Types.ObjId
-import ee.cone.base.util.Never
 
 class CurrentRequest(var value: Option[UUID])
 

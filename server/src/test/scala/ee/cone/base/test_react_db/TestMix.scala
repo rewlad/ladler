@@ -29,7 +29,7 @@ class TestSessionConnectionMix(
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
 
-  lazy val testAttrs = new TestAttrs(attrFactory, searchIndex, nodeValueConverter, uuidValueConverter, stringValueConverter, mandatory, alienCanChange)()()
+  lazy val testAttrs = new TestAttrs(attrFactory, labelFactory, searchIndex, nodeValueConverter, uuidValueConverter, stringValueConverter, mandatory, alienCanChange)()()
   lazy val tags = new Tags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
 
   override def handlers =

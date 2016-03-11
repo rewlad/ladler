@@ -5,12 +5,15 @@ import ee.cone.base.db.Types._
 object Types {
   type RawKey = Array[Byte]
   type RawValue = Array[Byte]
-  type ObjId = Long
 }
 
+class ObjId(val value: Long) extends AnyVal
+class LabelId(val value: Long) extends AnyVal
+class PropId(val value: Long) extends AnyVal
+
 trait RawAttr[Value] {
-  def labelId: Long
-  def propId: Long
+  def labelId: LabelId
+  def propId: PropId
   def converter: RawValueConverter[Value]
 }
 
@@ -22,7 +25,7 @@ trait RawFactConverter {
   def keyHeadOnly: RawKey
   def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId): RawValue
   def valueFromBytes[Value](converter: RawValueConverter[Value], b: RawValue): Value
-  //def keyFromBytes(key: RawKey): (ObjId,AttrId)
+  def dump(b: Array[Byte]): String
 }
 trait RawSearchConverter {
   def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId): RawKey

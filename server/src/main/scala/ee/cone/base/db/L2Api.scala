@@ -9,12 +9,14 @@ trait NodeFactory {
   def noNode: Obj
   def toNode(tx: BoundToTx, objId: ObjId): Obj
   def objId: Attr[ObjId]
+  def nextObjId: Attr[ObjId]
   def rawIndex: Attr[RawIndex]
 }
 
 trait AttrFactory {
   def noAttr: Attr[Boolean]
-  def apply[V](labelId: Long, propId: Long, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
+  def apply[V](labelId: LabelId, propId: PropId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
+  def apply[V](propId: PropId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
 }
 
 trait FactIndex {

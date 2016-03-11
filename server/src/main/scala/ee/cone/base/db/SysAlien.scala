@@ -13,8 +13,8 @@ class AlienAccessAttrs(
   stringValueConverter: RawValueConverter[String],
   mandatory: Mandatory
 )(
-  val targetSrcId: Attr[Option[UUID]] = attr(0, 0x0022, uuidValueConverter),
-  val targetStringValue: Attr[String] = attr(0, 0x0023, stringValueConverter)
+  val targetSrcId: Attr[Option[UUID]] = attr(new PropId(0x0022), uuidValueConverter),
+  val targetStringValue: Attr[String] = attr(new PropId(0x0023), stringValueConverter)
 )()
 
 class AlienCanChange(
@@ -25,7 +25,7 @@ class AlienCanChange(
   def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
     CoHandler(ChangeEventAdder(attr)){ node =>
       val srcId = node(allNodes.srcId)
-      val addEvent = Single(handlerLists.list(AddEvent))
+      val addEvent = handlerLists.single(AddEvent)
       newValue => addEvent{ event =>
         event(at.targetSrcId) = srcId
         event(targetAttr) = newValue

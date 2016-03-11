@@ -54,3 +54,7 @@ trait DefaultTxManager[DBEnvKey] {
 trait SessionMainTxManager {
   def muxTx[R](recreate: Boolean)(f: ()⇒R): R
 }
+
+trait LabelFactory {
+  def apply(id: Long): Attr[Obj]
+}

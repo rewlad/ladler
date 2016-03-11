@@ -34,6 +34,7 @@ class DynEdit(
 
 class TestAttrs(
   attr: AttrFactory,
+  label: LabelFactory,
   searchIndex: SearchIndex,
   nodeValueConverter: RawValueConverter[Obj],
   uuidValueConverter: RawValueConverter[Option[UUID]],
@@ -41,12 +42,13 @@ class TestAttrs(
   mandatory: Mandatory,
   alienCanChange: AlienCanChange
 )(
-  val asTestTask: Attr[Obj] = attr(0x6600, 0, nodeValueConverter),
-  val testState: Attr[String] = attr(0, 0x6601, stringValueConverter),
-  val comments: Attr[String] = attr(0, 0x6602, stringValueConverter)
+  val asTestTask: Attr[Obj] = label(0x6600),
+  val testState: Attr[String] = attr(new PropId(0x6601), stringValueConverter),
+  val comments: Attr[String] = attr(new PropId(0x6602), stringValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asTestTask,testState, mutual = true) :::
   mandatory(asTestTask,comments, mutual = true) :::
+  searchIndex.handlers(asTestTask.defined, testState) :::
   alienCanChange(comments) ::: Nil
 ) extends CoHandlerProvider
 

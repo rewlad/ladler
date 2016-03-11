@@ -48,11 +48,12 @@ trait DBConnectionMix extends CoMixBase {
   lazy val instantTx = new CurrentTxImpl[InstantEnvKey](dbAppMix.instantDB)
   lazy val mainTx = new CurrentTxImpl[MainEnvKey](dbAppMix.mainDB)
 
-  lazy val nodeValueConverter = new NodeValueConverter(InnerRawValueConverterImpl,nodeFactory,instantTx,mainTx)()
+  lazy val nodeValueConverter = new MainNodeValueConverter(InnerRawValueConverterImpl,nodeFactory,mainTx,instantTx)
   lazy val uuidValueConverter = new UUIDValueConverter(InnerRawValueConverterImpl)
   lazy val stringValueConverter = new StringValueConverter(InnerRawValueConverterImpl)
 
-  lazy val sysAttrs = new SysAttrs(attrFactory,searchIndex,nodeValueConverter,uuidValueConverter,mandatory)()()
+  lazy val labelFactory = new LabelFactoryImpl(attrFactory,nodeValueConverter)
+  lazy val sysAttrs = new SysAttrs(attrFactory,labelFactory,searchIndex,nodeValueConverter,uuidValueConverter,mandatory)()()
   lazy val allNodes = new DBNodesImpl(handlerLists, nodeValueConverter, nodeFactory, sysAttrs)
 
   lazy val instantTxManager =
@@ -60,7 +61,7 @@ trait DBConnectionMix extends CoMixBase {
 
   // Sys
   lazy val eventSourceAttrs =
-    new EventSourceAttrsImpl(attrFactory,searchIndex,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
+    new EventSourceAttrsImpl(attrFactory,labelFactory,searchIndex,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
   lazy val eventSourceOperations =
     new EventSourceOperationsImpl(eventSourceAttrs,factIndex,handlerLists,allNodes,nodeFactory,instantTx,mainTx)
 

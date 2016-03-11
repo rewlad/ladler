@@ -12,7 +12,7 @@ class AlienAttrFactoryImpl(handlerLists: CoHandlerLists, currentVDom: CurrentVDo
     new Attr[AlienRef[Value]] {
       def defined = Never()
       def get(node: Obj) = { // when making input tag
-      val addEvent = eventAdder(node) // remembers srcId
+        val addEvent = eventAdder(node) // remembers srcId
         AlienRef(key, node(attr)){ newValue =>
           addEvent(newValue)
           currentVDom.invalidate()

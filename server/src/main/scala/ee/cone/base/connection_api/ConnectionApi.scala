@@ -18,6 +18,7 @@ case class CoHandler[In,Out](on: EventKey[In,Out])(val handle: In=>Out)
 
 trait CoHandlerLists {
   def list[In,Out](ev: EventKey[In,Out]): List[In=>Out]
+  def single[In,Out](ev: EventKey[In,Out]): In=>Out
 }
 trait CoHandlerProvider {
   def handlers: List[BaseCoHandler]
