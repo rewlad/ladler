@@ -19,11 +19,13 @@ class MergerEventSourceOperationsImpl(
   }
 
   def handlers = CoHandler(ActivateReceiver){ ()=>
+    println("merger activated")
     setRequestOK(false)
     mainTxManager.rwTx { () ⇒
       instantTxManager.roTx { () ⇒
         val req = nextRequest()
         if (req.nonEmpty) {
+          println("req nonEmpty")
           currentRequest.value = req(uniqueNodes.srcId)
           ops.applyEvents(req(at.instantSession), FindUpTo(req) :: Nil)
         } else Thread.sleep(1000)

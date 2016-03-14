@@ -71,6 +71,6 @@ class Tags(
     }, Nil)
   def button(key: String, caption: String, action: ()=>Unit) =
     child[OfDiv](key, ButtonElement(caption){
-      case `onClick` => action()
+      case `onClick`() => action()
     }, Nil)
 }

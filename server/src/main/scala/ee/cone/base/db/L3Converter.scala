@@ -33,7 +33,7 @@ class NodeValueConverter[DBEnvKey](
 ) extends RawValueConverter[Obj] {
   def convertEmpty() = nodeFactory.noNode
   def convert(dbId: Long, objId: Long) = {
-    println("NodeValueConverter",dbId,objId)
+    //println("NodeValueConverter",dbId,objId)
     if(currentTx.dbId == dbId) nodeFactory.toNode(currentTx(),new ObjId(objId))
     else next.convert(dbId,objId)
   }

@@ -17,7 +17,7 @@ class FactIndexImpl(
   def get[Value](node: Obj, attr: RawAttr[Value]) = {
     val key = rawFactConverter.key(node(nodeFactory.objId), attr)
     val rawIndex = node(nodeFactory.rawIndex)
-    println(s"get -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- [${Hex(key)}] -- [${Hex(rawIndex.get(key))}]")
+    //println(s"get -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- [${Hex(key)}] -- [${Hex(rawIndex.get(key))}]")
     rawFactConverter.valueFromBytes(attr.converter, rawIndex.get(key))
   }
   def set[Value](node: Obj, attr: Attr[Value] with RawAttr[Value], value: Value): Unit = {
@@ -27,7 +27,7 @@ class FactIndexImpl(
     val rawIndex = node(nodeFactory.rawIndex)
     val key = rawFactConverter.key(node(nodeFactory.objId), attr)
     val rawValue = rawFactConverter.value(attr, value, srcObjId)
-    println(s"set -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- $value -- [${Hex(key)}] -- [${Hex(rawValue)}]")
+    //println(s"set -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- $value -- [${Hex(key)}] -- [${Hex(rawValue)}]")
     rawIndex.set(key, rawValue)
     for(calc <- calcLists.list(AfterUpdate(attr.defined))) calc(node)
   }

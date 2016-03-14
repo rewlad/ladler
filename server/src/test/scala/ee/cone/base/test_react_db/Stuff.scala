@@ -62,7 +62,8 @@ class TestView(
   findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
   eventSourceOperations: SessionEventSourceOperations,
   tags: Tags,
-  alienAttr: AlienAttrFactory
+  alienAttr: AlienAttrFactory,
+  currentVDom: CurrentVDom
 ) extends CoHandlerProvider {
   private def emptyView(pf: String) = tags
     .root(tags.text("text", "Loading...") :: Nil)
@@ -85,27 +86,37 @@ class TestView(
             Nil
         )
       }
+      val saveBtn = tags.button("save", "save", saveAction())
       val addBtn = tags.button("add", "+", createTaskAction())
-      tags.root(addBtn :: taskSpans)
+      tags.root(saveBtn :: addBtn :: taskSpans)
     }
 
-  private def removeTaskAction(srcId: UUID)() =
+  private def saveAction()() = {
+    eventSourceOperations.addRequest()
+  }
+  private def removeTaskAction(srcId: UUID)() = {
     handlerLists.single(AddEvent) { ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(srcId)
       at.taskRemoved
     }
+    currentVDom.invalidate()
+  }
   private def taskRemoved(ev: Obj): Unit = {
     val srcId = ev(alienAccessAttrs.targetSrcId).get
     val task = uniqueNodes.whereSrcId(mainTx(), srcId)
     task(at.testState) = ""
   }
-  private def createTaskAction()() = handlerLists.single(AddEvent) { ev =>
-    ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
-    at.taskCreated
+  private def createTaskAction()() = {
+    handlerLists.single(AddEvent) { ev =>
+      ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
+      at.taskCreated
+    }
+    currentVDom.invalidate()
   }
   private def taskCreated(ev: Obj): Unit = {
     val srcId = ev(alienAccessAttrs.targetSrcId).get
     val task = uniqueNodes.create(mainTx(), at.asTestTask, srcId)
+    task(at.testState) = "A"
   }
 
 

@@ -33,7 +33,7 @@ class SysAttrs(
 )(val handlers: List[BaseCoHandler] =
   unique(asSrcIdentifiable, srcId) :::
   mandatory(asSrcIdentifiable, srcId, mutual = true) :::
-  searchIndex.handlers(asSrcIdentifiable, srcId) :::
+  // searchIndex.handlers(asSrcIdentifiable, srcId) ::: // inside unique
   Nil
 ) extends CoHandlerProvider
 
@@ -63,7 +63,7 @@ class FindNodesImpl(
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
-    println(s"searchKey: $searchKey")
+    //println(s"searchKey: $searchKey")
     val handler = handlerLists.single(searchKey)
     val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory, tx)
     val request = new SearchRequest[Value](tx, value, from, feed)

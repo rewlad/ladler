@@ -44,7 +44,7 @@ trait DBConnectionMix extends CoMixBase {
     new ListByDBNodeImpl(factIndex,attrValueConverter)
   lazy val findNodes = new FindNodesImpl(handlerLists, nodeFactory)
 
-  lazy val mandatory = new MandatoryImpl(preCommitCheckCheckAll)
+  lazy val mandatory = new MandatoryImpl(preCommitCheckCheckAll, listByDBNode)
   lazy val unique = new UniqueImpl(preCommitCheckCheckAll, searchIndex, findNodes)
 
   lazy val instantTx = new CurrentTxImpl[InstantEnvKey](dbAppMix.instantDB)

@@ -5,7 +5,7 @@ import ee.cone.base.connection_api._
 class CoHandlerListsImpl(createHandlers: ()=>List[BaseCoHandler]) extends CoHandlerLists {
   def list[Item](ev: EventKey[Item]): List[Item] = {
     val res = value.getOrElse(ev,Nil).asInstanceOf[List[Item]]
-    println(ev, res.size)
+    //println(ev, res.size)
     res
   }
   private lazy val value = createHandlers().map{ case h: CoHandler[_] ⇒ h }

@@ -12,7 +12,7 @@ class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
   lazy val httpPort = 5557
   lazy val staticRoot = Paths.get("../client/build/test")
   lazy val ssePort = 5556
-  lazy val threadCount = 5
+  lazy val threadCount = 50
   lazy val mainDB = new TestEnv[MainEnvKey](1L)
   lazy val instantDB = new TestEnv[InstantEnvKey](0L)
   lazy val createAlienConnection =
@@ -45,7 +45,7 @@ class TestSessionConnectionMix(
   override def handlers =
     testAttrs.handlers :::
     new FailOfConnection(sender).handlers :::
-    new TestView(testAttrs,alienAccessAttrs,handlerLists,findNodes,uniqueNodes,mainTx,sessionEventSourceOperations, tags, alienAttrFactory).handlers :::
+    new TestView(testAttrs,alienAccessAttrs,handlerLists,findNodes,uniqueNodes,mainTx,sessionEventSourceOperations, tags, alienAttrFactory, currentView).handlers :::
       //new DynEdit(sessionEventSourceOperations).handlers :::
       super.handlers
 }

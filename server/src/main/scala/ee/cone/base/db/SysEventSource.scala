@@ -39,11 +39,11 @@ class EventSourceAttrsImpl(
 )(val handlers: List[BaseCoHandler] =
     mandatory(asInstantSession,sessionKey,mutual = true) :::
     mandatory(asInstantSession,mainSessionSrcId,mutual = true) :::
-    mandatory(asMainSession,instantSession,mutual = true) :::
+    mandatory(asMainSession,instantSession,mutual = false) :::
     mandatory(asMainSession,lastMergedEvent,mutual = true) :::
-    mandatory(asEvent,instantSession,mutual = true) :::
+    mandatory(asEvent,instantSession,mutual = false) :::
     mandatory(asEvent,applyAttr,mutual = true) :::
-    mandatory(asEventStatus,instantSession,mutual = true) :::
+    mandatory(asEventStatus,instantSession,mutual = false) :::
     mandatory(asRequest,requested,mutual = true) :::
     mandatory(event,asEventStatus,mutual = false) :::
     mandatory(asRequest,asEventStatus,mutual = false) :::
@@ -114,6 +114,7 @@ class EventSourceOperationsImpl(
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
     val res = uniqueNodes.create(instantTx(), label, UUID.randomUUID)
     res(at.instantSession) = instantSession
+    println("addInstant")
     res
   }
   def requested = "Y"
