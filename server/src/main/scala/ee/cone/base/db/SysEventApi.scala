@@ -11,8 +11,8 @@ trait SessionState {
 
 ////
 
-case object AddEvent extends EventKey[Obj=>Attr[Boolean],Unit]
-case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[Obj,Unit]
+case object AddEvent extends EventKey[(Obj=>Attr[Boolean])=>Unit]
+case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
 
 trait Ref[Value] {
   def apply(): Value

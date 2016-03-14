@@ -23,7 +23,7 @@ class AlienCanChange(
 ) {
   def apply(attr: Attr[String]) = handlers(at.targetStringValue)(attr)
   def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
-      CoHandler(AddChangeEvent(attr)){ case (srcId:UUID,newValue:Value) =>
+      CoHandler(AddChangeEvent(attr)){ (srcId:UUID,newValue:Value) =>
         handlerLists.single(AddEvent){ event =>
           event(at.targetSrcId) = Option(srcId)
           event(targetAttr) = newValue

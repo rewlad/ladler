@@ -18,7 +18,7 @@ class MergerEventSourceOperationsImpl(
     }
   }
 
-  def handlers = CoHandler(ActivateReceiver){ _=>
+  def handlers = CoHandler(ActivateReceiver){ ()=>
     setRequestOK(false)
     mainTxManager.rwTx { () ⇒
       instantTxManager.roTx { () ⇒

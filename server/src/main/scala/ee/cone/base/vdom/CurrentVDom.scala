@@ -38,7 +38,7 @@ class CurrentVDom(
     for(sessionKey <- message.value.get("X-r-session")){
       handlerLists.list(SwitchSession).foreach(_(UUID.fromString(sessionKey)))
     }
-  private def showToAlien(dummy:Unit) = {
+  private def showToAlien() = {
     if(until <= System.currentTimeMillis) invalidate()
     if(vDom != wasNoValue) Nil else {
       until = Long.MaxValue

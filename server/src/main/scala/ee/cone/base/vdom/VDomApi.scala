@@ -39,7 +39,7 @@ trait Diff {
   def diff(vDom: Value): Option[MapValue]
 }
 
-case class ViewPath(path: String) extends EventKey[String,Value]
+case class ViewPath(path: String) extends EventKey[String=>Value]
 
 trait CurrentView {
   def invalidate(): Unit

@@ -14,4 +14,4 @@ trait ConnectionRegistry {
   def send(bnd: DictMessage): Unit
 }
 
-case object SetOutput extends EventKey[OutputStream,Unit]
+case object SetOutput extends EventKey[OutputStream=>Unit]

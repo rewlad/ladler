@@ -24,7 +24,7 @@ class ReceiverOfConnectionImpl(
     println(s"connection   register: $key")
     key
   }
-  def handlers = CoHandler(ActivateReceiver){_ =>
+  def handlers = CoHandler(ActivateReceiver){ ()=>
     Option(queue.poll(framePeriod,TimeUnit.MILLISECONDS)).foreach(message=>
       handlerLists.list(FromAlienDictMessage).foreach(_(message))
     )

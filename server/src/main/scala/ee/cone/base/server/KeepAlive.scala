@@ -30,7 +30,7 @@ class KeepAlive(
       if(connectionKey != receiver.connectionKey) Never()
       status = OKPingStatus(connectionKey)
     }
-  private def periodicPingAlien(dummy:Unit) = if(periodic()){
+  private def periodicPingAlien() = if(periodic()){
     val command = status match {
       case NewPingStatus => "connect"
       case _: OKPingStatus => "ping"

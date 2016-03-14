@@ -11,14 +11,14 @@ trait LifeCycle {
 }
 
 // common interfaces to communicate between decoupled components of connection;
-trait EventKey[-In,+Out]
+trait EventKey[Item]
 trait BaseCoHandler
-case class CoHandler[In,Out](on: EventKey[In,Out])(val handle: In=>Out)
+case class CoHandler[Item](on: EventKey[Item])(val handle: Item)
   extends BaseCoHandler
 
 trait CoHandlerLists {
-  def list[In,Out](ev: EventKey[In,Out]): List[In=>Out]
-  def single[In,Out](ev: EventKey[In,Out]): In=>Out
+  def list[Item](ev: EventKey[Item]): List[Item]
+  def single[Item](ev: EventKey[Item]): Item
 }
 trait CoHandlerProvider {
   def handlers: List[BaseCoHandler]
@@ -66,15 +66,15 @@ trait Attr[Value] {
 ////////////////////////////////
 
 // subscribe to implement iteration of connection
-case object ActivateReceiver extends EventKey[Unit,Unit]
+case object ActivateReceiver extends EventKey[()=>Unit]
 // subscribe to failures (fatal) of connection
-case object FailEventKey extends EventKey[Exception,Unit]
+case object FailEventKey extends EventKey[Exception=>Unit]
 
-case object SwitchSession extends EventKey[UUID,Unit]
+case object SwitchSession extends EventKey[UUID=>Unit]
 
 // exchange with alien (user agent)
-case object FromAlienDictMessage extends EventKey[DictMessage, Unit]
+case object FromAlienDictMessage extends EventKey[DictMessage=>Unit]
 case class DictMessage(value: Map[String,String])
-case object ShowToAlien extends EventKey[Unit,List[(String,String)]]
+case object ShowToAlien extends EventKey[()=>List[(String,String)]]
 
-case class AddChangeEvent[Value](attr: Attr[Value]) extends EventKey[(UUID,Value),Unit]
+case class AddChangeEvent[Value](attr: Attr[Value]) extends EventKey[(UUID,Value)=>Unit]

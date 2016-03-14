@@ -30,11 +30,11 @@ trait SearchIndex {
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]): List[BaseCoHandler]
 }
 case class SearchByLabelProp[Value](label: Attr[Boolean], prop: Attr[Boolean])
-  extends EventKey[SearchRequest[Value],Unit]
+  extends EventKey[SearchRequest[Value]=>Unit]
 class SearchRequest[Value](
   val tx: BoundToTx, val value: Value, val objId: Option[ObjId], val feed: Feed
 )
 
-case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[Obj,Unit]
-case class AfterUpdate(attr: Attr[Boolean]) extends EventKey[Obj,Unit]
+case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
+case class AfterUpdate(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
 
