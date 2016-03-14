@@ -34,9 +34,11 @@ class EventSourceAttrsImpl(
   val lastMergedRequest: Attr[Obj] = attr(new PropId(0x001A), nodeValueConverter),
   val asRequest: Attr[Obj] = label(0x001B),
   val requested: Attr[String] = attr(new PropId(0x001C), stringValueConverter),
-  val applyAttr: Attr[Attr[Boolean]] = attr(new PropId(0x001D), attrValueConverter)
+  val applyAttr: Attr[Attr[Boolean]] = attr(new PropId(0x001D), attrValueConverter),
+  val mainSessionSrcId: Attr[Option[UUID]] = attr(new PropId(0x001E), uuidValueConverter)
 )(val handlers: List[BaseCoHandler] =
-  mandatory(asInstantSession,sessionKey,mutual = true) :::
+    mandatory(asInstantSession,sessionKey,mutual = true) :::
+    mandatory(asInstantSession,mainSessionSrcId,mutual = true) :::
     mandatory(asMainSession,instantSession,mutual = true) :::
     mandatory(asMainSession,lastMergedEvent,mutual = true) :::
     mandatory(asEvent,instantSession,mutual = true) :::
@@ -61,12 +63,13 @@ class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
   factIndex: FactIndex, //u
   nodeHandlerLists: CoHandlerLists, //u
-  allNodes: DBNodes,
+  findNodes: FindNodes,
+  uniqueNodes: UniqueNodes,
   instantTx: CurrentTx[InstantEnvKey], //u
   mainTx: CurrentTx[MainEnvKey] //u
 ) extends EventSourceOperations {
   def isUndone(event: Obj) =
-    allNodes.where(instantTx(), at.asUndo.defined, at.event, event, Nil).nonEmpty
+    findNodes.where(instantTx(), at.asUndo.defined, at.event, event, Nil).nonEmpty
   def createEventSource[Value](
       label: Attr[Obj], prop: Attr[Value], value: Value,
       seqRef: Ref[Obj], options: List[SearchOption]
@@ -74,8 +77,8 @@ class EventSourceOperationsImpl(
     def poll(): Obj = {
       val lastNode = seqRef()
       val from = if(lastNode.nonEmpty) FindAfter(lastNode) :: Nil else Nil
-      val result = allNodes.where(instantTx(), label.defined, prop, value, FindFirstOnly :: from ::: options)
-      if(result.isEmpty){ return allNodes.noNode }
+      val result = findNodes.where(instantTx(), label.defined, prop, value, FindFirstOnly :: from ::: options)
+      if(result.isEmpty){ return uniqueNodes.noNode }
       val event :: Nil = result
       seqRef() = event
       if(isUndone(event)) poll() else event
@@ -85,23 +88,21 @@ class EventSourceOperationsImpl(
     def apply() = node(attr)
     def update(value: Obj) = node(attr) = value
   }
-  def applyEvents(instantSessionNode: Obj, options: List[SearchOption]): Unit = {
-    val sessions = allNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSessionNode, Nil)
+  def applyEvents(instantSession: Obj, options: List[SearchOption]): Unit = {
+    val sessions = findNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSession, Nil)
     val seqNode = Single.option(sessions).getOrElse{
-
-      UUID.nameUUIDFromBytes()
-
-      val mainSession = allNodes.create(mainTx(), at.asMainSession)
-      mainSession(at.instantSession) = instantSessionNode
+      // UUID.nameUUIDFromBytes()
+      val mainSession = uniqueNodes.create(mainTx(), at.asMainSession, instantSession(at.mainSessionSrcId).get)
+      mainSession(at.instantSession) = instantSession
       mainSession
     }
     val seqRef = ref(seqNode, at.lastMergedEvent)
-    val src = createEventSource(at.asEvent, at.instantSession, instantSessionNode, seqRef, options)
+    val src = createEventSource(at.asEvent, at.instantSession, instantSession, seqRef, options)
     var event = src.poll()
     while(event.nonEmpty){
       factIndex.switchReason(event)
       nodeHandlerLists.single(ApplyEvent(event(at.applyAttr)))(event)
-      factIndex.switchReason(allNodes.noNode)
+      factIndex.switchReason(uniqueNodes.noNode)
       event = src.poll()
     }
   }
@@ -111,7 +112,7 @@ class EventSourceOperationsImpl(
     status(at.event) = event
   }
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
-    val res = allNodes.create(instantTx(), label, UUID.randomUUID)
+    val res = uniqueNodes.create(instantTx(), label, UUID.randomUUID)
     res(at.instantSession) = instantSession
     res
   }

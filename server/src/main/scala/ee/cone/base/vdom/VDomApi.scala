@@ -1,5 +1,7 @@
 package ee.cone.base.vdom
 
+import java.util.UUID
+
 import ee.cone.base.connection_api.{Attr, DictMessage, EventKey}
 import ee.cone.base.vdom.Types.VDomKey
 
@@ -74,8 +76,6 @@ trait OnClick {
   def unapply(message: DictMessage): Option[Unit]
 }
 
-case class AlienRef[Value](key: VDomKey, value: Value)(val invoke: Value=>Unit)
-
 trait AlienAttrFactory {
-  def apply[Value](attr: Attr[Value], key: VDomKey): Attr[AlienRef[Value]]
+  def apply[Value](attr: Attr[Value]): UUID => Value => Unit
 }

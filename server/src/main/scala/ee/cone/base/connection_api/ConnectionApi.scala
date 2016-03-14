@@ -77,4 +77,4 @@ case object FromAlienDictMessage extends EventKey[DictMessage, Unit]
 case class DictMessage(value: Map[String,String])
 case object ShowToAlien extends EventKey[Unit,List[(String,String)]]
 
-case class ChangeEventAdder[Value](attr: Attr[Value]) extends EventKey[Obj,Value=>Unit]
+case class AddChangeEvent[Value](attr: Attr[Value]) extends EventKey[(UUID,Value),Unit]

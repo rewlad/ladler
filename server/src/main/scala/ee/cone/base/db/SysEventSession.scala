@@ -8,12 +8,12 @@ import ee.cone.base.util.{Never, Single}
 class SessionEventSourceOperationsImpl(
   ops: EventSourceOperations, at: SessionEventSourceAttrs,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
-  allNodes: DBNodes
+  findNodes: FindNodes, uniqueNodes: UniqueNodes
 ) extends SessionEventSourceOperations with CoHandlerProvider {
   private var sessionKeyOpt: Option[UUID] = None
   private def findSession(): Option[Obj] = {
     val tx = instantTxManager.currentTx()
-    Single.option(allNodes.where(
+    Single.option(findNodes.where(
       tx, at.asInstantSession.defined,
       at.sessionKey, sessionKeyOpt,
       Nil
@@ -21,8 +21,9 @@ class SessionEventSourceOperationsImpl(
   }
   private def findOrAddSession() = findSession().getOrElse{
     val tx = instantTxManager.currentTx()
-    val instantSession = ops.addInstant(allNodes.noNode, at.asInstantSession)
+    val instantSession = ops.addInstant(uniqueNodes.noNode, at.asInstantSession)
     instantSession(at.sessionKey) = sessionKeyOpt
+    instantSession(at.mainSessionSrcId) = Option(UUID.randomUUID)
     instantSession
   }
   def incrementalApplyAndView[R](view: () => R) = {
@@ -38,23 +39,23 @@ class SessionEventSourceOperationsImpl(
   private def needRecreate(instantSession: Obj): Boolean = {
     val tx = instantTxManager.currentTx()
     val findAfter =
-      lastStatusSrcId.map(uuid=>FindAfter(allNodes.whereSrcId(tx, uuid))).toList
-    val newStatuses = allNodes.where(
+      lastStatusSrcId.map(uuid=>FindAfter(uniqueNodes.whereSrcId(tx, uuid))).toList
+    val newStatuses = findNodes.where(
       tx, at.asEventStatus.defined,
       at.instantSession, instantSession,
       FindLastOnly :: findAfter
     )
     if(newStatuses.isEmpty) return false
     val newStatus :: Nil = newStatuses
-    lastStatusSrcId = newStatus(allNodes.srcId)
+    lastStatusSrcId = newStatus(uniqueNodes.srcId)
     true
   }
   def addUndo(eventSrcId: UUID) = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val tx = instantTxManager.currentTx()
-    val event = allNodes.whereSrcId(tx, eventSrcId)
+    val event = uniqueNodes.whereSrcId(tx, eventSrcId)
     if (event(at.instantSession) != instantSession) Never()
-    val requests = allNodes.where(
+    val requests = findNodes.where(
       tx, at.asRequest.defined,
       at.instantSession, instantSession,
       FindFrom(event) :: Nil

@@ -19,21 +19,19 @@ class AlienAccessAttrs(
 
 class AlienCanChange(
   at: AlienAccessAttrs, handlerLists: CoHandlerLists,
-  allNodes: DBNodes, mainTx: CurrentTx[MainEnvKey]
+  uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
 ) {
   def apply(attr: Attr[String]) = handlers(at.targetStringValue)(attr)
   def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
-    CoHandler(ChangeEventAdder(attr)){ node =>
-      val srcId = node(allNodes.srcId)
-      val addEvent = handlerLists.single(AddEvent)
-      newValue => addEvent{ event =>
-        event(at.targetSrcId) = srcId
-        event(targetAttr) = newValue
-        attr.defined
-      }
-    } ::
+      CoHandler(AddChangeEvent(attr)){ case (srcId:UUID,newValue:Value) =>
+        handlerLists.single(AddEvent){ event =>
+          event(at.targetSrcId) = Option(srcId)
+          event(targetAttr) = newValue
+          attr.defined
+        }
+      } ::
       CoHandler(ApplyEvent(attr.defined)){ event =>
-        val node = allNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
+        val node = uniqueNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
         node(attr) = event(targetAttr)
       } :: Nil
 }

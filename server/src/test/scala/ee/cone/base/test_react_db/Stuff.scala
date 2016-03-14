@@ -36,7 +36,7 @@ class TestAttrs(
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
-  definedValueConverter: RawValueConverter[Unit],
+  definedValueConverter: RawValueConverter[Boolean],
   nodeValueConverter: RawValueConverter[Obj],
   uuidValueConverter: RawValueConverter[Option[UUID]],
   stringValueConverter: RawValueConverter[String],
@@ -46,8 +46,8 @@ class TestAttrs(
   val asTestTask: Attr[Obj] = label(0x6600),
   val testState: Attr[String] = attr(new PropId(0x6601), stringValueConverter),
   val comments: Attr[String] = attr(new PropId(0x6602), stringValueConverter),
-  val createTaskEvent: Attr[Boolean] = attr(new PropId(0x6603), definedValueConverter),
-  val removeTaskEvent: Attr[Boolean] = attr(new PropId(0x6604), definedValueConverter)
+  val taskCreated: Attr[Boolean] = attr(new PropId(0x6603), definedValueConverter),
+  val taskRemoved: Attr[Boolean] = attr(new PropId(0x6604), definedValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asTestTask,testState, mutual = true) :::
   mandatory(asTestTask,comments, mutual = true) :::
@@ -59,33 +59,59 @@ class TestView(
   at: TestAttrs,
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
-  allNodes: DBNodes, mainTx: CurrentTx[MainEnvKey],
+  findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
   eventSourceOperations: SessionEventSourceOperations,
   tags: Tags,
   alienAttr: AlienAttrFactory
 ) extends CoHandlerProvider {
-  private def emptyView(pf: String) = tags.root(tags.text("text","Loading...")::Nil)
-  private def testView(pf: String) = eventSourceOperations.incrementalApplyAndView { () ⇒
-    val commentsRef = alienAttr(at.comments,"comments")
-    val removeRef =
-    val spans = allNodes.where(mainTx(), at.asTestTask.defined, at.testState, "A", Nil).map{
-      task =>
+  private def emptyView(pf: String) = tags
+    .root(tags.text("text", "Loading...") :: Nil)
+  private def testView(pf: String) =
+    eventSourceOperations.incrementalApplyAndView { () ⇒
+      val changeComments: (UUID) => (String) => Unit = alienAttr(at.comments)
+      val tasks = findNodes.where(
+        mainTx(),
+        at.asTestTask.defined,
+        at.testState,
+        "A",
+        Nil
+      )
+      val taskSpans = tasks.map { task =>
+        val srcId = task(uniqueNodes.srcId).get
         tags.span(
-          task(allNodes.srcId).toString,
-          tags.input(task(commentsRef)) ::
-            tags.button("remove", "-", removeRef(task)) ::
+          srcId.toString,
+          tags.input("comments", task(at.comments), changeComments(srcId)) ::
+            tags.button("remove", "-", removeTaskAction(srcId)) ::
             Nil
         )
+      }
+      val addBtn = tags.button("add", "+", createTaskAction())
+      tags.root(addBtn :: taskSpans)
     }
-    tags.root(spans)
+
+  private def removeTaskAction(srcId: UUID)() =
+    handlerLists.single(AddEvent) { ev =>
+      ev(alienAccessAttrs.targetSrcId) = Option(srcId)
+      at.taskRemoved
+    }
+  private def taskRemoved(ev: Obj): Unit = {
+    val srcId = ev(alienAccessAttrs.targetSrcId).get
+    val task = uniqueNodes.whereSrcId(mainTx(), srcId)
+    task(at.testState) = ""
+  }
+  private def createTaskAction()() = handlerLists.single(AddEvent) { ev =>
+    ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
+    at.taskCreated
+  }
+  private def taskCreated(ev: Obj): Unit = {
+    val srcId = ev(alienAccessAttrs.targetSrcId).get
+    val task = uniqueNodes.create(mainTx(), at.asTestTask, srcId)
   }
 
-  private def applyCreateTask(ev: Obj): Unit = {
-    ev(at.target)
-  }
 
   def handlers =
-    CoHandler(ApplyEvent(at.createTaskEvent))(applyCreateTask) ::
+    CoHandler(ApplyEvent(at.taskCreated))(taskCreated) ::
+    CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/test"))(testView) :: Nil
 }

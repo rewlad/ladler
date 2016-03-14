@@ -6,12 +6,12 @@ import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 class UniqueImpl(
   preCommitCheck: PreCommitCheckAllOfConnection,
   searchIndex: SearchIndex,
-  allNodes: DBNodes
+  findNodes: FindNodes
 ) extends Unique {
   def apply[Value](label: Attr[_], uniqueAttr: Attr[Value]) = {
     def checkNode(node: Obj): List[ValidationFailure] =
       if(!node(label.defined) || !node(uniqueAttr.defined)) Nil
-      else allNodes.where(node.tx, label.defined, uniqueAttr, node(uniqueAttr),Nil) match {
+      else findNodes.where(node.tx, label.defined, uniqueAttr, node(uniqueAttr),Nil) match {
         case _ :: Nil => Nil
         case ns => ns.map(ValidationFailure("unique",_))
       }

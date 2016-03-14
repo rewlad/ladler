@@ -29,13 +29,23 @@ class TestSessionConnectionMix(
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
 
-  lazy val testAttrs = new TestAttrs(attrFactory, labelFactory, searchIndex, nodeValueConverter, uuidValueConverter, stringValueConverter, mandatory, alienCanChange)()()
+  lazy val testAttrs = new TestAttrs(
+    attrFactory,
+    labelFactory,
+    searchIndex,
+    definedValueConverter,
+    nodeValueConverter,
+    uuidValueConverter,
+    stringValueConverter,
+    mandatory,
+    alienCanChange
+  )()()
   lazy val tags = new Tags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
 
   override def handlers =
     testAttrs.handlers :::
     new FailOfConnection(sender).handlers :::
-    new TestView(testAttrs,alienAccessAttrs,handlerLists,allNodes,mainTx,sessionEventSourceOperations, tags, alienAttrFactory).handlers :::
+    new TestView(testAttrs,alienAccessAttrs,handlerLists,findNodes,uniqueNodes,mainTx,sessionEventSourceOperations, tags, alienAttrFactory).handlers :::
       //new DynEdit(sessionEventSourceOperations).handlers :::
       super.handlers
 }

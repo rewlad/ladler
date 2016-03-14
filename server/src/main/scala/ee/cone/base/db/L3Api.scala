@@ -15,8 +15,11 @@ case object FindFirstOnly extends SearchOption
 case object FindLastOnly extends SearchOption
 case object FindNextValues extends SearchOption
 
-trait DBNodes {
+trait FindNodes {
   def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, options: List[SearchOption]): List[Obj]
+}
+
+trait UniqueNodes {
   def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj
   def srcId: Attr[Option[UUID]]

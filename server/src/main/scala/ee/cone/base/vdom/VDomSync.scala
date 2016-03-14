@@ -1,25 +1,18 @@
 package ee.cone.base.vdom
 
-import java.util.Base64
+import java.util.{UUID, Base64}
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.{Single, Never, UTF8String}
+import ee.cone.base.util.{Never, UTF8String}
 import ee.cone.base.vdom.Types._
 
 class AlienAttrFactoryImpl(handlerLists: CoHandlerLists, currentVDom: CurrentVDom) extends AlienAttrFactory {
-  def apply[Value](attr: Attr[Value], key: VDomKey) = { //when handlers are are available
-    val eventAdder = Single(handlerLists.list(ChangeEventAdder(attr)))
-    new Attr[AlienRef[Value]] {
-      def defined = Never()
-      def get(node: Obj) = { // when making input tag
-        val addEvent = eventAdder(node) // remembers srcId
-        AlienRef(key, node(attr)){ newValue =>
-          addEvent(newValue)
-          currentVDom.invalidate()
-        }
-      }
-      def set(node: Obj, value: AlienRef[Value]) = Never()
-    }
+  def apply[Value](attr: Attr[Value]): UUID => Value => Unit = { //when handlers are are available
+    val addEvent = handlerLists.single(AddChangeEvent(attr))
+    (srcId: UUID) => // when making input tag
+    newValue =>
+    addEvent(srcId,newValue)
+    currentVDom.invalidate()
   }
 }
 

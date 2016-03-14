@@ -24,21 +24,22 @@ class SysAttrs(
   searchIndex: SearchIndex,
   nodeValueConverter: RawValueConverter[Obj],
   uuidValueConverter: RawValueConverter[Option[UUID]],
-  mandatory: Mandatory
+  mandatory: Mandatory,
+  unique: Unique
 )(
   val seq: Attr[Obj] = attr(new PropId(0x0001), nodeValueConverter),
   val asSrcIdentifiable: Attr[Obj] = label(0x0002),
   val srcId: Attr[Option[UUID]] = attr(new PropId(0x0003), uuidValueConverter)
 )(val handlers: List[BaseCoHandler] =
+  unique(asSrcIdentifiable, srcId) :::
   mandatory(asSrcIdentifiable, srcId, mutual = true) :::
   searchIndex.handlers(asSrcIdentifiable, srcId) :::
   Nil
 ) extends CoHandlerProvider
 
-class DBNodesImpl(
-  handlerLists: CoHandlerLists, converter: RawValueConverter[Obj],
-  nodeFactory: NodeFactory, at: SysAttrs
-) extends DBNodes {
+class FindNodesImpl(
+  handlerLists: CoHandlerLists, nodeFactory: NodeFactory
+) extends FindNodes {
   def where[Value](
     tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value,
     options: List[SearchOption]
@@ -48,24 +49,35 @@ class DBNodesImpl(
     var limit = Long.MaxValue
     var lastOnly = false
     var needSameValue = true
-    options.foreach{
+    options.foreach {
       case FindFirstOnly if limit == Long.MaxValue => limit = 1L
       case FindLastOnly => lastOnly = true
-      case FindFrom(node) if from.isEmpty => from = Some(node(nodeFactory.objId))
-      case FindAfter(node) if from.isEmpty => from = Some(node(nodeFactory.nextObjId))
-      case FindUpTo(node) if upTo.value == Long.MaxValue => upTo = node(nodeFactory.objId)
+      case FindFrom(node) if from.isEmpty =>
+        from = Some(node(nodeFactory.objId)
+      )
+      case FindAfter(node) if from.isEmpty =>
+        from = Some(node(nodeFactory.nextObjId)
+      )
+      case FindUpTo(node) if upTo.value == Long.MaxValue =>
+        upTo = node(nodeFactory.objId)
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
     println(s"searchKey: $searchKey")
     val handler = handlerLists.single(searchKey)
-    val feed = new NodeListFeedImpl(needSameValue,upTo,limit,nodeFactory,tx)
+    val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory, tx)
     val request = new SearchRequest[Value](tx, value, from, feed)
     handler(request)
     if(lastOnly) feed.result.headOption.toList else feed.result.reverse
   }
+}
+
+class UniqueNodesImpl(
+  converter: RawValueConverter[Obj], nodeFactory: NodeFactory, at: SysAttrs,
+  findNodes: FindNodes
+) extends UniqueNodes {
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
-    where(tx, at.asSrcIdentifiable.defined, at.srcId, Some(srcId), Nil) match {
+    findNodes.where(tx, at.asSrcIdentifiable.defined, at.srcId, Some(srcId), Nil) match {
       case Nil => converter.convertEmpty()
       case node :: Nil => node
       case _ => Never()

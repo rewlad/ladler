@@ -53,10 +53,6 @@ case class InputTextElement(value: String, deferSend: Boolean)(
 
 trait OfDiv
 
-trait Action {
-  def invoke(): Unit
-}
-
 class Tags(
   child: ChildPairFactory, inputAttributes: InputAttributes,
   onChange: OnChange, onClick: OnClick
@@ -68,13 +64,13 @@ class Tags(
 
   def text(key: VDomKey, label: String) =
     child[OfDiv](key, TextContentElement(label), Nil)
-  def input(prop: AlienRef[String]) =
-    child[OfDiv](prop.key, InputTextElement(prop.value, deferSend=true)(inputAttributes){
-      case `onChange`(v) => prop.invoke(v)
+  def input(key: String, value: String, change: String=>Unit) =
+    child[OfDiv](key, InputTextElement(value, deferSend=true)(inputAttributes){
+      case `onChange`(v) => change(v)
       case _ => Never()
     }, Nil)
-  def button(key: String, caption: String, action: Action) =
+  def button(key: String, caption: String, action: ()=>Unit) =
     child[OfDiv](key, ButtonElement(caption){
-      case `onClick` => action.invoke()
+      case `onClick` => action()
     }, Nil)
 }

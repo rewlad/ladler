@@ -50,6 +50,7 @@ trait SessionEventSourceAttrs {
   def asInstantSession: Attr[Obj]
   def instantSession: Attr[Obj]
   def sessionKey: Attr[Option[UUID]]
+  def mainSessionSrcId: Attr[Option[UUID]]
   def asEvent: Attr[Obj]
   def asRequest: Attr[Obj]
   def asEventStatus: Attr[Obj]

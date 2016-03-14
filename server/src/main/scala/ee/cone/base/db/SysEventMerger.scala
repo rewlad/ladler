@@ -9,12 +9,12 @@ class CurrentRequest(var value: Option[UUID])
 class MergerEventSourceOperationsImpl(
     ops: EventSourceOperations, at: MergerEventSourceAttrs,
     instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: DefaultTxManager[MainEnvKey],
-    allNodes: DBNodes, currentRequest: CurrentRequest
+    uniqueNodes: UniqueNodes, currentRequest: CurrentRequest
 ) extends CoHandlerProvider {
   def setRequestOK(ok: Boolean): Unit = currentRequest.value.foreach{ uuid ⇒
     currentRequest.value = None
     instantTxManager.rwTx{ ()⇒
-      ops.addEventStatus(allNodes.whereSrcId(instantTxManager.currentTx(),uuid), ok)
+      ops.addEventStatus(uniqueNodes.whereSrcId(instantTxManager.currentTx(),uuid), ok)
     }
   }
 
@@ -24,7 +24,7 @@ class MergerEventSourceOperationsImpl(
       instantTxManager.roTx { () ⇒
         val req = nextRequest()
         if (req.nonEmpty) {
-          currentRequest.value = req(allNodes.srcId)
+          currentRequest.value = req(uniqueNodes.srcId)
           ops.applyEvents(req(at.instantSession), FindUpTo(req) :: Nil)
         } else Thread.sleep(1000)
       }
@@ -33,7 +33,7 @@ class MergerEventSourceOperationsImpl(
     //? then notify
   } :: Nil
   private def nextRequest(): Obj = {
-    val seqNode = allNodes.seqNode(mainTxManager.currentTx())
+    val seqNode = uniqueNodes.seqNode(mainTxManager.currentTx())
     val seqRef: Ref[Obj] = ops.ref(seqNode, at.lastMergedRequest)
     val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef, Nil)
     reqSrc.poll()
