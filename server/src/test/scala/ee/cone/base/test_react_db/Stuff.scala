@@ -60,15 +60,15 @@ class TestView(
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
   findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
-  eventSourceOperations: SessionEventSourceOperations,
   tags: Tags,
   alienAttr: AlienAttrFactory,
   currentVDom: CurrentVDom
 ) extends CoHandlerProvider {
+  private def eventSource = handlerLists.single(SessionEventSource)
   private def emptyView(pf: String) = tags
     .root(tags.text("text", "Loading...") :: Nil)
   private def testView(pf: String) =
-    eventSourceOperations.incrementalApplyAndView { () ⇒
+    eventSource.incrementalApplyAndView { () ⇒
       val changeComments: (UUID) => (String) => Unit = alienAttr(at.comments)
       val tasks = findNodes.where(
         mainTx(),
@@ -83,6 +83,8 @@ class TestView(
           srcId.toString,
           tags.input("comments", task(at.comments), changeComments(srcId)) ::
             tags.button("remove", "-", removeTaskAction(srcId)) ::
+            tags.text("dbg0",if(task(at.asTestTask.defined)) "D" else "d") ::
+            tags.text("dbg1",s"[${task(at.testState)}]") ::
             Nil
         )
       }
@@ -90,12 +92,12 @@ class TestView(
       val addBtn = tags.button("add", "+", createTaskAction())
       tags.root(saveBtn :: addBtn :: taskSpans)
     }
-
   private def saveAction()() = {
-    eventSourceOperations.addRequest()
+    eventSource.addRequest()
+    currentVDom.invalidate()
   }
   private def removeTaskAction(srcId: UUID)() = {
-    handlerLists.single(AddEvent) { ev =>
+    eventSource.addEvent{ ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(srcId)
       at.taskRemoved
     }
@@ -104,10 +106,12 @@ class TestView(
   private def taskRemoved(ev: Obj): Unit = {
     val srcId = ev(alienAccessAttrs.targetSrcId).get
     val task = uniqueNodes.whereSrcId(mainTx(), srcId)
+    task(at.asTestTask) = uniqueNodes.noNode
+    task(at.comments) = ""
     task(at.testState) = ""
   }
   private def createTaskAction()() = {
-    handlerLists.single(AddEvent) { ev =>
+    eventSource.addEvent{ ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
       at.taskCreated
     }

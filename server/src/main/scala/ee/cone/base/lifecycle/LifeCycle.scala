@@ -37,8 +37,6 @@ object DoClose {
   }
 }
 
-
-
 class ExecutionManagerImpl(threadCount: Int) extends ExecutionManager {
   lazy val pool = Executors.newScheduledThreadPool(threadCount)
   def startServer(iteration: ()=>Unit) = pool.execute(ToRunnable {

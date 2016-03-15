@@ -21,10 +21,11 @@ class AlienCanChange(
   at: AlienAccessAttrs, handlerLists: CoHandlerLists,
   uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
 ) {
+  private def eventSource = handlerLists.single(SessionEventSource)
   def apply(attr: Attr[String]) = handlers(at.targetStringValue)(attr)
-  def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
+  private def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
       CoHandler(AddChangeEvent(attr)){ (srcId:UUID,newValue:Value) =>
-        handlerLists.single(AddEvent){ event =>
+        eventSource.addEvent{ event =>
           event(at.targetSrcId) = Option(srcId)
           event(targetAttr) = newValue
           attr.defined

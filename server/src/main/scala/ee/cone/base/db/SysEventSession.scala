@@ -63,7 +63,7 @@ class SessionEventSourceOperationsImpl(
     if (requests.exists(!ops.isUndone(_))) throw new Exception("event is requested")
     ops.addEventStatus(event, ok = false)
   }
-  private def addEvent(fill: Obj=>Attr[Boolean]): Unit = instantTxManager.rwTx { () ⇒
+  def addEvent(fill: Obj=>Attr[Boolean]): Unit = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val ev = ops.addInstant(instantSession, at.asEvent)
     ev(at.applyAttr) = fill(ev)
@@ -82,6 +82,6 @@ class SessionEventSourceOperationsImpl(
     instantTxManager.rwTx{ () ⇒ findOrAddSession() }
   }
   def handlers =
-    CoHandler(AddEvent)(addEvent) ::
+    CoHandler(SessionEventSource)(this) ::
     CoHandler(SwitchSession)(handleSessionKey) :: Nil
 }

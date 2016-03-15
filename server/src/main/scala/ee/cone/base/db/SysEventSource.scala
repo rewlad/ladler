@@ -39,7 +39,7 @@ class EventSourceAttrsImpl(
 )(val handlers: List[BaseCoHandler] =
     mandatory(asInstantSession,sessionKey,mutual = true) :::
     mandatory(asInstantSession,mainSessionSrcId,mutual = true) :::
-    mandatory(asMainSession,instantSession,mutual = false) :::
+    //mandatory(asMainSession,instantSession,mutual = false) :::
     mandatory(asMainSession,lastMergedEvent,mutual = true) :::
     mandatory(asEvent,instantSession,mutual = false) :::
     mandatory(asEvent,applyAttr,mutual = true) :::
@@ -50,7 +50,7 @@ class EventSourceAttrsImpl(
     mandatory(asUndo, asEventStatus, mutual = false) :::
     mandatory(asCommit, asEventStatus, mutual = false) :::
     searchIndex.handlers(asInstantSession, sessionKey) ::: ////
-    searchIndex.handlers(asMainSession, instantSession) ::: //
+    //searchIndex.handlers(asMainSession, instantSession) ::: //
     searchIndex.handlers(asEvent, instantSession) ::: //
     searchIndex.handlers(asUndo, event) ::: //
     searchIndex.handlers(asRequest, requested) ::: ///
@@ -84,19 +84,21 @@ class EventSourceOperationsImpl(
       if(isUndone(event)) poll() else event
     }
   }
-  def ref(node: Obj, attr: Attr[Obj]) = new Ref[Obj] {
-    def apply() = node(attr)
-    def update(value: Obj) = node(attr) = value
-  }
   def applyEvents(instantSession: Obj, options: List[SearchOption]): Unit = {
-    val sessions = findNodes.where(mainTx(), at.asMainSession.defined, at.instantSession, instantSession, Nil)
-    val seqNode = Single.option(sessions).getOrElse{
-      // UUID.nameUUIDFromBytes()
-      val mainSession = uniqueNodes.create(mainTx(), at.asMainSession, instantSession(at.mainSessionSrcId).get)
-      mainSession(at.instantSession) = instantSession
-      mainSession
+    val mainSrcId = instantSession(at.mainSessionSrcId).get
+    val seqRef = new Ref[Obj] {
+      private def find() = uniqueNodes.whereSrcId(mainTx(), mainSrcId)
+      def apply() = {
+        val node = find()
+        if(node.nonEmpty) node(at.lastMergedEvent) else uniqueNodes.noNode
+      }
+      def update(value: Obj) = {
+        val existingNode = find()
+        val node = if(existingNode.nonEmpty) existingNode
+          else uniqueNodes.create(mainTx(), at.asMainSession, mainSrcId)
+        node(at.lastMergedEvent) = value
+      }
     }
-    val seqRef = ref(seqNode, at.lastMergedEvent)
     val src = createEventSource(at.asEvent, at.instantSession, instantSession, seqRef, options)
     var event = src.poll()
     while(event.nonEmpty){

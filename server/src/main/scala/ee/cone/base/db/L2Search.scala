@@ -2,7 +2,7 @@
 package ee.cone.base.db
 
 import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
-import ee.cone.base.util.Never
+import ee.cone.base.util.{Hex, HexDebug, Never}
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
@@ -31,8 +31,13 @@ class SearchIndexImpl(
       throw new Exception(s"bad index on prop: $propAttr")
     val attr = attrFactory(labelRawAttr.labelId, propRawAttr.propId, propRawAttr.converter)
     def setter(on: Boolean)(node: Obj) =
-      if (node(labelAttr.defined) && node(propAttr.defined))
-        node(nodeFactory.rawIndex).set(converter.key(attr, node(propAttr), node(nodeFactory.objId)), converter.value(on))
+      if (node(labelAttr.defined) && node(propAttr.defined)){
+        val key = converter.key(attr, node(propAttr), node(nodeFactory.objId))
+        val rawIndex = node(nodeFactory.rawIndex)
+        val value = converter.value(on)
+        rawIndex.set(key, value)
+        println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
+      }
     val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
     CoHandler(searchKey)(execute[Value](attr)) ::
       (labelAttr :: propAttr :: Nil).flatMap{ a =>

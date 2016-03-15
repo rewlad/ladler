@@ -9,7 +9,7 @@ class MandatoryImpl(preCommitCheck: PreCommitCheckAllOfConnection, attrs: ListBy
     (condAttr :: mandatoryAttr :: Nil).map{ a =>
       CoHandler(AfterUpdate(a.defined))(preCommitCheck.create(nodes=>
         for(node ← nodes if node(condAttr.defined) && !node(mandatoryAttr.defined))
-          yield ValidationFailure(s"mandatory $condAttr :: $mandatoryAttr -- ${node(attrs)}", node)
+          yield ValidationFailure(s"mandatory $condAttr => $mandatoryAttr -- ${node(attrs)}", node)
       ))
     }
   }

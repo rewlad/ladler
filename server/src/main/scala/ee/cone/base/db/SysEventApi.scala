@@ -11,7 +11,6 @@ trait SessionState {
 
 ////
 
-case object AddEvent extends EventKey[(Obj=>Attr[Boolean])=>Unit]
 case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
 
 trait Ref[Value] {
@@ -21,7 +20,6 @@ trait Ref[Value] {
 
 trait EventSourceOperations {
   def isUndone(event: Obj): Boolean
-  def ref(node: Obj, attr: Attr[Obj]): Ref[Obj]
   def createEventSource[Value](label: Attr[Obj], prop: Attr[Value], value: Value, seqRef: Ref[Obj], options: List[SearchOption]): EventSource
   def applyEvents(instantSession: Obj, options: List[SearchOption]): Unit
   def addEventStatus(event: Obj, ok: Boolean): Unit
@@ -33,8 +31,11 @@ trait EventSource {
   def poll(): Obj
 }
 
+case object SessionEventSource extends EventKey[SessionEventSourceOperations]
+
 trait SessionEventSourceOperations {
   def incrementalApplyAndView[R](view: ()=>R): R
+  def addEvent(setup: Obj=>Attr[Boolean]): Unit
   def addRequest(): Unit
   def addUndo(eventSrcId: UUID): Unit
 }

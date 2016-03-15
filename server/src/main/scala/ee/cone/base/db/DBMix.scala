@@ -88,9 +88,11 @@ trait SessionDBConnectionMix extends DBConnectionMix {
   lazy val muxFactory = new MuxFactoryImpl
   lazy val mainTxManager =
     new SessionMainTxManagerImpl(lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll, muxFactory)
-  lazy val sessionEventSourceOperations =
-    new SessionEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, findNodes, uniqueNodes)
-  override def handlers = sessionEventSourceOperations.handlers ::: super.handlers
+  override def handlers =
+    new SessionEventSourceOperationsImpl(
+      eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, findNodes, uniqueNodes
+    ).handlers :::
+    super.handlers
 }
 
 /*

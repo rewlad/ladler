@@ -21,14 +21,7 @@ class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
     (lifeCycle:LifeCycle) ⇒ new TestMergerConnectionMix(this, lifeCycle)
 }
 
-class TestSessionConnectionMix(
-  app: TestAppMix, val lifeCycle: LifeCycle
-) extends BaseConnectionMix with ServerConnectionMix with SessionDBConnectionMix with VDomConnectionMix {
-  lazy val serverAppMix = app
-  lazy val dbAppMix = app
-  lazy val allowOrigin = Some("*")
-  lazy val framePeriod = 200L
-
+trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
   lazy val testAttrs = new TestAttrs(
     attrFactory,
     labelFactory,
@@ -43,16 +36,29 @@ class TestSessionConnectionMix(
   lazy val tags = new Tags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
 
   override def handlers =
-    testAttrs.handlers :::
-    new FailOfConnection(sender).handlers :::
-    new TestView(testAttrs,alienAccessAttrs,handlerLists,findNodes,uniqueNodes,mainTx,sessionEventSourceOperations, tags, alienAttrFactory, currentView).handlers :::
+      testAttrs.handlers :::
+      new TestView(
+        testAttrs, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx,
+        tags, alienAttrFactory, currentView
+      ).handlers :::
       //new DynEdit(sessionEventSourceOperations).handlers :::
       super.handlers
 }
 
+class TestSessionConnectionMix(
+  app: TestAppMix, val lifeCycle: LifeCycle
+) extends TestConnectionMix with SessionDBConnectionMix with ServerConnectionMix {
+  lazy val serverAppMix = app
+  lazy val dbAppMix = app
+  lazy val allowOrigin = Some("*")
+  lazy val framePeriod = 200L
+  override def handlers = new FailOfConnection(sender).handlers ::: super.handlers
+
+}
+
 class TestMergerConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle
-) extends BaseConnectionMix with MergerDBConnectionMix {
+) extends TestConnectionMix with MergerDBConnectionMix {
   def dbAppMix = app
 }
 
