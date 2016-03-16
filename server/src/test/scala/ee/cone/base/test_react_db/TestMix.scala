@@ -2,7 +2,7 @@ package ee.cone.base.test_react_db
 
 import java.nio.file.Paths
 
-import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.lifecycle.{BaseConnectionMix, BaseAppMix}
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
@@ -52,7 +52,10 @@ class TestSessionConnectionMix(
   lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
-  override def handlers = new FailOfConnection(sender).handlers ::: super.handlers
+  override def handlers =
+    new Dumper().handlers :::
+    new FailOfConnection(sender).handlers :::
+    super.handlers
 
 }
 
@@ -67,3 +70,25 @@ object TestApp extends App {
   app.start()
   println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html")
 }
+
+class Dumper extends CoHandlerProvider {
+  private def dump(currentTx: CurrentTx[_]) = {
+    val rawIndex = currentTx() match { case p: ProtectedBoundToTx[_] => p.rawIndex }
+    val rawIndexes = rawIndex match {
+      case i: MuxUnmergedIndex => i.unmerged :: i.merged :: Nil
+    }
+    val dataList = rawIndexes.collect {
+      case i: TestIndex => ("MT",i.data)
+      case i: NonEmptyUnmergedIndex => ("U",i.data)
+    }
+    for((hint,data) <- dataList){
+      println(s"### $hint")
+      for(pair <- data)
+        println(s"${RawDumpImpl.apply(pair._1)} -> ${RawDumpImpl.apply(pair._2)}")
+      println("###")
+    }
+  }
+  def handlers = CoHandler(DumpKey)(dump) :: Nil
+}
+
+case object DumpKey extends EventKey[CurrentTx[_]=>Unit]

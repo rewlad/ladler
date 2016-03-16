@@ -31,7 +31,7 @@ class NonEmptyUnmergedIndex(pass: RawKey=>RawValue) extends RawIndex {
   }
 }
 
-class MuxUnmergedIndex(var unmerged: RawIndex, merged: RawIndex) extends RawIndex {
+class MuxUnmergedIndex(var unmerged: RawIndex, val merged: RawIndex) extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
   def get(key: RawKey): RawValue = unmerged.get(key)
   def set(key: RawKey, value: RawValue): Unit = {
@@ -51,7 +51,7 @@ class MuxUnmergedIndex(var unmerged: RawIndex, merged: RawIndex) extends RawInde
     case _ ⇒ ()
   }
   private def chooseMin(): Unit = {
-    peek = if(compare(unmerged.peek, merged.peek)<0) unmerged.peek else merged.peek
+    peek = if(compare(unmerged.peek, merged.peek)<=0) unmerged.peek else merged.peek // <= unmerged value will have priority
     peek match {
       case p: KeyStatus if p.value.isEmpty ⇒ seekNext()
       case _ ⇒ ()

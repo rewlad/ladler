@@ -12,7 +12,7 @@ class TestIndex extends RawIndex {
   var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
   private var iterator: Iterator[(RawKey, RawValue)] = VoidKeyIterator
   def set(key: RawKey, value: RawValue) = {
-    println(s"uu -- ${Hex(key)} -- ${Hex(value)} -- ${value.length}")
+    //println(s"uu -- ${Hex(key)} -- ${Hex(value)} -- ${value.length}")
     if(value.length > 0) data = data + (key -> value) else data = data - key
   }
 
@@ -29,7 +29,7 @@ class TestIndex extends RawIndex {
 }
 
 class TestEnv[DBEnvKey](val dbId: Long) extends DBEnv[DBEnvKey] {
-  private var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
+  var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
   private def createRawIndex() = Setup(new TestIndex) { i =>
     synchronized { i.data = data }
   }

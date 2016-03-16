@@ -8,6 +8,7 @@ import ee.cone.base.util.{Hex, HexDebug, Never}
 
 class SearchIndexImpl(
   converter: RawSearchConverter,
+  rawKeyExtractor: RawKeyExtractor,
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory,
   nodeFactory: NodeFactory
@@ -20,7 +21,7 @@ class SearchIndexImpl(
     val tx = in.tx.asInstanceOf[ProtectedBoundToTx[_]]
     val rawIndex = if(tx.enabled) tx.rawIndex else Never()
     rawIndex.seek(fromKey)
-    rawVisitor.execute(rawIndex, whileKey, minKey.length, in.feed)
+    rawVisitor.execute(rawIndex, rawKeyExtractor, whileKey, minKey.length, in.feed)
   }
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     val labelRawAttr = labelAttr.asInstanceOf[RawAttr[_]]
@@ -36,7 +37,7 @@ class SearchIndexImpl(
         val rawIndex = node(nodeFactory.rawIndex)
         val value = converter.value(on)
         rawIndex.set(key, value)
-        println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
+        //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
       }
     val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
     CoHandler(searchKey)(execute[Value](attr)) ::

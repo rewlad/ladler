@@ -15,6 +15,7 @@ class MergerEventSourceOperationsImpl(
   def setRequestOK(ok: Boolean): Unit = currentRequest.value.foreach{ uuid ⇒
     currentRequest.value = None
     instantTxManager.rwTx{ ()⇒
+      println(s"merger: req ok $ok")
       ops.addEventStatus(uniqueNodes.whereSrcId(instantTxManager.currentTx(),uuid), ok)
     }
   }
@@ -26,7 +27,7 @@ class MergerEventSourceOperationsImpl(
       instantTxManager.roTx { () ⇒
         val req = nextRequest()
         if (req.nonEmpty) {
-          println("req nonEmpty")
+          println("merger: req nonEmpty")
           currentRequest.value = req(uniqueNodes.srcId)
           ops.applyEvents(req(at.instantSession), FindUpTo(req) :: Nil)
         }

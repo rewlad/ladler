@@ -67,8 +67,9 @@ class TestView(
   private def eventSource = handlerLists.single(SessionEventSource)
   private def emptyView(pf: String) = tags
     .root(tags.text("text", "Loading...") :: Nil)
-  private def testView(pf: String) =
+  private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
+      val startTime = System.currentTimeMillis
       val changeComments: (UUID) => (String) => Unit = alienAttr(at.comments)
       val tasks = findNodes.where(
         mainTx(),
@@ -88,10 +89,18 @@ class TestView(
             Nil
         )
       }
+      val dumpBtn = tags.button("dump", "dump", dumpAction())
       val saveBtn = tags.button("save", "save", saveAction())
       val addBtn = tags.button("add", "+", createTaskAction())
-      tags.root(saveBtn :: addBtn :: taskSpans)
+      val res = tags.root(dumpBtn :: saveBtn :: addBtn :: taskSpans)
+      val endTime = System.currentTimeMillis
+      currentVDom.until(endTime+(endTime-startTime)*10)
+      res
     }
+  }
+  private def dumpAction()() = {
+    handlerLists.single(DumpKey)(mainTx)
+  }
   private def saveAction()() = {
     eventSource.addRequest()
     currentVDom.invalidate()

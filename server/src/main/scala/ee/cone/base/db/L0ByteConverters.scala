@@ -52,19 +52,22 @@ class RawFactConverterImpl extends RawFactConverter {
     val exAttrId = CompactBytes.toReadAfter(key, exObjId).checkIsLastIn(key)
     (exObjId.readLong(key), exAttrId.readLong(key))
   }*/
-  def dump(b: Array[Byte]) = {
+}
+
+object RawDumpImpl extends RawDump {
+  def apply(b: Array[Byte]) = {
     var pos = 0
-    val res = new StringBuilder
+    var res: List[Option[Object]] = Nil
     while(pos < b.length){
       val ex = CompactBytes.toReadAt(b,pos)
       ex.head match {
-        case hd@CompactBytes.`splitterHead` => res.append("[|]")
-        case hd@CompactBytes.`strHead` => res.append(s"[${ex.readString(b)}]")
-        case hd => res.append(s"[${HexDebug(ex.readLong(b))}]")
+        case hd@CompactBytes.`splitterHead` => res = None :: res
+        case hd@CompactBytes.`strHead` => res = Some(ex.readString(b)) :: res
+        case hd => res = Some(java.lang.Long.valueOf(ex.readLong(b))) :: res
       }
       pos = ex.nextPos
     }
-    res.toString
+    res.reverse
   }
 }
 

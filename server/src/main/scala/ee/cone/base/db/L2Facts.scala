@@ -7,6 +7,7 @@ import ee.cone.base.util.{Hex, Never}
 
 class FactIndexImpl(
   rawFactConverter: RawFactConverter,
+  rawKeyExtractor: RawKeyExtractor,
   rawVisitor: RawVisitor,
   calcLists: CoHandlerLists,
   nodeFactory: NodeFactory
@@ -35,7 +36,7 @@ class FactIndexImpl(
     val key = rawFactConverter.keyWithoutAttrId(node(nodeFactory.objId))
     val rawIndex = node(nodeFactory.rawIndex)
     rawIndex.seek(key)
-    rawVisitor.execute(rawIndex, key, key.length, feed)
+    rawVisitor.execute(rawIndex, rawKeyExtractor, key, key.length, feed)
   }
 }
 

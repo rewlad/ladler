@@ -19,13 +19,15 @@ trait RawAttr[Value] {
 
 // raw converters
 
+trait RawDump {
+  def apply(b: Array[Byte]): List[Object]
+}
 trait RawFactConverter {
   def key(objId: ObjId, attrId: RawAttr[_]): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
   def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId): RawValue
   def valueFromBytes[Value](converter: RawValueConverter[Value], b: RawValue): Value
-  def dump(b: Array[Byte]): String
 }
 trait RawSearchConverter {
   def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId): RawKey

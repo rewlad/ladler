@@ -23,18 +23,17 @@ trait DBConnectionMix extends CoMixBase {
   lazy val attrIdExtractor = new AttrIdExtractor
   lazy val objIdExtractor = new ObjIdExtractor(rawFactConverter)
   // L1
-  lazy val attrIdRawVisitor = new RawVisitorImpl(attrIdExtractor)
-  lazy val objIdRawVisitor = new RawVisitorImpl(objIdExtractor)
+  lazy val rawVisitor = new RawVisitorImpl
   // L2
   lazy val nodeFactory = new NodeFactoryImpl()
   lazy val factIndex =
-    new FactIndexImpl(rawFactConverter, attrIdRawVisitor, handlerLists, nodeFactory)
+    new FactIndexImpl(rawFactConverter, attrIdExtractor, rawVisitor, handlerLists, nodeFactory)
   lazy val definedValueConverter =
     new DefinedValueConverter(InnerRawValueConverterImpl)
   lazy val attrFactory =
     new AttrFactoryImpl(definedValueConverter, factIndex)()
   lazy val searchIndex =
-    new SearchIndexImpl(rawSearchConverter, objIdRawVisitor, attrFactory, nodeFactory)
+    new SearchIndexImpl(rawSearchConverter, objIdExtractor, rawVisitor, attrFactory, nodeFactory)
 
   // L3
   lazy val attrValueConverter =
