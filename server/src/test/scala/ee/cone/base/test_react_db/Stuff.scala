@@ -78,29 +78,41 @@ class TestView(
         "A",
         Nil
       )
-      val taskSpans = tasks.map { task =>
+      val taskLines = tasks.map { task =>
         val srcId = task(uniqueNodes.srcId).get
-        tags.span(
+        tags.div(
           srcId.toString,
           tags.input("comments", task(at.comments), changeComments(srcId)) ::
             tags.button("remove", "-", removeTaskAction(srcId)) ::
-            tags.text("dbg0",if(task(at.asTestTask.defined)) "D" else "d") ::
-            tags.text("dbg1",s"[${task(at.testState)}]") ::
+            //tags.text("dbg0",if(task(at.asTestTask.defined)) "D" else "d") ::
+            //tags.text("dbg1",s"[${task(at.testState)}]") ::
             Nil
         )
       }
-      val dumpBtn = tags.button("dump", "dump", dumpAction())
-      val saveBtn = tags.button("save", "save", saveAction())
-      val addBtn = tags.button("add", "+", createTaskAction())
-      val res = tags.root(dumpBtn :: saveBtn :: addBtn :: taskSpans)
+      val eventLines = eventSource.unmergedEvents.map { ev =>
+        val srcId = ev(uniqueNodes.srcId).get
+        tags.div(
+          srcId.toString,
+          tags.text("text", ev(eventSource.comment)) ::
+          tags.button("remove", "-", ()=>eventSource.addUndo(srcId)) ::
+          Nil
+        )
+      }
+      val res = tags.root(
+        tags.button("save", "save", saveAction()) ::
+        tags.button("add", "+", createTaskAction()) ::
+        tags.button("fail", "fail", failAction()) ::
+        tags.button("dump", "dump", dumpAction()) ::
+        taskLines ::: eventLines ::: Nil
+      )
       val endTime = System.currentTimeMillis
       currentVDom.until(endTime+(endTime-startTime)*10)
       res
     }
   }
-  private def dumpAction()() = {
-    handlerLists.single(DumpKey)(mainTx)
-  }
+  private def failAction()() = throw new Exception("test fail")
+  private def dumpAction()() = handlerLists.single(DumpKey)(mainTx)
+
   private def saveAction()() = {
     eventSource.addRequest()
     currentVDom.invalidate()
@@ -108,7 +120,7 @@ class TestView(
   private def removeTaskAction(srcId: UUID)() = {
     eventSource.addEvent{ ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(srcId)
-      at.taskRemoved
+      (at.taskRemoved, "task was removed")
     }
     currentVDom.invalidate()
   }
@@ -122,7 +134,7 @@ class TestView(
   private def createTaskAction()() = {
     eventSource.addEvent{ ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
-      at.taskCreated
+      (at.taskCreated, "task was created")
     }
     currentVDom.invalidate()
   }

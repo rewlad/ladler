@@ -77,7 +77,7 @@ class AttrValueConverter(
     val attr = value.asInstanceOf[RawAttr[Boolean]]
     inner.allocWrite(before, attr.labelId.value, attr.propId.value, after)
   }
-  def nonEmpty(value: Attr[Boolean]) = true
+  def nonEmpty(value: Attr[Boolean]) = value.isInstanceOf[RawAttr[_]]
 }
 
 // for true Boolean converter? if(nonEmpty(value)) inner.allocWrite(before, 1L, 0L, after) else Never()

@@ -8,43 +8,36 @@ import ee.cone.base.connection_api._
 class CurrentRequest(var value: Option[UUID])
 
 class MergerEventSourceOperationsImpl(
-    ops: EventSourceOperations, at: MergerEventSourceAttrs,
+    ops: ForMergerEventSourceOperations,
     instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: DefaultTxManager[MainEnvKey],
     uniqueNodes: UniqueNodes, currentRequest: CurrentRequest
 ) extends CoHandlerProvider {
-  def setRequestOK(ok: Boolean): Unit = currentRequest.value.foreach{ uuid ⇒
-    currentRequest.value = None
-    instantTxManager.rwTx{ ()⇒
-      println(s"merger: req ok $ok")
-      ops.addEventStatus(uniqueNodes.whereSrcId(instantTxManager.currentTx(),uuid), ok)
-    }
-  }
+  private def toInstantNode(uuid: UUID) =
+    uniqueNodes.whereSrcId(instantTxManager.currentTx(),uuid)
 
   def handlers = CoHandler(ActivateReceiver){ ()=>
-    //println("merger activated")
-    setRequestOK(false)
+    currentRequest.value.foreach { uuid ⇒
+      currentRequest.value = None
+      instantTxManager.rwTx{ ()⇒ ops.undo(toInstantNode(uuid)) }
+    }
     mainTxManager.rwTx { () ⇒
       instantTxManager.roTx { () ⇒
-        val req = nextRequest()
+        val req = ops.nextRequest()
         if (req.nonEmpty) {
           println("merger: req nonEmpty")
           currentRequest.value = req(uniqueNodes.srcId)
-          ops.applyEvents(req(at.instantSession), FindUpTo(req) :: Nil)
+          ops.applyRequestedEvents(req)
         }
       }
     }
-    if(currentRequest.value.nonEmpty) setRequestOK(true) else Thread.sleep(1000)
+    if(currentRequest.value.nonEmpty) {
+      instantTxManager.rwTx { () ⇒
+        ops.addCommit (toInstantNode(currentRequest.value.get))
+      }
+      currentRequest.value = None
+    } else Thread.sleep(1000)
     //? then notify
   } :: Nil
-  private def nextRequest(): Obj = {
-    val seqNode = uniqueNodes.seqNode(mainTxManager.currentTx())
-    val seqRef = new Ref[Obj] {
-      def apply() = seqNode(at.lastMergedRequest)
-      def update(value: Obj) = seqNode(at.lastMergedRequest) = value
-    }
-    val reqSrc = ops.createEventSource(at.asRequest, at.requested, ops.requested, seqRef, Nil)
-    reqSrc.poll()
-  }
 }
 
 class Merger(

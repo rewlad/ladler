@@ -3,7 +3,7 @@ package ee.cone.base.db
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.Single
+import ee.cone.base.util.{Never, Single}
 
 //! lost calc-s
 //! id-ly typing
@@ -15,6 +15,7 @@ class EventSourceAttrsImpl(
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
+  definedValueConverter: RawValueConverter[Boolean],
   nodeValueConverter: RawValueConverter[Obj],
   attrValueConverter: RawValueConverter[Attr[Boolean]],
   uuidValueConverter: RawValueConverter[Option[UUID]],
@@ -27,15 +28,16 @@ class EventSourceAttrsImpl(
   val instantSession: Attr[Obj] = attr(new PropId(0x0013), nodeValueConverter),
   val lastMergedEvent: Attr[Obj] = attr(new PropId(0x0014), nodeValueConverter),
   val asEvent: Attr[Obj] = label(0x0015),
-  val asEventStatus: Attr[Obj] = label(0x0016),
-  val event: Attr[Obj] = attr(new PropId(0x0017), nodeValueConverter),
+  val lastAppliedEvent: Attr[Obj] = attr(new PropId(0x0016), nodeValueConverter),
+  val statesAbout: Attr[Obj] = attr(new PropId(0x0017), nodeValueConverter),
   val asUndo: Attr[Obj] = label(0x0018),
   val asCommit: Attr[Obj] = label(0x0019),
   val lastMergedRequest: Attr[Obj] = attr(new PropId(0x001A), nodeValueConverter),
-  val asRequest: Attr[Obj] = label(0x001B),
-  val requested: Attr[String] = attr(new PropId(0x001C), stringValueConverter),
+  val requested: Attr[Boolean] = attr(new PropId(0x001B), definedValueConverter),
+  val justIndexed: Attr[String] = attr(new PropId(0x001C), stringValueConverter),
   val applyAttr: Attr[Attr[Boolean]] = attr(new PropId(0x001D), attrValueConverter),
-  val mainSessionSrcId: Attr[Option[UUID]] = attr(new PropId(0x001E), uuidValueConverter)
+  val mainSessionSrcId: Attr[Option[UUID]] = attr(new PropId(0x001E), uuidValueConverter),
+  val comment: Attr[String] = attr(new PropId(0x001F), stringValueConverter)
 )(val handlers: List[BaseCoHandler] =
     mandatory(asInstantSession,sessionKey,mutual = true) :::
     mandatory(asInstantSession,mainSessionSrcId,mutual = true) :::
@@ -43,75 +45,107 @@ class EventSourceAttrsImpl(
     mandatory(asMainSession,lastMergedEvent,mutual = true) :::
     mandatory(asEvent,instantSession,mutual = false) :::
     mandatory(asEvent,applyAttr,mutual = true) :::
-    mandatory(asEventStatus,instantSession,mutual = false) :::
-    mandatory(asRequest,requested,mutual = true) :::
-    mandatory(event,asEventStatus,mutual = false) :::
-    mandatory(asRequest,asEventStatus,mutual = false) :::
-    mandatory(asUndo, asEventStatus, mutual = false) :::
-    mandatory(asCommit, asEventStatus, mutual = false) :::
+    mandatory(asCommit,instantSession,mutual = false) :::
+    mandatory(asUndo, statesAbout, mutual = false) :::
+    mandatory(asCommit, statesAbout, mutual = false) :::
     searchIndex.handlers(asInstantSession, sessionKey) ::: ////
     //searchIndex.handlers(asMainSession, instantSession) ::: //
     searchIndex.handlers(asEvent, instantSession) ::: //
-    searchIndex.handlers(asUndo, event) ::: //
-    searchIndex.handlers(asRequest, requested) ::: ///
-    searchIndex.handlers(asEventStatus, instantSession) ::: ////
-    searchIndex.handlers(asRequest, instantSession) ::: ////
+    searchIndex.handlers(asUndo, statesAbout) ::: //
+    searchIndex.handlers(asCommit, statesAbout) ::: //
+    searchIndex.handlers(asCommit, justIndexed) ::: //
+    searchIndex.handlers(asEvent, applyAttr) ::: ///
+    searchIndex.handlers(asCommit, instantSession) ::: ////
+    CoHandler(ApplyEvent(requested))(_=>()) ::
     Nil
-) extends CoHandlerProvider with MergerEventSourceAttrs with SessionEventSourceAttrs
+) extends CoHandlerProvider with SessionEventSourceAttrs
 
 class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
+  sysAttrs: SysAttrs,
   factIndex: FactIndex, //u
   nodeHandlerLists: CoHandlerLists, //u
   findNodes: FindNodes,
   uniqueNodes: UniqueNodes,
   instantTx: CurrentTx[InstantEnvKey], //u
   mainTx: CurrentTx[MainEnvKey] //u
-) extends EventSourceOperations {
-  def isUndone(event: Obj) =
-    findNodes.where(instantTx(), at.asUndo.defined, at.event, event, Nil).nonEmpty
-  def createEventSource[Value](
-      label: Attr[Obj], prop: Attr[Value], value: Value,
-      seqRef: Ref[Obj], options: List[SearchOption]
-  ) =  new EventSource {
-    def poll(): Obj = {
-      val lastNode = seqRef()
-      val from = if(lastNode.nonEmpty) FindAfter(lastNode) :: Nil else Nil
-      val result = findNodes.where(instantTx(), label.defined, prop, value, FindFirstOnly :: from ::: options)
-      if(result.isEmpty){ return uniqueNodes.noNode }
-      val event :: Nil = result
-      seqRef() = event
-      if(isUndone(event)) poll() else event
-    }
-  }
-  def applyEvents(instantSession: Obj, options: List[SearchOption]): Unit = {
+) extends ForMergerEventSourceOperations with ForSessionEventSourceOperations {
+  private def isUndone(event: Obj) =
+    findNodes.where(instantTx(), at.asUndo.defined, at.statesAbout, event, Nil).nonEmpty
+  private def lastInstant = uniqueNodes.seqNode(instantTx())(sysAttrs.seq)
+  def unmergedEvents(instantSession: Obj): List[Obj] =
+    unmergedEvents(instantSession,at.lastMergedEvent,lastInstant).list
+  class UnmergedEvents(val list: List[Obj])(val needMainSession: ()=>Obj)
+  private def unmergedEvents(instantSession: Obj, markAttr: Attr[Obj], upTo: Obj): UnmergedEvents = {
     val mainSrcId = instantSession(at.mainSessionSrcId).get
-    val seqRef = new Ref[Obj] {
-      private def find() = uniqueNodes.whereSrcId(mainTx(), mainSrcId)
-      def apply() = {
-        val node = find()
-        if(node.nonEmpty) node(at.lastMergedEvent) else uniqueNodes.noNode
-      }
-      def update(value: Obj) = {
-        val existingNode = find()
-        val node = if(existingNode.nonEmpty) existingNode
-          else uniqueNodes.create(mainTx(), at.asMainSession, mainSrcId)
-        node(at.lastMergedEvent) = value
+    val existingMainSession = uniqueNodes.whereSrcId(mainTx(), mainSrcId)
+    val lastMergedEvent =
+      if(existingMainSession.nonEmpty) existingMainSession(markAttr)
+      else uniqueNodes.noNode
+    val findAfter =
+      if(lastMergedEvent.nonEmpty) FindAfter(lastMergedEvent) :: Nil else Nil
+    if(!upTo.nonEmpty) Never()
+    val events = findNodes.where(
+      instantTx(), at.asEvent.defined, at.instantSession, instantSession,
+      FindUpTo(upTo) :: findAfter
+    ).filterNot(isUndone)
+    new UnmergedEvents(events)(() =>
+      if(existingMainSession.nonEmpty) existingMainSession
+        else uniqueNodes.create(mainTx(), at.asMainSession, mainSrcId)
+    )
+  }
+
+  def undo(ev: Obj) = {
+    val status = addInstant(ev(at.instantSession), at.asUndo)
+    status(at.statesAbout) = ev
+  }
+  def addCommit(req: Obj) = {
+    val status = addInstant(req(at.instantSession), at.asCommit)
+    status(at.justIndexed) = justIndexed
+    status(at.statesAbout) = req
+  }
+
+  def applyRequestedEvents(req: Obj) = {
+    val upTo = req
+    val instantSession = req(at.instantSession)
+    val events = unmergedEvents(instantSession, at.lastMergedEvent, upTo)
+    val mainSession = applyEvents(events)
+    mainSession(at.lastMergedEvent) = upTo
+  }
+  def applyEvents(instantSession: Obj) = {
+    val upTo = lastInstant
+    val attr = new Attr[Obj] {
+      def defined = Never()
+      def set(node: Obj, value: Obj) = Never()
+      def get(node: Obj) = {
+        val res = node(at.lastAppliedEvent)
+        if(res.nonEmpty) res else node(at.lastMergedEvent)
       }
     }
-    val src = createEventSource(at.asEvent, at.instantSession, instantSession, seqRef, options)
-    var event = src.poll()
-    while(event.nonEmpty){
+    val events = unmergedEvents(instantSession, attr, upTo)
+    val mainSession = applyEvents(events)
+    mainSession(at.lastAppliedEvent) = upTo
+  }
+  private def applyEvents(events: UnmergedEvents) = {
+    events.list.foreach{ event =>
+      // println(s"$markAttr applied: ${event(uniqueNodes.srcId)}")
       factIndex.switchReason(event)
       nodeHandlerLists.single(ApplyEvent(event(at.applyAttr)))(event)
       factIndex.switchReason(uniqueNodes.noNode)
-      event = src.poll()
     }
+    events.needMainSession()
   }
-  def addEventStatus(event: Obj, ok: Boolean) = {
-    val status = addInstant(event(at.instantSession), at.asEventStatus)
-    status(if(ok) at.asCommit else at.asUndo) = status
-    status(at.event) = event
+
+  def nextRequest(): Obj = {
+    val lastNode = uniqueNodes.seqNode(mainTx())(at.lastMergedRequest)
+    val from = if(lastNode.nonEmpty) FindAfter(lastNode) :: Nil else Nil
+    val result = findNodes.where(
+      instantTx(), at.asEvent.defined, at.applyAttr, at.requested, FindFirstOnly :: from
+    )
+    if(result.isEmpty){ return uniqueNodes.noNode }
+    val event :: Nil = result
+    uniqueNodes.seqNode(mainTx())(at.lastMergedRequest) = event
+    if(isUndone(event)) nextRequest() else event
   }
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
     val res = uniqueNodes.create(instantTx(), label, UUID.randomUUID)
@@ -119,5 +153,5 @@ class EventSourceOperationsImpl(
     println("addInstant")
     res
   }
-  def requested = "Y"
+  def justIndexed = "Y"
 }

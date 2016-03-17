@@ -6,7 +6,7 @@ import ee.cone.base.db.Types._
 import ee.cone.base.util.{Never, Single}
 
 class SessionEventSourceOperationsImpl(
-  ops: EventSourceOperations, at: SessionEventSourceAttrs,
+  ops: ForSessionEventSourceOperations, at: SessionEventSourceAttrs,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
   findNodes: FindNodes, uniqueNodes: UniqueNodes
 ) extends SessionEventSourceOperations with CoHandlerProvider {
@@ -30,57 +30,53 @@ class SessionEventSourceOperationsImpl(
     instantTxManager.roTx { () ⇒
       val instantSession = findSession().get
       mainTxManager.muxTx(needRecreate(instantSession)){ () ⇒
-        ops.applyEvents(instantSession, Nil)
+        ops.applyEvents(instantSession)
         view()
       }
     }
   }
+  def unmergedEvents = ops.unmergedEvents(findSession().get)
+  var decoupled: Boolean = false
   private var lastStatusSrcId: Option[UUID] = None
   private def needRecreate(instantSession: Obj): Boolean = {
     val tx = instantTxManager.currentTx()
-    val findAfter =
-      lastStatusSrcId.map(uuid=>FindAfter(uniqueNodes.whereSrcId(tx, uuid))).toList
-    val newStatuses = findNodes.where(
-      tx, at.asEventStatus.defined,
-      at.instantSession, instantSession,
-      FindLastOnly :: findAfter
+    val options =
+      FindLastOnly :: lastStatusSrcId.map(uuid=>FindAfter(uniqueNodes.whereSrcId(tx, uuid))).toList
+    val newStatuses = if(decoupled) findNodes.where(
+      tx, at.asCommit.defined, at.instantSession, instantSession, options
+    ) else findNodes.where(
+      tx, at.asCommit.defined, at.justIndexed, ops.justIndexed, options
     )
     if(newStatuses.isEmpty) return false
     val newStatus :: Nil = newStatuses
     lastStatusSrcId = newStatus(uniqueNodes.srcId)
     true
   }
-  def addUndo(eventSrcId: UUID) = instantTxManager.rwTx { () ⇒
+  def addUndo(uuid: UUID) = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
-    val tx = instantTxManager.currentTx()
-    val event = uniqueNodes.whereSrcId(tx, eventSrcId)
-    if (event(at.instantSession) != instantSession) Never()
-    val requests = findNodes.where(
-      tx, at.asRequest.defined,
-      at.instantSession, instantSession,
-      FindFrom(event) :: Nil
+    mainTxManager.muxTx(recreate=true)(()=>
+      ops.unmergedEvents(instantSession).reverse.foreach{ ev =>
+        if(ev(uniqueNodes.srcId).get == uuid) ops.undo(ev)
+        if(ev(at.applyAttr) == at.requested) Never() // check
+      }
     )
-    if (requests.exists(!ops.isUndone(_))) throw new Exception("event is requested")
-    ops.addEventStatus(event, ok = false)
   }
-  def addEvent(fill: Obj=>Attr[Boolean]): Unit = instantTxManager.rwTx { () ⇒
+  def addEvent(fill: Obj=>(Attr[Boolean],String)): Unit = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val ev = ops.addInstant(instantSession, at.asEvent)
-    ev(at.applyAttr) = fill(ev)
+    val (handler, comment) = fill(ev)
+    ev(at.applyAttr) = handler
+    ev(at.comment) = comment
   }
 
-  def addRequest() = instantTxManager.rwTx { () ⇒
-    val instantSession = findSession().get
-    val status = ops.addInstant(instantSession, at.asEventStatus)
-    status(at.asRequest) = status
-    status(at.requested) = ops.requested
-  }
+  def addRequest() = addEvent{ req ⇒ (at.requested, "requested") }
   private def handleSessionKey(uuid: UUID): Unit = {
     val uuidOpt = Option(uuid)
     if(sessionKeyOpt == uuidOpt){ return }
     sessionKeyOpt = uuidOpt
     instantTxManager.rwTx{ () ⇒ findOrAddSession() }
   }
+  def comment = at.comment
   def handlers =
     CoHandler(SessionEventSource)(this) ::
     CoHandler(SwitchSession)(handleSessionKey) :: Nil

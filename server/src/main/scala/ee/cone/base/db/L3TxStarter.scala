@@ -67,6 +67,7 @@ class SessionMainTxManagerImpl(
   private var mux: Option[Mux] = None
   def muxTx[R](recreate: Boolean)(f: ()⇒R) = withBusy{ () ⇒
     if(recreate)mux.foreach{ m ⇒
+      println("recreate")
       register(m.tx,on=false)
       mux = None
       m.lifeCycle.close()

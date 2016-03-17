@@ -64,9 +64,9 @@ trait DBConnectionMix extends CoMixBase {
 
   // Sys
   lazy val eventSourceAttrs =
-    new EventSourceAttrsImpl(attrFactory,labelFactory,searchIndex,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
+    new EventSourceAttrsImpl(attrFactory,labelFactory,searchIndex,definedValueConverter,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
   lazy val eventSourceOperations =
-    new EventSourceOperationsImpl(eventSourceAttrs,factIndex,handlerLists,findNodes,uniqueNodes,instantTx,mainTx)
+    new EventSourceOperationsImpl(eventSourceAttrs,sysAttrs,factIndex,handlerLists,findNodes,uniqueNodes,instantTx,mainTx)
 
   lazy val alienAccessAttrs = new AlienAccessAttrs(attrFactory, searchIndex, nodeValueConverter, uuidValueConverter, stringValueConverter, mandatory)()()
   lazy val alienCanChange = new AlienCanChange(alienAccessAttrs,handlerLists,uniqueNodes,mainTx)
@@ -79,7 +79,7 @@ trait MergerDBConnectionMix extends DBConnectionMix {
   lazy val mainTxManager =
     new DefaultTxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
   override def handlers =
-    new MergerEventSourceOperationsImpl(eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, uniqueNodes, currentRequest).handlers :::
+    new MergerEventSourceOperationsImpl(eventSourceOperations, instantTxManager, mainTxManager, uniqueNodes, currentRequest).handlers :::
     super.handlers
 }
 

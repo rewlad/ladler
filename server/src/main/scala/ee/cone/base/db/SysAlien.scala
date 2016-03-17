@@ -28,10 +28,11 @@ class AlienCanChange(
         eventSource.addEvent{ event =>
           event(at.targetSrcId) = Option(srcId)
           event(targetAttr) = newValue
-          attr.defined
+          (attr.defined, s"value of $attr was changed to $newValue")
         }
       } ::
       CoHandler(ApplyEvent(attr.defined)){ event =>
+        println(event(at.targetSrcId).get)
         val node = uniqueNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
         node(attr) = event(targetAttr)
       } :: Nil

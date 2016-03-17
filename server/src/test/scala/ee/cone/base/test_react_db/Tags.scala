@@ -61,7 +61,8 @@ class Tags(
     child("root", WrappingElement, children).value
   def span(key: VDomKey, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key, WrappingElement, children)
-
+  def div(key: VDomKey, children: List[ChildPair[OfDiv]]) =
+    child[OfDiv](key, DivElement, children)
   def text(key: VDomKey, label: String) =
     child[OfDiv](key, TextContentElement(label), Nil)
   def input(key: String, value: String, change: String=>Unit) =

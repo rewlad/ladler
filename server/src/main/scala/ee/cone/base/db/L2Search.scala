@@ -14,12 +14,13 @@ class SearchIndexImpl(
   nodeFactory: NodeFactory
 ) extends SearchIndex {
   private def execute[Value](attr: RawAttr[Value])(in: SearchRequest[Value]) = {
+    //println("SS",attr)
     val minKey = converter.keyWithoutObjId(attr, attr.converter.convertEmpty())
     val whileKey = converter.keyWithoutObjId(attr, in.value) // not protected from empty
     val fromKey = if(in.objId.isEmpty) whileKey
       else converter.key(attr, in.value, in.objId.get)
     val tx = in.tx.asInstanceOf[ProtectedBoundToTx[_]]
-    val rawIndex = if(tx.enabled) tx.rawIndex else Never()
+    val rawIndex = if(tx.enabled) tx.rawIndex else throw new Exception("tx is disabled")
     rawIndex.seek(fromKey)
     rawVisitor.execute(rawIndex, rawKeyExtractor, whileKey, minKey.length, in.feed)
   }
@@ -41,10 +42,10 @@ class SearchIndexImpl(
       }
     val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
     CoHandler(searchKey)(execute[Value](attr)) ::
-      (labelAttr :: propAttr :: Nil).flatMap{ a =>
-        CoHandler(BeforeUpdate(a.defined))(setter(on=false)) ::
-        CoHandler(AfterUpdate(a.defined))(setter(on=true)) :: Nil
-      }
+    (labelAttr :: propAttr :: Nil).flatMap{ a =>
+      CoHandler(BeforeUpdate(a.defined))(setter(on=false)) ::
+      CoHandler(AfterUpdate(a.defined))(setter(on=true)) :: Nil
+    }
   }
 }
 

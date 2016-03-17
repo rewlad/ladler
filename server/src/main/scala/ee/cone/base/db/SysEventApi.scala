@@ -19,32 +19,32 @@ trait Ref[Value] {
 }
 
 trait EventSourceOperations {
-  def isUndone(event: Obj): Boolean
-  def createEventSource[Value](label: Attr[Obj], prop: Attr[Value], value: Value, seqRef: Ref[Obj], options: List[SearchOption]): EventSource
-  def applyEvents(instantSession: Obj, options: List[SearchOption]): Unit
-  def addEventStatus(event: Obj, ok: Boolean): Unit
-  def addInstant(instantSession: Obj, label: Attr[Obj]): Obj
-  def requested: String
+  def undo(ev: Obj): Unit
 }
 
-trait EventSource {
-  def poll(): Obj
+trait ForSessionEventSourceOperations extends EventSourceOperations {
+  def unmergedEvents(instantSession: Obj): List[Obj]
+  def applyEvents(instantSession: Obj): Unit
+  def addInstant(instantSession: Obj, label: Attr[Obj]): Obj
+  def justIndexed: String
+}
+
+trait ForMergerEventSourceOperations extends EventSourceOperations {
+  def addCommit(req: Obj): Unit
+  def applyRequestedEvents(req: Obj): Unit
+  def nextRequest(): Obj
 }
 
 case object SessionEventSource extends EventKey[SessionEventSourceOperations]
 
 trait SessionEventSourceOperations {
+  var decoupled: Boolean
   def incrementalApplyAndView[R](view: ()=>R): R
-  def addEvent(setup: Obj=>Attr[Boolean]): Unit
+  def unmergedEvents: List[Obj]
+  def addEvent(setup: Obj=>(Attr[Boolean],String)): Unit
   def addRequest(): Unit
   def addUndo(eventSrcId: UUID): Unit
-}
-
-trait MergerEventSourceAttrs {
-  def lastMergedRequest: Attr[Obj]
-  def instantSession: Attr[Obj]
-  def asRequest: Attr[Obj]
-  def requested: Attr[String]
+  def comment: Attr[String]
 }
 
 trait SessionEventSourceAttrs {
@@ -53,8 +53,9 @@ trait SessionEventSourceAttrs {
   def sessionKey: Attr[Option[UUID]]
   def mainSessionSrcId: Attr[Option[UUID]]
   def asEvent: Attr[Obj]
-  def asRequest: Attr[Obj]
-  def asEventStatus: Attr[Obj]
-  def requested: Attr[String]
+  def requested: Attr[Boolean]
+  def asCommit: Attr[Obj]
+  def justIndexed: Attr[String]
   def applyAttr: Attr[Attr[Boolean]]
+  def comment: Attr[String]
 }
