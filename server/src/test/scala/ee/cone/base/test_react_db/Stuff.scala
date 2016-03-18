@@ -55,7 +55,7 @@ class TestAttrs(
   alienCanChange(comments) ::: Nil
 ) extends CoHandlerProvider
 
-class TestView(
+class TestComponent(
   at: TestAttrs,
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
@@ -65,8 +65,8 @@ class TestView(
   currentVDom: CurrentVDom
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource)
-  private def emptyView(pf: String) = tags
-    .root(tags.text("text", "Loading...") :: Nil)
+  private def emptyView(pf: String) =
+    tags.root(tags.text("text", "Loading...") :: Nil)
   private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
       val startTime = System.currentTimeMillis
