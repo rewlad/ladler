@@ -6,7 +6,7 @@ import ee.cone.base.connection_api.{Attr, DictMessage, EventKey}
 import ee.cone.base.vdom.Types.VDomKey
 
 trait JsonToString {
-  def apply(value: Value): String
+  def apply(value: VDomValue): String
 }
 
 trait JsonBuilder {
@@ -20,26 +20,26 @@ trait ToJson {
   def appendJson(builder: JsonBuilder): Unit
 }
 
-trait Value extends ToJson
+trait VDomValue extends ToJson
 
-trait WasNoValue extends Value
+trait WasNoVDomValue extends VDomValue
 
 trait VPair {
   def jsonKey: String
   def sameKey(other: VPair): Boolean
-  def value: Value
-  def withValue(value: Value): VPair
+  def value: VDomValue
+  def withValue(value: VDomValue): VPair
 }
 
-trait MapValue extends Value {
+trait MapVDomValue extends VDomValue {
   def pairs: List[VPair]
 }
 
 trait Diff {
-  def diff(vDom: Value): Option[MapValue]
+  def diff(vDom: VDomValue): Option[MapVDomValue]
 }
 
-case class ViewPath(path: String) extends EventKey[String=>Value]
+case class ViewPath(path: String) extends EventKey[String=>VDomValue]
 
 trait CurrentView {
   def invalidate(): Unit
@@ -57,7 +57,7 @@ object Types {
 }
 
 trait ChildPairFactory {
-  def apply[C](key: VDomKey, theElement: Value, elements: List[ChildPair[_]]): ChildPair[C]
+  def apply[C](key: VDomKey, theElement: VDomValue, elements: List[ChildPair[_]]): ChildPair[C]
 }
 
 trait ChildPair[C] extends VPair {

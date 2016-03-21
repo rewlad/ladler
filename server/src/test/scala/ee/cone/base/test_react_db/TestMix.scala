@@ -8,6 +8,12 @@ import ee.cone.base.lifecycle.{BaseConnectionMix, BaseAppMix}
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
 import ee.cone.base.vdom._
 
+object TestApp extends App {
+  val app = new TestAppMix
+  app.start()
+  println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html#/test")
+}
+
 class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
   lazy val httpPort = 5557
   lazy val staticRoot = Paths.get("../client/build/test")
@@ -56,19 +62,12 @@ class TestSessionConnectionMix(
     new Dumper().handlers :::
     new FailOfConnection(sender).handlers :::
     super.handlers
-
 }
 
 class TestMergerConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle
 ) extends TestConnectionMix with MergerDBConnectionMix {
   def dbAppMix = app
-}
-
-object TestApp extends App {
-  val app = new TestAppMix
-  app.start()
-  println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html")
 }
 
 class Dumper extends CoHandlerProvider {

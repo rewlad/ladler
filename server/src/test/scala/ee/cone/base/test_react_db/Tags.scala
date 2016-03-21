@@ -5,7 +5,7 @@ import ee.cone.base.util.Never
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types.VDomKey
 
-abstract class ElementValue extends Value {
+abstract class ElementValue extends VDomValue {
   def elementType: String
   def appendJsonAttributes(builder: JsonBuilder): Unit
   def appendJson(builder: JsonBuilder) = {

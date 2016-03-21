@@ -41,7 +41,7 @@ object OnClickImpl extends OnClick {
   }
 }
 
-object WasNoValueImpl extends WasNoValue {
+object WasNoValueImpl extends WasNoVDomValue {
   def appendJson(builder: JsonBuilder): Unit = Never()
 }
 

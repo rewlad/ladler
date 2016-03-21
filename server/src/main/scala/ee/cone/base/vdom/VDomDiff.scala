@@ -2,20 +2,20 @@ package ee.cone.base.vdom
 
 import ee.cone.base.util.{Setup, Never}
 
-case class DoSetPair(value: Value) extends VPair {
+case class DoSetPair(value: VDomValue) extends VPair {
   def jsonKey = "$set"
   def sameKey(other: VPair) = Never()
-  def withValue(value: Value) = Never()
+  def withValue(value: VDomValue) = Never()
 }
 
-class DiffImpl(createMapValue: List[VPair]=>MapValue, wasNoValue: WasNoValue) extends Diff {
-  var prevVDom: Value = wasNoValue
-  def diff(vDom: Value): Option[MapValue] = if(prevVDom eq vDom) None
+class DiffImpl(createMapValue: List[VPair]=>MapVDomValue, wasNoValue: WasNoVDomValue) extends Diff {
+  var prevVDom: VDomValue = wasNoValue
+  def diff(vDom: VDomValue): Option[MapVDomValue] = if(prevVDom eq vDom) None
     else Setup(diff(prevVDom, vDom)){ _ => prevVDom = vDom }
-  private def set(value: Value) = Some(createMapValue(DoSetPair(value)::Nil))
-  def diff(prevValue: Value, currValue: Value): Option[MapValue] = prevValue match {
-    case p: MapValue => currValue match {
-      case n: MapValue =>
+  private def set(value: VDomValue) = Some(createMapValue(DoSetPair(value)::Nil))
+  def diff(prevValue: VDomValue, currValue: VDomValue): Option[MapVDomValue] = prevValue match {
+    case p: MapVDomValue => currValue match {
+      case n: MapVDomValue =>
         var previous = p.pairs
         var current  = n.pairs
         var res: List[VPair] = Nil

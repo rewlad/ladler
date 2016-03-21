@@ -1,6 +1,6 @@
 package ee.cone.base.vdom
 
-case class MapValueImpl(pairs: List[VPair]) extends MapValue {
+case class MapVDomValueImpl(pairs: List[VPair]) extends MapVDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     pairs.foreach{ p =>

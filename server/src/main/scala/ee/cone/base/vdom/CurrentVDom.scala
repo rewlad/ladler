@@ -9,12 +9,12 @@ class CurrentVDom(
   handlerLists: CoHandlerLists,
   diff: Diff,
   jsonToString: JsonToString,
-  wasNoValue: WasNoValue
+  wasNoValue: WasNoVDomValue
 ) extends CurrentView with CoHandlerProvider {
   def invalidate() = vDom = wasNoValue
   def until(value: Long) = if(value < until) until = value
   private var until: Long = Long.MaxValue
-  private var vDom: Value = wasNoValue
+  private var vDom: VDomValue = wasNoValue
   private var hashForView = ""
   private def relocate(message: DictMessage): Unit =
     for(hash <- message.value.get("X-r-location-hash"))
@@ -53,7 +53,7 @@ class CurrentVDom(
     CoHandler(ShowToAlien)(showToAlien) ::
     Nil
   private lazy val PathSplit = """(.*)(/[^/]*)""".r
-  private def view(pathPrefix: String, pathPostfix: String): Value =
+  private def view(pathPrefix: String, pathPostfix: String): VDomValue =
     Single.option(handlerLists.list(ViewPath(pathPrefix))).map(_(pathPostfix))
       .getOrElse(pathPrefix match {
         case PathSplit(nextPrefix,nextPostfix) =>
@@ -62,9 +62,9 @@ class CurrentVDom(
 }
 
 object ResolveValue {
-  def apply(value: Value, path: List[String]): Option[Value] =
+  def apply(value: VDomValue, path: List[String]): Option[VDomValue] =
     if(path.isEmpty) Some(value) else Some(value).collect{
-      case m: MapValue => m.pairs.collectFirst{
+      case m: MapVDomValue => m.pairs.collectFirst{
         case pair if pair.jsonKey == path.head => apply(pair.value, path.tail)
       }.flatten
     }.flatten

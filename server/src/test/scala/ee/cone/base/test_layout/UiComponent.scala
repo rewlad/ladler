@@ -1,85 +1,96 @@
 
 package ee.cone.base.test_layout
 
-import ee.cone.base.connection_api.DictMessage
-import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
-/**
-  * Created by wregs on 2.02.16.
-  */
+trait OfDiv
 
-abstract class ElementValue extends Value {
-  def elementType: String
-  def appendJsonAttributes(builder: JsonBuilder): Unit
+/******************************************************************************/
+
+//builder.append("style").startObject()
+case class FlexGrid(maxWidth: Option[Int]) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-      .append("tp").append(elementType)
-    appendJsonAttributes(builder)
+    builder.append("tp").append("FlexGrid")
+    builder.append("ref").append("FlexGrid")
+    maxWidth.foreach(w => builder.append("maxWidth").append(s"${w}px"))
+    builder.end()
+  }
+}
+case class FlexGridShItem(flexBasisWidth: Int, maxWidth: Int) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("FlexGridShItem")
+    builder.append("ref").append("FlexGridShItem")
+    builder.append("flexBasis").append(s"${flexBasisWidth}px")
+    builder.append("maxWidth").append(s"${maxWidth}px")
+    builder.end()
+  }
+}
+case class FlexGridItem() extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("FlexGridItem")
+    builder.append("ref").append("FlexGridItem")
+    builder.end()
+  }
+}
+trait OfFlexGrid
+class FlexTags(
+  child: ChildPairFactory
+) {
+  /*def flexRoot(children: List[ChildPair[OfDiv]]) =
+    child("root", FlexRoot(), children).value*/
+  def flexGrid(key: VDomKey, children: List[ChildPair[OfFlexGrid]]) =
+    child[OfDiv](key,FlexGrid(None),children)
+  def flexItem(key: VDomKey, flexBasisWidth: Int, maxWidth: Int, children: List[ChildPair[OfDiv]]) =
+    child[OfFlexGrid](key,FlexGridShItem(flexBasisWidth, maxWidth),
+      child(key,FlexGridItem(),children) :: Nil
+    )
+}
+
+/******************************************************************************/
+
+case class WrappingElement() extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("span")
+    builder.end()
+  }
+}
+case class TextContentElement(content: String) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("span")
+    builder.append("content").append(content)
+    builder.end()
+  }
+}
+class Tags(
+  child: ChildPairFactory
+) {
+  def root(children: List[ChildPair[OfDiv]]) =
+    child("root", WrappingElement(), children).value
+  def text(key: VDomKey, text: String) =
+    child[OfDiv](key, TextContentElement(text), Nil)
+}
+// no childOfGrid => use grid item only
+// no paper:1, child/parent Paper
+
+/******************************************************************************/
+
+case class Paper() extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("Paper")
     builder.end()
   }
 }
 
-case class TextContentElement(content: String) extends ElementValue {
-  def elementType = "span"
-  def appendJsonAttributes(builder: JsonBuilder) =
-    builder.append("content").append(content)
-}
-
-abstract class StyledElement(style:String,props:String="") extends ElementValue{
-  def appendJsonAttributes(builder: JsonBuilder) = {
-    if(!style.isEmpty) {
-      builder.append("style").startObject()
-      style.split(Array(':',',')).foreach(a => builder.append(a))
-
-      builder.end()
-    }
-
-    if(!props.isEmpty) {
-      props.split(Array(':',',')).foreach(a => a match {
-        case "true" => builder.append(true)
-        case "false"=> builder.append(false)
-        case _ =>builder.append(a)
-      })
-    }
-  }
-}
-
-case class DivElement(style:String="",props:String="") extends StyledElement(style,props){
-  def elementType="div"
-}
-
-case class FlexGrid(props:String) extends StyledElement("",props){
-  def elementType="FlexGrid"
-}
-case class FlexGridShItem(props:String) extends StyledElement("",props){
-  def elementType="FlexGridShItem"
-}
-case class FlexGridItem(props:String) extends StyledElement("",props){
-  def elementType="FlexGridItem"
-}
-
-trait OfDiv
-
-class Tags(
+class MaterialTags(
   child: ChildPairFactory
 ) {
-
-  def root(children: List[ChildPair[OfDiv]]) = //+
-    child("root", DivElement(), children).value
-  def text(key: VDomKey, text: String)=
-    child[OfDiv](key, TextContentElement(text),Nil)
-  def div(key:String,style:String,props:String, children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivElement(style,props), children) //added wregs
-  //def div(key:String, children:List[ChildPair[OfDiv]])= //+
-  //  child[OfDiv](key,DivElement(), children) //added wregs
-
-  def flexGrid(key: VDomKey, props: String, children: List[ChildPair[OfDiv]])= //+
-    child[OfDiv](key,FlexGrid(props),children)
-  def flexGridItem(key: VDomKey, props: String, children: List[ChildPair[OfDiv]])= //+
-    child[OfDiv](key,FlexGridItem(props),children)
-  def flexGridShItem(key: VDomKey, props: String)= //+
-    child[OfDiv](key,FlexGridShItem(props),Nil)
-
+  def paper(key: VDomKey, children: List[ChildPair[OfDiv]]) =
+    child[OfDiv](key, Paper(), children)
 }
