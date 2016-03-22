@@ -13,7 +13,7 @@ case class FlexGrid(maxWidth: Option[Int]) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("FlexGrid")
-    builder.append("ref").append("FlexGrid")
+    builder.append("flexReg").append("def")
     maxWidth.foreach(w => builder.append("maxWidth").append(s"${w}px"))
     builder.end()
   }
@@ -22,7 +22,7 @@ case class FlexGridShItem(flexBasisWidth: Int, maxWidth: Int) extends VDomValue 
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("FlexGridShItem")
-    builder.append("ref").append("FlexGridShItem")
+    builder.append("flexReg").append("def")
     builder.append("flexBasis").append(s"${flexBasisWidth}px")
     builder.append("maxWidth").append(s"${maxWidth}px")
     builder.end()
@@ -32,7 +32,7 @@ case class FlexGridItem() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("FlexGridItem")
-    builder.append("ref").append("FlexGridItem")
+    builder.append("flexReg").append("def")
     builder.end()
   }
 }

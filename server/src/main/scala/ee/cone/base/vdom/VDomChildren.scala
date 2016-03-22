@@ -28,7 +28,7 @@ class ChildPairFactoryImpl(createMapValue: List[VPair]=>MapVDomValue) extends Ch
     theElement: VDomValue,
     elements: List[ChildPair[_]]
   ): ChildPair[C] = ChildPairImpl[C](key, createMapValue(
-    TheKeyPair :: TheElementPair(theElement) :: (
+    TheElementPair(theElement) :: (
       if(elements.isEmpty) Nil
       else ChildOrderPair(ChildOrderValue(elements.map(_.key))) :: elements
     )
@@ -43,17 +43,6 @@ case class ChildPairImpl[C](key: VDomKey, value: VDomValue) extends ChildPair[C]
     case _ => false
   }
   def withValue(value: VDomValue) = copy(value=value)
-}
-
-object EmptyStringValue extends VDomValue {
-  def appendJson(builder: JsonBuilder) = builder.append("")
-}
-
-object TheKeyPair extends VPair {
-  def jsonKey = "key"
-  def sameKey(other: VPair) = this == other
-  def value = EmptyStringValue
-  def withValue(value: VDomValue) = Never()
 }
 
 case class TheElementPair(value: VDomValue) extends VPair { //priv
