@@ -1,13 +1,12 @@
-package ee.cone.base.test_react_db
+package ee.cone.base.db
+
+import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.db.Types._
+import ee.cone.base.util.Setup
 
 import scala.collection.immutable.SortedMap
 
-import ee.cone.base.connection_api.LifeCycle
-import ee.cone.base.db._
-import ee.cone.base.db.Types._
-import ee.cone.base.util.{Hex, Setup}
-
-class TestIndex extends RawIndex {
+class InMemoryMergedIndex extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
   var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
   private var iterator: Iterator[(RawKey, RawValue)] = VoidKeyIterator
@@ -28,9 +27,9 @@ class TestIndex extends RawIndex {
   }
 }
 
-class TestEnv[DBEnvKey](val dbId: Long) extends DBEnv[DBEnvKey] {
+class InMemoryEnv[DBEnvKey](val dbId: Long) extends DBEnv[DBEnvKey] {
   var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
-  private def createRawIndex() = Setup(new TestIndex) { i =>
+  private def createRawIndex() = Setup(new InMemoryMergedIndex) { i =>
     synchronized { i.data = data }
   }
   def roTx(txLifeCycle: LifeCycle) = createRawIndex()

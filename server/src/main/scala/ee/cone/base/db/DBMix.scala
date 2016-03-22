@@ -13,6 +13,11 @@ trait DBAppMix extends AppMixBase {
     mainDB :: instantDB :: new Merger(executionManager,createMergerConnection) :: super.toStart
 }
 
+trait InMemoryDBAppMix extends DBAppMix {
+  lazy val mainDB = new InMemoryEnv[MainEnvKey](1L)
+  lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
+}
+
 trait DBConnectionMix extends CoMixBase {
   def dbAppMix: DBAppMix
   def lifeCycle: LifeCycle

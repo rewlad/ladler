@@ -23,7 +23,6 @@ class TestAppMix extends BaseAppMix with ServerAppMix {
 }
 
 trait TestConnectionMix extends BaseConnectionMix with VDomConnectionMix {
-  lazy val tags = new Tags(childPairFactory)
   lazy val flexTags = new FlexTags(childPairFactory)
   lazy val materialTags = new MaterialTags(childPairFactory)
 

@@ -1,7 +1,7 @@
 package ee.cone.base.test_layout
 
 import ee.cone.base.connection_api.CoHandler
-import ee.cone.base.vdom.ViewPath
+import ee.cone.base.vdom.{Tags, ViewPath}
 
 class TestComponent(
   tags: Tags,
@@ -12,7 +12,7 @@ class TestComponent(
   import flexTags._
   import materialTags._
   private def emptyView(pf: String) =
-    tags.root(tags.text("text", "Loading...") :: Nil)
+    root(text("text", "Loading...") :: Nil)
   private def testView(pf: String) =
     root(
       paper("1",

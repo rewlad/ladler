@@ -19,9 +19,8 @@ abstract class ElementValue extends VDomValue {
 abstract class SimpleElement extends ElementValue {
   def appendJsonAttributes(builder: JsonBuilder) = ()
 }
-object WrappingElement extends SimpleElement { def elementType = "span" }
 object DivElement extends SimpleElement { def elementType = "div" }
-
+object SpanElement extends SimpleElement { def elementType = "span" }
 
 case class TextContentElement(content: String) extends ElementValue {
   def elementType = "span"
@@ -51,20 +50,14 @@ case class InputTextElement(value: String, deferSend: Boolean)(
   }
 }
 
-trait OfDiv
-
-class Tags(
+class TestTags(
   child: ChildPairFactory, inputAttributes: InputAttributes,
   onChange: OnChange, onClick: OnClick
 ) {
-  def root(children: List[ChildPair[OfDiv]]) =
-    child("root", WrappingElement, children).value
   def span(key: VDomKey, children: List[ChildPair[OfDiv]]) =
-    child[OfDiv](key, WrappingElement, children)
+    child[OfDiv](key, SpanElement, children)
   def div(key: VDomKey, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key, DivElement, children)
-  def text(key: VDomKey, label: String) =
-    child[OfDiv](key, TextContentElement(label), Nil)
   def input(key: String, value: String, change: String=>Unit) =
     child[OfDiv](key, InputTextElement(value, deferSend=true)(inputAttributes){
       case `onChange`(v) => change(v)

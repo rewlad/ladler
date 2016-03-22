@@ -6,7 +6,7 @@ import ee.cone.base.connection_api._
 import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.{Never, Single}
 import ee.cone.base.vdom.Types.VDomKey
-import ee.cone.base.vdom.{AlienAttrFactory, CurrentVDom, ViewPath}
+import ee.cone.base.vdom.{Tags, AlienAttrFactory, CurrentVDom, ViewPath}
 import ee.cone.base.db._
 
 class FailOfConnection(
@@ -60,13 +60,15 @@ class TestComponent(
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
   findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
-  tags: Tags,
+  rTags: Tags,
+  tags: TestTags,
   alienAttr: AlienAttrFactory,
   currentVDom: CurrentVDom
 ) extends CoHandlerProvider {
+  import rTags._
   private def eventSource = handlerLists.single(SessionEventSource)
   private def emptyView(pf: String) =
-    tags.root(tags.text("text", "Loading...") :: Nil)
+    root(text("text", "Loading...") :: Nil)
   private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
       val startTime = System.currentTimeMillis
@@ -93,12 +95,12 @@ class TestComponent(
         val srcId = ev(uniqueNodes.srcId).get
         tags.div(
           srcId.toString,
-          tags.text("text", ev(eventSource.comment)) ::
+          text("text", ev(eventSource.comment)) ::
           tags.button("remove", "-", ()=>eventSource.addUndo(srcId)) ::
           Nil
         )
       }
-      val res = tags.root(
+      val res = root(
         tags.button("save", "save", saveAction()) ::
         tags.button("add", "+", createTaskAction()) ::
         tags.button("fail", "fail", failAction()) ::

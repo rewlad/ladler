@@ -1,17 +1,19 @@
-package ee.cone.base.test_react_db
+package ee.cone.base.test_loots
 
 import java.nio.file.Paths
 
-import ee.cone.base.connection_api._
-import ee.cone.base.db._
+import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.db.{MergerDBConnectionMix, SessionDBConnectionMix,
+DBConnectionMix, InMemoryDBAppMix}
 import ee.cone.base.lifecycle.{BaseConnectionMix, BaseAppMix}
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
-import ee.cone.base.vdom._
+import ee.cone.base.vdom.{OnClickImpl, OnChangeImpl, InputAttributesImpl,
+VDomConnectionMix}
 
 object TestApp extends App {
   val app = new TestAppMix
   app.start()
-  println(s"SEE: http://127.0.0.1:${app.httpPort}/react-app.html#/test")
+  println(s"SEE: http://127.0.0.1:${app.httpPort}/material-app.html#/test")
 }
 
 class TestAppMix extends BaseAppMix with ServerAppMix with InMemoryDBAppMix {
@@ -26,6 +28,7 @@ class TestAppMix extends BaseAppMix with ServerAppMix with InMemoryDBAppMix {
 }
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
+  /*
   lazy val testAttrs = new TestAttrs(
     attrFactory,
     labelFactory,
@@ -37,16 +40,15 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     mandatory,
     alienCanChange
   )()()
-  lazy val testTags = new TestTags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
+  lazy val tags = new Tags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
 
   override def handlers =
-      testAttrs.handlers :::
+    testAttrs.handlers :::
       new TestComponent(
         testAttrs, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx,
-        tags, testTags, alienAttrFactory, currentView
+        tags, alienAttrFactory, currentView
       ).handlers :::
-      //new DynEdit(sessionEventSourceOperations).handlers :::
-      super.handlers
+      super.handlers*/
 }
 
 class TestSessionConnectionMix(
@@ -57,9 +59,9 @@ class TestSessionConnectionMix(
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
   override def handlers =
-    new Dumper().handlers :::
-    new FailOfConnection(sender).handlers :::
-    super.handlers
+  //  new Dumper().handlers :::
+      new FailOfConnection(sender).handlers :::
+      super.handlers
 }
 
 class TestMergerConnectionMix(
@@ -67,25 +69,3 @@ class TestMergerConnectionMix(
 ) extends TestConnectionMix with MergerDBConnectionMix {
   def dbAppMix = app
 }
-
-class Dumper extends CoHandlerProvider {
-  private def dump(currentTx: CurrentTx[_]) = {
-    val rawIndex = currentTx() match { case p: ProtectedBoundToTx[_] => p.rawIndex }
-    val rawIndexes = rawIndex match {
-      case i: MuxUnmergedIndex => i.unmerged :: i.merged :: Nil
-    }
-    val dataList = rawIndexes.collect {
-      case i: InMemoryMergedIndex => ("MT",i.data)
-      case i: NonEmptyUnmergedIndex => ("U",i.data)
-    }
-    for((hint,data) <- dataList){
-      println(s"### $hint")
-      for(pair <- data)
-        println(s"${RawDumpImpl.apply(pair._1)} -> ${RawDumpImpl.apply(pair._2)}")
-      println("###")
-    }
-  }
-  def handlers = CoHandler(DumpKey)(dump) :: Nil
-}
-
-case object DumpKey extends EventKey[CurrentTx[_]=>Unit]

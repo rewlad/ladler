@@ -1,7 +1,5 @@
 
 import React from 'react'
-// import Paper from 'material-ui/lib/paper'
-
 
 const FlexGrid = React.createClass({
     /*componentDidMount(){

@@ -14,6 +14,7 @@ trait JsonBuilder {
   def startObject(): JsonBuilder
   def end(): JsonBuilder
   def append(value: String): JsonBuilder
+  def append(value: Boolean): JsonBuilder
 }
 
 trait ToJson {
@@ -78,4 +79,11 @@ trait OnClick {
 
 trait AlienAttrFactory {
   def apply[Value](attr: Attr[Value]): UUID => Value => Unit
+}
+
+////
+
+trait Tags {
+  def root(children: List[ChildPair[OfDiv]]): VDomValue
+  def text(key: VDomKey, text: String): ChildPair[OfDiv]
 }

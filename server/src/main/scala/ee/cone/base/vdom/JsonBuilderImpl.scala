@@ -72,4 +72,10 @@ class JsonBuilderImpl(val result: StringBuilder = new StringBuilder) extends Jso
     endElement()
     this
   }
+  def append(value: Boolean) = {
+    startElement()
+    result.append(if(value) "true" else "false")
+    endElement()
+    this
+  }
 }

@@ -4,8 +4,6 @@ package ee.cone.base.test_layout
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
-trait OfDiv
-
 /******************************************************************************/
 
 //builder.append("style").startObject()
@@ -52,29 +50,7 @@ class FlexTags(
 
 /******************************************************************************/
 
-case class WrappingElement() extends VDomValue {
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-    builder.append("tp").append("span")
-    builder.end()
-  }
-}
-case class TextContentElement(content: String) extends VDomValue {
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-    builder.append("tp").append("span")
-    builder.append("content").append(content)
-    builder.end()
-  }
-}
-class Tags(
-  child: ChildPairFactory
-) {
-  def root(children: List[ChildPair[OfDiv]]) =
-    child("root", WrappingElement(), children).value
-  def text(key: VDomKey, text: String) =
-    child[OfDiv](key, TextContentElement(text), Nil)
-}
+
 // no childOfGrid => use grid item only
 // no paper:1, child/parent Paper
 

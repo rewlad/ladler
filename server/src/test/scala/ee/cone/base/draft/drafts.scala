@@ -1,6 +1,4 @@
-package ee.cone.base.test_react_db
-
-
+package ee.cone.base.draft
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -285,8 +283,8 @@ object Test6 {
     val yc = Attr[Point2D,Double](0,0x0006)
   }
   object CustomComponent{
-    import SysInterfaces._
     import CustomInterfaces._
+    import SysInterfaces._
     def test(
         point1D: Obj[Point1D],
         point2D: Obj[Point2D]
@@ -305,9 +303,9 @@ object Test6 {
   }
 
   object Mix {
-    import SysComponents._
-    import CustomInterfaces._
     import CustomComponent._
+    import CustomInterfaces._
+    import SysComponents._
     val db = new DBImpl
     val point1D = ObjImpl[Point1D](7L)(db)
     val point2D = ObjImpl[Point2D](10L)(db)
