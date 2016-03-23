@@ -89,4 +89,26 @@ ConcurrentLinkedQueue?
 
 ////////////////////////////////////////////////////////////////////////////////
 
+ideas:
+
+Obj static checking;
+
+tag builder:
+    child[] vs tagging
+    ',' vs '::';
+    or mutable:
+        ptag().has{
+            ctag()
+            ctag()
+        }
+        ptag returns existing builder;
+        has runs after its args and marks end;
+        
+        
+date, time? client/server? http://www.daterangepicker.com/
+select
+redir
+later: non-existing object binding
+filtering, sorting, 
+later: pagging
 

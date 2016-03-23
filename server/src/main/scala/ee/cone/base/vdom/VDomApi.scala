@@ -84,6 +84,6 @@ trait AlienAttrFactory {
 ////
 
 trait Tags {
-  def root(children: List[ChildPair[OfDiv]]): VDomValue
+  def root(children: ChildPair[OfDiv]*): VDomValue
   def text(key: VDomKey, text: String): ChildPair[OfDiv]
 }

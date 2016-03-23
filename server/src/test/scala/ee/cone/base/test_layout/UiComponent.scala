@@ -7,7 +7,7 @@ import ee.cone.base.vdom._
 /******************************************************************************/
 
 //builder.append("style").startObject()
-case class MaxWidthWrapper(value: String) extends VDomValue {
+case class MaxWidthWrapper(value: Int) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("div")

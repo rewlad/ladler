@@ -23,8 +23,8 @@ case class TextContentElement(content: String) extends VDomValue {
 class TagsImpl(
   child: ChildPairFactory
 ) extends Tags {
-  def root(children: List[ChildPair[OfDiv]]) =
-    child("root", WrappingElement(), children).value
+  def root(children: ChildPair[OfDiv]*) =
+    child("root", WrappingElement(), children.toList).value
   def text(key: VDomKey, text: String) =
     child[OfDiv](key, TextContentElement(text), Nil)
 }

@@ -1,5 +1,7 @@
 package ee.cone.base.test_loots
 
+import java.time.Instant
+
 import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
@@ -26,7 +28,7 @@ case class TableHeader() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("TableHeader")
-    builder.append("adjustForCheckbox").append(true) //indent
+    builder.append("adjustForCheckbox").append(true) //for indent
     builder.append("displaySelectAll").append(false)
     builder.end()
   }
@@ -54,9 +56,11 @@ case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int, content:
     builder.startObject()
     builder.append("tp").append(if(isHead) "TableHeaderColumn" else "TableRowColumn")
     if(colSpan != 1) builder.append("colSpan").append(colSpan.toString) //may be append int or transform
-    builder.append("style").startObject()
-    builder.append("textAlign").append(if(isRight) "right" else "left")
-    builder.end()
+    builder.append("style"); {
+      builder.startObject()
+      builder.append("textAlign").append(if(isRight) "right" else "left")
+      builder.end()
+    }
     if(content.nonEmpty) builder.append("content").append(content)
     builder.end()
   }
@@ -68,7 +72,7 @@ case class IconButton(tooltip: String)(
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("IconButton")
-    if(tooltip.nonEmpty) builder.append("tooltip").append(tooltip)
+    if(tooltip.nonEmpty) builder.append("tooltip").append(tooltip) //todo: color str
     builder.append("onClick").append("send") //? will it work
     builder.end()
   }
@@ -82,37 +86,117 @@ case class SVGIcon(tp: String) extends VDomValue {
   }
 }
 
+case class MarginWrapper(value: Int) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("span")
+    builder.append("style"); {
+      builder.startObject()
+      builder.append("margin").append(s"${value}px")
+      builder.end()
+    }
+    builder.end()
+  }
+}
+
+case class InputField[Value](tp: String, label: String, value: Value, deferSend: Boolean)(
+  input: InputAttributes, convertToString: Value⇒String
+)(
+  val receive: PartialFunction[DictMessage,Unit]
+) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append(tp)
+    builder.append("floatingLabelText").append(label)
+    input.appendJson(builder, convertToString(value), deferSend)
+    builder.append("style"); {
+      builder.startObject()
+      builder.append("width").append("100%")
+      builder.end()
+    }
+    builder.end()
+  }
+}
+
+case class RaisedButton(label: String)(
+  val receive: PartialFunction[DictMessage,Unit]
+) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("RaisedButton")
+    builder.append("secondary").append(true)
+    builder.append("onClick").append("send") //? will it work
+    builder.end()
+  }
+}
+
+  /*
+//todo: DateField, SelectField
+//todo: Helmet, tap-event, StickyToolbars
+//todo: port: import MaterialChip      from './material-chip'
+
+*/
+
 trait OfTable
 trait OfTableRow
 
 class MaterialTags(
-  child: ChildPairFactory
+  child: ChildPairFactory, inputAttributes: InputAttributes,
+  onClick: OnClick, onChange: OnChange
 ) {
-  def paper(key: VDomKey, children: List[ChildPair[OfDiv]]) =
-    child[OfDiv](key, Paper(), children)
+  def paper(key: VDomKey, children: ChildPair[OfDiv]*) =
+    child[OfDiv](key, Paper(), children.toList)
 
   def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
     child[OfDiv](key, Table(),
       child("head",TableHeader(), head) :: child("body",TableBody(), body) :: Nil
     )
-  def row(key: VDomKey, children: List[ChildPair[OfTableRow]]) =
-    child[OfTable](key, TableRow(), children)
-  def th(key: VDomKey, isRight: Boolean, colSpan: Int, children: List[ChildPair[OfDiv]]) =
-    child[OfTableRow](key, TableColumn(isHead = true, isRight, colSpan, ""), children)
-  def th(key: VDomKey, isRight: Boolean, children: List[ChildPair[OfDiv]]) =
-    child[OfTableRow](key, TableColumn(isHead = true, isRight, 1, ""), children)
+  def row(key: VDomKey, children: ChildPair[OfTableRow]*) =
+    child[OfTable](key, TableRow(), children.toList)
+  def th(key: VDomKey, isRight: Boolean, colSpan: Int, children: ChildPair[OfDiv]*) =
+    child[OfTableRow](key, TableColumn(isHead = true, isRight, colSpan, ""), children.toList)
+  def th(key: VDomKey, isRight: Boolean, children: ChildPair[OfDiv]*) =
+    child[OfTableRow](key, TableColumn(isHead = true, isRight, 1, ""), children.toList)
   def th(key: VDomKey, isRight: Boolean, content: String) =
     child[OfTableRow](key, TableColumn(isHead = true, isRight, 1, content), Nil)
-  def td(key: VDomKey, isRight: Boolean, children: List[ChildPair[OfDiv]]) =
-    child[OfTableRow](key, TableColumn(isHead = false, isRight, 1, ""), children)
+  def td(key: VDomKey, isRight: Boolean, children: ChildPair[OfDiv]*) =
+    child[OfTableRow](key, TableColumn(isHead = false, isRight, 1, ""), children.toList)
   def td(key: VDomKey, isRight: Boolean, content: String) =
     child[OfTableRow](key, TableColumn(isHead = false, isRight, 1, content), Nil)
 
-  //def iconFilterList()
-  def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
-    child[OfDiv](key, IconButton(tooltip)(???),
+  private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
+    child[OfDiv](key,
+      IconButton(tooltip){ case `onClick`() => action() },
       child("icon", SVGIcon(picture), Nil) :: Nil
     )
+  def btnFilterList(key: VDomKey, action: ()=>Unit) =
+    iconButton(key,"filters","IconContentFilterList",action)
+  def btnClear(key: VDomKey, action: ()=>Unit) =
+    iconButton(key,"clear sorting","IconContentClear",action)
+  def btnAdd(key: VDomKey, action: ()=>Unit) =
+    iconButton(key,"","IconContentAdd",action)
+  def btnRemove(key: VDomKey, action: ()=>Unit) =
+    iconButton(key,"","IconContentRemove",action)
+
+  def withMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
+    child[OfDiv](key, MarginWrapper(value), theChild :: Nil)
+
+  def btnRaised(key: VDomKey, label: String, action: ()=>Unit) =
+    child[OfDiv](key, RaisedButton(label){ case `onClick`() => action() }, Nil)
+
+  def textInput(label: String, value: String, change: String⇒Unit) =
+    InputField("TextField", label, value, deferSend = true)(inputAttributes, identity){
+      case `onChange`(newValue) ⇒ change(newValue)
+    }
+
+  private def instantToString(value: Instant): String =
+    value.getEpochSecond.toString
+  private def stringToInstant(value: String): Instant =
+    new Instant(java.lang.Long.valueOf(value),0)
+  def dateInput(label: String, value: Instant, change: Instant⇒Unit) =
+    InputField("DateInput", label, value, deferSend = false)(inputAttributes, instantToString){
+      case `onChange`(newValue) ⇒ change(stringToInstant(newValue))
+    }
 
 
 }
