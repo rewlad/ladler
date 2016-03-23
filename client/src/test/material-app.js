@@ -17,8 +17,8 @@ import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
 import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
-//Create, Colors, Divider, Helmet, tap-event, StickyToolbars?
-import MaterialChip      from './material-chip'
+//Create, Colors (str), Divider, Helmet, tap-event, StickyToolbars?
+//port: import MaterialChip      from './material-chip'
 
 
 function fail(data){ alert(data) }

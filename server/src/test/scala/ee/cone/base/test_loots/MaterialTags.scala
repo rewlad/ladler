@@ -16,8 +16,8 @@ case class Table() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("Table")
-    builder.append("fixedHeader").append(false)
-    builder.append("displayRowCheckbox").append(false) //?
+    //builder.append("fixedHeader").append(false)
+    builder.append("displayRowCheckbox").append(false) //try
     builder.end()
   }
 }
@@ -26,7 +26,7 @@ case class TableHeader() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("TableHeader")
-    builder.append("adjustForCheckbox").append(true)
+    builder.append("adjustForCheckbox").append(true) //indent
     builder.append("displaySelectAll").append(false)
     builder.end()
   }
@@ -36,7 +36,7 @@ case class TableBody() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("TableBody")
-    builder.append("displayRowCheckbox").append(true) //?
+    builder.append("displayRowCheckbox").append(true) //try
     builder.end()
   }
 }
@@ -44,7 +44,7 @@ case class TableBody() extends VDomValue {
 case class TableRow() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-    builder.append("tp").append("TableRow") //selectable?
+    builder.append("tp").append("TableRow") // selectable -- checkbox enabled
     builder.end()
   }
 }
@@ -77,7 +77,7 @@ case class IconButton(tooltip: String)(
 case class SVGIcon(tp: String) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-    builder.append("tp").append(tp) //?color
+    builder.append("tp").append(tp) //color str
     builder.end()
   }
 }
