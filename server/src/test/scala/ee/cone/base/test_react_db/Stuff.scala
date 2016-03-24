@@ -68,7 +68,7 @@ class TestComponent(
   import rTags._
   private def eventSource = handlerLists.single(SessionEventSource)
   private def emptyView(pf: String) =
-    root(text("text", "Loading..."))
+    root(List(text("text", "Loading...")))
   private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
       val startTime = System.currentTimeMillis
@@ -100,13 +100,14 @@ class TestComponent(
           Nil
         )
       }
-      val res = root(
+      val btnList = List(
         tags.button("save", "save", saveAction()),
         tags.button("add", "+", createTaskAction()),
         tags.button("fail", "fail", failAction()),
-        tags.button("dump", "dump", dumpAction()),
-        taskLines ::: eventLines ::: Nil
+        tags.button("dump", "dump", dumpAction())
       )
+      val res = root(List(btnList,taskLines,eventLines).flatten)
+
       val endTime = System.currentTimeMillis
       currentVDom.until(endTime+(endTime-startTime)*10)
       res

@@ -51,7 +51,7 @@ case class TableRow() extends VDomValue {
   }
 }
 
-case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int, content: String) extends VDomValue {
+case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(if(isHead) "TableHeaderColumn" else "TableRowColumn")
@@ -61,7 +61,6 @@ case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int, content:
       builder.append("textAlign").append(if(isRight) "right" else "left")
       builder.end()
     }
-    if(content.nonEmpty) builder.append("content").append(content)
     builder.end()
   }
 }
@@ -153,16 +152,8 @@ class MaterialTags(
     )
   def row(key: VDomKey, children: ChildPair[OfTableRow]*) =
     child[OfTable](key, TableRow(), children.toList)
-  def th(key: VDomKey, isRight: Boolean, colSpan: Int, children: ChildPair[OfDiv]*) =
-    child[OfTableRow](key, TableColumn(isHead = true, isRight, colSpan, ""), children.toList)
-  def th(key: VDomKey, isRight: Boolean, children: ChildPair[OfDiv]*) =
-    child[OfTableRow](key, TableColumn(isHead = true, isRight, 1, ""), children.toList)
-  def th(key: VDomKey, isRight: Boolean, content: String) =
-    child[OfTableRow](key, TableColumn(isHead = true, isRight, 1, content), Nil)
-  def td(key: VDomKey, isRight: Boolean, children: ChildPair[OfDiv]*) =
-    child[OfTableRow](key, TableColumn(isHead = false, isRight, 1, ""), children.toList)
-  def td(key: VDomKey, isRight: Boolean, content: String) =
-    child[OfTableRow](key, TableColumn(isHead = false, isRight, 1, content), Nil)
+  def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1)(children: List[ChildPair[OfDiv]]=Nil) =
+    child[OfTableRow](key, TableColumn(isHead, isRight, colSpan), children)
 
   private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
     child[OfDiv](key,
@@ -181,7 +172,7 @@ class MaterialTags(
   def withMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
     child[OfDiv](key, MarginWrapper(value), theChild :: Nil)
 
-  def btnRaised(key: VDomKey, label: String, action: ()=>Unit) =
+  def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label){ case `onClick`() => action() }, Nil)
 
   def textInput(label: String, value: String, change: String⇒Unit) =
