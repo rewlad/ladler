@@ -24,7 +24,7 @@ class SSESender(
     val escapedData = data.replaceAllLiterally("\n","\ndata: ")
     out.write(Bytes(s"event: $event\ndata: $escapedData\n\n"))
     out.flush()
-    //println(escapedData)
+    println(s"event: $event\ndata: $escapedData\n\n")
   }
 }
 

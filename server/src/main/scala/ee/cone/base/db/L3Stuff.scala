@@ -18,24 +18,31 @@ class ListByDBNodeImpl(
     else node(this).foreach(attr => node(attr.defined) = false)
 }
 
-class SysAttrs(
+trait SysAttrs {
+  def seq: Attr[Obj]
+  def justIndexed: Attr[String]
+}
+
+class SysAttrsImpl(
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
   nodeValueConverter: RawValueConverter[Obj],
   uuidValueConverter: RawValueConverter[Option[UUID]],
+  stringValueConverter: RawValueConverter[String],
   mandatory: Mandatory,
   unique: Unique
 )(
   val seq: Attr[Obj] = attr(new PropId(0x0001), nodeValueConverter),
   val asSrcIdentifiable: Attr[Obj] = label(0x0002),
-  val srcId: Attr[Option[UUID]] = attr(new PropId(0x0003), uuidValueConverter)
+  val srcId: Attr[Option[UUID]] = attr(new PropId(0x0003), uuidValueConverter),
+  val justIndexed: Attr[String] = attr(new PropId(0x0004), stringValueConverter)
 )(val handlers: List[BaseCoHandler] =
   unique(asSrcIdentifiable, srcId) :::
   mandatory(asSrcIdentifiable, srcId, mutual = true) :::
   // searchIndex.handlers(asSrcIdentifiable, srcId) ::: // inside unique
   Nil
-) extends CoHandlerProvider
+) extends SysAttrs with CoHandlerProvider
 
 class FindNodesImpl(
   handlerLists: CoHandlerLists, nodeFactory: NodeFactory
@@ -70,10 +77,11 @@ class FindNodesImpl(
     handler(request)
     if(lastOnly) feed.result.headOption.toList else feed.result.reverse
   }
+  def justIndexed = "Y"
 }
 
 class UniqueNodesImpl(
-  converter: RawValueConverter[Obj], nodeFactory: NodeFactory, at: SysAttrs,
+  converter: RawValueConverter[Obj], nodeFactory: NodeFactory, at: SysAttrsImpl,
   findNodes: FindNodes
 ) extends UniqueNodes {
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =

@@ -12,6 +12,7 @@ import ee.cone.base.util.{Never, Single}
 // apply handling, notify
 
 class EventSourceAttrsImpl(
+  sysAttrs: SysAttrs,
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
@@ -34,7 +35,7 @@ class EventSourceAttrsImpl(
   val asCommit: Attr[Obj] = label(0x0019),
   val lastMergedRequest: Attr[Obj] = attr(new PropId(0x001A), nodeValueConverter),
   val requested: Attr[Boolean] = attr(new PropId(0x001B), definedValueConverter),
-  val justIndexed: Attr[String] = attr(new PropId(0x001C), stringValueConverter),
+  //0x001C
   val applyAttr: Attr[Attr[Boolean]] = attr(new PropId(0x001D), attrValueConverter),
   val mainSessionSrcId: Attr[Option[UUID]] = attr(new PropId(0x001E), uuidValueConverter),
   val comment: Attr[String] = attr(new PropId(0x001F), stringValueConverter)
@@ -53,7 +54,7 @@ class EventSourceAttrsImpl(
     searchIndex.handlers(asEvent, instantSession) ::: //
     searchIndex.handlers(asUndo, statesAbout) ::: //
     searchIndex.handlers(asCommit, statesAbout) ::: //
-    searchIndex.handlers(asCommit, justIndexed) ::: //
+    searchIndex.handlers(asCommit, sysAttrs.justIndexed) ::: //
     searchIndex.handlers(asEvent, applyAttr) ::: ///
     searchIndex.handlers(asCommit, instantSession) ::: ////
     CoHandler(ApplyEvent(requested))(_=>()) ::
@@ -101,7 +102,7 @@ class EventSourceOperationsImpl(
   }
   def addCommit(req: Obj) = {
     val status = addInstant(req(at.instantSession), at.asCommit)
-    status(at.justIndexed) = justIndexed
+    status(sysAttrs.justIndexed) = findNodes.justIndexed
     status(at.statesAbout) = req
   }
 
@@ -153,5 +154,4 @@ class EventSourceOperationsImpl(
     println("addInstant")
     res
   }
-  def justIndexed = "Y"
 }

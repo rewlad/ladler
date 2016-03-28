@@ -8,12 +8,12 @@ import VDomMix       from "../main/vdom-mix"
 import React             from 'react'
 
 import Paper             from 'material-ui/lib/paper'
-import Table             from 'material-ui/lib/Table/table'
-import TableHeader       from 'material-ui/lib/Table/table-header'
-import TableBody         from 'material-ui/lib/Table/table-body'
-import TableHeaderColumn from 'material-ui/lib/Table/table-header-column'
-import TableRow          from 'material-ui/lib/Table/table-row'
-import TableRowColumn    from 'material-ui/lib/Table/table-row-column'
+import Table             from 'material-ui/lib/table/table'
+import TableHeader       from 'material-ui/lib/table/table-header'
+import TableBody         from 'material-ui/lib/table/table-body'
+import TableHeaderColumn from 'material-ui/lib/table/table-header-column'
+import TableRow          from 'material-ui/lib/table/table-row'
+import TableRowColumn    from 'material-ui/lib/table/table-row-column'
 import RaisedButton      from 'material-ui/lib/raised-button'
 import IconButton        from 'material-ui/lib/icon-button'
 import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
@@ -35,7 +35,8 @@ const DateInput = React.createClass({
         const at = {
             floatingLabelText: this.props.floatingLabelText,
             container: 'dialog',
-            textFieldStyle: this.props.style
+            textFieldStyle: this.props.style,
+            onChange: (dummy,value) => this.props.onChange(value.getTime().toString())
         }
         if(this.props.value) at.date = new Date(parseInt(this.props.value,10))
         return React.createElement("DatePicker", at, content)
@@ -50,5 +51,5 @@ const tp = ({
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,
     TextField, DatePicker
 })
-const transform = ({tp})
-vdom.transformBy({transform})
+const transforms = ({tp})
+vdom.transformBy({transforms})

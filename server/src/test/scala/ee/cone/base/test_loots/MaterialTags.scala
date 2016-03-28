@@ -148,7 +148,8 @@ class MaterialTags(
 
   def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
     child[OfDiv](key, Table(),
-      child("head",TableHeader(), head) :: child("body",TableBody(), body) :: Nil
+      //child("head",TableHeader(), head) ::
+      child("body",TableBody(), body) :: Nil
     )
   def row(key: VDomKey, children: ChildPair[OfTableRow]*) =
     child[OfTable](key, TableRow(), children.toList)
@@ -175,19 +176,19 @@ class MaterialTags(
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label){ case `onClick`() => action() }, Nil)
 
-  def textInput(label: String, value: String, change: String⇒Unit) =
-    InputField("TextField", label, value, deferSend = true)(inputAttributes, identity){
+  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit) =
+    child[OfDiv](key, InputField("TextField", label, value, deferSend = true)(inputAttributes, identity){
       case `onChange`(newValue) ⇒ change(newValue)
-    }
+    },Nil)
 
-  private def instantToString(value: Instant): String =
-    value.getEpochSecond.toString
-  private def stringToInstant(value: String): Instant =
-    new Instant(java.lang.Long.valueOf(value),0)
-  def dateInput(label: String, value: Instant, change: Instant⇒Unit) =
-    InputField("DateInput", label, value, deferSend = false)(inputAttributes, instantToString){
+  private def instantToString(value: Option[Instant]): String =
+    value.map(_.getEpochSecond.toString).getOrElse("")
+  private def stringToInstant(value: String): Option[Instant] =
+    if(value.nonEmpty) Some(Instant.ofEpochSecond(java.lang.Long.valueOf(value),0)) else None
+  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit) =
+    child[OfDiv](key, InputField("DateInput", label, value, deferSend = false)(inputAttributes, instantToString){
       case `onChange`(newValue) ⇒ change(stringToInstant(newValue))
-    }
+    }, Nil)
 
 
 }

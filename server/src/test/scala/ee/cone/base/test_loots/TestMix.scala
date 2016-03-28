@@ -3,9 +3,9 @@ package ee.cone.base.test_loots
 import java.nio.file.Paths
 
 import ee.cone.base.connection_api.LifeCycle
-import ee.cone.base.db.{MergerDBConnectionMix, SessionDBConnectionMix,
-DBConnectionMix, InMemoryDBAppMix}
-import ee.cone.base.lifecycle.{BaseConnectionMix, BaseAppMix}
+import ee.cone.base.db._
+import ee.cone.base.lifecycle.{BaseConnectionMix,
+BaseAppMix}
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
 import ee.cone.base.vdom.{OnClickImpl, OnChangeImpl, InputAttributesImpl,
 VDomConnectionMix}
@@ -28,28 +28,26 @@ class TestAppMix extends BaseAppMix with ServerAppMix with InMemoryDBAppMix {
 }
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
-  /*
-  lazy val testAttrs = new TestAttrs(
-    attrFactory,
-    labelFactory,
-    searchIndex,
-    definedValueConverter,
-    nodeValueConverter,
-    uuidValueConverter,
-    stringValueConverter,
-    mandatory,
-    alienCanChange
+  lazy val instantValueConverter = new InstantValueConverter(InnerRawValueConverterImpl)
+  lazy val durationValueConverter = new DurationValueConverter(InnerRawValueConverterImpl)
+
+  lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, stringValueConverter)()
+  lazy val logAttributes = new BoatLogEntryAttributes(
+    sysAttrs,attrFactory,labelFactory,searchIndex,
+    definedValueConverter,nodeValueConverter,stringValueConverter,uuidValueConverter,instantValueConverter,durationValueConverter
   )()()
-  lazy val tags = new Tags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
+  lazy val materialTags = new MaterialTags(
+    childPairFactory, InputAttributesImpl, OnClickImpl, OnChangeImpl
+  )
 
   override def handlers =
-    testAttrs.handlers :::
-      new TestComponent(
-        testAttrs, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx,
-        tags, alienAttrFactory, currentView
-      ).handlers :::
-      super.handlers*/
+    //testAttributes.handlers,
+    logAttributes.handlers :::
+    new TestComponent(testAttributes, logAttributes, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx, alienAttrFactory, tags, materialTags, currentView).handlers :::
+    super.handlers
 }
+
+
 
 class TestSessionConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle

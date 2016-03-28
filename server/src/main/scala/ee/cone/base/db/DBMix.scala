@@ -59,7 +59,7 @@ trait DBConnectionMix extends CoMixBase {
   lazy val stringValueConverter = new StringValueConverter(InnerRawValueConverterImpl)
 
   lazy val labelFactory = new LabelFactoryImpl(attrFactory,nodeValueConverter)
-  lazy val sysAttrs = new SysAttrs(attrFactory,labelFactory,searchIndex,nodeValueConverter,uuidValueConverter,mandatory,unique)()()
+  lazy val sysAttrs = new SysAttrsImpl(attrFactory,labelFactory,searchIndex,nodeValueConverter,uuidValueConverter,stringValueConverter,mandatory,unique)()()
 
   lazy val uniqueNodes = new UniqueNodesImpl(nodeValueConverter, nodeFactory, sysAttrs, findNodes)
 
@@ -69,7 +69,7 @@ trait DBConnectionMix extends CoMixBase {
 
   // Sys
   lazy val eventSourceAttrs =
-    new EventSourceAttrsImpl(attrFactory,labelFactory,searchIndex,definedValueConverter,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
+    new EventSourceAttrsImpl(sysAttrs,attrFactory,labelFactory,searchIndex,definedValueConverter,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
   lazy val eventSourceOperations =
     new EventSourceOperationsImpl(eventSourceAttrs,sysAttrs,factIndex,handlerLists,findNodes,uniqueNodes,instantTx,mainTx)
 
@@ -94,7 +94,7 @@ trait SessionDBConnectionMix extends DBConnectionMix {
     new SessionMainTxManagerImpl(lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll, muxFactory)
   override def handlers =
     new SessionEventSourceOperationsImpl(
-      eventSourceOperations, eventSourceAttrs, instantTxManager, mainTxManager, findNodes, uniqueNodes
+      eventSourceOperations, eventSourceAttrs, sysAttrs, instantTxManager, mainTxManager, findNodes, uniqueNodes
     ).handlers :::
     super.handlers
 }

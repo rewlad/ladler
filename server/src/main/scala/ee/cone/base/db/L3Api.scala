@@ -17,6 +17,7 @@ case object FindNextValues extends SearchOption
 
 trait FindNodes {
   def where[Value](tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value, options: List[SearchOption]): List[Obj]
+  def justIndexed: String
 }
 
 trait UniqueNodes {

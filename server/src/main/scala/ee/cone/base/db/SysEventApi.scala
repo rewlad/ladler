@@ -26,7 +26,6 @@ trait ForSessionEventSourceOperations extends EventSourceOperations {
   def unmergedEvents(instantSession: Obj): List[Obj]
   def applyEvents(instantSession: Obj): Unit
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj
-  def justIndexed: String
 }
 
 trait ForMergerEventSourceOperations extends EventSourceOperations {
@@ -55,7 +54,6 @@ trait SessionEventSourceAttrs {
   def asEvent: Attr[Obj]
   def requested: Attr[Boolean]
   def asCommit: Attr[Obj]
-  def justIndexed: Attr[String]
   def applyAttr: Attr[Attr[Boolean]]
   def comment: Attr[String]
 }

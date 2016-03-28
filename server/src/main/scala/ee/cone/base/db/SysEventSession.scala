@@ -6,7 +6,7 @@ import ee.cone.base.db.Types._
 import ee.cone.base.util.{Never, Single}
 
 class SessionEventSourceOperationsImpl(
-  ops: ForSessionEventSourceOperations, at: SessionEventSourceAttrs,
+  ops: ForSessionEventSourceOperations, at: SessionEventSourceAttrs, sysAttrs: SysAttrs,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
   findNodes: FindNodes, uniqueNodes: UniqueNodes
 ) extends SessionEventSourceOperations with CoHandlerProvider {
@@ -45,7 +45,7 @@ class SessionEventSourceOperationsImpl(
     val newStatuses = if(decoupled) findNodes.where(
       tx, at.asCommit.defined, at.instantSession, instantSession, options
     ) else findNodes.where(
-      tx, at.asCommit.defined, at.justIndexed, ops.justIndexed, options
+      tx, at.asCommit.defined, sysAttrs.justIndexed, findNodes.justIndexed, options
     )
     if(newStatuses.isEmpty) return false
     val newStatus :: Nil = newStatuses
