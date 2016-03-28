@@ -45,10 +45,15 @@ case class ViewPath(path: String) extends EventKey[String=>VDomValue]
 trait CurrentView {
   def invalidate(): Unit
   def until(value: Long): Unit
+  def relocate(value: String): Unit
 }
 
-trait MessageReceiver {
-  def receive: PartialFunction[DictMessage,Unit]
+trait OnClickReceiver {
+  def onClick: Option[()⇒Unit]
+}
+
+trait OnChangeReceiver {
+  def onChange: Option[String⇒Unit]
 }
 
 ////
@@ -67,14 +72,6 @@ trait ChildPair[C] extends VPair {
 
 trait InputAttributes {
   def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit
-}
-
-trait OnChange {
-  def unapply(message: DictMessage): Option[String]
-}
-
-trait OnClick {
-  def unapply(message: DictMessage): Option[Unit]
 }
 
 trait AlienAttrFactory {

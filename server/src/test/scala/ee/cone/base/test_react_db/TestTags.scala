@@ -29,20 +29,19 @@ case class TextContentElement(content: String) extends ElementValue {
 }
 
 case class ButtonElement(caption: String)(
-  val receive: PartialFunction[DictMessage,Unit]
-) extends ElementValue with MessageReceiver {
+  val onClick: Option[()⇒Unit]
+) extends ElementValue with OnClickReceiver {
   def elementType = "input"
-  def appendJsonAttributes(builder: JsonBuilder) = builder
-    .append("type").append("button")
-    .append("value").append(caption)
-    .append("onClick").append("send")
+  def appendJsonAttributes(builder: JsonBuilder) = {
+    builder.append("type").append("button")
+    builder.append("value").append(caption)
+    onClick.foreach(_⇒ builder.append("onClick").append("send"))
+  }
 }
 
 case class InputTextElement(value: String, deferSend: Boolean)(
-  input: InputAttributes
-)(
-  val receive: PartialFunction[DictMessage,Unit]
-) extends ElementValue with MessageReceiver {
+  input: InputAttributes, val onChange: Option[String⇒Unit]
+) extends ElementValue with OnChangeReceiver {
   def elementType = "input"
   def appendJsonAttributes(builder: JsonBuilder) = {
     builder.append("type").append("text")
@@ -51,20 +50,14 @@ case class InputTextElement(value: String, deferSend: Boolean)(
 }
 
 class TestTags(
-  child: ChildPairFactory, inputAttributes: InputAttributes,
-  onChange: OnChange, onClick: OnClick
+  child: ChildPairFactory, inputAttributes: InputAttributes
 ) {
   def span(key: VDomKey, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key, SpanElement, children)
   def div(key: VDomKey, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key, DivElement, children)
   def input(key: String, value: String, change: String=>Unit) =
-    child[OfDiv](key, InputTextElement(value, deferSend=true)(inputAttributes){
-      case `onChange`(v) => change(v)
-      case _ => Never()
-    }, Nil)
+    child[OfDiv](key, InputTextElement(value, deferSend=true)(inputAttributes, Some(change)), Nil)
   def button(key: String, caption: String, action: ()=>Unit) =
-    child[OfDiv](key, ButtonElement(caption){
-      case `onClick`() => action()
-    }, Nil)
+    child[OfDiv](key, ButtonElement(caption)(Some(action)), Nil)
 }

@@ -26,21 +26,6 @@ object InputAttributesImpl extends InputAttributes {
   }
 }
 
-object OnChangeImpl extends OnChange {
-  def unapply(message: DictMessage): Option[String] = message match {
-    case DictMessage(mv) if mv.getOrElse("X-r-action","") == "change" =>
-      Some(UTF8String(Base64.getDecoder.decode(mv("X-r-vdom-value-base64"))))
-    case _ => None
-  }
-}
-
-object OnClickImpl extends OnClick {
-  def unapply(message: DictMessage): Option[Unit] = message match {
-    case DictMessage(mv) if mv.getOrElse("X-r-action","") == "click" => Some(())
-    case _ => None
-  }
-}
-
 object WasNoValueImpl extends WasNoVDomValue {
   def appendJson(builder: JsonBuilder): Unit = Never()
 }

@@ -37,7 +37,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     mandatory,
     alienCanChange
   )()()
-  lazy val testTags = new TestTags(childPairFactory, InputAttributesImpl, OnChangeImpl, OnClickImpl)
+  lazy val testTags = new TestTags(childPairFactory, InputAttributesImpl)
 
   override def handlers =
       testAttrs.handlers :::

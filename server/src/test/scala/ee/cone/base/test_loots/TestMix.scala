@@ -7,8 +7,7 @@ import ee.cone.base.db._
 import ee.cone.base.lifecycle.{BaseConnectionMix,
 BaseAppMix}
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
-import ee.cone.base.vdom.{OnClickImpl, OnChangeImpl, InputAttributesImpl,
-VDomConnectionMix}
+import ee.cone.base.vdom.{InputAttributesImpl,VDomConnectionMix}
 
 object TestApp extends App {
   val app = new TestAppMix
@@ -36,9 +35,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     sysAttrs,attrFactory,labelFactory,searchIndex,
     definedValueConverter,nodeValueConverter,stringValueConverter,uuidValueConverter,instantValueConverter,durationValueConverter
   )()()
-  lazy val materialTags = new MaterialTags(
-    childPairFactory, InputAttributesImpl, OnClickImpl, OnChangeImpl
-  )
+  lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl)
 
   override def handlers =
     //testAttributes.handlers,

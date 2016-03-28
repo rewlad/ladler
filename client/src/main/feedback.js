@@ -1,13 +1,15 @@
 
-var loadKeyState, connectionKeyState;
+var loadKeyState, connectionKeyState, locationHash;
 
 function never(){ throw new Exception() }
 function pong(){
-    send({
-        "X-r-action": "pong", 
-        "X-r-session": sessionKey(never),
-        "X-r-location-hash": location.hash.substr(1)
-    })
+    const headers = { "X-r-action": "pong", "X-r-session": sessionKey(never) }
+    const newHash = location.hash.substr(1)
+    if(locationHash !== newHash){
+        locationHash = newHash
+        headers["X-r-location-hash"] = newHash
+    }
+    send(headers)
     console.log("pong")
 }
 function sessionKey(orDo){ return sessionStorage.getItem("sessionKey") || orDo() }

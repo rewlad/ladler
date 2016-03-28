@@ -247,19 +247,20 @@ class TestComponent(
             cell("7", isHead = true)(List(btnAdd("btn",entryAddAct())))
         )
       ),
-      row("empty-test-row",cell("empty-test-cell")(List(text("empty-test-text","test")))) ::
+      //row("empty-test-row",cell("empty-test-cell")(List(text("empty-test-text","test")))) ::
       entryList().map{ (entry:Obj)=>
         val srcId = entry(uniqueNodes.srcId).get
+        val go = Some(()⇒ currentVDom.relocate(s"/edit/$srcId"))
         row(srcId.toString,
-          cell("1", isRight = false)(objField(entry, logAt.boat, editable = false)),
-          cell("2", isRight = true)(instantField(entry, logAt.date, editable = false)),
-          cell("3", isRight = true)(durationField(entry, logAt.durationTotal)),
+          cell("1", isRight = false)(objField(entry, logAt.boat, editable = false), go),
+          cell("2", isRight = true)(instantField(entry, logAt.date, editable = false), go),
+          cell("3", isRight = true)(durationField(entry, logAt.durationTotal), go),
           cell("4", isRight = false)({
               val confirmed = entry(logAt.asConfirmed)
               if(confirmed.nonEmpty) List(text("1","CONFIRMED")) else Nil //todo: MaterialChip
-            }),
-          cell("5", isRight = false)(objField(entry, logAt.confirmedBy, editable = false)),
-          cell("6", isRight = true)(instantField(entry, logAt.confirmedOn, editable = false)),
+          }, go),
+          cell("5", isRight = false)(objField(entry, logAt.confirmedBy, editable = false), go),
+          cell("6", isRight = true)(instantField(entry, logAt.confirmedOn, editable = false), go),
           cell("7", isRight = false)(List(btnRemove("btn",entryRemoveAct(srcId))))
         )
       }
@@ -268,7 +269,7 @@ class TestComponent(
 
   private def editView(pf: String) = wrapDBView{ ()=>
     println(pf)
-    val srcId = UUID.fromString(pf)
+    val srcId = UUID.fromString(pf.tail)
     val entry = uniqueNodes.whereSrcId(mainTx(), srcId)(logAt.asEntry)
     val editable = true /*todo rw rule*/
     root(List(
@@ -363,7 +364,7 @@ class TestComponent(
 
   def handlers = CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/list"))(listView) ::
-    CoHandler(ViewPath("/edit"))(listView) :: //todo redir
+    CoHandler(ViewPath("/edit"))(editView) :: //todo redir
     CoHandler(ApplyEvent(logAt.entryCreated))(entryCreated) ::
     CoHandler(ApplyEvent(logAt.entryRemoved))(entryRemoved) ::
     CoHandler(ApplyEvent(logAt.workCreated))(workCreated) ::

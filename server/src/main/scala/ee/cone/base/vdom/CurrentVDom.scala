@@ -1,9 +1,9 @@
 package ee.cone.base.vdom
 
-import java.util.UUID
+import java.util.{Base64, UUID}
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.{Never, Single}
+import ee.cone.base.util.{UTF8String, Never, Single}
 
 class CurrentVDom(
   handlerLists: CoHandlerLists,
@@ -17,21 +17,24 @@ class CurrentVDom(
   private var vDom: VDomValue = wasNoValue
   private var hashForView = ""
   private def relocate(message: DictMessage): Unit =
-    for(hash <- message.value.get("X-r-location-hash"))
-      if(hashForView != hash) {
-        hashForView = hash
-        invalidate()
-      }
+    for(hash <- message.value.get("X-r-location-hash")) relocate(hash)
+
+  def relocate(value: String) = if(hashForView != value) {
+    hashForView = value
+    println(value)
+    invalidate()
+  }
   private def dispatch(message: DictMessage): Unit =
     for(pathStr <- message.value.get("X-r-vdom-path")){
       val path = pathStr.split("/").toList match {
         case "" :: parts => parts
         case _ => Never()
       }
-      ResolveValue(vDom, path) match {
-        case Some(v: MessageReceiver) => v.receive(message)
-        case None => throw new Exception(s"$path not found")
-        case _ => Never()
+      (message.value.get("X-r-action"), ResolveValue(vDom, path)) match {
+        case (Some("click"), Some(v: OnClickReceiver)) => v.onClick.get()
+        case (Some("change"), Some(v: OnChangeReceiver)) =>
+          v.onChange.get(UTF8String(Base64.getDecoder.decode(message.value("X-r-vdom-value-base64"))))
+        case v => throw new Exception(s"$path ($v) can not receive $message")
       }
     }
   private def switchSession(message: DictMessage) =
