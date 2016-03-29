@@ -23,6 +23,9 @@ import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
 import TextField         from 'material-ui/lib/TextField/TextField'
 import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 
+import injectTapEventPlugin from "react-tap-event-plugin"
+injectTapEventPlugin()
+
 function fail(data){ alert(data) }
 
 const feedback = Feedback()
@@ -34,12 +37,14 @@ const DateInput = React.createClass({
     render(){
         const at = {
             floatingLabelText: this.props.floatingLabelText,
-            container: 'dialog',
+            //container: 'inline',
+            //locale: "ee",
+            DateTimeFormat: global.Intl.DateTimeFormat,
             textFieldStyle: this.props.style,
-            onChange: (dummy,value) => this.props.onChange(value.getTime().toString())
+            onChange: (dummy,value) => this.props.onChange({ target: { value: value.getTime().toString() }})
         }
-        if(this.props.value) at.date = new Date(parseInt(this.props.value,10))
-        return React.createElement("DatePicker", at, content)
+        at.value = this.props.value ? new Date(parseInt(this.props.value,10)) : this.props.value
+        return React.createElement(DatePicker, at, null)
     }
 })
 
@@ -49,7 +54,7 @@ const tp = ({
     RaisedButton,
     IconButton, 
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,
-    TextField, DatePicker
+    TextField, DateInput
 })
 const transforms = ({tp})
 vdom.transformBy({transforms})

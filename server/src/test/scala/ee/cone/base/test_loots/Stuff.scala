@@ -7,13 +7,14 @@ import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.Never
+import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
 class FailOfConnection(
   sender: SenderOfConnection
 ) extends CoHandlerProvider {
   def handlers = CoHandler(FailEventKey){ e =>
-    println(e.toString)
+    println(s"error: ${e.toString}")
     sender.sendToAlien("fail",e.toString) //todo
   } :: Nil
 }
@@ -54,7 +55,8 @@ class BoatLogEntryAttributes(
   stringValueConverter: RawValueConverter[String],
   uuidValueConverter: RawValueConverter[Option[UUID]],
   instantValueConverter: RawValueConverter[Option[Instant]],
-  durationValueConverter: RawValueConverter[Option[Duration]]
+  durationValueConverter: RawValueConverter[Option[Duration]],
+  alienCanChange: AlienCanChange
 )(
   val justIndexed: Attr[String] = sysAttrs.justIndexed,
 
@@ -95,10 +97,24 @@ class BoatLogEntryAttributes(
   val entryOfWork: Attr[Obj] = attr(new PropId(0x6725), nodeValueConverter),
   val workCreated: Attr[Boolean] = attr(new PropId(0x6726), definedValueConverter),
   val workRemoved: Attr[Boolean] = attr(new PropId(0x6727), definedValueConverter),
-  val targetEntryOfWork: Attr[Option[UUID]] = attr(new PropId(0x6728), uuidValueConverter)
+  val targetEntryOfWork: Attr[Option[UUID]] = attr(new PropId(0x6728), uuidValueConverter),
+
+  val targetStringValue: Attr[String] = attr(new PropId(0x6730), stringValueConverter),
+  val targetInstantValue: Attr[Option[Instant]] = attr(new PropId(0x6731), instantValueConverter)
+
 )(val handlers: List[BaseCoHandler] =
   searchIndex.handlers(asEntry, justIndexed) :::
-  searchIndex.handlers(asWork, entryOfWork)
+  searchIndex.handlers(asWork, entryOfWork) :::
+  alienCanChange.handlers(targetInstantValue)(date) :::
+  List(
+    log00Date,log00Fuel,log00Comment,log00Engineer,log00Master,
+    log08Date,log08Fuel,log08Comment,log08Engineer,log08Master,
+    logRFFuel,logRFComment,logRFEngineer,
+    log24Date,log24Fuel,log24Comment,log24Engineer,log24Master
+  ).flatMap(alienCanChange.handlers(targetStringValue)(_)) :::
+    alienCanChange.handlers(targetInstantValue)(workStart) :::
+    alienCanChange.handlers(targetInstantValue)(workStop) :::
+    alienCanChange.handlers(targetStringValue)(workComment)
 ) extends CoHandlerProvider
 
 class TestComponent(
@@ -128,13 +144,16 @@ class TestComponent(
   private def durationField(obj: Obj, attr: Attr[Option[Duration]]): List[ChildPair[OfDiv]] =
     toAlienText[Option[Duration]](obj,attr,v⇒v.map(_.getSeconds.toString).getOrElse(""))
 
-  private def instantField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean): List[ChildPair[OfDiv]] =
+  private def instantField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean): List[ChildPair[OfDiv]] = {
+    //println(attr,obj.nonEmpty,editable)
     if(!obj.nonEmpty) Nil
     else if(!editable) obj(attr).map(v⇒text("1",v.getEpochSecond.toString)).toList
     else {
       val srcId = obj(uniqueNodes.srcId).get
       List(dateInput("1","",obj(attr),alienAttr(attr)(srcId)))
     }
+  }
+
 
   private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean): List[ChildPair[OfDiv]] =
     toAlienText[Obj](obj,attr,v⇒if(v.nonEmpty) v(at.caption) else "")
@@ -202,6 +221,7 @@ class TestComponent(
     val work = uniqueNodes.create(mainTx(), logAt.asWork, srcId)
     val entry = uniqueNodes.whereSrcId(mainTx(), ev(logAt.targetEntryOfWork).get)
     work(logAt.entryOfWork) = entry
+    //println(s"workCreated: ${work(logAt.entryOfWork)}")
   }
   private def workRemoveAct(workSrcId: UUID)() = {
     eventSource.addEvent { ev =>
@@ -212,7 +232,9 @@ class TestComponent(
   }
   private def workRemoved(ev: Obj): Unit = {
     val work = uniqueNodes.whereSrcId(mainTx(), ev(alienAccessAttrs.targetSrcId).get)
+    //println(s"workRemovedBefore: ${work(logAt.entryOfWork)}")
     work(logAt.entryOfWork) = uniqueNodes.noNode
+    //println(s"workRemovedAfter: ${work(logAt.entryOfWork)}")
   }
 
   private def emptyView(pf: String) =
@@ -227,31 +249,34 @@ class TestComponent(
       res
     }
 
+  private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
+    withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
+
   private def listView(pf: String) = wrapDBView{ ()=> root(List(
     //class LootsBoatLogList
-    withMargin("margin",10,paper("paper",table("table",
+    paperWithMargin("margin",table("table",
       List(
-        row("filter",
+        /*row("filter",
           cell("filter", isHead = true, isRight = true, colSpan = 7)(List(
             withMargin("list", 10, btnFilterList("btn",filterListAct())),
             withMargin("clear",10, btnClear("btn",clearSortingAct()))
           ))
-        ),
+        ),*/
         row("headers",
-            cell("1", isHead = true, isRight = false)(List(text("1","Boat"))),
-            cell("2", isHead = true, isRight = true)(List(text("1","Date"))),
-            cell("3", isHead = true, isRight = true)(List(text("1","Total duration, hrs:min"))),
-            cell("4", isHead = true, isRight = false)(List(text("1","Confirmed"))),
-            cell("5", isHead = true, isRight = false)(List(text("1","Confirmed by"))),
-            cell("6", isHead = true, isRight = true)(List(text("1","Confirmed on"))),
-            cell("7", isHead = true)(List(btnAdd("btn",entryAddAct())))
+            cell("1", isHead = true, isUnderline=true, isRight = false)(List(text("1","Boat"))),
+            cell("2", isHead = true, isUnderline=true, isRight = true)(List(text("1","Date"))),
+            cell("3", isHead = true, isUnderline=true, isRight = true)(List(text("1","Total duration, hrs:min"))),
+            cell("4", isHead = true, isUnderline=true, isRight = false)(List(text("1","Confirmed"))),
+            cell("5", isHead = true, isUnderline=true, isRight = false)(List(text("1","Confirmed by"))),
+            cell("6", isHead = true, isUnderline=true, isRight = true)(List(text("1","Confirmed on"))),
+            cell("7", isHead = true, isUnderline=true)(List(btnAdd("btn",entryAddAct())))
         )
       ),
       //row("empty-test-row",cell("empty-test-cell")(List(text("empty-test-text","test")))) ::
       entryList().map{ (entry:Obj)=>
-        val srcId = entry(uniqueNodes.srcId).get
-        val go = Some(()⇒ currentVDom.relocate(s"/edit/$srcId"))
-        row(srcId.toString,
+        val entrySrcId = entry(uniqueNodes.srcId).get
+        val go = Some(()⇒ currentVDom.relocate(s"/edit/$entrySrcId"))
+        row(entrySrcId.toString,
           cell("1", isRight = false)(objField(entry, logAt.boat, editable = false), go),
           cell("2", isRight = true)(instantField(entry, logAt.date, editable = false), go),
           cell("3", isRight = true)(durationField(entry, logAt.durationTotal), go),
@@ -261,19 +286,23 @@ class TestComponent(
           }, go),
           cell("5", isRight = false)(objField(entry, logAt.confirmedBy, editable = false), go),
           cell("6", isRight = true)(instantField(entry, logAt.confirmedOn, editable = false), go),
-          cell("7", isRight = false)(List(btnRemove("btn",entryRemoveAct(srcId))))
+          cell("7", isRight = false)(List(btnRemove("btn",entryRemoveAct(entrySrcId))))
         )
       }
-    )))
+    ))
   ))}
 
-  private def editView(pf: String) = wrapDBView{ ()=>
-    println(pf)
+  private def editView(pf: String) = wrapDBView { () =>
+    //println(pf)
     val srcId = UUID.fromString(pf.tail)
-    val entry = uniqueNodes.whereSrcId(mainTx(), srcId)(logAt.asEntry)
+    val obj = uniqueNodes.whereSrcId(mainTx(), srcId)
+    if(!obj.nonEmpty) root(List(text("text","???")))
+    else editViewInner(srcId, obj(logAt.asEntry))
+  }
+  private def editViewInner(srcId: UUID, entry: Obj) = {
     val editable = true /*todo rw rule*/
     root(List(
-      withMargin(s"$srcId-1",10,paper("paper",table("table", Nil, List(
+      paperWithMargin(s"$srcId-1",table("table", Nil, List(
         row("1",
           cell("boat_c")(List(text("1","Boat"))),
           cell("boat_i")(objField(entry, logAt.boat, editable)/*todo select */),
@@ -284,9 +313,9 @@ class TestComponent(
         ),
         row("2",
           cell("conf_by_c")(List(text("1","Confirmed by"))),
-          cell("conf_by_i")(objField(entry, logAt.confirmedBy, editable)),
+          cell("conf_by_i")(objField(entry, logAt.confirmedBy, editable=false)),
           cell("conf_on_c")(List(text("1","Confirmed on"))),
-          cell("conf_on_i")(instantField(entry, logAt.confirmedOn, editable)),
+          cell("conf_on_i")(instantField(entry, logAt.confirmedOn, editable=false)),
           cell("conf_do"){
             if(!entry.nonEmpty) Nil
             else if(entry(logAt.asConfirmed).nonEmpty)
@@ -295,8 +324,8 @@ class TestComponent(
               List(btnRaised("confirm","Confirm")(entryConfirmAct(srcId)))
           }
         )
-      )))),
-      withMargin(s"$srcId-2",10,paper("paper",table("table",
+      ))),
+      paperWithMargin(s"$srcId-2",table("table",
         List(row("1",
           cell("1", isHead = true)(List(text("1","Time"))), /* todo widths */
           cell("2", isHead = true)(List(text("1","ME Hours.Min"))),
@@ -337,10 +366,11 @@ class TestComponent(
             cell("6")(strField(entry, logAt.log24Master, editable))
           )
         )
-      ))),
-      withMargin("3",10,paper("paper",table("table",
+      )),
+      paperWithMargin("3",table("table",
         List(
           row("headers",
+            //cell("0")(),
             cell("1", isHead = true, isRight = true)(List(text("1","Start"))),
             cell("2", isHead = true, isRight = true)(List(text("1","Stop"))),
             cell("3", isHead = true, isRight = true)(List(text("1","Duration, hrs:min"))),
@@ -349,22 +379,23 @@ class TestComponent(
           )
         ),
         workList(entry).map { (work: Obj) =>
-          val workSrcId = entry(uniqueNodes.srcId).get
+          val workSrcId = work(uniqueNodes.srcId).get
           row(workSrcId.toString,
+            //cell("0")(List(text("text",work(logAt.entryOfWork).toString))),
             cell("1", isRight = true)(instantField(work, logAt.workStart, editable)),
             cell("2", isRight = true)(instantField(work, logAt.workStop, editable)),
             cell("3", isRight = true)(durationField(work, logAt.workDuration)),
             cell("4")(strField(work, logAt.workComment, editable)),
-            cell("5")(if(editable) List(btnAdd("btn",workRemoveAct(workSrcId))) else Nil)
+            cell("5")(if(editable) List(btnRemove("btn",workRemoveAct(workSrcId))) else Nil)
           )
         }
-      )))
+      ))
     ))
   }
 
   def handlers = CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/list"))(listView) ::
-    CoHandler(ViewPath("/edit"))(editView) :: //todo redir
+    CoHandler(ViewPath("/edit"))(editView) ::
     CoHandler(ApplyEvent(logAt.entryCreated))(entryCreated) ::
     CoHandler(ApplyEvent(logAt.entryRemoved))(entryRemoved) ::
     CoHandler(ApplyEvent(logAt.workCreated))(workCreated) ::

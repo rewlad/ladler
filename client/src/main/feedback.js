@@ -3,11 +3,10 @@ var loadKeyState, connectionKeyState, locationHash;
 
 function never(){ throw new Exception() }
 function pong(){
-    const headers = { "X-r-action": "pong", "X-r-session": sessionKey(never) }
-    const newHash = location.hash.substr(1)
-    if(locationHash !== newHash){
-        locationHash = newHash
-        headers["X-r-location-hash"] = newHash
+    const headers = { 
+        "X-r-action": "pong", 
+        "X-r-session": sessionKey(never),
+        "X-r-location-hash": location.hash.substr(1)
     }
     send(headers)
     console.log("pong")
@@ -36,8 +35,10 @@ function send(headers){
     headers["X-r-connection"] = getConnectionKey(never)
     fetch("/connection",{method:"post",headers})
 }
-
+function relocateHash(data) { 
+    document.location.href = "#"+data 
+}
 export default function(){
-    const receivers = {connect,ping}
+    const receivers = {connect,ping,relocateHash}
     return ({receivers,send}) 
 }

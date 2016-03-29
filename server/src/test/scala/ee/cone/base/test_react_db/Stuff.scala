@@ -13,7 +13,7 @@ class FailOfConnection(
   sender: SenderOfConnection
 ) extends CoHandlerProvider {
   def handlers = CoHandler(FailEventKey){ e =>
-    println(e.toString)
+    println(s"error: ${e.toString}")
     sender.sendToAlien("fail",e.toString) //todo
   } :: Nil
 }
@@ -47,12 +47,13 @@ class TestAttrs(
   val testState: Attr[String] = attr(new PropId(0x6601), stringValueConverter),
   val comments: Attr[String] = attr(new PropId(0x6602), stringValueConverter),
   val taskCreated: Attr[Boolean] = attr(new PropId(0x6603), definedValueConverter),
-  val taskRemoved: Attr[Boolean] = attr(new PropId(0x6604), definedValueConverter)
+  val taskRemoved: Attr[Boolean] = attr(new PropId(0x6604), definedValueConverter),
+  val targetStringValue: Attr[String] = attr(new PropId(0x6605), stringValueConverter)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asTestTask,testState, mutual = true) :::
   mandatory(asTestTask,comments, mutual = true) :::
   searchIndex.handlers(asTestTask.defined, testState) :::
-  alienCanChange(comments) ::: Nil
+  alienCanChange.handlers(targetStringValue)(comments) ::: Nil
 ) extends CoHandlerProvider
 
 class TestComponent(

@@ -16,12 +16,15 @@ class CurrentVDom(
   private var until: Long = Long.MaxValue
   private var vDom: VDomValue = wasNoValue
   private var hashForView = ""
+  private var hashFromAlien = ""
   private def relocate(message: DictMessage): Unit =
-    for(hash <- message.value.get("X-r-location-hash")) relocate(hash)
-
+    for(hash <- message.value.get("X-r-location-hash")) if(hashFromAlien != hash){
+      hashFromAlien = hash
+      relocate(hash)
+    }
   def relocate(value: String) = if(hashForView != value) {
     hashForView = value
-    println(value)
+    println(s"hashForView: $value")
     invalidate()
   }
   private def dispatch(message: DictMessage): Unit =
@@ -46,7 +49,8 @@ class CurrentVDom(
     if(vDom != wasNoValue) Nil else {
       until = Long.MaxValue
       vDom = view(hashForView,"")
-      diff.diff(vDom).map(d=>("showDiff", jsonToString(d))).toList
+      diff.diff(vDom).map(d=>("showDiff", jsonToString(d))).toList :::
+        (if(hashFromAlien==hashForView) Nil else ("relocateHash",hashForView) :: Nil)
     }
   }
   def handlers =

@@ -10,11 +10,9 @@ class AlienAccessAttrs(
   searchIndex: SearchIndex,
   nodeValueConverter: RawValueConverter[Obj],
   uuidValueConverter: RawValueConverter[Option[UUID]],
-  stringValueConverter: RawValueConverter[String],
   mandatory: Mandatory
 )(
-  val targetSrcId: Attr[Option[UUID]] = attr(new PropId(0x0022), uuidValueConverter),
-  val targetStringValue: Attr[String] = attr(new PropId(0x0023), stringValueConverter)
+  val targetSrcId: Attr[Option[UUID]] = attr(new PropId(0x0022), uuidValueConverter)
 )()
 
 class AlienCanChange(
@@ -22,8 +20,7 @@ class AlienCanChange(
   uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
 ) {
   private def eventSource = handlerLists.single(SessionEventSource)
-  def apply(attr: Attr[String]) = handlers(at.targetStringValue)(attr)
-  private def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
+  def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
       CoHandler(AddChangeEvent(attr)){ (srcId:UUID,newValue:Value) =>
         eventSource.addEvent{ event =>
           event(at.targetSrcId) = Option(srcId)
@@ -32,7 +29,7 @@ class AlienCanChange(
         }
       } ::
       CoHandler(ApplyEvent(attr.defined)){ event =>
-        println(event(at.targetSrcId).get)
+        //println(event(at.targetSrcId).get)
         val node = uniqueNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
         node(attr) = event(targetAttr)
       } :: Nil

@@ -66,7 +66,7 @@ case class TableRow() extends VDomValue {
   }
 }
 
-case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int)(
+case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int, isUnderline: Boolean)(
     val onClick: Option[()⇒Unit]
 ) extends VDomValue with OnClickReceiver {
   def appendJson(builder: JsonBuilder) = {
@@ -78,7 +78,7 @@ case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int)(
     builder.append("style"); {
       builder.startObject()
       builder.append("textAlign").append(if(isRight) "right" else "left")
-      if(!isHead) builder.append("border-top").append("1px solid silver")
+      if(isUnderline) builder.append("borderBottom").append("1px solid silver")
       builder.end()
     }
     builder.end()
@@ -118,6 +118,19 @@ case class MarginWrapper(value: Int) extends VDomValue {
   }
 }
 
+case class PaddingWrapper(value: Int) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style"); {
+      builder.startObject()
+      builder.append("padding").append(s"${value}px")
+      builder.end()
+    }
+    builder.end()
+  }
+}
+
 case class InputField[Value](tp: String, label: String, value: Value, deferSend: Boolean)(
   input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
 ) extends VDomValue with OnChangeReceiver {
@@ -142,6 +155,7 @@ case class RaisedButton(label: String)(
     builder.startObject()
     builder.append("tp").append("RaisedButton")
     builder.append("secondary").append(true)
+    builder.append("label").append(label)
     onClick.foreach(_⇒ builder.append("onClick").append("send")) //try
     builder.end()
   }
@@ -170,8 +184,8 @@ class MaterialTags(
     )
   def row(key: VDomKey, children: ChildPair[OfTableRow]*) =
     child[OfTable](key, TableRow(), children.toList)
-  def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
-    child[OfTableRow](key, TableColumn(isHead, isRight, colSpan)(action), children)
+  def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1, isUnderline: Boolean=false)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
+    child[OfTableRow](key, TableColumn(isHead, isRight, colSpan, isUnderline)(action), children)
 
   private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
     child[OfDiv](key,
@@ -189,6 +203,8 @@ class MaterialTags(
 
   def withMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
     child[OfDiv](key, MarginWrapper(value), theChild :: Nil)
+  def withPadding(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
+    child[OfDiv](key, PaddingWrapper(value), theChild :: Nil)
 
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
