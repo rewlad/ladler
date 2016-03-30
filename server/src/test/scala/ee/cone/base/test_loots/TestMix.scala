@@ -12,7 +12,7 @@ import ee.cone.base.vdom.{InputAttributesImpl,VDomConnectionMix}
 object TestApp extends App {
   val app = new TestAppMix
   app.start()
-  println(s"SEE: http://127.0.0.1:${app.httpPort}/material-app.html#/test")
+  println(s"SEE: http://127.0.0.1:${app.httpPort}/material-app.html#/entryList")
 }
 
 class TestAppMix extends BaseAppMix with ServerAppMix with InMemoryDBAppMix {

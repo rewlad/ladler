@@ -171,18 +171,8 @@ class TestComponent(
     Nil
   ) else Nil
 
-/*
-  private def createTaskAction()() = {
-    eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
-      (at.taskCreated, "task was created")
-    }
-    currentVDom.invalidate()
-  }*/
-
-
-  private def filterListAct()() = ???
-  private def clearSortingAct()() = ???
+  //private def filterListAct()() = ???
+  //private def clearSortingAct()() = ???
   private def entryAddAct()() = {
     eventSource.addEvent{ ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
@@ -252,8 +242,9 @@ class TestComponent(
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
 
-  private def listView(pf: String) = wrapDBView{ ()=> root(List(
+  private def entryListView(pf: String) = wrapDBView{ ()=> root(List(
     //class LootsBoatLogList
+    toolbar(),
     paperWithMargin("margin",table("table",
       List(
         /*row("filter",
@@ -275,7 +266,7 @@ class TestComponent(
       //row("empty-test-row",cell("empty-test-cell")(List(text("empty-test-text","test")))) ::
       entryList().map{ (entry:Obj)=>
         val entrySrcId = entry(uniqueNodes.srcId).get
-        val go = Some(()⇒ currentVDom.relocate(s"/edit/$entrySrcId"))
+        val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
         row(entrySrcId.toString,
           cell("1", isRight = false)(objField(entry, logAt.boat, editable = false), go),
           cell("2", isRight = true)(instantField(entry, logAt.date, editable = false), go),
@@ -292,7 +283,7 @@ class TestComponent(
     ))
   ))}
 
-  private def editView(pf: String) = wrapDBView { () =>
+  private def entryEditView(pf: String) = wrapDBView { () =>
     //println(pf)
     val srcId = UUID.fromString(pf.tail)
     val obj = uniqueNodes.whereSrcId(mainTx(), srcId)
@@ -302,6 +293,7 @@ class TestComponent(
   private def editViewInner(srcId: UUID, entry: Obj) = {
     val editable = true /*todo rw rule*/
     root(List(
+      toolbar(),
       paperWithMargin(s"$srcId-1",table("table", Nil, List(
         row("1",
           cell("boat_c")(List(text("1","Boat"))),
@@ -392,10 +384,49 @@ class TestComponent(
       ))
     ))
   }
+  private def eventListView(pf: String) = wrapDBView { () =>
+    root(List(
+      toolbar(),
+      paperWithMargin("margin",table("table",
+        List(
+          row("head",
+            cell("1", isHead=true, isUnderline = true)(List(text("text", "Event"))),
+            cell("2", isHead=true, isUnderline = true)(Nil)
+          )
+        ),
+        eventSource.unmergedEvents.map { ev =>
+          val srcId = ev(uniqueNodes.srcId).get
+          row(srcId.toString,
+            cell("1")(List(text("text", ev(eventSource.comment)))),
+            cell("2")(List(btnRemove("btn", () => eventSource.addUndo(srcId))))
+          )
+        }
+      ))
+    ))
+  }
+
+  private def saveAction()() = {
+    eventSource.addRequest()
+    currentVDom.invalidate()
+  }
+
+  private def toolbar() = {
+    paperWithMargin("toolbar", table("table", Nil, List(row("1",
+      //cell("1")(List(btnRaised("boats","Boats")(()⇒currentVDom.relocate("/boatList")))),
+      cell("2")(List(btnRaised("entries","Entries")(()⇒currentVDom.relocate("/entryList")))),
+      cell("3")(
+        if(eventSource.unmergedEvents.isEmpty) Nil else List(
+          btnRaised("events","Events")(()⇒currentVDom.relocate("/eventList")),
+          btnRaised("save","Save")(saveAction())
+        )
+      )
+    ))))
+  }
 
   def handlers = CoHandler(ViewPath(""))(emptyView) ::
-    CoHandler(ViewPath("/list"))(listView) ::
-    CoHandler(ViewPath("/edit"))(editView) ::
+    CoHandler(ViewPath("/eventList"))(eventListView) ::
+    CoHandler(ViewPath("/entryList"))(entryListView) ::
+    CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
     CoHandler(ApplyEvent(logAt.entryCreated))(entryCreated) ::
     CoHandler(ApplyEvent(logAt.entryRemoved))(entryRemoved) ::
     CoHandler(ApplyEvent(logAt.workCreated))(workCreated) ::
