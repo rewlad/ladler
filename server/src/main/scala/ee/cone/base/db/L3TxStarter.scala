@@ -35,7 +35,8 @@ class DefaultTxManagerImpl[DBEnvKey](
     val checkAll: PreCommitCheckAllOfConnection
 ) extends BaseTxManager[DBEnvKey] with DefaultTxManager[DBEnvKey] {
   def rwTx[R](f: () ⇒ R) = withBusy { () ⇒
-    env.rwTx { rawIndex ⇒
+    val lifeCycle = connectionLifeCycle.sub()
+    val res = env.rwTx(lifeCycle){ rawIndex ⇒
       val tx = new ProtectedBoundToTx[DBEnvKey](rawIndex, true)
       register(tx,on=true)
       val res = f()
@@ -44,6 +45,8 @@ class DefaultTxManagerImpl[DBEnvKey](
       register(tx,on=false)
       res
     }
+    lifeCycle.close()
+    res
   }
   def roTx[R](f: () ⇒ R) = withBusy { () ⇒
     val lifeCycle = connectionLifeCycle.sub()

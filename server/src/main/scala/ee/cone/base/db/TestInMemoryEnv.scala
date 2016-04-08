@@ -34,7 +34,7 @@ class InMemoryEnv[DBEnvKey](val dbId: Long) extends DBEnv[DBEnvKey] {
   }
   def roTx(txLifeCycle: LifeCycle) = createRawIndex()
   private object RW
-  def rwTx[R](f: RawIndex ⇒ R): R = RW.synchronized{
+  def rwTx[R](txLifeCycle: LifeCycle)(f: RawIndex ⇒ R): R = RW.synchronized{
     val index = createRawIndex()
     Setup(f(index))(_ ⇒ synchronized { data = index.data })
   }

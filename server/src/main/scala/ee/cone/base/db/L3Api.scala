@@ -45,7 +45,7 @@ trait CurrentTx[DBEnvKey] {
 trait DBEnv[DBEnvKey] extends CanStart {
   def dbId: Long
   def roTx(txLifeCycle: LifeCycle): RawIndex
-  def rwTx[R](f: RawIndex⇒R): R
+  def rwTx[R](txLifeCycle: LifeCycle)(f: RawIndex⇒R): R
 }
 
 trait MainEnvKey
