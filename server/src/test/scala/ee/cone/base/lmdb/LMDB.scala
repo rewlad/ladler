@@ -17,23 +17,19 @@ class LightningDBEnv[DBEnvKey](
   lifeCycleManager: ExecutionManager
 ) extends DBEnv[DBEnvKey] {
   var state: Option[(Env,Database)] = None
-  def start() = lifeCycleManager.startServer{ ()⇒
-    println("A")
-    try{
-      val env = new Env()
-      try {
-        println("B")
-        env.setMapSize(mapSize)
-        env.open(path) // needs path dir exists here
-        val db = env.openDatabase()
-        try {
-          synchronized{ state = Some((env,db)) }
-          Thread.sleep(java.lang.Long.MAX_VALUE)
-        } finally env.close()
-      } finally env.close()
-    } catch {
-      case e: Throwable ⇒ println(e)
-    }
+  def start() = lifeCycleManager.startConnection{ lifeCycle ⇒
+    val env = new Env()
+    lifeCycle.onClose(()⇒env.close())
+
+    env.setMapSize(mapSize)
+    env.open(path) // needs path dir exists here
+    val db = env.openDatabase()
+    lifeCycle.onClose(()⇒db.close())
+    println(s"stat: ${env.stat()}")
+
+    synchronized{ state = Some((env,db)) }
+    Thread.sleep(java.lang.Long.MAX_VALUE)
+
 
   }
 
@@ -72,15 +68,16 @@ class LightningMergedIndex[DBEnvKey](
   }
 
   private def bytesFromDirectBuffer(buffer: DirectBuffer): Array[Byte] = {
+    //println(s"bytesFromDirectBuffer: ${buffer.capacity}")
     val res = new Array[Byte](buffer.capacity)
     buffer.getBytes(0, res)
     res
   }
   private def bytesToDirectBuffer(byteBuffer: ByteBuffer, directBuffer: DirectBuffer, bytes: Array[Byte]): Unit = {
-    keyByteBuffer.clear()
-    keyByteBuffer.put(bytes)
-    keyByteBuffer.flip()
-    keyDirectBuffer.wrap(keyByteBuffer.slice())
+    byteBuffer.clear()
+    byteBuffer.put(bytes)
+    byteBuffer.flip()
+    directBuffer.wrap(byteBuffer.slice())
   }
 
   private def prepareKey(key: Array[Byte]): Unit = {
@@ -94,6 +91,7 @@ class LightningMergedIndex[DBEnvKey](
     if (rc != 0) Array.empty else bytesFromDirectBuffer(valDirectBuffer)
   }
   def set(key: RawKey, value: RawValue): Unit = {
+    //println(s"setl -- ${RawDumpImpl(key)} -- ${RawDumpImpl(value)}")
     prepareKey(key)
     if(value.length==0){
       val rc = cursor.seekPosition(keyDirectBuffer, valDirectBuffer, SeekOp.KEY)
@@ -110,7 +108,14 @@ class LightningMergedIndex[DBEnvKey](
   )
   def seek(from: RawKey): Unit = {
     prepareKey(from)
-    keyStatus(cursor.seekPosition(keyDirectBuffer, valDirectBuffer, SeekOp.RANGE))
+    val rc = cursor.seekPosition(keyDirectBuffer, valDirectBuffer, SeekOp.RANGE)
+    keyStatus(rc)
+    /*
+    println(s"seek -- ${RawDumpImpl(from)} -- $rc}")
+    peek match {
+      case peek: KeyStatus ⇒ println(s"seekr -- ${RawDumpImpl(peek.key)} -- ${RawDumpImpl(peek.value)}")
+      case _ ⇒ println(s"seekr?")
+    }*/
   }
   def seekNext() = {
     if(peek == NotFoundStatus) Never()

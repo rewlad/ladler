@@ -18,8 +18,8 @@ object TestApp extends App {
 
 class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
   lazy val mainDB = new InMemoryEnv[MainEnvKey](1L)
-  lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
-  //lazy val instantDB = new LightningDBEnv[InstantEnvKey](0L,".",1L << 30, executionManager)
+  //lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
+  lazy val instantDB = new LightningDBEnv[InstantEnvKey](0L,".",1L << 30, executionManager)
 
   lazy val httpPort = 5557
   lazy val staticRoot = Paths.get("../client/build/test")
