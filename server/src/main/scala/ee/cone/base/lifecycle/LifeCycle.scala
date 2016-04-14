@@ -39,10 +39,10 @@ object DoClose {
 
 class ExecutionManagerImpl(threadCount: Int) extends ExecutionManager {
   lazy val pool = Executors.newScheduledThreadPool(threadCount)
-  def startServer(iteration: ()=>Unit) = pool.execute(ToRunnable {
-    while(true) iteration()
+  def submit(f: ()=>Unit) = pool.submit(new Runnable() {
+    def run() = f()
   })
-  def startConnection(setup: LifeCycle=>CoMixBase) = pool.submit(ToRunnable {
+  def startConnection(setup: LifeCycle=>CoMixBase) = submit { ()⇒
     val lifeCycle = new LifeCycleImpl(None)
     try{
       lifeCycle.open()
@@ -57,5 +57,5 @@ class ExecutionManagerImpl(threadCount: Int) extends ExecutionManager {
           throw e
       }
     } finally lifeCycle.close()
-  })
+  }
 }

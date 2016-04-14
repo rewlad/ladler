@@ -10,7 +10,7 @@ trait DBAppMix extends AppMixBase {
   def createMergerConnection: LifeCycle=>CoMixBase
   lazy val mergerCurrentRequest = new CurrentRequest(None)
   override def toStart =
-    mainDB :: instantDB :: new Merger(executionManager,createMergerConnection) :: super.toStart
+    new Merger(executionManager,createMergerConnection) :: super.toStart
 }
 
 trait InMemoryDBAppMix extends DBAppMix {

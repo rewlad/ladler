@@ -38,5 +38,4 @@ class InMemoryEnv[DBEnvKey](val dbId: Long) extends DBEnv[DBEnvKey] {
     val index = createRawIndex()
     Setup(f(index))(_ ⇒ synchronized { data = index.data })
   }
-  def start() = ()
 }

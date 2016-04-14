@@ -2,36 +2,48 @@ package ee.cone.base.lmdb
 
 
 import java.nio.ByteBuffer
-import ee.cone.base.connection_api.{ExecutionManager, LifeCycle}
+import ee.cone.base.connection_api._
 import ee.cone.base.db.Types.{RawValue, RawKey}
 import ee.cone.base.db._
 import ee.cone.base.util._
 import org.fusesource.lmdbjni._
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Promise}
+
 // PATH=/web/_data/jdk/bin:$PATH sbt 'show test:full-classpath'
+
+class LightningConnection[DBEnvKey](
+  dbEnv: LightningDBEnv[DBEnvKey],
+  lifeCycle: LifeCycle
+) extends CoHandlerProvider {
+  private def activate(): Unit = {
+    dbEnv.setup(lifeCycle)
+    Thread.sleep(java.lang.Long.MAX_VALUE)
+  }
+  def handlers = CoHandler(ActivateReceiver)(activate) :: Nil
+}
 
 class LightningDBEnv[DBEnvKey](
   val dbId: Long,
   path: String,
   mapSize: Long,
-  lifeCycleManager: ExecutionManager
-) extends DBEnv[DBEnvKey] {
-  var state: Option[(Env,Database)] = None
-  def start() = lifeCycleManager.startConnection{ lifeCycle ⇒
+  lifeCycleManager: ExecutionManager,
+  createStorageConnection: LifeCycle⇒CoMixBase
+) extends DBEnv[DBEnvKey] with CanStart {
+  private lazy val state = Promise[(Env,Database)]()
+  def start() = lifeCycleManager.startConnection(createStorageConnection)
+  def setup(lifeCycle: LifeCycle): Unit = {
     val env = new Env()
     lifeCycle.onClose(()⇒env.close())
-
     env.setMapSize(mapSize)
     env.open(path) // needs path dir exists here
     val db = env.openDatabase()
     lifeCycle.onClose(()⇒db.close())
-    println(s"stat: ${env.stat()}")
-
-    synchronized{ state = Some((env,db)) }
-    Thread.sleep(java.lang.Long.MAX_VALUE)
-
-
+    //println(s"stat: ${env.stat()}")
+    state success (env,db)
   }
+
 
   def roTx(txLifeCycle: LifeCycle) = createTx(txLifeCycle, rw=false)
   def rwTx[R](txLifeCycle: LifeCycle)(f: (RawIndex) ⇒ R) = {
@@ -42,7 +54,7 @@ class LightningDBEnv[DBEnvKey](
   }
   private def maxValSize = 4096
   private def createTx(txLifeCycle: LifeCycle, rw: Boolean): LightningMergedIndex[DBEnvKey] = {
-    val (env,db) = synchronized { state.get }
+    val (env,db) = Await.result(state.future, Duration.Inf)
     val tx = Option(env.createTransaction(null, !rw)).get
     txLifeCycle.onClose(()⇒tx.close())
     val cursor = db.openCursor(tx)

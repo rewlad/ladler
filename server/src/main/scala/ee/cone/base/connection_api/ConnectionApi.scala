@@ -40,7 +40,7 @@ trait CanStart {
 }
 trait ExecutionManager {
   def pool: ExecutorService
-  def startServer(iteration: ()=>Unit): Unit
+  def submit(run: ()=>Unit): Future[_]
   def startConnection(setup: LifeCycle=>CoMixBase): Future[_]
 }
 trait AppMixBase extends CanStart {

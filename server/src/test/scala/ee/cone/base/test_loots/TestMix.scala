@@ -2,11 +2,12 @@ package ee.cone.base.test_loots
 
 import java.nio.file.Paths
 
-import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.connection_api.{CoMixBase, CoHandlerProvider, LifeCycle}
 import ee.cone.base.db._
 import ee.cone.base.lifecycle.{BaseConnectionMix,
 BaseAppMix}
-import ee.cone.base.lmdb.LightningDBEnv
+import ee.cone.base.lmdb.{LightningDBAppMix, LightningConnection,
+LightningDBEnv}
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
 import ee.cone.base.vdom.{InputAttributesImpl,VDomConnectionMix}
 
@@ -16,10 +17,9 @@ object TestApp extends App {
   println(s"SEE: http://127.0.0.1:${app.httpPort}/material-app.html#/entryList")
 }
 
-class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
+class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
   lazy val mainDB = new InMemoryEnv[MainEnvKey](1L)
-  //lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
-  lazy val instantDB = new LightningDBEnv[InstantEnvKey](0L,".",1L << 30, executionManager)
+  // lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
 
   lazy val httpPort = 5557
   lazy val staticRoot = Paths.get("../client/build/test")

@@ -151,7 +151,6 @@ class EventSourceOperationsImpl(
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
     val res = uniqueNodes.create(instantTx(), label, UUID.randomUUID)
     res(at.instantSession) = instantSession
-    println("addInstant")
     res
   }
 }

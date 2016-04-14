@@ -24,7 +24,6 @@ class MergerEventSourceOperationsImpl(
       instantTxManager.roTx { () ⇒
         val req = ops.nextRequest()
         if (req.nonEmpty) {
-          println("merger: req nonEmpty")
           currentRequest.value = req(uniqueNodes.srcId)
           ops.applyRequestedEvents(req)
         }
@@ -44,7 +43,7 @@ class Merger(
   lifeCycleManager: ExecutionManager,
   createConnection: LifeCycle ⇒ CoMixBase
 ) extends CanStart {
-  def start() = lifeCycleManager.startServer { ()=>
+  def start() = lifeCycleManager.submit { ()=>
     var activity: Option[Future[_]] = None
     while(true){
       if(activity.forall(_.isDone))
