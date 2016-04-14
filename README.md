@@ -1,6 +1,6 @@
 # ladler
 Scala server-centric web application framework with:
-- React component tree sync frpm server to client with SSE
+- React component tree sync from server to client with SSE
 - material design
 - event-sourcing-like approach
 - multiple versions of reality (long transactions)
@@ -21,6 +21,7 @@ cd server
 sbt 'test:runMain ee.cone.base.test_sse.TestApp'
 ```
 There can be in place of test_sse: test_react_db, test_layout, etc.
+
 For demo app with LMDB persistence:
 
 ```
