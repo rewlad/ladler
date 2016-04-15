@@ -1,6 +1,7 @@
 package ee.cone.base.test_loots
 
-import java.time.{Duration, Instant}
+import java.time.format.DateTimeFormatter
+import java.time._
 import java.util.UUID
 
 import ee.cone.base.connection_api._
@@ -56,26 +57,29 @@ class BoatLogEntryAttributes(
   uuidValueConverter: RawValueConverter[Option[UUID]],
   instantValueConverter: RawValueConverter[Option[Instant]],
   durationValueConverter: RawValueConverter[Option[Duration]],
+
   alienCanChange: AlienCanChange
 )(
   val justIndexed: Attr[String] = sysAttrs.justIndexed,
 
   val asEntry: Attr[Obj] = label(0x6700),
   val boat: Attr[Obj] = attr(new PropId(0x6701), nodeValueConverter),
+  //val boat:Attr[String]=attr(new PropId(0x6701),stringValueConverter),
   val date: Attr[Option[Instant]] = attr(new PropId(0x6702), instantValueConverter),
   val durationTotal: Attr[Option[Duration]] = attr(new PropId(0x6703), durationValueConverter),
   val asConfirmed: Attr[Obj] = label(0x6704),
   val confirmedBy: Attr[Obj] = attr(new PropId(0x6705), nodeValueConverter),
+  //val confirmedBy: Attr[String] = attr(new PropId(0x6705), stringValueConverter),
   val confirmedOn: Attr[Option[Instant]] = attr(new PropId(0x6706), instantValueConverter), //0x6709
   val entryCreated: Attr[Boolean] = attr(new PropId(0x6707), definedValueConverter),
   val entryRemoved: Attr[Boolean] = attr(new PropId(0x6708), definedValueConverter),
 
-  val log00Date: Attr[String] = attr(new PropId(0x6710), stringValueConverter),
+  val log00Date: Attr[Option[Instant]] = attr(new PropId(0x6710), instantValueConverter),
   val log00Fuel: Attr[String] = attr(new PropId(0x6711), stringValueConverter),
   val log00Comment: Attr[String] = attr(new PropId(0x6712), stringValueConverter),
   val log00Engineer: Attr[String] = attr(new PropId(0x6713), stringValueConverter),
   val log00Master: Attr[String] = attr(new PropId(0x6714), stringValueConverter),
-  val log08Date: Attr[String] = attr(new PropId(0x6715), stringValueConverter),
+  val log08Date: Attr[Option[Instant]] = attr(new PropId(0x6715), instantValueConverter),
   val log08Fuel: Attr[String] = attr(new PropId(0x6716), stringValueConverter),
   val log08Comment: Attr[String] = attr(new PropId(0x6717), stringValueConverter),
   val log08Engineer: Attr[String] = attr(new PropId(0x6718), stringValueConverter),
@@ -83,7 +87,7 @@ class BoatLogEntryAttributes(
   val logRFFuel: Attr[String] = attr(new PropId(0x670B), stringValueConverter),
   val logRFComment: Attr[String] = attr(new PropId(0x670C), stringValueConverter),
   val logRFEngineer: Attr[String] = attr(new PropId(0x670D), stringValueConverter), // 0x670A,0x670E,0x670F
-  val log24Date: Attr[String] = attr(new PropId(0x671A), stringValueConverter),
+  val log24Date: Attr[Option[Instant]] = attr(new PropId(0x671A), instantValueConverter),
   val log24Fuel: Attr[String] = attr(new PropId(0x671B), stringValueConverter),
   val log24Comment: Attr[String] = attr(new PropId(0x671C), stringValueConverter),
   val log24Engineer: Attr[String] = attr(new PropId(0x671D), stringValueConverter),
@@ -97,26 +101,62 @@ class BoatLogEntryAttributes(
   val entryOfWork: Attr[Obj] = attr(new PropId(0x6725), nodeValueConverter),
   val workCreated: Attr[Boolean] = attr(new PropId(0x6726), definedValueConverter),
   val workRemoved: Attr[Boolean] = attr(new PropId(0x6727), definedValueConverter),
+
   val targetEntryOfWork: Attr[Option[UUID]] = attr(new PropId(0x6728), uuidValueConverter),
 
   val targetStringValue: Attr[String] = attr(new PropId(0x6730), stringValueConverter),
-  val targetInstantValue: Attr[Option[Instant]] = attr(new PropId(0x6731), instantValueConverter)
+  val targetInstantValue: Attr[Option[Instant]] = attr(new PropId(0x6731), instantValueConverter),
+  val entryConfirmed: Attr[Boolean] = attr(new PropId(0x6732),definedValueConverter),
+  val entryReopened: Attr[Boolean] = attr(new PropId(0x6733),definedValueConverter)
 
 )(val handlers: List[BaseCoHandler] =
   searchIndex.handlers(asEntry, justIndexed) :::
   searchIndex.handlers(asWork, entryOfWork) :::
   alienCanChange.handlers(targetInstantValue)(date) :::
+    alienCanChange.handlers(targetInstantValue)(log00Date):::
+    alienCanChange.handlers(targetInstantValue)(log08Date):::
+    alienCanChange.handlers(targetInstantValue)(log24Date):::
   List(
-    log00Date,log00Fuel,log00Comment,log00Engineer,log00Master,
-    log08Date,log08Fuel,log08Comment,log08Engineer,log08Master,
+    /*log00Date,*/log00Fuel,log00Comment,log00Engineer,log00Master,
+    /*log08Date,*/log08Fuel,log08Comment,log08Engineer,log08Master,
     logRFFuel,logRFComment,logRFEngineer,
-    log24Date,log24Fuel,log24Comment,log24Engineer,log24Master
+    /*log24Date,*/log24Fuel,log24Comment,log24Engineer,log24Master
   ).flatMap(alienCanChange.handlers(targetStringValue)(_)) :::
     alienCanChange.handlers(targetInstantValue)(workStart) :::
     alienCanChange.handlers(targetInstantValue)(workStop) :::
     alienCanChange.handlers(targetStringValue)(workComment)
 ) extends CoHandlerProvider
 
+class DataTablesState(currentVDom: CurrentVDom){
+  val dtTableWidths=scala.collection.mutable.Map[VDomKey,Float]()
+  val dtTableCheckAll=scala.collection.mutable.Map[VDomKey,Boolean]()
+  val dtTableCheck=scala.collection.mutable.Map[VDomKey,Boolean]()
+  val dtTableToggleRecordRow=scala.collection.mutable.Map[VDomKey,Boolean]()
+
+  def handleResize(id:VDomKey,cWidth:Float)={
+    dtTableWidths(id)=cWidth
+
+    currentVDom.invalidate()
+  }
+  def handleCheckAll(id:VDomKey,checked:Boolean): Unit ={
+    dtTableCheckAll(id)=checked
+    val selKeys=dtTableCheck.filter{case(k,v)=>k.indexOf(id)==0}.keySet
+    selKeys.foreach(k=>dtTableCheck(k)=checked)
+    currentVDom.invalidate()
+  }
+  def handleCheck(id:VDomKey,checked:Boolean)={
+    dtTableCheck(id)=checked
+    currentVDom.invalidate()
+  }
+  def handleToggle(id:VDomKey)={
+    //println("toggle",id)
+    val newVal=true
+    dtTableToggleRecordRow(id)=newVal
+    dtTableToggleRecordRow.foreach{case (k,v)=>if(k!=id&&newVal)dtTableToggleRecordRow(k)=false}
+    currentVDom.invalidate()
+  }
+
+}
 class TestComponent(
   at: TestAttributes,
   logAt: BoatLogEntryAttributes,
@@ -126,39 +166,65 @@ class TestComponent(
   alienAttr: AlienAttrFactory,
   tags: Tags,
   materialTags: MaterialTags,
+  flexTags:FlexTags,
   currentVDom: CurrentVDom
 ) extends CoHandlerProvider {
   import tags._
   import materialTags._
+  import flexTags._
+
+  val dtTablesState=new DataTablesState(currentVDom)
+
   private def eventSource = handlerLists.single(SessionEventSource)
 
-  private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String ): List[ChildPair[OfDiv]] =
-    if(obj.nonEmpty) List(text("1",valueToText(obj(attr)))) else Nil
-  private def strField(obj: Obj, attr: Attr[String], editable: Boolean): List[ChildPair[OfDiv]] =
+  private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =
+    if(obj.nonEmpty)
+      if(label.isEmpty)
+        List(text("1",valueToText(obj(attr))))
+      else
+        List(labeledText("1",valueToText(obj(attr)),label.getOrElse("")))
+    else
+      Nil
+  private def strField(obj: Obj, attr: Attr[String], editable: Boolean,label:Option[String] = None): List[ChildPair[OfDiv]] =
     if(!obj.nonEmpty) Nil
     else if(!editable) List(text("1",obj(attr)))
     else {
       val srcId = obj(uniqueNodes.srcId).get
-      List(textInput("1",""/*todo label*/, obj(attr), alienAttr(attr)(srcId)))
+      List(textInput("1",label.getOrElse("")/*todo label??*/, obj(attr), alienAttr(attr)(srcId)))
     }
-  private def durationField(obj: Obj, attr: Attr[Option[Duration]]): List[ChildPair[OfDiv]] =
-    toAlienText[Option[Duration]](obj,attr,v⇒v.map(_.getSeconds.toString).getOrElse(""))
+  private def durationField(obj: Obj, attr: Attr[Option[Duration]],label:Option[String]=None): List[ChildPair[OfDiv]] = {
+    toAlienText[Option[Duration]](obj, attr, v ⇒ v.map(x=>
+      x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse(""),label
+    )
+  }
 
-  private def instantField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean): List[ChildPair[OfDiv]] = {
+  private def instantField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean,label:Option[String] = None): List[ChildPair[OfDiv]] = {
     //println(attr,obj.nonEmpty,editable)
     if(!obj.nonEmpty) Nil
-    else if(!editable) obj(attr).map(v⇒text("1",v.getEpochSecond.toString)).toList
+    else if(!editable)
+      obj(attr).map(v⇒ {
+        val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
+        val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+
+        if (label.isEmpty)
+          text("1",date.format(formatter))
+        else
+          labeledText("1", date.format(formatter), label.getOrElse(""))
+      }).toList
     else {
       val srcId = obj(uniqueNodes.srcId).get
-      List(dateInput("1","",obj(attr),alienAttr(attr)(srcId)))
+      List(dateInput("1",label.getOrElse(""),obj(attr),alienAttr(attr)(srcId)))
     }
   }
 
 
   private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean): List[ChildPair[OfDiv]] =
-    toAlienText[Obj](obj,attr,v⇒if(v.nonEmpty) v(at.caption) else "")
-
-
+    toAlienText[Obj](obj,attr,v⇒if(v.nonEmpty) v(at.caption) else "",None)
+  private def objField(obj: Obj, attr: Attr[Obj],tmp:String, editable: Boolean,label:Option[String]): List[ChildPair[OfDiv]] = {
+    //toAlienText[Obj](obj,attr,v⇒if(v.nonEmpty) v(at.caption) else "")
+    if (!obj.nonEmpty) return Nil
+    List(textInput("1", label.getOrElse(""), tmp, (String) => {}, !editable))
+  }
 
   private def entryList(): List[Obj] = findNodes.where(
     mainTx(), logAt.asEntry.defined,
@@ -196,8 +262,28 @@ class TestComponent(
     val entry = uniqueNodes.whereSrcId(mainTx(), ev(alienAccessAttrs.targetSrcId).get)
     entry(logAt.justIndexed) = ""
   }
-  private def entryReopenAct(entrySrcId: UUID)() = ???
-  private def entryConfirmAct(entrySrcId: UUID)() = ???
+  private def entryReopenAct(entrySrcId: UUID)() = {
+    eventSource.addEvent{ev =>
+      ev(alienAccessAttrs.targetSrcId)=Some(entrySrcId)
+      (logAt.entryReopened,"entry was reopened")
+    }
+    currentVDom.invalidate()
+  }
+  private def entryReopened(ev:Obj)={
+    val entry=uniqueNodes.whereSrcId(mainTx(),ev(alienAccessAttrs.targetSrcId).get)
+    entry(logAt.asConfirmed)=uniqueNodes.noNode
+  }
+  private def entryConfirmAct(entrySrcId: UUID)() = {
+    eventSource.addEvent{ev =>
+      ev(alienAccessAttrs.targetSrcId)=Some(entrySrcId)
+      (logAt.entryConfirmed,"entry was confirmed")
+    }
+    currentVDom.invalidate()
+  }
+  private def entryConfirmed(ev:Obj)={
+    val entry=uniqueNodes.whereSrcId(mainTx(),ev(alienAccessAttrs.targetSrcId).get)
+    entry(logAt.asConfirmed)=entry
+  }
   private def workAddAct(entrySrcId: UUID)() = {
     eventSource.addEvent{ ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
@@ -242,46 +328,87 @@ class TestComponent(
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
 
-  private def entryListView(pf: String) = wrapDBView{ ()=> root(List(
+  private def entryListView(pf: String) = wrapDBView{ ()=>{
+    val dtTable0=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableList",0.0f),true,true,true)
+    dtTable0.addColumns(List(
+      dtTable0.dtColumn("2",1000,"center",0,0,1,None)
+    ))
+
+    dtTable0.addHeadersForColumn(
+      Map(
+        "2"->List(
+          dtTable0.dtHeader("2",100,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Boat")))))),
+          dtTable0.dtHeader("3",150,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Date")))))),
+          dtTable0.dtHeader("4",100,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Total duration, hrs:min")))))),
+          dtTable0.dtHeader("5",100,None,3,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Confirmed")))))),
+          dtTable0.dtHeader("6",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Confirmed by")))))),
+          dtTable0.dtHeader("7",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Confirmed on")))))),
+          dtTable0.dtHeader("8",100,None,List(withSideMargin("1",10,divAlignWrapper("1","center","middle",
+            List(btnAdd("btn",entryAddAct()))))))
+        )
+      )
+    )
+  entryList().foreach{ (entry:Obj)=>{
+    val entrySrcId = entry(uniqueNodes.srcId).get
+    val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
+
+    dtTable0.addRecordsForColumn(
+      Map(
+        "2"->List(
+          dtTable0.dtRecord("2",List(withSideMargin("1",10,objField(entry, logAt.boat, editable = false)))//,
+            //List(withSideMargin("1",10,instantField(work, logAt.workStart, editable,Some("Start"))))
+          ),
+          dtTable0.dtRecord("3",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            instantField(entry, logAt.date, editable = false)))),
+
+            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+              instantField(entry, logAt.date, editable=false,Some("Date")))))
+          ),
+          dtTable0.dtRecord("4",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            durationField(entry, logAt.durationTotal))))//,
+            //List(withSideMargin("1",10,durationField(work, logAt.workDuration,false,Some("Duration hrs:min"))))
+          ),
+          dtTable0.dtRecord("5",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",{
+            val confirmed = entry(logAt.asConfirmed)
+            if(confirmed.nonEmpty) List(materialChip("1","CONFIRMED")) else Nil //todo: MaterialChip
+            })))//,
+            //List(withSideMargin("1",10,strField(entry, logAt.workComment, editable,Some("Comment"))))
+          ),
+
+          dtTable0.dtRecord("6",List(withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false)))//,
+           // List(withSideMargin("1",10,strField(entry, logAt.log00Engineer, editable,Some("Engineer"))))
+          ),
+          dtTable0.dtRecord("7",List(withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false)))//,
+            //List(withSideMargin("1",10,strField(entry, logAt.log00Master, editable,Some("Master"))))
+          ),
+          dtTable0.dtRecord("8",List(divAlignWrapper("1","center","middle",
+            List(
+              btnRemove("btn1",entryRemoveAct(entrySrcId)),
+              btnCreate("btn2",go.get)
+            )))
+          )
+        )
+      )
+    )
+  }}
+  root(List(
     //class LootsBoatLogList
     toolbar(),
-    paperWithMargin("margin",table("table",
-      List(
-        /*row("filter",
-          cell("filter", isHead = true, isRight = true, colSpan = 7)(List(
-            withMargin("list", 10, btnFilterList("btn",filterListAct())),
-            withMargin("clear",10, btnClear("btn",clearSortingAct()))
-          ))
-        ),*/
-        row("headers",
-            cell("1", isHead = true, isUnderline=true, isRight = false)(List(text("1","Boat"))),
-            cell("2", isHead = true, isUnderline=true, isRight = true)(List(text("1","Date"))),
-            cell("3", isHead = true, isUnderline=true, isRight = true)(List(text("1","Total duration, hrs:min"))),
-            cell("4", isHead = true, isUnderline=true, isRight = false)(List(text("1","Confirmed"))),
-            cell("5", isHead = true, isUnderline=true, isRight = false)(List(text("1","Confirmed by"))),
-            cell("6", isHead = true, isUnderline=true, isRight = true)(List(text("1","Confirmed on"))),
-            cell("7", isHead = true, isUnderline=true)(List(btnAdd("btn",entryAddAct())))
+    withMaxWidth("1",1200,List(
+      paperWithMargin("margin",flexGrid("flexGridList",
+        flexGridItemTable("dtTableList","dtTableList",1000,None,dtTable0,dtTablesState,Nil)::Nil)
+
         )
-      ),
-      //row("empty-test-row",cell("empty-test-cell")(List(text("empty-test-text","test")))) ::
-      entryList().map{ (entry:Obj)=>
-        val entrySrcId = entry(uniqueNodes.srcId).get
-        val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-        row(entrySrcId.toString,
-          cell("1", isRight = false)(objField(entry, logAt.boat, editable = false), go),
-          cell("2", isRight = true)(instantField(entry, logAt.date, editable = false), go),
-          cell("3", isRight = true)(durationField(entry, logAt.durationTotal), go),
-          cell("4", isRight = false)({
-              val confirmed = entry(logAt.asConfirmed)
-              if(confirmed.nonEmpty) List(text("1","CONFIRMED")) else Nil //todo: MaterialChip
-          }, go),
-          cell("5", isRight = false)(objField(entry, logAt.confirmedBy, editable = false), go),
-          cell("6", isRight = true)(instantField(entry, logAt.confirmedOn, editable = false), go),
-          cell("7", isRight = false)(List(btnRemove("btn",entryRemoveAct(entrySrcId))))
-        )
-      }
-    ))
-  ))}
+      ))
+    )
+  )
+}}
 
   private def entryEditView(pf: String) = wrapDBView { () =>
     //println(pf)
@@ -290,98 +417,237 @@ class TestComponent(
     if(!obj.nonEmpty) root(List(text("text","???")))
     else editViewInner(srcId, obj(logAt.asEntry))
   }
+
+
   private def editViewInner(srcId: UUID, entry: Obj) = {
     val editable = true /*todo rw rule*/
+    val dtTable1=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit1",0.0f),false,false,false)
+    dtTable1.addColumns(List(
+      dtTable1.dtColumn("2",1000,"center",0,0,1,None)
+    ))
+
+    dtTable1.addHeadersForColumn(
+      Map(
+        "2"->List(
+          dtTable1.dtHeader("2",100,None,3,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Time")))))),
+          dtTable1.dtHeader("3",150,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","ME Hours.Min")))))),
+          dtTable1.dtHeader("4",100,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Fuel rest/quantity")))))),
+          dtTable1.dtHeader("5",250,None,3,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Comment")))))),
+          dtTable1.dtHeader("6",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Engineer")))))),
+          dtTable1.dtHeader("7",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Master"))))))//,
+        //  dtTable1.dtHeader("8",50,None,List())
+        )
+      )
+    )
+
+    dtTable1.addRecordsForColumn(
+      Map(
+        "2"->List(
+          dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","00:00"))))),
+            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(labeledText("1","00:00","Time")))))
+          ),
+          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",entry(logAt.log00Date),
+            alienAttr(logAt.log00Date)(entry(uniqueNodes.srcId).get))))//,
+            //List(withSideMargin("1",10,strField(entry, logAt.log00Date, editable,Some("ME Hours.Min"))))
+          ),
+          dtTable1.dtRecord("4",List(withSideMargin("1",10,strField(entry, logAt.log00Fuel, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log00Fuel, editable,Some("Fuel rest/quantity"))))
+          ),
+          dtTable1.dtRecord("5",List(withSideMargin("1",10,strField(entry, logAt.log00Comment, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log00Comment, editable,Some("Comment"))))),
+          dtTable1.dtRecord("6",List(withSideMargin("1",10,strField(entry, logAt.log00Engineer, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log00Engineer, editable,Some("Engineer"))))
+          ),
+          dtTable1.dtRecord("7",List(withSideMargin("1",10,strField(entry, logAt.log00Master, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log00Master, editable,Some("Master"))))
+          )//,
+         // dtTable1.dtRecord("8",List(divAlignWrapper("1","center","middle",List(text("1","+")))))
+
+        )
+      )
+    )
+    dtTable1.addRecordsForColumn(
+      Map(
+        "2"->List(
+          dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","08:00"))))),
+            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(labeledText("1","08:00","Time")))))
+          ),
+          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",entry(logAt.log08Date),
+            alienAttr(logAt.log08Date)(entry(uniqueNodes.srcId).get))))//,
+           // List(withSideMargin("1",10,strField(entry, logAt.log08Date, editable,Some("ME Hours.Min"))))
+          ),
+          dtTable1.dtRecord("4",List(withSideMargin("1",10,strField(entry, logAt.log08Fuel, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log08Fuel, editable,Some("Fuel rest/quantity"))))
+          ),
+          dtTable1.dtRecord("5",List(withSideMargin("1",10,strField(entry, logAt.log08Comment, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log08Comment, editable,Some("Comment"))))
+          ),
+          dtTable1.dtRecord("6",List(withSideMargin("1",10,strField(entry, logAt.log08Engineer, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log08Engineer, editable,Some("Engineer"))))
+          ),
+          dtTable1.dtRecord("7",List(withSideMargin("1",10,strField(entry, logAt.log08Master, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log08Master, editable,Some("Master"))))
+          )//,
+          //dtTable1.dtRecord("8",List(divAlignWrapper("1","center","middle",List(text("1","+")))))
+        )
+      )
+    )
+    dtTable1.addRecordsForColumn(
+      Map(
+        "2"->List(
+          dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Passed"))))),
+            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Passed")))))
+          ),
+          dtTable1.dtRecord("3",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Received Fuel"))))),
+            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Received Fuel")))))
+          ),
+          dtTable1.dtRecord("4",List(withSideMargin("1",10,strField(entry, logAt.logRFFuel, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.logRFFuel, editable,Some("Fuel rest/quantity"))))
+          ),
+          dtTable1.dtRecord("5",List(withSideMargin("1",10,strField(entry, logAt.logRFComment, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.logRFComment, editable,Some("Comment"))))
+          ),
+          dtTable1.dtRecord("6",List(withSideMargin("1",10,strField(entry, logAt.logRFEngineer, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.logRFEngineer, editable,Some("Engineer"))))
+          ),
+          dtTable1.dtRecord("7",List())//,
+         // dtTable1.dtRecord("8",List(divAlignWrapper("1","center","middle",List(text("1","+")))))
+        )
+      )
+    )
+    dtTable1.addRecordsForColumn(
+      Map(
+        "2"->List(
+          dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","24:00"))))),
+            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(labeledText("1","24:00","Time")))))
+          ),
+          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",entry(logAt.log24Date),
+            alienAttr(logAt.log24Date)(entry(uniqueNodes.srcId).get))/*strField(entry, logAt.log24Date, editable)*/))//,
+            //List(withSideMargin("1",10,strField(entry, logAt.log24Date, editable,Some("ME Hours.Min"))))
+          ),
+          dtTable1.dtRecord("4",List(withSideMargin("1",10,strField(entry, logAt.log24Fuel, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log24Fuel, editable,Some("Fuel rest/quantity"))))
+          ),
+          dtTable1.dtRecord("5",List(withSideMargin("1",10,strField(entry, logAt.log24Comment, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log24Comment, editable,Some("Comment"))))
+          ),
+          dtTable1.dtRecord("6",List(withSideMargin("1",10,strField(entry, logAt.log24Engineer, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log24Engineer, editable,Some("Engineer"))))
+          ),
+          dtTable1.dtRecord("7",List(withSideMargin("1",10,strField(entry, logAt.log24Master, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.log24Master, editable,Some("Master"))))
+          )//,
+          //dtTable1.dtRecord("8",List(divAlignWrapper("1","center","middle",List(text("1","+")))))
+        )
+      )
+    )
+    val dtTable2=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit2",0.0f),true,true,true)
+    dtTable2.addColumns(List(
+      dtTable2.dtColumn("2",1000,"center",0,20,1,None)
+    ))
+
+    dtTable2.addHeadersForColumn(
+      Map(
+        "2"->List(
+          dtTable2.dtHeader("2",100,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Start")))))),
+          dtTable2.dtHeader("3",100,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle"
+            ,List(text("1","Stop")))))),
+          dtTable2.dtHeader("4",150,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Duration, hrs:min")))))),
+          dtTable2.dtHeader("5",250,None,3,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            List(text("1","Comment")))))),
+
+
+          dtTable2.dtHeader("8",50,None,List(withSideMargin("1",10,divAlignWrapper("1","center","middle",
+            List(btnAdd("btn",workAddAct(srcId)))))))
+        )
+      )
+    )
+    workList(entry).foreach { (work: Obj) =>
+      val workSrcId = work(uniqueNodes.srcId).get
+     //  println(work(logAt.workStart))
+      val workDuration=
+       if(work(logAt.workStart).isEmpty||work(logAt.workStop).isEmpty)
+         None
+       else
+          Some(Duration.between(work(logAt.workStart).getOrElse(Instant.now()),
+            work(logAt.workStop).getOrElse(Instant.now())))
+
+
+      work.update(logAt.workDuration,workDuration)
+
+    dtTable2.addRecordsForColumn(
+      Map(
+        "2"->List(
+          dtTable2.dtRecord("2",List(withSideMargin("1",10,timeInput("1","",work(logAt.workStart),
+            alienAttr(logAt.workStart)(work(uniqueNodes.srcId).get))))//,
+            //List(withSideMargin("1",10,instantField(work, logAt.workStart, editable,Some("Start"))))
+          ),
+          dtTable2.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",work(logAt.workStop),
+            alienAttr(logAt.workStop)(work(uniqueNodes.srcId).get))))//,
+            //List(withSideMargin("1",10,instantField(work, logAt.workStop, editable,Some("Stop"))))
+          ),
+          dtTable2.dtRecord("4",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",durationField(work, logAt.workDuration)))),
+            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+              durationField(work, logAt.workDuration,Some("Duration hrs:min")))))
+          ),
+          dtTable2.dtRecord("5",List(withSideMargin("1",10,strField(entry, logAt.workComment, editable))),
+            List(withSideMargin("1",10,strField(entry, logAt.workComment, editable,Some("Comment"))))),
+
+          dtTable2.dtRecord("8",List(withSideMargin("1",10,List(divAlignWrapper("1","center","middle",if(editable)
+            List(btnRemove("btn",workRemoveAct(workSrcId))) else Nil)))))
+
+        )
+      )
+    )
+
+    }
+    val totalDuration=
+      if(workList(entry).nonEmpty)
+        Some(workList(entry).map{w:Obj=>w(logAt.workDuration).getOrElse(Duration.ZERO)}.reduce((a,b)=>a plus b))
+      else None
+
+    entry.update(logAt.durationTotal,totalDuration)
     root(List(
       toolbar(),
-      paperWithMargin(s"$srcId-1",table("table", Nil, List(
-        row("1",
-          cell("boat_c")(List(text("1","Boat"))),
-          cell("boat_i")(objField(entry, logAt.boat, editable)/*todo select */),
-          cell("date_c")(List(text("1","Date"))),
-          cell("date_i")(instantField(entry, logAt.date, editable/*todo date */)),
-          cell("dur_c")(List(text("1","Total duration, hrs:min"))),
-          cell("dur_i")(durationField(entry, logAt.durationTotal))
-        ),
-        row("2",
-          cell("conf_by_c")(List(text("1","Confirmed by"))),
-          cell("conf_by_i")(objField(entry, logAt.confirmedBy, editable=false)),
-          cell("conf_on_c")(List(text("1","Confirmed on"))),
-          cell("conf_on_i")(instantField(entry, logAt.confirmedOn, editable=false)),
-          cell("conf_do"){
-            if(!entry.nonEmpty) Nil
-            else if(entry(logAt.asConfirmed).nonEmpty)
-              List(btnRaised("reopen","Reopen")(entryReopenAct(srcId)))
-            else
-              List(btnRaised("confirm","Confirm")(entryConfirmAct(srcId)))
-          }
+      withMaxWidth("1",1200,List(
+      paperWithMargin(s"$srcId-1",
+        flexGrid("flexGridEdit1",List(
+          flexGridItem("1",500,None,List(
+            flexGrid("FlexGridEdit11",List(
+              flexGridItem("boat_c&i",150,None,objField(entry,logAt.boat,"Boat-A01",false,Some("Boat"))),
+              flexGridItem("date_c&i",150,None,instantField(entry, logAt.date, editable,Some("Date")/*todo date */)),
+              flexGridItem("dur_c&i",170,None,durationField(entry,logAt.durationTotal,Some("Total duration, hrs:min")))
+            ))
+          )),
+          flexGridItem("2",500,None,List(
+            flexGrid("flexGridEdit12",List(
+              flexGridItem("conf_by_c&i",150,None,objField(entry,logAt.confirmedBy,"",editable = false,Some("Confirmed by"))),
+              flexGridItem("conf_on_c&i",150,None,instantField(entry, logAt.date, editable,Some("Confirmed on")/*todo date */)),
+              flexGridItem("conf_do",150,None,{
+                if(!entry.nonEmpty) Nil
+                else if(entry(logAt.asConfirmed).nonEmpty)
+                  List(btnRaised("reopen","Reopen")(entryReopenAct(srcId)))
+                else
+                  List(btnRaised("confirm","Confirm")(entryConfirmAct(srcId)))
+              })
+            ))
+          )))
         )
       ))),
-      paperWithMargin(s"$srcId-2",table("table",
-        List(row("1",
-          cell("1", isHead = true)(List(text("1","Time"))), /* todo widths */
-          cell("2", isHead = true)(List(text("1","ME Hours.Min"))),
-          cell("3", isHead = true)(List(text("1","Fuel rest/quantity"))),
-          cell("4", isHead = true)(List(text("1","Comment"))),
-          cell("5", isHead = true)(List(text("1","Engineer"))),
-          cell("6", isHead = true)(List(text("1","Master")))
-        )),
-        List(
-          row("2",
-            cell("1")(List(text("1","00:00"))),
-            cell("2")(strField(entry, logAt.log00Date, editable)),
-            cell("3")(strField(entry, logAt.log00Fuel, editable)),
-            cell("4")(strField(entry, logAt.log00Comment, editable)),
-            cell("5")(strField(entry, logAt.log00Engineer, editable)),
-            cell("6")(strField(entry, logAt.log00Master, editable))
-          ),
-          row("3",
-            cell("1")(List(text("1","08:00"))),
-            cell("2")(strField(entry, logAt.log08Date, editable)),
-            cell("3")(strField(entry, logAt.log08Fuel, editable)),
-            cell("4")(strField(entry, logAt.log08Comment, editable)),
-            cell("5")(strField(entry, logAt.log08Engineer, editable)),
-            cell("6")(strField(entry, logAt.log08Master, editable))
-          ),
-          row("4",
-            cell("1",colSpan=2)(List(text("1","Received / passed fuel"))),
-            cell("3")(strField(entry, logAt.logRFFuel, editable)),
-            cell("4")(strField(entry, logAt.logRFComment, editable)),
-            cell("5")(strField(entry, logAt.logRFEngineer, editable))
-          ),
-          row("5",
-            cell("1")(List(text("1","24:00"))),
-            cell("2")(strField(entry, logAt.log24Date, editable)),
-            cell("3")(strField(entry, logAt.log24Fuel, editable)),
-            cell("4")(strField(entry, logAt.log24Comment, editable)),
-            cell("5")(strField(entry, logAt.log24Engineer, editable)),
-            cell("6")(strField(entry, logAt.log24Master, editable))
-          )
-        )
-      )),
-      paperWithMargin("3",table("table",
-        List(
-          row("headers",
-            //cell("0")(),
-            cell("1", isHead = true, isRight = true)(List(text("1","Start"))),
-            cell("2", isHead = true, isRight = true)(List(text("1","Stop"))),
-            cell("3", isHead = true, isRight = true)(List(text("1","Duration, hrs:min"))),
-            cell("4", isHead = true)(List(text("1","Comment"))),
-            cell("5", isHead = true)(List(btnAdd("btn",workAddAct(srcId))))
-          )
-        ),
-        workList(entry).map { (work: Obj) =>
-          val workSrcId = work(uniqueNodes.srcId).get
-          row(workSrcId.toString,
-            //cell("0")(List(text("text",work(logAt.entryOfWork).toString))),
-            cell("1", isRight = true)(instantField(work, logAt.workStart, editable)),
-            cell("2", isRight = true)(instantField(work, logAt.workStop, editable)),
-            cell("3", isRight = true)(durationField(work, logAt.workDuration)),
-            cell("4")(strField(work, logAt.workComment, editable)),
-            cell("5")(if(editable) List(btnRemove("btn",workRemoveAct(workSrcId))) else Nil)
-          )
-        }
-      ))
+
+      withMaxWidth("2",1200,List(
+      paperWithMargin(s"$srcId-2",flexGrid("flexGridEdit2",
+        flexGridItemTable("dtTableEdit1","dtTableEdit1",1000,None,dtTable1,dtTablesState,Nil)::Nil)
+
+
+      ))),
+      withMaxWidth("3",1200,List(
+      paperWithMargin(s"$srcId-3",flexGrid("flexGridEdit3",
+        flexGridItemTable("dtTableEdit2","dtTableEdit2",1000,None,dtTable2,dtTablesState,Nil)::Nil)
+
+      )))
     ))
   }
   private def eventListView(pf: String) = wrapDBView { () =>
@@ -413,7 +679,7 @@ class TestComponent(
   private def toolbar() = {
     paperWithMargin("toolbar", table("table", Nil, List(row("1",
       //cell("1")(List(btnRaised("boats","Boats")(()⇒currentVDom.relocate("/boatList")))),
-      cell("2")(List(btnRaised("entries","Entries")(()⇒currentVDom.relocate("/entryList")))),
+      cell("2")(List(btnRaised("entries","Entries")(()=>currentVDom.relocate("/entryList")))),
       cell("3")(
         if(eventSource.unmergedEvents.isEmpty) Nil else List(
           btnRaised("events","Events")(()⇒currentVDom.relocate("/eventList")),
@@ -429,6 +695,8 @@ class TestComponent(
     CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
     CoHandler(ApplyEvent(logAt.entryCreated))(entryCreated) ::
     CoHandler(ApplyEvent(logAt.entryRemoved))(entryRemoved) ::
+    CoHandler(ApplyEvent(logAt.entryConfirmed))(entryConfirmed)::
+    CoHandler(ApplyEvent(logAt.entryReopened))(entryReopened)::
     CoHandler(ApplyEvent(logAt.workCreated))(workCreated) ::
     CoHandler(ApplyEvent(logAt.workRemoved))(workRemoved) ::
     Nil

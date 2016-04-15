@@ -56,6 +56,14 @@ trait OnChangeReceiver {
   def onChange: Option[String⇒Unit]
 }
 
+trait OnResizeReceiver{
+  def id:VDomKey
+  def onResize: Option[(VDomKey,Float)=>Unit]
+}
+trait OnCheckReceiver{
+  def id:VDomKey
+  def onCheck:Option[(VDomKey,Boolean)=>Unit]
+}
 ////
 
 object Types {

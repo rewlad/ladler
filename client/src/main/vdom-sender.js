@@ -3,7 +3,7 @@ export default function VDomSender(feedback){ // todo: may be we need a queue to
     const ctxToPath =
         ctx => !ctx ? "" : ctxToPath(ctx.parent) + (ctx.key ? "/"+ctx.key : "")
     const send = (ctx, msg) => {
-        msg["X-r-vdom-path"] = ctxToPath(ctx)
+        msg["X-r-vdom-path"] = ctxToPath(ctx)	
         feedback.send(msg)
     }
     return ({send})

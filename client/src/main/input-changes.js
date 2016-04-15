@@ -32,6 +32,7 @@ export default function InputChanges(sender, vDom, DiffPrepare){
             diff.apply()
         }
     }
+
     const transforms = {onChange,onBlur}
     return ({transforms})
 }

@@ -4,10 +4,10 @@ import ee.cone.base.vdom.Types._
 
 trait OfDiv
 
-case class WrappingElement() extends VDomValue {
+case class WrappingElement(tp:String="span") extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-    builder.append("tp").append("span")
+    builder.append("tp").append(tp)
     builder.end()
   }
 }

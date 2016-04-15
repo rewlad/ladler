@@ -37,6 +37,10 @@ class CurrentVDom(
         case (Some("click"), Some(v: OnClickReceiver)) => v.onClick.get()
         case (Some("change"), Some(v: OnChangeReceiver)) =>
           v.onChange.get(UTF8String(Base64.getDecoder.decode(message.value("X-r-vdom-value-base64"))))
+        case (Some("resize"), Some(v: OnResizeReceiver)) =>
+          v.onResize.get(v.id,message.value("X-r-width").toFloat)
+        case(Some("check"), Some(v: OnCheckReceiver)) =>
+          v.onCheck.get(v.id,message.value("X-r-checked").toBoolean)
         case v => throw new Exception(s"$path ($v) can not receive $message")
       }
     }
