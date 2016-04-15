@@ -6,14 +6,15 @@ class RefIntegrityImpl(
     preCommitCheck: PreCommitCheckAllOfConnection,
     searchIndex: SearchIndex,
     findNodes: FindNodes,
+    uniqueNodes: UniqueNodes,
     mandatory: Mandatory
 ) extends RefIntegrity {
   def apply(existsA: Attr[Boolean], toAttr: Attr[Obj], existsB: Attr[Boolean]) = {
     // if A exists and there's link from A to B then B should exist
     def checkPairs(nodesA: Seq[Obj]): Seq[ValidationFailure] =
       nodesA.flatMap{ nodeA =>
-        val nodeB = nodeA(toAttr)
-        if(!nodeA(existsA) || !nodeB.nonEmpty || nodeB(existsB)) None
+        val nodeB = if(nodeA(existsA)) nodeA(toAttr) else uniqueNodes.noNode
+        if(!nodeB.nonEmpty || nodeB(existsB)) None
         else Some(ValidationFailure("refs",nodeA)) //, s"attr $toAttrId should refer to valid object, but $v found")
       }
     mandatory(toAttr,existsA, mutual=false) :::

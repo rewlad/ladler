@@ -1,7 +1,7 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
+import ee.cone.base.connection_api.{BaseCoHandler, Obj, Attr, CoHandler}
 import ee.cone.base.util.{Hex, HexDebug, Never}
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
@@ -32,20 +32,28 @@ class SearchIndexImpl(
     if(propRawAttr.labelId.value != 0L)
       throw new Exception(s"bad index on prop: $propAttr")
     val attr = attrFactory(labelRawAttr.labelId, propRawAttr.propId, propRawAttr.converter)
-    def setter(on: Boolean)(node: Obj) =
-      if (node(labelAttr.defined) && node(propAttr.defined)){
-        val key = converter.key(attr, node(propAttr), node(nodeFactory.objId))
-        val rawIndex = node(nodeFactory.rawIndex)
-        val value = converter.value(on)
-        rawIndex.set(key, value)
-        //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
-      }
+    def setter(on: Boolean, node: Obj) = {
+      val key = converter.key(attr, node(propAttr), node(nodeFactory.objId))
+      val rawIndex = node(nodeFactory.rawIndex)
+      val value = converter.value(on)
+      rawIndex.set(key, value)
+      //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
+    }
     val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
     CoHandler(searchKey)(execute[Value](attr)) ::
-    (labelAttr :: propAttr :: Nil).flatMap{ a =>
-      CoHandler(BeforeUpdate(a.defined))(setter(on=false)) ::
-      CoHandler(AfterUpdate(a.defined))(setter(on=true)) :: Nil
-    }
+      OnUpdateImpl.handlers(labelAttr :: propAttr :: Nil, setter)
+  }
+}
+
+object OnUpdateImpl extends OnUpdate {
+  def handlers(attrs: List[Attr[_]], invoke: (Boolean,Obj) ⇒ Unit) = {
+    val definedAttrs = attrs.map(_.defined)
+    def setter(on: Boolean)(node: Obj) =
+      if (definedAttrs.forall(node(_))) invoke(on, node)
+    definedAttrs.flatMap{ a => List(
+      CoHandler(BeforeUpdate(a))(setter(on=false)),
+      CoHandler(AfterUpdate(a))(setter(on=true))
+    )}
   }
 }
 
