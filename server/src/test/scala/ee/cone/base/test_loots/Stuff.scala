@@ -124,6 +124,7 @@ class TestComponent(
   handlerLists: CoHandlerLists,
   findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
   alienAttr: AlienAttrFactory,
+  onUpdate: OnUpdate,
   tags: Tags,
   materialTags: MaterialTags,
   currentVDom: CurrentVDom
@@ -384,6 +385,8 @@ class TestComponent(
       ))
     ))
   }
+
+
   private def eventListView(pf: String) = wrapDBView { () =>
     root(List(
       toolbar(),
@@ -423,6 +426,18 @@ class TestComponent(
     ))))
   }
 
+  private def calcWorkDuration(on: Boolean, work: Obj): Unit = {
+    work(logAt.workDuration) = if(!on) None else
+      Option(Duration.between(work(logAt.workStart).get, work(logAt.workStop).get))
+  }
+  private def calcEntryDuration(on: Boolean, work: Obj): Unit = {
+    val entry = work(logAt.entryOfWork)
+    val was = entry(logAt.durationTotal).getOrElse(Duration.ofSeconds(0L))
+    val delta = work(logAt.workDuration).get
+    entry(logAt.durationTotal) =
+      Option(if(on) was.plus(delta) else was.minus(delta))
+  }
+
   def handlers = CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/eventList"))(eventListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
@@ -431,5 +446,7 @@ class TestComponent(
     CoHandler(ApplyEvent(logAt.entryRemoved))(entryRemoved) ::
     CoHandler(ApplyEvent(logAt.workCreated))(workCreated) ::
     CoHandler(ApplyEvent(logAt.workRemoved))(workRemoved) ::
+    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop), calcWorkDuration) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork), calcEntryDuration) :::
     Nil
 }

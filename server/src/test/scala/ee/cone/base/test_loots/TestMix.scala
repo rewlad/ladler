@@ -45,9 +45,11 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
 
   override def handlers =
     //testAttributes.handlers,
-    logAttributes.handlers :::
-    new TestComponent(testAttributes, logAttributes, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx, alienAttrFactory, tags, materialTags, currentView).handlers :::
-    super.handlers
+    logAttributes.handlers ::: new TestComponent(
+      testAttributes, logAttributes, alienAccessAttrs, handlerLists,
+      findNodes, uniqueNodes, mainTx, alienAttrFactory, OnUpdateImpl,
+      tags, materialTags, currentView
+    ).handlers ::: super.handlers
 }
 
 
