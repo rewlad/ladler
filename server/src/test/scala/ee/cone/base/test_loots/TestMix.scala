@@ -39,16 +39,18 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val logAttributes = new BoatLogEntryAttributes(
     sysAttrs,attrFactory,labelFactory,searchIndex,
     definedValueConverter,nodeValueConverter,stringValueConverter,uuidValueConverter,instantValueConverter,durationValueConverter,
+
     alienCanChange
   )()()
   lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl)
-
+  lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
+  lazy val dtTablesState=new DataTablesState(currentView)
   override def handlers =
     //testAttributes.handlers,
     logAttributes.handlers ::: new TestComponent(
       testAttributes, logAttributes, alienAccessAttrs, handlerLists,
       findNodes, uniqueNodes, mainTx, alienAttrFactory, OnUpdateImpl,
-      tags, materialTags, currentView
+      tags, materialTags, flexTags, currentView, dtTablesState
     ).handlers ::: super.handlers
 }
 

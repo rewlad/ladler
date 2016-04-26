@@ -56,6 +56,9 @@ trait OnChangeReceiver {
   def onChange: Option[String⇒Unit]
 }
 
+trait OnResizeReceiver{
+  def onResize: Option[String=>Unit]
+}
 ////
 
 object Types {

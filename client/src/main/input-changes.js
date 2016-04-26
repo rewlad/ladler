@@ -1,10 +1,7 @@
 
 export default function InputChanges(sender, vDom, DiffPrepare){
     var value, eventCtx
-    const send = () => !eventCtx ? null : sender.send(eventCtx, {
-        "X-r-action": "change",
-        "X-r-vdom-value-base64": btoa(unescape(encodeURIComponent(value)))
-    })
+    const send = () => !eventCtx ? null : sender.send(eventCtx, "change", value)
     const set = (ctx,v) => {
         eventCtx = ctx
         value = v
@@ -32,6 +29,7 @@ export default function InputChanges(sender, vDom, DiffPrepare){
             diff.apply()
         }
     }
+
     const transforms = {onChange,onBlur}
     return ({transforms})
 }
