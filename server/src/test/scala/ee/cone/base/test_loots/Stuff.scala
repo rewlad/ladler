@@ -622,8 +622,8 @@ class TestComponent(
           )),
           flexGridItem("2",500,None,List(
             flexGrid("flexGridEdit12",List(
-              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,"",editable = false,Some("Confirmed by"))),
-              flexGridItem("conf_on",150,None,instantField(entry, logAt.confirmedOn, editable,Some("Confirmed on")/*todo date */)),
+              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,"",editable = false, Some("Confirmed by"))),
+              flexGridItem("conf_on",150,None,instantField(entry, logAt.confirmedOn, editable = false, Some("Confirmed on")/*todo date */)),
               flexGridItem("conf_do",150,None,{
                 if(!entry.nonEmpty) Nil
                 else if(entry(logAt.asConfirmed).nonEmpty)
