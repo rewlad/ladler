@@ -46,15 +46,18 @@ const DateInput = React.createClass({
             disabled:this.props.disabled,
             DateTimeFormat: global.Intl.DateTimeFormat,
             textFieldStyle: this.props.style,
-            onChange: (dummy,value) => this.props.onChange({ target: { value: value.getTime().toString() }})
+            onChange: (dummy,value) =>{ this.props.onChange({ target: { value: value.getTime().toString() }})}
         }
+        const a=new Date()
+        a.setTime(parseInt(this.props.value,10))
+        console.log(a.toString())
         at.value = this.props.value ? new Date(parseInt(this.props.value,10)) : this.props.value
         return React.createElement(DatePicker, at, null)
     }
 })
 const TimeInput = React.createClass({
     render(){
-        const value=this.props.value? new Date(parseInt(this.props.value,10)):this.props.value
+        const value=this.props.value? new Date(parseInt(this.props.value,10)):null
 
         const onChange=(dummy,value)=>{
 
@@ -146,7 +149,27 @@ class DataTableRow extends React.Component{
                         onMouseLeave:this.handleMouseLeave},this.props.children)
     }
 }
+class DataTableBody extends React.Component{
+    constructor(props){
+        super(props)
 
+        this.dims=null
+    }
+    calcPosition(){
+        this.dims=ReactDOM.findDOMNode(this).getBoundingClientRect()
+    }
+    componentDidMount(){
+        this.calcPosition()
+        console.log(this.dims)
+    }
+    componentWillUnmount(){}
+    render(){
+        const pStyle={
+            backgroundColor:"dodgerBlue"
+        }
+        return React.createElement("div",{key:"1",style:pStyle},this.props.children)
+    }
+}
 class DataTableCells extends React.Component{
     constructor(props){
         super(props)
@@ -165,27 +188,37 @@ class LabeledText extends React.Component{
     }
     render(){
         const pStyle={
-            position:"relative"
-
+            position:"relative",
+            display:"inline-block",
+            fontSize:"16px",
+            lineHeight:"24px",
+            width:"100%",
+            height:"72px"
         }
         const lStyle={
-            fontSize:"12px",
+            //fontSize:"12px",
             position:"absolute",
-            top:"0px",
+            cursor:"text",
+            pointerEvents:"none",
+            lineHeight:"22px",
+            transform: "perspective(1px) scale(0.75) translate3d(2px,-28px,0px)",
+            transformOrigin:"left top 0px",
+            top:"38px",
             userSelect:"none",
-            paddingTop:"8px",
-            color:"rgba(128,128,128,1)",
-            display:"block",
+            color:"rgba(0,0,0,0.3)",
         }
         const tStyle={
-           // fontSize:"16px",
-            paddingTop:"30px",
-            color:"rgba(0,0,0,1)"
+            font:"inherit",
+            //paddingTop:"30px",
+            height:"100%",
+            color:"rgba(0,0,0,1)",
+            position:"relative",
+            marginTop:"38px"
         }
 
         return(
         React.createElement("div",{key:"1",style:pStyle},[
-            React.createElement("div",{key:"label",style:lStyle},this.props.label),
+            React.createElement("label",{key:"label",style:lStyle},this.props.label),
             React.createElement("div",{key:"text",style:tStyle},this.props.children)
 
         ]))
@@ -197,7 +230,7 @@ const tp = ({
     RaisedButton,
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,
-    TextField, DateInput,TimeInput,Checkbox,DataTable,DataTableRow,DataTableCells,
+    TextField, DateInput,TimeInput,Checkbox,DataTable,DataTableRow,DataTableCells,DataTableBody,
     LabeledText
 })
 

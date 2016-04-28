@@ -11,6 +11,15 @@ import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
+object TimeZoneOffsetProvider{
+  val defaultTimeZoneID="Europe/Tallinn" //EST
+  def getZoneId=ZoneId.of(defaultTimeZoneID)
+  def getZoneOffset={
+    ZonedDateTime.now(ZoneId.of(defaultTimeZoneID)).getOffset
+  }
+}
+
+
 class FailOfConnection(
   sender: SenderOfConnection
 ) extends CoHandlerProvider {
@@ -571,8 +580,8 @@ class TestComponent(
        if(work(logAt.workStart).isEmpty||work(logAt.workStop).isEmpty)
          None
        else
-          Some(Duration.between(work(logAt.workStart).getOrElse(Instant.now()),
-            work(logAt.workStop).getOrElse(Instant.now())))
+          Some(Duration.between(work(logAt.workStart).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId),
+            work(logAt.workStop).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId)))
 
 
       work.update(logAt.workDuration,workDuration)
@@ -617,20 +626,26 @@ class TestComponent(
             flexGrid("FlexGridEdit11",List(
               flexGridItem("boat",150,None,objField(entry,logAt.boat,"Boat-A01",false,Some("Boat"))),
               flexGridItem("date",150,None,instantField(entry, logAt.date, editable,Some("Date")/*todo date */)),
-              flexGridItem("dur",170,None,durationField(entry,logAt.durationTotal,Some("Total duration, hrs:min")))
+              flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
+                durationField(entry,logAt.durationTotal,Some("Total duration, hrs:min")))))
             ))
           )),
           flexGridItem("2",500,None,List(
             flexGrid("flexGridEdit12",List(
-              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,"",editable = false, Some("Confirmed by"))),
-              flexGridItem("conf_on",150,None,instantField(entry, logAt.confirmedOn, editable = false, Some("Confirmed on")/*todo date */)),
-              flexGridItem("conf_do",150,None,{
-                if(!entry.nonEmpty) Nil
-                else if(entry(logAt.asConfirmed).nonEmpty)
-                  List(btnRaised("reopen","Reopen")(entryReopenAct(srcId)))
-                else
-                  List(btnRaised("confirm","Confirm")(entryConfirmAct(srcId)))
-              })
+              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,"",editable = false,Some("Confirmed by"))),
+              flexGridItem("conf_on",150,None,instantField(entry, logAt.confirmedOn, editable = false,Some("Confirmed on")/*todo date */)),
+              flexGridItem("conf_do",150,None,List(
+                divHeightWrapper("1",72,
+                  divAlignWrapper("1","right","bottom",
+
+                    if(!entry.nonEmpty) Nil
+                    else if(entry(logAt.asConfirmed).nonEmpty)
+                      List(btnRaised("reopen","Reopen")(entryReopenAct(srcId)))
+                    else
+                      List(btnRaised("confirm","Confirm")(entryConfirmAct(srcId)))
+
+                  ))
+              ))
             ))
           )))
         )

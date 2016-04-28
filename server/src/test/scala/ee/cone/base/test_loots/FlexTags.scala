@@ -92,13 +92,20 @@ case class DataTableCells(key:VDomKey)(val onClick:Option[()=>Unit]) extends VDo
     builder.end()
   }
 }
+case class DataTableBody() extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+      builder.append("tp").append("DataTableBody")
+    builder.end()
+  }
+}
 
 case class DivFlexWrapper(flexBasis:Option[String],
                           displayFlex:Boolean,
                           flexWrap:Boolean,
                           minWidth:Option[String],
                           maxWidth:Option[String],
-                          minHeight:Option[String],
+                          height:Option[String],
                           textAlign:Option[String],
                           borderRight:Boolean
                          ) extends VDomValue{
@@ -112,7 +119,7 @@ case class DivFlexWrapper(flexBasis:Option[String],
         if(flexWrap) builder.append("flexWrap").append("wrap")
         minWidth.foreach(x=>builder.append("minWidth").append(x))
         maxWidth.foreach(x=>builder.append("maxWidth").append(x))
-        minHeight.foreach(x=>builder.append("minHeight").append(x))
+        height.foreach(x=>builder.append("height").append(x))
         textAlign.foreach(x=>builder.append("textAlign").append(x))
         if(borderRight) builder.append("borderRight").append("1px solid red")
       builder.end()
@@ -194,7 +201,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
   import tags._
 
   class DtTable(cWidth:Float,controlAllCheckboxShow:Boolean,checkboxShow:Boolean,adjustForCheckbox:Boolean){
-    var defaultRowHeight=40
+    var defaultRowHeight=48
 
     def controlDiv(key:VDomKey,id:VDomKey,dtState:DataTablesState)={
       if(controlAllCheckboxShow)
@@ -286,7 +293,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
       def getElementView(showRightBorder:Boolean)={
 
         divFlexWrapper(key,Some(s"${basisWidth}px"),displayFlex = false,flexWrap = false,None,maxWidth,
-          Some(s"${defaultRowHeight}"),
+          if(visible) Some(s"${defaultRowHeight}") else None,
           None,
           borderRight = false,if(visible)visibleChildren else onShowChildren)
       }
@@ -494,7 +501,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
             /*if(prop.get("dt_controlAll")==1.0f) true else*/ dtCRowChecked,recordsOfColumnsToShow)::Nil
 
         })
-      columnsDiv::headersDiv:::recordsDiv
+     columnsDiv::headersDiv:::dataTableBody("body",recordsDiv)::Nil
     }
 
   }
@@ -508,11 +515,11 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
                      flexWrap:Boolean,
                      minWidth:Option[String],
                      maxWidth:Option[String],
-                     minHeight:Option[String],
+                     height:Option[String],
                      textAlign:Option[String],
                      borderRight:Boolean,
                      children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivFlexWrapper(flexBasis,displayFlex,flexWrap,minWidth,maxWidth,minHeight,textAlign,borderRight),children)
+    child[OfDiv](key,DivFlexWrapper(flexBasis,displayFlex,flexWrap,minWidth,maxWidth,height,textAlign,borderRight),children)
   def divWrapper(key:VDomKey,
                  display:Option[String],
                  minWidth:Option[String],
@@ -552,6 +559,8 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
     child[OfDiv](key,DataTableRecordRow(selected),children)
   def dataTableHeaderRow(key:VDomKey,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DataTableHeaderRow(),children)
+  def dataTableBody(key:VDomKey,children:List[ChildPair[OfDiv]])=
+    child[OfDiv](key,DataTableBody(),children)
   def dataTable(key:VDomKey,
                 id:String,
                 dtTable: DtTable,

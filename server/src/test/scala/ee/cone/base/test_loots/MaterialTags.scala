@@ -175,6 +175,16 @@ case class DivEWrapper() extends VDomValue{
     builder.end()
   }
 }
+case class DivHeightWrapper(height:Int) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+      builder.append("height").append(s"${height}px")
+    builder.end()
+    builder.end()
+  }
+}
 
 case class InputField[Value](tp: String, label: String, value: Value,deferSend: Boolean,readOnly:Boolean=false)(
   input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
@@ -343,4 +353,6 @@ class MaterialTags(
 
   def labeledText(key:VDomKey,text:String,label:String)=
     child[OfDiv](key,LabeledTextComponent(text,label),Nil)
+  def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv])=
+    child[OfDiv](key,DivHeightWrapper(height),theChild::Nil)
 }
