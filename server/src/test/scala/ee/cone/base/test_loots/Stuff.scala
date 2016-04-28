@@ -339,6 +339,7 @@ class TestComponent(
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val dtTable0=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableList",0.0f),true,true,true)
+    dtTable0.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())))
     dtTable0.addColumns(List(
       dtTable0.dtColumn("2",1000,"center",0,0,1,None)
     ))
@@ -359,7 +360,7 @@ class TestComponent(
           dtTable0.dtHeader("7",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
             List(text("1","Confirmed on")))))),
           dtTable0.dtHeader("8",100,None,List(withSideMargin("1",10,divAlignWrapper("1","center","middle",
-            List(btnAdd("btn",entryAddAct()))))))
+            Nil))))
         )
       )
     )
@@ -418,7 +419,10 @@ class TestComponent(
     )
   )
 }}
+  private def deleteSelected()={
 
+
+  }
   private def entryEditView(pf: String) = wrapDBView { () =>
     //println(pf)
     val srcId = UUID.fromString(pf.tail)
@@ -551,6 +555,7 @@ class TestComponent(
       )
     )
     val dtTable2=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit2",0.0f),true,true,true)
+    dtTable2.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", workAddAct(srcId))))
     dtTable2.addColumns(List(
       dtTable2.dtColumn("2",1000,"center",0,20,1,None)
     ))
@@ -569,7 +574,7 @@ class TestComponent(
 
 
           dtTable2.dtHeader("8",50,None,List(withSideMargin("1",10,divAlignWrapper("1","center","middle",
-            List(btnAdd("btn",workAddAct(srcId)))))))
+            Nil))))
         )
       )
     )

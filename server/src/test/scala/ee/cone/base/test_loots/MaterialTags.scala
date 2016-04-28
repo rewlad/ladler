@@ -185,7 +185,13 @@ case class DivHeightWrapper(height:Int) extends VDomValue{
     builder.end()
   }
 }
-
+case class DivEmpty() extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+      builder.append("tp").append("div")
+    builder.end()
+  }
+}
 case class InputField[Value](tp: String, label: String, value: Value,deferSend: Boolean,readOnly:Boolean=false)(
   input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
 ) extends VDomValue with OnChangeReceiver {
@@ -225,7 +231,7 @@ case class Divider() extends VDomValue{
       builder.append("style").startObject()
         builder.append("didFlip").append(true)
         builder.append("margin").append("0")
-        builder.append("marginTop").append("-1px")
+        builder.append("marginTop").append("0px")
         builder.append("marginLeft").append("0")
         builder.append("height").append("1px")
         builder.append("border").append("none")
@@ -311,6 +317,8 @@ class MaterialTags(
     iconButton(key,"","IconContentRemove",action)
   def btnCreate(key:VDomKey,action:()=>Unit)=
     iconButton(key,"","IconContentCreate",action)
+  def btnDelete(key:VDomKey,action:()=>Unit)=
+    iconButton(key,"","IconActionDelete",action)
   def withMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
     child[OfDiv](key, MarginWrapper(value), theChild :: Nil)
   def withMargin(key: VDomKey, value: Int, children: List[ChildPair[OfDiv]]) =
@@ -355,4 +363,7 @@ class MaterialTags(
     child[OfDiv](key,LabeledTextComponent(text,label),Nil)
   def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv])=
     child[OfDiv](key,DivHeightWrapper(height),theChild::Nil)
+  def divEmpty(key:VDomKey)=
+    child[OfDiv](key,DivEmpty(),Nil)
+
 }

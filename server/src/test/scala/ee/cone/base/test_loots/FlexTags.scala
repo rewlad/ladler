@@ -203,31 +203,30 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
   class DtTable(cWidth:Float,controlAllCheckboxShow:Boolean,checkboxShow:Boolean,adjustForCheckbox:Boolean){
     var defaultRowHeight=48
 
-    def controlDiv(key:VDomKey,id:VDomKey,dtState:DataTablesState)={
-      if(controlAllCheckboxShow)
+    def controlDiv(key:VDomKey,id:VDomKey,dtState:DataTablesState):ChildPair[OfDiv]={
+     /* if(controlAllCheckboxShow)
       divWrapper(key,None,None,None,None,None,None,
         List(
-          divWrapper("1",Some("inline-block"),Some("50px"),Some("50px"),Some("40px"),None,None,List(
+          divWrapper("1",Some("inline-block"),Some("50px"),Some("50px"),Some(s"${defaultRowHeight}px"),None,None,List(
             divPositionWrapper("1",Some("inline-block"),Some("relative"),Some("50%"),Some("translateY(-50%)"),
               List(checkBox("1",dtState.dtTableCheckAll.getOrElse(id,false),dtState.handleCheckAll(id,_)))))),
-          divWrapper("2",None,None,None,None,Some("right"),None,List(text("text","Control"))))
-      )
-      else if(adjustForCheckbox)
+          divWrapper("2",None,None,None,None,Some("right"),None,dtControls))
+        )*/
+      //else if(adjustForCheckbox)
+        divWrapper(key,None,None,None,None,None,None,
+          List(
+            divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),Some(s"${defaultRowHeight}px"),None,None,List()),
+            divWrapper("2",None,None,None,None,Some("right"),None,dtControls))
+        )
+      //else  divEmpty(key)
+      /*
         divWrapper(key,None,None,None,None,None,None,
           List(
             divWrapper("1",Some("inline-block"),Some("50px"),Some("50px"),Some("40px"),None,None,List(
               divPositionWrapper("1",Some("inline-block"),Some("relative"),Some("50%"),Some("translateY(-50%)"),
                 List()))),
-            divWrapper("2",None,None,None,None,Some("right"),None,List(text("text","Control"))))
-        )
-      else
-        divWrapper(key,None,None,None,None,None,None,
-          List(
-            divWrapper("1",Some("inline-block"),Some("50px"),Some("50px"),Some("40px"),None,None,List(
-              divPositionWrapper("1",Some("inline-block"),Some("relative"),Some("50%"),Some("translateY(-50%)"),
-                List()))),
-            divWrapper("2",None,None,None,None,Some("right"),None,List(text("text","Control"))))
-        )
+            divWrapper("2",None,None,None,None,Some("right"),None,dtControls))
+        )*/
     }
 
     def dtCheckBox(key:VDomKey,id:VDomKey,show:Boolean,adjustSpace:Boolean,checked:Boolean=false,check:(VDomKey,Boolean)=>Unit)={
@@ -303,6 +302,9 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
     private var dtHeaders:List[Map[String,List[DtElement]]]=Nil
     private var dtRecords:List[Map[String,List[DtElement]]]=Nil
     private var dtFields:List[ChildPair[OfDiv]]=Nil
+    private var dtControls:List[ChildPair[OfDiv]]=Nil
+    def setControls(children:List[ChildPair[OfDiv]])=
+      dtControls=children
     def dtField(children:List[ChildPair[OfDiv]])=
       dtFields=children
     def dtColumn(key:VDomKey,basisWidth:Int,textAlign:String,priority:Int,wrapAdjust:Int,maxHeaderLines:Int,
@@ -402,9 +404,16 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
                   divFlexWrapper(x.key, Some(s"${x.basisWidth}px"),true,true,None,None,None,None,true,
                     selectedRecords.map(r=>r.getElementView()))
               }}}
+            if((adjustForCheckbox||checkboxShow)){
+            divWrapper("1",None,None,None,None,None,None,
+              List(
+                divWrapper("1",Some("inline-block"),Some("50px"),Some("50px"),Some(s"${defaultRowHeight}px"),None,None,List(
+                  divPositionWrapper("1",Some("inline-block"),Some("relative"),Some("50%"),Some("translateY(-50%)"),
+                    List(checkBox("1",dtState.dtTableCheckAll.getOrElse(id,false),dtState.handleCheckAll(id,_))))))
+                )
+            ) ::headersWithoutCheckBox}
+            else headersWithoutCheckBox
 
-            dtCheckBox("1",id,show = false,adjustSpace = adjustForCheckbox,checked = false, (VDomKey, Boolean)=>{}) :::
-              headersWithoutCheckBox
           }
 
           divider((cKey-2).toString)::dataTableHeaderRow((cKey-1).toString,headersOfColumnsToShow)::Nil
@@ -568,7 +577,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
                 flexGrid:Boolean=false)={
     //println(cWidth)
     child[OfDiv](key, DataTable(flexGrid)(Some(newVal=>dtTablesState.handleResize(id,newVal.toFloat))),
-      dtTable.controlDiv("1",id,dtTablesState)::divider("2")::
+      dtTable.controlDiv("1",id,dtTablesState)::/*divider("2")::*/
       dtTable.getTableView(3,id,dtTablesState)
     )
   }
