@@ -30,7 +30,12 @@ val workDuration=
       work(logAt.workStart).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId),
       work(logAt.workStop).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId)
     ))
-work.update(logAt.workDuration,workDuration)*/
+work.update(logAt.workDuration,workDuration)
+val totalDuration=
+      if(workList(entry).nonEmpty)
+        Some(workList(entry).map{w:Obj=>w(logAt.workDuration).getOrElse(Duration.ZERO)}.reduce((a,b)=>a plus b))
+      else None
+*/
 
 class FailOfConnection(
   sender: SenderOfConnection
@@ -620,10 +625,6 @@ class TestComponent(
     )
 
     }
-    val totalDuration=
-      if(workList(entry).nonEmpty)
-        Some(workList(entry).map{w:Obj=>w(logAt.workDuration).getOrElse(Duration.ZERO)}.reduce((a,b)=>a plus b))
-      else None
 
     root(List(
       toolbar(),
