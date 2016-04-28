@@ -11,6 +11,7 @@ import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
+/*
 object TimeZoneOffsetProvider{
   val defaultTimeZoneID="Europe/Tallinn" //EST
   def getZoneId=ZoneId.of(defaultTimeZoneID)
@@ -18,7 +19,18 @@ object TimeZoneOffsetProvider{
     ZonedDateTime.now(ZoneId.of(defaultTimeZoneID)).getOffset
   }
 }
-
+*/
+//  println(work(logAt.workStart))
+/*
+val workDuration=
+ if(work(logAt.workStart).isEmpty||work(logAt.workStop).isEmpty)
+   None
+ else
+    Some(Duration.between(
+      work(logAt.workStart).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId),
+      work(logAt.workStop).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId)
+    ))
+work.update(logAt.workDuration,workDuration)*/
 
 class FailOfConnection(
   sender: SenderOfConnection
@@ -580,16 +592,7 @@ class TestComponent(
     )
     workList(entry).foreach { (work: Obj) =>
       val workSrcId = work(uniqueNodes.srcId).get
-     //  println(work(logAt.workStart))
-      val workDuration=
-       if(work(logAt.workStart).isEmpty||work(logAt.workStop).isEmpty)
-         None
-       else
-          Some(Duration.between(work(logAt.workStart).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId),
-            work(logAt.workStop).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId)))
 
-
-      work.update(logAt.workDuration,workDuration)
 
     dtTable2.addRecordsForColumn(
       Map(

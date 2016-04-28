@@ -142,3 +142,10 @@ fast graph traversing
 lazy-calc-with-implicit-deps
 offline? bonus
 modular (+static attrs)
+
+
+
+
+demo run in inet
+2 roles of developers
+
