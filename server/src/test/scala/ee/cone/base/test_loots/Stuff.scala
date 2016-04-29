@@ -127,11 +127,18 @@ class BoatLogEntryAttributes(
   val entryOfWork: Attr[Obj] = attr(new PropId(0x6725), nodeValueConverter),
   val workCreated: Attr[Boolean] = attr(new PropId(0x6726), definedValueConverter),
   val workRemoved: Attr[Boolean] = attr(new PropId(0x6727), definedValueConverter),
-
   val targetEntryOfWork: Attr[Option[UUID]] = attr(new PropId(0x6728), uuidValueConverter),
+
+  val asUser: Attr[Obj] = label(0x6729),
+  val userCreated: Attr[Boolean] = attr(new PropId(0x672A), definedValueConverter),
+  val userRemoved: Attr[Boolean] = attr(new PropId(0x672B), definedValueConverter),
+  val asBoat: Attr[Obj] = label(0x672C),
+  val boatCreated: Attr[Boolean] = attr(new PropId(0x672D), definedValueConverter),
+  val boatRemoved: Attr[Boolean] = attr(new PropId(0x672E), definedValueConverter),
 
   val targetStringValue: Attr[String] = attr(new PropId(0x6730), stringValueConverter),
   val targetInstantValue: Attr[Option[Instant]] = attr(new PropId(0x6731), instantValueConverter),
+
   val entryConfirmed: Attr[Boolean] = attr(new PropId(0x6732),definedValueConverter),
   val entryReopened: Attr[Boolean] = attr(new PropId(0x6733),definedValueConverter)
 
@@ -218,6 +225,7 @@ class TestComponent(
       val srcId = obj(uniqueNodes.srcId).get
       List(textInput("1",label.getOrElse("")/*todo label??*/, obj(attr), alienAttr(attr)(srcId)))
     }
+
   private def durationField(obj: Obj, attr: Attr[Option[Duration]],label:Option[String]=None): List[ChildPair[OfDiv]] = {
     toAlienText[Option[Duration]](obj, attr, v ⇒ v.map(x=>
       x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse(""),label
@@ -252,6 +260,17 @@ class TestComponent(
     List(textInput("1", label.getOrElse(""), tmp, (String) => {}, !editable))
   }
 
+
+  private def userList(): List[Obj] = findNodes.where(
+    mainTx(), logAt.asUser.defined,
+    logAt.justIndexed, findNodes.justIndexed,
+    Nil
+  )
+  private def boatList(): List[Obj] = findNodes.where(
+    mainTx(), logAt.asBoat.defined,
+    logAt.justIndexed, findNodes.justIndexed,
+    Nil
+  )
   private def entryList(): List[Obj] = findNodes.where(
     mainTx(), logAt.asEntry.defined,
     logAt.justIndexed, findNodes.justIndexed,
@@ -265,6 +284,55 @@ class TestComponent(
 
   //private def filterListAct()() = ???
   //private def clearSortingAct()() = ???
+  private def userAddAct()() = {
+    eventSource.addEvent{ ev =>
+      ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
+      (logAt.userCreated, "user was created")
+    }
+    currentVDom.invalidate()
+  }
+  private def userCreated(ev: Obj): Unit = {
+    val srcId = ev(alienAccessAttrs.targetSrcId).get
+    val user = uniqueNodes.create(mainTx(), logAt.asUser, srcId)
+    user(logAt.justIndexed) = findNodes.justIndexed
+  }
+  private def userRemoveAct(userSrcId: UUID)() = {
+    eventSource.addEvent { ev =>
+      ev(alienAccessAttrs.targetSrcId) = Some(userSrcId)
+      (logAt.userRemoved, "user was removed")
+    }
+    currentVDom.invalidate()
+  }
+  private def userRemoved(ev: Obj): Unit = {
+    val user = uniqueNodes.whereSrcId(mainTx(), ev(alienAccessAttrs.targetSrcId).get)
+    user(logAt.justIndexed) = ""
+  }
+
+  private def boatAddAct()() = {
+    eventSource.addEvent{ ev =>
+      ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
+      (logAt.boatCreated, "boat was created")
+    }
+    currentVDom.invalidate()
+  }
+  private def boatCreated(ev: Obj): Unit = {
+    val srcId = ev(alienAccessAttrs.targetSrcId).get
+    val boat = uniqueNodes.create(mainTx(), logAt.asBoat, srcId)
+    boat(logAt.justIndexed) = findNodes.justIndexed
+  }
+  private def boatRemoveAct(boatSrcId: UUID)() = {
+    eventSource.addEvent { ev =>
+      ev(alienAccessAttrs.targetSrcId) = Some(boatSrcId)
+      (logAt.boatRemoved, "boat was removed")
+    }
+    currentVDom.invalidate()
+  }
+  private def boatRemoved(ev: Obj): Unit = {
+    val boat = uniqueNodes.whereSrcId(mainTx(), ev(alienAccessAttrs.targetSrcId).get)
+    boat(logAt.justIndexed) = ""
+  }
+
+
   private def entryAddAct()() = {
     eventSource.addEvent{ ev =>
       ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
@@ -674,6 +742,30 @@ class TestComponent(
     ))
   }
 
+  private def userListView(pf: String) = wrapDBView { () =>
+
+
+
+    root(List(
+      toolbar(),
+      btnAdd("2", userAddAct()),
+      paperWithMargin("margin",table("table",
+        List(
+          row("head",
+            cell("0", isHead=true, isUnderline = true)(List(checkBox("1", ))),
+            cell("1", isHead=true, isUnderline = true)(List(text("text", "Full Name")))
+          )
+        ),
+        userList().map{ user ⇒
+          val srcId = user(uniqueNodes.srcId).get
+          row(srcId.toString,
+            cell("0")(List(checkBox("1", ))),
+            cell("1")(strField(user,at.caption,editable = true))
+          )
+        }
+      ))
+    ))
+  }
 
   private def eventListView(pf: String) = wrapDBView { () =>
     root(List(
@@ -703,7 +795,8 @@ class TestComponent(
 
   private def toolbar() = {
     paperWithMargin("toolbar", table("table", Nil, List(row("1",
-      //cell("1")(List(btnRaised("boats","Boats")(()⇒currentVDom.relocate("/boatList")))),
+      cell("0")(List(btnRaised("users","Users")(()⇒currentVDom.relocate("/userList")))),
+      cell("1")(List(btnRaised("boats","Boats")(()⇒currentVDom.relocate("/boatList")))),
       cell("2")(List(btnRaised("entries","Entries")(()=>currentVDom.relocate("/entryList")))),
       cell("3")(
         if(eventSource.unmergedEvents.isEmpty) Nil else List(
@@ -728,8 +821,14 @@ class TestComponent(
 
   def handlers = CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/eventList"))(eventListView) ::
+    CoHandler(ViewPath("/userList"))(userListView) ::
+    CoHandler(ViewPath("/boatList"))(boatListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
     CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
+    CoHandler(ApplyEvent(logAt.userCreated))(userCreated) ::
+    CoHandler(ApplyEvent(logAt.userRemoved))(userRemoved) ::
+    CoHandler(ApplyEvent(logAt.boatCreated))(boatCreated) ::
+    CoHandler(ApplyEvent(logAt.boatRemoved))(boatRemoved) ::
     CoHandler(ApplyEvent(logAt.entryCreated))(entryCreated) ::
     CoHandler(ApplyEvent(logAt.entryRemoved))(entryRemoved) ::
     CoHandler(ApplyEvent(logAt.entryConfirmed))(entryConfirmed)::

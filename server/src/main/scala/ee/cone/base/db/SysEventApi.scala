@@ -13,10 +13,11 @@ trait SessionState {
 
 case class ApplyEvent(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
 
+/*
 trait Ref[Value] {
   def apply(): Value
   def update(value: Value): Unit
-}
+}*/
 
 trait EventSourceOperations {
   def undo(ev: Obj): Unit

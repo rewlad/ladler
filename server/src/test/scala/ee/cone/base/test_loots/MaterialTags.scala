@@ -290,7 +290,7 @@ class MaterialTags(
     child[OfDiv](key,Divider(),Nil)
   def paper(key: VDomKey, children: ChildPair[OfDiv]*) =
     child[OfDiv](key, Paper(), children.toList)
-  def checkBox(key:VDomKey,checked:Boolean=false,check:Boolean=>Unit)=
+  def checkBox(key:VDomKey,checked:Boolean,check:Boolean=>Unit)=
     child[OfDiv](key,CheckBox(checked)(Some(v⇒check(v.nonEmpty))),Nil)
   def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
     child[OfDiv](key, Table(),
