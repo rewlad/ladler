@@ -145,20 +145,73 @@ class BoatLogEntryAttributes(
 )(val handlers: List[BaseCoHandler] =
   searchIndex.handlers(asEntry, justIndexed) :::
   searchIndex.handlers(asWork, entryOfWork) :::
-  alienCanChange.handlers(targetInstantValue)(date) :::
-    alienCanChange.handlers(targetInstantValue)(log00Date):::
-    alienCanChange.handlers(targetInstantValue)(log08Date):::
-    alienCanChange.handlers(targetInstantValue)(log24Date):::
+  alienCanChange.update(targetInstantValue)(date) :::
+    alienCanChange.update(targetInstantValue)(log00Date):::
+    alienCanChange.update(targetInstantValue)(log08Date):::
+    alienCanChange.update(targetInstantValue)(log24Date):::
   List(
     /*log00Date,*/log00Fuel,log00Comment,log00Engineer,log00Master,
     /*log08Date,*/log08Fuel,log08Comment,log08Engineer,log08Master,
     logRFFuel,logRFComment,logRFEngineer,
     /*log24Date,*/log24Fuel,log24Comment,log24Engineer,log24Master
-  ).flatMap(alienCanChange.handlers(targetStringValue)(_)) :::
-    alienCanChange.handlers(targetInstantValue)(workStart) :::
-    alienCanChange.handlers(targetInstantValue)(workStop) :::
-    alienCanChange.handlers(targetStringValue)(workComment)
+  ).flatMap(alienCanChange.update(targetStringValue)(_)) :::
+    alienCanChange.update(targetInstantValue)(workStart) :::
+    alienCanChange.update(targetInstantValue)(workStop) :::
+    alienCanChange.update(targetStringValue)(workComment)
 ) extends CoHandlerProvider
+
+trait ItemList {
+  def add(srcId: UUID): Unit
+  def list(): List[Obj]
+  def select(srcId: UUID, on: Boolean)
+  def selectAll(): Unit
+  def removeSelected(): Unit
+}
+
+trait ItemListType[Value] {
+  def list(value: Value)
+
+}
+
+class ItemListImpl(
+  asType: Attr[Obj],
+  targetParent: Attr[Option[UUID]],
+  atParent: Attr[Obj],
+  atCreated: Attr[Boolean]
+)(
+  alienAccessAttrs: AlienAccessAttrs,
+  handlerLists: CoHandlerLists,
+  uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
+) extends ItemList with CoHandlerProvider {
+  private def eventSource = handlerLists.single(SessionEventSource)
+  private def add(parentSrcId: UUID) = {
+    val srcId = UUID.randomUUID
+    eventSource.addEvent{ ev =>
+      ev(alienAccessAttrs.targetSrcId) = Option(srcId)
+      ev(targetParent) = Some(parentSrcId)
+      (atCreated, s"$atCreated was created")
+    }
+    srcId
+  }
+  def handlers =
+    CoHandler(ApplyEvent(atCreated))(created) :: Nil
+  private def created(ev: Obj): Unit = {
+    val srcId = ev(alienAccessAttrs.targetSrcId).get
+    val item = uniqueNodes.create(mainTx(), asType, srcId)
+    val parent = uniqueNodes.whereSrcId(mainTx(), ev(targetParent).get)
+    item(atParent) = parent
+    //println(s"workCreated: ${work(logAt.entryOfWork)}")
+  }
+}
+
+class ItemListFactory {
+
+
+
+
+
+}
+
 
 class DataTablesState(currentVDom: CurrentVDom){
   val dtTableWidths=scala.collection.mutable.Map[VDomKey,Float]()
@@ -211,18 +264,30 @@ class TestComponent(
 
   private def eventSource = handlerLists.single(SessionEventSource)
 
-  private def forUpdate(obj: Obj): Obj = {
+  private def forUpdate(obj: Obj)(create: ()⇒UUID = ()⇒Never()): Obj = {
     val srcId = if(obj.nonEmpty) obj(uniqueNodes.srcId) else None
     new Obj {
       def apply[Value](attr: Attr[Value]) = obj(attr)
       def update[Value](attr: Attr[Value], value: Value) = {
-        handlerLists.single(AddChangeEvent(attr))(srcId.get,value)
+        handlerLists.single(AddChangeEvent(attr))(srcId.getOrElse(create()),value)
         currentVDom.invalidate()
       }
       def nonEmpty = Never()
       def tx = Never()
     }
   }
+
+  private def filterObj(key: String): Obj = {
+    val fullKey = s"${???}$key"
+    val obj = findNodes.where(mainTx(), at.isFilter.defined, at.fullKey, fullKey)
+    forUpdate(obj){
+
+    }
+
+
+  }
+
+
 
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =
     if(!obj.nonEmpty) Nil
@@ -523,7 +588,7 @@ class TestComponent(
     val srcId = UUID.fromString(pf.tail)
     val obj = uniqueNodes.whereSrcId(mainTx(), srcId)
     if(!obj.nonEmpty) root(List(text("text","???")))
-    else editViewInner(srcId, forUpdate(obj(logAt.asEntry)))
+    else editViewInner(srcId, forUpdate(obj(logAt.asEntry))())
   }
 
 
@@ -671,7 +736,7 @@ class TestComponent(
       )
     )
     workList(entry).foreach { (obj: Obj) =>
-      val work = forUpdate(obj)
+      val work = forUpdate(obj)()
       val workSrcId = work(uniqueNodes.srcId).get
 
 
@@ -763,7 +828,7 @@ class TestComponent(
           )
         ),
         userList().map{ obj ⇒
-          val user = forUpdate(obj)
+          val user = forUpdate(obj)()
           val srcId = user(uniqueNodes.srcId).get
           row(srcId.toString,
             cell("0")(List(checkBox("1", ))),

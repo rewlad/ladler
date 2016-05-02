@@ -16,10 +16,13 @@ class FactIndexImpl(
   def switchReason(node: Obj): Unit =
     srcObjId = if(node.nonEmpty) node(nodeFactory.objId) else new ObjId(0L)
   def get[Value](node: Obj, attr: RawAttr[Value]) = {
-    val key = rawFactConverter.key(node(nodeFactory.objId), attr)
-    val rawIndex = node(nodeFactory.rawIndex)
+    val rawValue = if(node.nonEmpty) {
+      val key = rawFactConverter.key(node(nodeFactory.objId), attr)
+      val rawIndex = node(nodeFactory.rawIndex)
+      rawIndex.get(key)
+    } else Array[Byte]()
     //println(s"get -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- [${Hex(key)}] -- [${Hex(rawIndex.get(key))}]")
-    rawFactConverter.valueFromBytes(attr.converter, rawIndex.get(key))
+    rawFactConverter.valueFromBytes(attr.converter, rawValue)
   }
   def set[Value](node: Obj, attr: Attr[Value] with RawAttr[Value], value: Value): Unit = {
     if (get(node, attr) == value) { return } // we can't fail on empty values

@@ -53,7 +53,7 @@ class TestAttrs(
   mandatory(asTestTask,testState, mutual = true) :::
   mandatory(asTestTask,comments, mutual = true) :::
   searchIndex.handlers(asTestTask.defined, testState) :::
-  alienCanChange.handlers(targetStringValue)(comments) ::: Nil
+  alienCanChange.update(targetStringValue)(comments) ::: Nil
 ) extends CoHandlerProvider
 
 class TestComponent(
