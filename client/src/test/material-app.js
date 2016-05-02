@@ -20,6 +20,7 @@ import IconButton        from 'material-ui/lib/icon-button'
 import IconContentCreate from 'material-ui/lib/svg-icons/content/create'
 import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
 import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
+import IconActionDelete from 'material-ui/lib/svg-icons/action/delete'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
 import TextField         from 'material-ui/lib/TextField/TextField'
@@ -134,9 +135,8 @@ class DataTableRow extends React.Component{
 
     render(){
         const pStyle={
-            display:"table",
-            width:"100%",
-            height:"100%",
+            display:"flex",
+            //height:"100%",
             border:"0px solid black",
             //fontFamily: 'Roboto, sans-serif',
             fontSize:13,
@@ -146,7 +146,7 @@ class DataTableRow extends React.Component{
         }
 
         return React.createElement("div",{key:this.props.key,style:pStyle,onMouseEnter:this.handleMouseEnter,
-                        onMouseLeave:this.handleMouseLeave},this.props.children)
+                        onMouseLeave:this.handleMouseLeave,onClick:this.props.onClick},this.props.children)
     }
 }
 class DataTableBody extends React.Component{
@@ -165,7 +165,9 @@ class DataTableBody extends React.Component{
     componentWillUnmount(){}
     render(){
         const pStyle={
-            backgroundColor:"dodgerBlue"
+          //  backgroundColor:"dodgerBlue",
+           // overflowY:"auto",
+          //  height:"100px"
         }
         return React.createElement("div",{key:"1",style:pStyle},this.props.children)
     }
@@ -205,7 +207,7 @@ class LabeledText extends React.Component{
             transformOrigin:"left top 0px",
             top:"38px",
             userSelect:"none",
-            color:"rgba(0,0,0,0.3)",
+            color:"rgba(0,0,0,0.5)",
         }
         const tStyle={
             font:"inherit",
@@ -229,11 +231,11 @@ const tp = ({
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
     RaisedButton,
     IconButton, IconContentCreate,MaterialChip,
-    IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,
+    IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTable,DataTableRow,DataTableCells,DataTableBody,
     LabeledText
 })
 
 const transforms = ({tp})
-
+document.body.style.overflowY="scroll"
 vdom.transformBy({transforms})

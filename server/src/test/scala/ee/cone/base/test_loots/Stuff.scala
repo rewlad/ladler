@@ -148,8 +148,10 @@ class DataTablesState(currentVDom: CurrentVDom){
     currentVDom.invalidate()
   }
   def handleCheckAll(id:VDomKey,checked:Boolean): Unit ={
+
     dtTableCheckAll(id)=checked
     val selKeys=dtTableCheck.filter{case(k,v)=>k.indexOf(id)==0}.keySet
+    println(selKeys)
     selKeys.foreach(k=>dtTableCheck(k)=checked)
     currentVDom.invalidate()
   }
@@ -158,7 +160,7 @@ class DataTablesState(currentVDom: CurrentVDom){
     currentVDom.invalidate()
   }
   def handleToggle(id:VDomKey)={
-    //println("toggle",id)
+    println("toggle",id)
     val newVal=true
     dtTableToggleRecordRow(id)=newVal
     dtTableToggleRecordRow.foreach{case (k,v)=>if(k!=id&&newVal)dtTableToggleRecordRow(k)=false}
@@ -341,13 +343,22 @@ class TestComponent(
     val dtTable0=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableList",0.0f),true,true,true)
     dtTable0.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())))
     dtTable0.addColumns(List(
-      dtTable0.dtColumn("2",1000,"center",0,0,1,None)
+      dtTable0.dtColumn("2",100,Some(100),"center",1,0,1,Some("x")),
+      dtTable0.dtColumn("3",150,None,"center",2,20,2,Some("a"))
     ))
 
     dtTable0.addHeadersForColumn(
       Map(
+
         "2"->List(
-          dtTable0.dtHeader("2",100,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+          dtTable0.dtHeader("2",50,Some(50),1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            dtTable0.dtCheckBox("1","dtTableList",dtTablesState.dtTableCheckAll.getOrElse("dtTableList",false),
+              dtTablesState.handleCheckAll
+            )
+          ))))
+        ),
+        "3"->List(
+          dtTable0.dtHeader("2",180,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
             List(text("1","Boat")))))),
           dtTable0.dtHeader("3",150,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
             List(text("1","Date")))))),
@@ -360,17 +371,26 @@ class TestComponent(
           dtTable0.dtHeader("7",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
             List(text("1","Confirmed on")))))),
           dtTable0.dtHeader("8",100,None,List(withSideMargin("1",10,divAlignWrapper("1","center","middle",
-            Nil))))
+            List(text("1","xx"))))))
         )
       )
     )
   entryList().foreach{ (entry:Obj)=>{
     val entrySrcId = entry(uniqueNodes.srcId).get
     val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-
-    dtTable0.addRecordsForColumn(
+    dtTablesState.dtTableCheck("dtTableList_"+entrySrcId.toString)=
+      dtTablesState.dtTableCheck.getOrElse("dtTableList_"+entrySrcId.toString,false)
+    dtTable0.addRecordsForColumn(entrySrcId.toString,
       Map(
         "2"->List(
+
+          dtTable0.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
+            dtTable0.dtCheckBox("1","dtTableList_"+entrySrcId.toString,dtTablesState.dtTableCheck.getOrElse("dtTableList_"+entrySrcId.toString,false),
+              dtTablesState.handleCheck
+            )
+          ))))
+        ),
+        "3"->List(
           dtTable0.dtRecord("2",List(withSideMargin("1",10,objField(entry, logAt.boat, editable = false)))//,
             //List(withSideMargin("1",10,instantField(work, logAt.workStart, editable,Some("Start"))))
           ),
@@ -436,7 +456,7 @@ class TestComponent(
     val editable = true /*todo rw rule*/
     val dtTable1=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit1",0.0f),false,false,false)
     dtTable1.addColumns(List(
-      dtTable1.dtColumn("2",1000,"center",0,0,1,None)
+      dtTable1.dtColumn("2",1000,None,"center",0,0,1,None)
     ))
 
     dtTable1.addHeadersForColumn(
@@ -453,7 +473,7 @@ class TestComponent(
       )
     )
 
-    dtTable1.addRecordsForColumn(
+    dtTable1.addRecordsForColumn("1",
       Map(
         "2"->List(
           dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","00:00"))))),
@@ -479,7 +499,7 @@ class TestComponent(
         )
       )
     )
-    dtTable1.addRecordsForColumn(
+    dtTable1.addRecordsForColumn("2",
       Map(
         "2"->List(
           dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","08:00"))))),
@@ -505,7 +525,7 @@ class TestComponent(
         )
       )
     )
-    dtTable1.addRecordsForColumn(
+    dtTable1.addRecordsForColumn("3",
       Map(
         "2"->List(
           dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","Passed"))))),
@@ -528,7 +548,7 @@ class TestComponent(
         )
       )
     )
-    dtTable1.addRecordsForColumn(
+    dtTable1.addRecordsForColumn("4",
       Map(
         "2"->List(
           dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","24:00"))))),
@@ -557,7 +577,7 @@ class TestComponent(
     val dtTable2=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit2",0.0f),true,true,true)
     dtTable2.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", workAddAct(srcId))))
     dtTable2.addColumns(List(
-      dtTable2.dtColumn("2",1000,"center",0,20,1,None)
+      dtTable2.dtColumn("2",1000,None,"center",0,20,1,None)
     ))
 
     dtTable2.addHeadersForColumn(
@@ -591,7 +611,7 @@ class TestComponent(
 
       work.update(logAt.workDuration,workDuration)
 
-    dtTable2.addRecordsForColumn(
+    dtTable2.addRecordsForColumn(workSrcId.toString,
       Map(
         "2"->List(
           dtTable2.dtRecord("2",List(withSideMargin("1",10,timeInput("1","",work(logAt.workStart),
