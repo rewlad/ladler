@@ -77,10 +77,6 @@ trait InputAttributes {
   def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit
 }
 
-trait AlienAttrFactory {
-  def apply[Value](attr: Attr[Value]): UUID => Value => Unit
-}
-
 ////
 
 trait Tags {

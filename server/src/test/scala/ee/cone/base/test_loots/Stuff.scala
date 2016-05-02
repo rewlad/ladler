@@ -190,6 +190,7 @@ class DataTablesState(currentVDom: CurrentVDom){
   }
 
 }
+
 class TestComponent(
   at: TestAttributes,
   logAt: BoatLogEntryAttributes,
@@ -210,6 +211,19 @@ class TestComponent(
 
   private def eventSource = handlerLists.single(SessionEventSource)
 
+  private def forUpdate(obj: Obj): Obj = {
+    val srcId = if(obj.nonEmpty) obj(uniqueNodes.srcId) else None
+    new Obj {
+      def apply[Value](attr: Attr[Value]) = obj(attr)
+      def update[Value](attr: Attr[Value], value: Value) = {
+        handlerLists.single(AddChangeEvent(attr))(srcId.get,value)
+        currentVDom.invalidate()
+      }
+      def nonEmpty = Never()
+      def tx = Never()
+    }
+  }
+
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =
     if(!obj.nonEmpty) Nil
     else if(label.isEmpty)
@@ -217,25 +231,20 @@ class TestComponent(
     else
       List(labeledText("1",valueToText(obj(attr)),label.getOrElse("")))
 
-
   private def strField(obj: Obj, attr: Attr[String], editable: Boolean,label:Option[String] = None): List[ChildPair[OfDiv]] =
-    if(!obj.nonEmpty) Nil
-    else if(!editable) List(text("1",obj(attr)))
-    else {
-      val srcId = obj(uniqueNodes.srcId).get
-      List(textInput("1",label.getOrElse("")/*todo label??*/, obj(attr), alienAttr(attr)(srcId)))
-    }
+    if(!editable) List(text("1",obj(attr)))
+    else List(textInput("1",label.getOrElse(""), obj(attr), obj(attr)=_))
+
 
   private def durationField(obj: Obj, attr: Attr[Option[Duration]],label:Option[String]=None): List[ChildPair[OfDiv]] = {
     toAlienText[Option[Duration]](obj, attr, v ⇒ v.map(x=>
-      x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse(""),label
-    )
+      x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m"
+    ).getOrElse(""), label)
   }
 
-  private def instantField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean,label:Option[String] = None): List[ChildPair[OfDiv]] = {
+  private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean,label:Option[String] = None): List[ChildPair[OfDiv]] = {
     //println(attr,obj.nonEmpty,editable)
-    if(!obj.nonEmpty) Nil
-    else if(!editable)
+    if(!editable)
       obj(attr).map(v⇒ {
         val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
         val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
@@ -245,12 +254,13 @@ class TestComponent(
         else
           labeledText("1", date.format(formatter), label.getOrElse(""))
       }).toList
-    else {
-      val srcId = obj(uniqueNodes.srcId).get
-      List(dateInput("1",label.getOrElse(""),obj(attr),alienAttr(attr)(srcId)))
-    }
+    else List(dateInput("1",label.getOrElse(""),obj(attr),obj(attr)=_))
   }
-
+  private def timeField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean,label:Option[String] = None): List[ChildPair[OfDiv]] = {
+    //println(attr,obj.nonEmpty,editable)
+    if(!editable) ???
+    else List(timeInput("1",label.getOrElse(""),obj(attr),obj(attr)=_))
+  }
 
   private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean): List[ChildPair[OfDiv]] =
     toAlienText[Obj](obj,attr,v⇒if(v.nonEmpty) v(at.caption) else "",None)
@@ -457,13 +467,13 @@ class TestComponent(
       Map(
         "2"->List(
           dtTable0.dtRecord("2",List(withSideMargin("1",10,objField(entry, logAt.boat, editable = false)))//,
-            //List(withSideMargin("1",10,instantField(work, logAt.workStart, editable,Some("Start"))))
+            //List(withSideMargin("1",10,dateField(work, logAt.workStart, editable,Some("Start"))))
           ),
           dtTable0.dtRecord("3",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            instantField(entry, logAt.date, editable = false)))),
+            dateField(entry, logAt.date, editable = false)))),
 
             List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-              instantField(entry, logAt.date, editable=false,Some("Date")))))
+              dateField(entry, logAt.date, editable=false,Some("Date")))))
           ),
           dtTable0.dtRecord("4",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
             durationField(entry, logAt.durationTotal))))//,
@@ -479,7 +489,7 @@ class TestComponent(
           dtTable0.dtRecord("6",List(withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false)))//,
            // List(withSideMargin("1",10,strField(entry, logAt.log00Engineer, editable,Some("Engineer"))))
           ),
-          dtTable0.dtRecord("7",List(withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false)))//,
+          dtTable0.dtRecord("7",List(withSideMargin("1",10,dateField(entry, logAt.confirmedOn, editable = false)))//,
             //List(withSideMargin("1",10,strField(entry, logAt.log00Master, editable,Some("Master"))))
           ),
           dtTable0.dtRecord("8",List(divAlignWrapper("1","center","middle",
@@ -513,7 +523,7 @@ class TestComponent(
     val srcId = UUID.fromString(pf.tail)
     val obj = uniqueNodes.whereSrcId(mainTx(), srcId)
     if(!obj.nonEmpty) root(List(text("text","???")))
-    else editViewInner(srcId, obj(logAt.asEntry))
+    else editViewInner(srcId, forUpdate(obj(logAt.asEntry)))
   }
 
 
@@ -544,8 +554,7 @@ class TestComponent(
           dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","00:00"))))),
             List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(labeledText("1","00:00","Time")))))
           ),
-          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",entry(logAt.log00Date),
-            alienAttr(logAt.log00Date)(entry(uniqueNodes.srcId).get))))//,
+          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeField(entry, logAt.log00Date, editable, None)))//,
             //List(withSideMargin("1",10,strField(entry, logAt.log00Date, editable,Some("ME Hours.Min"))))
           ),
           dtTable1.dtRecord("4",List(withSideMargin("1",10,strField(entry, logAt.log00Fuel, editable))),
@@ -570,8 +579,7 @@ class TestComponent(
           dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","08:00"))))),
             List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(labeledText("1","08:00","Time")))))
           ),
-          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",entry(logAt.log08Date),
-            alienAttr(logAt.log08Date)(entry(uniqueNodes.srcId).get))))//,
+          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeField(entry, logAt.log08Date, editable, None)))//,
            // List(withSideMargin("1",10,strField(entry, logAt.log08Date, editable,Some("ME Hours.Min"))))
           ),
           dtTable1.dtRecord("4",List(withSideMargin("1",10,strField(entry, logAt.log08Fuel, editable))),
@@ -619,8 +627,7 @@ class TestComponent(
           dtTable1.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(text("1","24:00"))))),
             List(withSideMargin("1",10,divAlignWrapper("1","left","middle",List(labeledText("1","24:00","Time")))))
           ),
-          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",entry(logAt.log24Date),
-            alienAttr(logAt.log24Date)(entry(uniqueNodes.srcId).get))/*strField(entry, logAt.log24Date, editable)*/))//,
+          dtTable1.dtRecord("3",List(withSideMargin("1",10,timeField(entry, logAt.log24Date, editable, None)/*strField(entry, logAt.log24Date, editable)*/))//,
             //List(withSideMargin("1",10,strField(entry, logAt.log24Date, editable,Some("ME Hours.Min"))))
           ),
           dtTable1.dtRecord("4",List(withSideMargin("1",10,strField(entry, logAt.log24Fuel, editable))),
@@ -663,20 +670,19 @@ class TestComponent(
         )
       )
     )
-    workList(entry).foreach { (work: Obj) =>
+    workList(entry).foreach { (obj: Obj) =>
+      val work = forUpdate(obj)
       val workSrcId = work(uniqueNodes.srcId).get
 
 
     dtTable2.addRecordsForColumn(
       Map(
         "2"->List(
-          dtTable2.dtRecord("2",List(withSideMargin("1",10,timeInput("1","",work(logAt.workStart),
-            alienAttr(logAt.workStart)(work(uniqueNodes.srcId).get))))//,
-            //List(withSideMargin("1",10,instantField(work, logAt.workStart, editable,Some("Start"))))
+          dtTable2.dtRecord("2",List(withSideMargin("1",10,timeField(work, logAt.workStart, editable, None)))//,
+            //List(withSideMargin("1",10,dateField(work, logAt.workStart, editable,Some("Start"))))
           ),
-          dtTable2.dtRecord("3",List(withSideMargin("1",10,timeInput("1","",work(logAt.workStop),
-            alienAttr(logAt.workStop)(work(uniqueNodes.srcId).get))))//,
-            //List(withSideMargin("1",10,instantField(work, logAt.workStop, editable,Some("Stop"))))
+          dtTable2.dtRecord("3",List(withSideMargin("1",10,timeField(work, logAt.workStop, editable, None)))//,
+            //List(withSideMargin("1",10,dateField(work, logAt.workStop, editable,Some("Stop"))))
           ),
           dtTable2.dtRecord("4",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",durationField(work, logAt.workDuration)))),
             List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
@@ -702,7 +708,7 @@ class TestComponent(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
               flexGridItem("boat",150,None,objField(entry,logAt.boat,"Boat-A01",false,Some("Boat"))),
-              flexGridItem("date",150,None,instantField(entry, logAt.date, editable,Some("Date")/*todo date */)),
+              flexGridItem("date",150,None,dateField(entry, logAt.date, editable,Some("Date")/*todo date */)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 durationField(entry,logAt.durationTotal,Some("Total duration, hrs:min")))))
             ))
@@ -710,7 +716,7 @@ class TestComponent(
           flexGridItem("2",500,None,List(
             flexGrid("flexGridEdit12",List(
               flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,"",editable = false,Some("Confirmed by"))),
-              flexGridItem("conf_on",150,None,instantField(entry, logAt.confirmedOn, editable = false,Some("Confirmed on")/*todo date */)),
+              flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, editable = false,Some("Confirmed on")/*todo date */)),
               flexGridItem("conf_do",150,None,List(
                 divHeightWrapper("1",72,
                   divAlignWrapper("1","right","bottom",
@@ -756,7 +762,8 @@ class TestComponent(
             cell("1", isHead=true, isUnderline = true)(List(text("text", "Full Name")))
           )
         ),
-        userList().map{ user ⇒
+        userList().map{ obj ⇒
+          val user = forUpdate(obj)
           val srcId = user(uniqueNodes.srcId).get
           row(srcId.toString,
             cell("0")(List(checkBox("1", ))),
