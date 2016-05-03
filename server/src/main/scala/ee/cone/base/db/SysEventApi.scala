@@ -44,6 +44,7 @@ trait SessionEventSourceOperations {
   def addEvent(setup: Obj=>(Attr[Boolean],String)): Unit
   def addRequest(): Unit
   def addUndo(eventSrcId: UUID): Unit
+  def sessionKey: UUID
   def comment: Attr[String]
 }
 

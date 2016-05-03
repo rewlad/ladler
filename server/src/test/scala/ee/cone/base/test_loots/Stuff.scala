@@ -164,53 +164,43 @@ trait ItemList {
   def add(srcId: UUID): Unit
   def list(): List[Obj]
   def select(srcId: UUID, on: Boolean)
-  def selectAll(): Unit
+  def selectAll(on: Boolean): Unit
   def removeSelected(): Unit
 }
 
-trait ItemListType[Value] {
-  def list(value: Value)
-
-}
-
-class ItemListImpl(
+class ItemListImpl[Value](
   asType: Attr[Obj],
-  targetParent: Attr[Option[UUID]],
-  atParent: Attr[Obj],
+  atParent: Attr[Value],
+  parent: Value,
   atCreated: Attr[Boolean]
 )(
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
-  uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
+  findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
 ) extends ItemList with CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource)
-  private def add(parentSrcId: UUID) = {
-    val srcId = UUID.randomUUID
-    eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetSrcId) = Option(srcId)
-      ev(targetParent) = Some(parentSrcId)
-      (atCreated, s"$atCreated was created")
-    }
-    srcId
+  def add(srcId: UUID) = {
+    handlerLists.single(AddCreateEvent(atCreated, asType.defined))(srcId)
+    handlerLists.single(AddUpdateEvent(atParent))(srcId, parent)
   }
-  def handlers =
-    CoHandler(ApplyEvent(atCreated))(created) :: Nil
-  private def created(ev: Obj): Unit = {
-    val srcId = ev(alienAccessAttrs.targetSrcId).get
-    val item = uniqueNodes.create(mainTx(), asType, srcId)
-    val parent = uniqueNodes.whereSrcId(mainTx(), ev(targetParent).get)
-    item(atParent) = parent
-    //println(s"workCreated: ${work(logAt.entryOfWork)}")
-  }
+  def list() = findNodes.where(mainTx(), asType.defined, atParent, parent, Nil)
+
+
+  // val srcId = UUID.randomUUID
+
+  //  item(atParent) = uniqueNodes.whereSrcId(mainTx(), ev(targetParent).get)
+
+
+  def removeSelected() = ???
+
+  def selectAll(on: Boolean) = ???
+
+  def select(srcId: UUID, on: Boolean) = ???
+
+  def handlers = ???
 }
 
-class ItemListFactory {
 
-
-
-
-
-}
 
 
 class DataTablesState(currentVDom: CurrentVDom){
@@ -265,28 +255,37 @@ class TestComponent(
   private def eventSource = handlerLists.single(SessionEventSource)
 
   private def forUpdate(obj: Obj)(create: ()⇒UUID = ()⇒Never()): Obj = {
-    val srcId = if(obj.nonEmpty) obj(uniqueNodes.srcId) else None
+    val existingSrcId = if(obj.nonEmpty) Some(obj(uniqueNodes.srcId).get) else None
+    lazy val justCreated = create()
+    def srcId = existingSrcId.getOrElse(justCreated)
     new Obj {
       def apply[Value](attr: Attr[Value]) = obj(attr)
       def update[Value](attr: Attr[Value], value: Value) = {
-        handlerLists.single(AddChangeEvent(attr))(srcId.getOrElse(create()),value)
+        handlerLists.single(AddUpdateEvent(attr))(srcId,value)
         currentVDom.invalidate()
       }
       def nonEmpty = Never()
       def tx = Never()
     }
   }
-
-  private def filterObj(key: String): Obj = {
-    val fullKey = s"${???}$key"
-    val obj = findNodes.where(mainTx(), at.isFilter.defined, at.fullKey, fullKey)
-    forUpdate(obj){
-
+  private def lazyLinkingObj[Value](atCreated: Attr[Boolean], asType: Attr[Obj], atKey: Attr[Value], key: Value): Obj = {
+    val obj = findNodes.where(mainTx(), asType.defined, atKey, key, Nil) match {
+      case Nil ⇒ uniqueNodes.noNode
+      case o :: Nil ⇒ o
     }
-
-
+    forUpdate(obj) { ()⇒
+      val srcId = UUID.randomUUID
+      handlerLists.single(AddCreateEvent(atCreated, asType.defined))(srcId)
+      handlerLists.single(AddUpdateEvent(atKey))(srcId, key)
+      srcId
+    }
   }
-
+  def filterCreated: Attr[Boolean]
+  def asFilter: Attr[Obj]
+  def filterFullKey: Attr[String]
+  private def filterObj(key: String): Obj = {
+    lazyLinkingObj(filterCreated, asFilter, filterFullKey, s"${eventSource.sessionKey}$key")
+  }
 
 
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =

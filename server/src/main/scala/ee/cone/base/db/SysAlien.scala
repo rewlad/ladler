@@ -21,16 +21,27 @@ class AlienCanChange(
 ) {
   private def eventSource = handlerLists.single(SessionEventSource)
   def update[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
-      CoHandler(AddChangeEvent(attr)){ (srcId:UUID,newValue:Value) =>
-        eventSource.addEvent{ event =>
-          event(at.targetSrcId) = Option(srcId)
-          event(targetAttr) = newValue
-          (attr.defined, s"value of $attr was changed to $newValue")
-        }
-      } ::
-      CoHandler(ApplyEvent(attr.defined)){ event =>
-        //println(event(at.targetSrcId).get)
-        val node = uniqueNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
-        node(attr) = event(targetAttr)
-      } :: Nil
+    CoHandler(AddUpdateEvent(attr)){ (srcId:UUID,newValue:Value) =>
+      eventSource.addEvent{ event =>
+        event(at.targetSrcId) = Option(srcId)
+        event(targetAttr) = newValue
+        (attr.defined, s"value of $attr was changed to $newValue")
+      }
+    } ::
+    CoHandler(ApplyEvent(attr.defined)){ event =>
+      //println(event(at.targetSrcId).get)
+      val node = uniqueNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
+      node(attr) = event(targetAttr)
+    } :: Nil
+  def create(eventAttr: Attr[Boolean], labelAttr: Attr[Obj]) =
+    CoHandler(AddCreateEvent(eventAttr,labelAttr.defined)){ srcId ⇒
+      eventSource.addEvent { ev =>
+        ev(at.targetSrcId) = Option(srcId)
+        (eventAttr, s"$eventAttr was created")
+      }
+    } ::
+    CoHandler(ApplyEvent(eventAttr)) { ev =>
+      val srcId = ev(at.targetSrcId).get
+      val item = uniqueNodes.create(mainTx(), labelAttr, srcId)
+    } :: Nil
 }

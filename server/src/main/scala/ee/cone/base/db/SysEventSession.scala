@@ -11,6 +11,7 @@ class SessionEventSourceOperationsImpl(
   findNodes: FindNodes, uniqueNodes: UniqueNodes
 ) extends SessionEventSourceOperations with CoHandlerProvider {
   private var sessionKeyOpt: Option[UUID] = None
+  def sessionKey = sessionKeyOpt.get
   private def findSession(): Option[Obj] = {
     val tx = instantTxManager.currentTx()
     Single.option(findNodes.where(
