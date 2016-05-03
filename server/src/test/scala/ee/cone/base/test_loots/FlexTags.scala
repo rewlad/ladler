@@ -44,6 +44,18 @@ case class DataTable(flexGrid:Boolean)(val onResize:Option[String=>Unit])
     builder.end()
   }
 }
+case class FlexGridItemWidthSync()(val onResize:Option[(String)=>Unit])
+  extends VDomValue with OnResizeReceiver
+{
+
+  def appendJson(builder:JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("FlexGridItemWidthSync")
+    builder.append("onResize").append("send")
+    builder.append("flexReg").append("def")
+    builder.end()
+  }
+}
 
 case class DataTableColGroupRow() extends VDomValue{
   def elementType="div"
@@ -579,5 +591,9 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
       dtTable.getTableView(3,id,dtTablesState)
     )
   }
+  def flexGridItemWidthSync(key:VDomKey,flexBasisWidth:Int,maxWidth:Option[Int],OnResize:Option[(String)=>Unit],children:List[ChildPair[OfDiv]])=
+    child[OfDiv](key,FlexGridShItem(flexBasisWidth,maxWidth),
+      child[OfDiv](key,FlexGridItemWidthSync()(OnResize),children)::Nil
+    )
 }
 

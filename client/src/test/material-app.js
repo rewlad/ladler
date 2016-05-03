@@ -81,7 +81,51 @@ class DataTable extends React.Component{
     }
     componentWillUnmount(){}
     componentWillReceiveProps(nextProps){
-        
+
+      if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
+      if(typeof this.props.onResize ==="function"){
+
+        this.props.onResize({width:nextProps.width,height:nextProps.height})
+      }
+
+    }
+    handleResize(){
+      //  console.log("reize")
+    }
+
+
+    render(){
+        const tStyle={
+            width:this.props.width||"100%",
+           // height:this.props.height||"",
+            top:this.props.y||"0px",
+            left:this.props.x||"0px",
+            transition:"all 300ms ease-out",
+             position:"absolute"
+        }
+        if(this.props.minWidth) Object.assign(tStyle,{minWidth:this.props.minWidth})
+        if(this.props.maxWidth) Object.assign(tStyle,{maxWidth:this.props.maxWidth})
+        Object.assign(tStyle,this.props.style||{})
+        const ref = el => this.props.flexReg(true,el)
+
+        return React.createElement("div",{key:this.props.key,style:tStyle,ref},this.props.children)
+    }
+}
+
+class FlexGridItemWidthSync extends React.Component{
+    constructor(props){
+        super(props)
+
+    }
+    componentDidMount(){
+        const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
+        //console.log(drect)
+        this.props.onResize({width:drect.width,height:drect.height})
+        console.log("dMounted");
+    }
+    componentWillUnmount(){}
+    componentWillReceiveProps(nextProps){
+
       if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
       if(typeof this.props.onResize ==="function"){
 
@@ -233,7 +277,7 @@ const tp = ({
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTable,DataTableRow,DataTableCells,DataTableBody,
-    LabeledText
+    LabeledText,FlexGridItemWidthSync
 })
 
 const transforms = ({tp})

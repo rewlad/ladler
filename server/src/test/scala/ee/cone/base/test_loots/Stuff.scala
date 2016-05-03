@@ -11,6 +11,7 @@ import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
+/*
 object TimeZoneOffsetProvider{
   val defaultTimeZoneID="Europe/Tallinn" //EST
   def getZoneId=ZoneId.of(defaultTimeZoneID)
@@ -18,7 +19,23 @@ object TimeZoneOffsetProvider{
     ZonedDateTime.now(ZoneId.of(defaultTimeZoneID)).getOffset
   }
 }
-
+*/
+//  println(work(logAt.workStart))
+/*
+val workDuration=
+ if(work(logAt.workStart).isEmpty||work(logAt.workStop).isEmpty)
+   None
+ else
+    Some(Duration.between(
+      work(logAt.workStart).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId),
+      work(logAt.workStop).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId)
+    ))
+work.update(logAt.workDuration,workDuration)
+val totalDuration=
+      if(workList(entry).nonEmpty)
+        Some(workList(entry).map{w:Obj=>w(logAt.workDuration).getOrElse(Duration.ZERO)}.reduce((a,b)=>a plus b))
+      else None
+*/
 
 class FailOfConnection(
   sender: SenderOfConnection
@@ -144,7 +161,7 @@ class DataTablesState(currentVDom: CurrentVDom){
 
   def handleResize(id:VDomKey,cWidth:Float)={
     dtTableWidths(id)=cWidth
-
+    println(id,cWidth)
     currentVDom.invalidate()
   }
   def handleCheckAll(id:VDomKey,checked:Boolean): Unit ={
@@ -427,15 +444,34 @@ class TestComponent(
       )
     )
   }}
-  root(List(
+  root(
+    List(
     //class LootsBoatLogList
-    toolbar(),
-    withMaxWidth("1",1200,List(
-      paperWithMargin("margin",flexGrid("flexGridList",
-        flexGridItemTable("dtTableList","dtTableList",1000,None,dtTable0,dtTablesState,Nil)::Nil)
+      toolbar(),
+      withMaxWidth("1",1200,
+        List(
 
+            paperWithMargin("margin1",flexGrid("flexGridList",
+              flexGridItemTable("dtTableList","dtTableList",1000,None,dtTable0,dtTablesState,Nil)::Nil))
+
+              ,
+          paperWithMargin("margin2",flexGrid("flexGridList2",
+            flexGridItemWidthSync("dtTableList2",1000,None,Some(newVal=>dtTablesState.handleResize("dtTableList2",newVal.toFloat)),
+              FlexDataTable(dtTablesState.dtTableWidths.getOrElse("dtTableList2",0.0f),
+                FlexDataTableControlPanel("control",flexTags,btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())),
+                FlexDataTableHeader("thead",flexTags,
+                  FlexDataTableRow(
+                    FlexDataTableColGroup(
+                      FlexDataTableCell(),
+                      FlexDataTableCell()
+                    )
+                  )
+                )
+              ).genView()
+            )::Nil
+          ))
         )
-      ))
+      )
     )
   )
 }}
@@ -600,18 +636,11 @@ class TestComponent(
     )
     workList(entry).foreach { (work: Obj) =>
       val workSrcId = work(uniqueNodes.srcId).get
-     //  println(work(logAt.workStart))
-      val workDuration=
-       if(work(logAt.workStart).isEmpty||work(logAt.workStop).isEmpty)
-         None
-       else
-          Some(Duration.between(work(logAt.workStart).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId),
-            work(logAt.workStop).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId)))
 
-
-      work.update(logAt.workDuration,workDuration)
 
     dtTable2.addRecordsForColumn(workSrcId.toString,
+
+
       Map(
         "2"->List(
           dtTable2.dtRecord("2",List(withSideMargin("1",10,timeInput("1","",work(logAt.workStart),
@@ -637,10 +666,6 @@ class TestComponent(
     )
 
     }
-    val totalDuration=
-      if(workList(entry).nonEmpty)
-        Some(workList(entry).map{w:Obj=>w(logAt.workDuration).getOrElse(Duration.ZERO)}.reduce((a,b)=>a plus b))
-      else None
 
     root(List(
       toolbar(),
