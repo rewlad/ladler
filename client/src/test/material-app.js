@@ -30,7 +30,7 @@ import TimePicker        from 'material-ui/lib/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
 import injectTapEventPlugin from "react-tap-event-plugin"
 injectTapEventPlugin()
-
+document.body.style.overflowY="scroll"
 function fail(data){ alert(data) }
 
 const feedback = Feedback()
@@ -81,7 +81,7 @@ class DataTable extends React.Component{
     }
     componentWillUnmount(){}
     componentWillReceiveProps(nextProps){
-
+        
       if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
       if(typeof this.props.onResize ==="function"){
 
@@ -237,5 +237,5 @@ const tp = ({
 })
 
 const transforms = ({tp})
-document.body.style.overflowY="scroll"
+
 vdom.transformBy({transforms})

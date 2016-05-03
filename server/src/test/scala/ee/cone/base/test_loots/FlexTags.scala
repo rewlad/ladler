@@ -45,7 +45,7 @@ case class DataTable(flexGrid:Boolean)(val onResize:Option[String=>Unit])
   }
 }
 
-case class DataTableColumnRow() extends VDomValue{
+case class DataTableColGroupRow() extends VDomValue{
   def elementType="div"
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -348,7 +348,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
       dtRecords = dtRecords:::List(records)
     }
 
-    def getWrapPositions(cWidth:Float,dtEl:List[DtElement]):Map[Int,List[Int]]={
+    private def getWrapPositions(cWidth:Float,dtEl:List[DtElement]):Map[Int,List[Int]]={
       var line=0
       var lineSum=0
       var i=0
@@ -377,145 +377,137 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
       result=result + (line->{if(itemsForLines.nonEmpty) itemsForLines else toBeInserted})
       result
     }
+    private def calcVisibleColGroup(visibleColumns:List[DtColumn],columnsNtoShow:Int)={
+      visibleColumns.zipWithIndex.map{case(x,i)=>
+        val lastCol=i==columnsNtoShow-1
+        x.getElementView(false)
+      }
+    }
+    private def calcVisibleHeaders(firstKey:Long,visibleColumns:List[DtColumn],columnsNtoShow:Int)={
+      var cKey=firstKey
+      dtHeaders.flatMap(dtR=>{
+        cKey=cKey+2
+
+        val headersOfColumnsToShow={
+          val headersWithoutCheckBox={
+
+            visibleColumns.zipWithIndex.map{case (x,i)=> {
+              val headers=dtR.getOrElse(x.key,Nil)
+
+              val basisSum=dtColumns.take(columnsNtoShow).map(w=>w.basisWidth).sum
+              val cColWidth=if(cWidth==0.0f) cWidth else x.basisWidth+(cWidth-basisSum)/columnsNtoShow
+
+              val sortedHeaders=headers.sortWith((a,b)=>a.priority<b.priority)
+
+              val wrappedLinesToShow=getWrapPositions(cColWidth,sortedHeaders)
+
+              val lastCol=i==columnsNtoShow-1
+
+              divFlexWrapper(x.key, Some(x.basisWidth),displayFlex = false,flexWrap = false,None,x.maxWidth,None,None,borderRight = false,
+                {
+                  val headersToShow=wrappedLinesToShow.take(x.maxHeaderLines)
+
+                  headersToShow.flatMap{case (i,rowHeaders)=>{
+                    val visibleRowHeaders=headers.intersect(sortedHeaders.slice(rowHeaders.head,rowHeaders.last+1))
+                    List(divFlexWrapper(i.toString,None,displayFlex = true,flexWrap = false,None,None,None,None,borderRight = false,
+                      visibleRowHeaders.map(r => r.getElementView())))
+                  }}.toList
+                }
+              )
+            }}}
+
+          headersWithoutCheckBox
+        }
+
+        divider((cKey-2).toString)::dataTableHeaderRow((cKey-1).toString,headersOfColumnsToShow)::Nil
+
+      })
+    }
+    private def calcRecords(firstKey:Long,visibleColumns:List[DtColumn],
+                                   sortedColumns:List[DtColumn],dtState:DataTablesState,
+                                   columnsNtoShow:Int)={
+      var cKey=firstKey
+      dtRecords.flatMap(dtR=>{
+        cKey=cKey+2
+
+        val recordsOfColumnsToShow={
+
+          val recordsWithoutCheckBox=
+          {
+            visibleColumns.zipWithIndex.map{case (x,i)=> {
+              val records=dtR.getOrElse(x.key,Nil)
+              val toggled=dtState.dtTableToggleRecordRow.getOrElse(records.head.id,false)
+              val basisSum=dtColumns.take(columnsNtoShow).map(w=>w.basisWidth).sum
+
+              val cColWidth=if(cWidth==0.0f) cWidth else x.basisWidth+(cWidth-basisSum)/columnsNtoShow
+
+              val sortedRecords=records.sortWith((a,b)=>a.priority<b.priority)
+
+              val wrappedLinesToShow=getWrapPositions(cColWidth,sortedRecords)
+              val lastCol=i==columnsNtoShow-1
+              divFlexWrapper(x.key, Some(x.basisWidth),displayFlex = false,flexWrap = false,None,x.maxWidth,None,None,borderRight = false,
+                {
+                  val recordsToShow=wrappedLinesToShow.take(x.maxHeaderLines)
+                  val hiddenRecords=if(toggled) wrappedLinesToShow--recordsToShow.keySet else Nil
+                  recordsToShow.flatMap{case (i,rowHeaders)=>{
+                    val visibleRowRecords=records.intersect(sortedRecords.slice(rowHeaders.head,rowHeaders.last+1))
+                    List(divFlexWrapper(i.toString,None,displayFlex = true,flexWrap = false,None,None,None,None,borderRight = false,
+                      visibleRowRecords.map(r => r.getElementView())))
+                  }}.toList:::
+                  List(divFlexWrapper(i.toString+"_hidden",None,displayFlex = true,flexWrap = true,None,None,None,None,false,{
+                    hiddenRecords.flatMap{case (i,rowHeaders)=>{
+                      val hiddenRowRecords=records.intersect(sortedRecords.slice(rowHeaders.head,rowHeaders.last+1))
+                      hiddenRowRecords.map(r =>{r.visible=false; r.getElementView()})
+                    }}.toList
+                  }))
+                }
+              )
+            }}}
+
+          recordsWithoutCheckBox:::hiddenColumnRecords("2",sortedColumns,dtR,dtState,columnsNtoShow)
+        }
+        divider((cKey-2).toString)::dataTableRecordRow((cKey-1).toString,dtR.head._2.head.id,dtState,recordsOfColumnsToShow)::Nil
+
+      })
+    }
+    private def hiddenColumnRecords(key:VDomKey,sortedColumns:List[DtColumn],
+                                    currentRecords:Map[String,List[DtElement]],dtState:DataTablesState,
+                                    columnsNtoShow:Int)= {
+      val hiddenColumns=dtColumns.intersect(sortedColumns.takeRight(sortedColumns.length-columnsNtoShow))
+      var innerKeys=1
+      divWrapper(key+"hidden", None, None, None, None, None, None,
+        hiddenColumns.flatMap(c => {
+          val recordsForC = currentRecords.getOrElse(c.key, Nil)
+          val toggled=dtState.dtTableToggleRecordRow.getOrElse(recordsForC.head.id, false)
+          if(!toggled) Nil
+          else
+          {
+            innerKeys = innerKeys + 4
+            //divider((innerKeys-4).toString)::
+            divFlexWrapper((innerKeys - 3).toString, None, displayFlex = true, flexWrap = false, None, None, None, None, borderRight = false,
+              c.getElementView(false) :: Nil) ::
+              //divider((innerKeys-2).toString)::
+              divFlexWrapper((innerKeys - 1).toString, None, displayFlex = true, flexWrap = true, None, None, None, None, borderRight = false,
+                recordsForC.map(r =>{r.visible=false; r.getElementView(false)})) ::
+              Nil
+          }
+        })
+      ) :: Nil
+    }
     def getTableView(firstRecordKey:Long,id:VDomKey,dtState:DataTablesState):List[ChildPair[OfDiv]] ={
 
-      var cKey=firstRecordKey+1
-      var columnsNtoShow=0
-      val colGroupsToShow={
-        val sortedColumns=dtColumns.sortWith((a,b)=>a.priority<b.priority)
+      val sortedColumns=dtColumns.sortWith((a,b)=>a.priority<b.priority)
+      val wrappedLinesToShow=getWrapPositions(cWidth,sortedColumns)
+      val columnsNtoShow=wrappedLinesToShow.take(1).flatMap{case(i,x)=>x}.size
+      val visibleColumns=dtColumns.intersect(sortedColumns.take(columnsNtoShow))
 
-        val wrappedLinesToShow=getWrapPositions(cWidth,sortedColumns)
-        columnsNtoShow=wrappedLinesToShow.take(1).flatMap{case(i,x)=>x}.size
-        val visibleColumns=dtColumns.intersect(sortedColumns.take(columnsNtoShow))
+      val columnsDiv=dataTableColumnRow(firstRecordKey.toString,calcVisibleColGroup(visibleColumns,columnsNtoShow))
 
-          visibleColumns.zipWithIndex.map{case(x,i)=>
-            val lastCol=i==columnsNtoShow-1
-            x.getElementView(false)
-        }
-      }
+      val headersDiv=calcVisibleHeaders(firstRecordKey+1,visibleColumns,columnsNtoShow)
 
-      val columnsDiv=dataTableColumnRow(firstRecordKey.toString,colGroupsToShow)
+      val recordsDiv=calcRecords(firstRecordKey+1+headersDiv.length,visibleColumns,sortedColumns,dtState,columnsNtoShow)
 
-      val headersDiv=
-        dtHeaders.flatMap(dtR=>{
-          cKey=cKey+2
-
-          val headersOfColumnsToShow={
-            val headersWithoutCheckBox={
-              val sortedColumns=dtColumns.sortWith((a,b)=>a.priority<b.priority)
-              val visibleColumns=dtColumns.intersect(sortedColumns.take(columnsNtoShow))
-              visibleColumns.zipWithIndex.map{case (x,i)=> {
-                val headers=dtR.getOrElse(x.key,Nil)
-
-                val basisSum=dtColumns.take(columnsNtoShow).map(w=>w.basisWidth).sum
-                val cColWidth=if(cWidth==0.0f) cWidth else x.basisWidth+(cWidth-basisSum)/columnsNtoShow
-
-                val sortedHeaders=headers.sortWith((a,b)=>a.priority<b.priority)
-
-                val wrappedLinesToShow=getWrapPositions(if(cColWidth-x.wrapAdjust<0) 0 else cColWidth-x.wrapAdjust,sortedHeaders)
-
-                val lastCol=i==columnsNtoShow-1
-
-                divFlexWrapper(x.key, Some(x.basisWidth),displayFlex = false,flexWrap = false,None,x.maxWidth,None,None,borderRight = false,
-                  {
-                    val headersToShow=wrappedLinesToShow.take(x.maxHeaderLines)
-
-                    headersToShow.flatMap{case (i,rowHeaders)=>{
-                      val visibleRowHeaders=headers.intersect(sortedHeaders.slice(rowHeaders.head,rowHeaders.last+1))
-                      List(divFlexWrapper(i.toString,None,displayFlex = true,flexWrap = false,None,None,None,None,false,
-                          visibleRowHeaders.map(r => r.getElementView())))
-                    }}.toList
-                  }
-                )
-              }}}
-
-            headersWithoutCheckBox
-          }
-
-          divider((cKey-2).toString)::dataTableHeaderRow((cKey-1).toString,headersOfColumnsToShow)::Nil
-
-        })
-      val recordsDiv=
-        dtRecords.flatMap(dtR=>{
-          cKey=cKey+2
-
-          val recordsOfColumnsToShow={
-            val sortedColumns=dtColumns.sortWith((a,b)=>a.priority<b.priority)
-            val recordsWithoutCheckBox=
-            {
-
-              val visibleColumns=dtColumns.intersect(sortedColumns.take(columnsNtoShow))
-
-              visibleColumns.zipWithIndex.map{case (x,i)=> {
-                val records=dtR.getOrElse(x.key,Nil)
-                val toggled=dtState.dtTableToggleRecordRow.getOrElse(records.head.id,false)
-                val basisSum=dtColumns.take(columnsNtoShow).map(w=>w.basisWidth).sum
-
-                val cColWidth=if(cWidth==0.0f) cWidth else x.basisWidth+(cWidth-basisSum)/columnsNtoShow
-
-                val sortedRecords=records.sortWith((a,b)=>a.priority<b.priority)
-
-                val wrappedLinesToShow=getWrapPositions(if(cColWidth-x.wrapAdjust<0) 0 else cColWidth-x.wrapAdjust,sortedRecords)
-                val lastCol=i==columnsNtoShow-1
-                divFlexWrapper(x.key, Some(x.basisWidth),displayFlex = false,flexWrap = false,None,x.maxWidth,None,None,borderRight = false,
-                  {
-                    val recordsToShow=wrappedLinesToShow.take(x.maxHeaderLines)
-                    val hiddenRecords=if(toggled) wrappedLinesToShow--recordsToShow.keySet else Nil
-                    recordsToShow.flatMap{case (i,rowHeaders)=>{
-                      val visibleRowRecords=records.intersect(sortedRecords.slice(rowHeaders.head,rowHeaders.last+1))
-                      List(divFlexWrapper(i.toString,None,displayFlex = true,flexWrap = false,None,None,None,None,false,
-
-                        visibleRowRecords.map(r => r.getElementView())))
-
-                    }}.toList:::
-                      List(divFlexWrapper(i.toString+"_hidden",None,displayFlex = true,flexWrap = true,None,None,None,None,false,{
-                        hiddenRecords.flatMap{case (i,rowHeaders)=>{
-                          val hiddenRowRecords=records.intersect(sortedRecords.slice(rowHeaders.head,rowHeaders.last+1))
-                          hiddenRowRecords.map(r => r.getElementView())
-                        }}.toList
-                        }
-                      )
-                    )
-                  }
-                )
-              }}}
-
-
-            var innerKeys=1
-
-            def hiddenColumnRecords(key:VDomKey)= {
-              val hiddenColumns=dtColumns.intersect(sortedColumns.takeRight(sortedColumns.length-columnsNtoShow))
-              //val wrappedLinesToShow=getWrapPositions(cWidth,sortedColumns)
-
-              //val toggled = dtState.dtTableToggleRecordRow.getOrElse(records.head.id, false)
-
-
-
-              divWrapper(key+"hidden", None, None, None, None, None, None,
-                hiddenColumns.flatMap(c => {
-                  val recordsForC = dtR.getOrElse(c.key, Nil)
-                  val toggled=dtState.dtTableToggleRecordRow.getOrElse(recordsForC.head.id, false)
-                  if(!toggled) Nil
-                  else
-                  {
-                    innerKeys = innerKeys + 4
-                    //divider((innerKeys-4).toString)::
-                    divFlexWrapper((innerKeys - 3).toString, None, displayFlex = true, flexWrap = false, None, None, None, None, borderRight = false,
-                      c.getElementView(false) :: Nil) ::
-                      //divider((innerKeys-2).toString)::
-                      divFlexWrapper((innerKeys - 1).toString, None, displayFlex = true, flexWrap = true, None, None, None, None, borderRight = false,
-                        recordsForC.map(r => r.getElementView(false))) ::
-                      Nil
-                  }
-                })
-              ) :: Nil
-            }
-            recordsWithoutCheckBox:::hiddenColumnRecords("2")
-          }
-          divider((cKey-2).toString)::dataTableRecordRow((cKey-1).toString,dtR.head._2.head.id,dtState,recordsOfColumnsToShow)::Nil
-
-        })
-     columnsDiv::headersDiv:::recordsDiv
+      columnsDiv::headersDiv:::recordsDiv
     }
 
   }
@@ -566,7 +558,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
       dataTable(key,id,dtTable,dtTableState,true)::Nil
     )
   def dataTableColumnRow(key:VDomKey,children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DataTableColumnRow(),children)
+    child[OfDiv](key,DataTableColGroupRow(),children)
   def dataTableCells(key:VDomKey,id:VDomKey,dtTablesState:DataTablesState,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DataTableCells(id)(Some(()=>dtTablesState.handleToggle(id))),children)
   def dataTableRecordRow(key:VDomKey,id:VDomKey,dtTablesState:DataTablesState, children:List[ChildPair[OfDiv]])={
