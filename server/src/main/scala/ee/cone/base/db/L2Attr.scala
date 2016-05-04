@@ -28,6 +28,5 @@ case class AttrImpl[Value](labelId: LabelId, propId: PropId)(
   def get(node: Obj) = factIndex.get(node, this)
   def set(node: Obj, value: Value) = factIndex.set(node, this, value)
   def defined: Attr[Boolean] = getNonEmpty(this)
-  def rawAttr = this
   override def toString = s"AttrImpl(${HexDebug(labelId.value)},${HexDebug(propId.value)})"
 }

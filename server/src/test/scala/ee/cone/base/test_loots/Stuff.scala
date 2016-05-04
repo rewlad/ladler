@@ -160,49 +160,6 @@ class BoatLogEntryAttributes(
     alienCanChange.update(targetStringValue)(workComment)
 ) extends CoHandlerProvider
 
-trait ItemList {
-  def add(srcId: UUID): Unit
-  def list(): List[Obj]
-  def select(srcId: UUID, on: Boolean)
-  def selectAll(on: Boolean): Unit
-  def removeSelected(): Unit
-}
-
-class ItemListImpl[Value](
-  asType: Attr[Obj],
-  atParent: Attr[Value],
-  parent: Value,
-  atCreated: Attr[Boolean]
-)(
-  alienAccessAttrs: AlienAccessAttrs,
-  handlerLists: CoHandlerLists,
-  findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
-) extends ItemList with CoHandlerProvider {
-  private def eventSource = handlerLists.single(SessionEventSource)
-  def add(srcId: UUID) = {
-    handlerLists.single(AddCreateEvent(atCreated, asType.defined))(srcId)
-    handlerLists.single(AddUpdateEvent(atParent))(srcId, parent)
-  }
-  def list() = findNodes.where(mainTx(), asType.defined, atParent, parent, Nil)
-
-
-  // val srcId = UUID.randomUUID
-
-  //  item(atParent) = uniqueNodes.whereSrcId(mainTx(), ev(targetParent).get)
-
-
-  def removeSelected() = ???
-
-  def selectAll(on: Boolean) = ???
-
-  def select(srcId: UUID, on: Boolean) = ???
-
-  def handlers = ???
-}
-
-
-
-
 class DataTablesState(currentVDom: CurrentVDom){
   val dtTableWidths=scala.collection.mutable.Map[VDomKey,Float]()
   val dtTableCheckAll=scala.collection.mutable.Map[VDomKey,Boolean]()
@@ -240,7 +197,7 @@ class TestComponent(
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
   findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
-  alienAttr: AlienAttrFactory,
+  alienCanChange: AlienCanChange,
   onUpdate: OnUpdate,
   tags: Tags,
   materialTags: MaterialTags,
@@ -286,6 +243,54 @@ class TestComponent(
   private def filterObj(key: String): Obj = {
     lazyLinkingObj(filterCreated, asFilter, filterFullKey, s"${eventSource.sessionKey}$key")
   }
+
+  def action[Value](id: Long)(f: (Obj,Value)⇒Unit) = new Attr[Value] with RawAttr[Value] {
+    def defined = Never()
+    def set(node: Obj, value: Value) = f(node, value)
+    def get(node: Obj) = Never()
+    def converter = Never()
+    def propId = new PropId(id)
+    def labelId = new LabelId(0L)
+  }
+
+  def selectedItemsRemoved: Attr[Boolean]
+  def allItemsSelected: Attr[Boolean]
+  def itemSelected:  Attr[Option[UUID]]
+  trait ItemList {
+    def add(srcId: UUID): Unit
+    def list(): List[Obj]
+    def select(srcId: UUID, on: Boolean)
+    def selectAll(on: Boolean): Unit
+    def removeSelected(): Unit
+  }
+  class ItemListImpl[Value](
+    filterObj: Obj,
+    asType: Attr[Obj],
+    atParent: Attr[Value],
+    parent: Value,
+    atCreated: Attr[Boolean]
+  ) extends ItemList with CoHandlerProvider {
+    private def eventSource = handlerLists.single(SessionEventSource)
+    def add(srcId: UUID) = {
+      handlerLists.single(AddCreateEvent(atCreated, asType.defined))(srcId)
+      handlerLists.single(AddUpdateEvent(atParent))(srcId, parent)
+    }
+    def list() = findNodes.where(mainTx(), asType.defined, atParent, parent, Nil)
+
+
+    // val srcId = UUID.randomUUID
+
+    //  item(atParent) = uniqueNodes.whereSrcId(mainTx(), ev(targetParent).get)
+
+
+    def removeSelected() = filterObj(selectedItemsRemoved) = true
+    def selectAll(on: Boolean) = filterObj(allItemsSelected) = on
+    def select(srcId: UUID) = filterObj(itemSelected) = Some(srcId)
+    def handlers =
+      alienCanChange.update()()
+  }
+
+
 
 
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =
