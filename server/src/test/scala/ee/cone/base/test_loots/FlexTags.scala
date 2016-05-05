@@ -208,7 +208,7 @@ case class DivAlignWrapper() extends VDomValue{
 trait OfFlexGrid extends OfDiv
 trait OfFlexDataTable extends OfDiv
 
-class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
+class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialTags) {
 
   import materialTags._
   import tags._
@@ -453,6 +453,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
 
               val cColWidth=if(cWidth==0.0f) cWidth else x.basisWidth+(cWidth-basisSum)/columnsNtoShow
 
+             // println(i,cColWidth)
               val sortedRecords=records.sortWith((a,b)=>a.priority<b.priority)
 
               val wrappedLinesToShow=getWrapPositions(cColWidth,sortedRecords)
@@ -478,7 +479,7 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
 
           recordsWithoutCheckBox:::hiddenColumnRecords("2",sortedColumns,dtR,dtState,columnsNtoShow)
         }
-        divider((cKey-2).toString)::dataTableRecordRow((cKey-1).toString,dtR.head._2.head.id,dtState,recordsOfColumnsToShow)::Nil
+        divider((cKey-2).toString)::dataTableRecordRow((cKey-1).toString,false,Some(()=>dtState.handleToggle(dtR.head._2.head.id)),recordsOfColumnsToShow)::Nil
 
       })
     }
@@ -573,9 +574,9 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
     child[OfDiv](key,DataTableColGroupRow(),children)
   def dataTableCells(key:VDomKey,id:VDomKey,dtTablesState:DataTablesState,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DataTableCells(id)(Some(()=>dtTablesState.handleToggle(id))),children)
-  def dataTableRecordRow(key:VDomKey,id:VDomKey,dtTablesState:DataTablesState, children:List[ChildPair[OfDiv]])={
+  def dataTableRecordRow(key:VDomKey,selected:Boolean,handle:Option[()=>Unit], children:List[ChildPair[OfDiv]])={
     //val selected=dtTablesState.dtTableToggleRecordRow.getOrElse(id,false)
-    child[OfDiv](key,DataTableRecordRow(false)(Some(()=>dtTablesState.handleToggle(id))),children)}
+    child[OfDiv](key,DataTableRecordRow(selected)(handle),children)}
   def dataTableHeaderRow(key:VDomKey,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DataTableHeaderRow(),children)
   def dataTableBody(key:VDomKey,children:List[ChildPair[OfDiv]])=
@@ -594,6 +595,6 @@ class FlexTags(child: ChildPairFactory,tags:Tags,materialTags: MaterialTags) {
   def flexGridItemWidthSync(key:VDomKey,flexBasisWidth:Int,maxWidth:Option[Int],OnResize:Option[(String)=>Unit],children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,FlexGridShItem(flexBasisWidth,maxWidth),
       child[OfDiv](key,FlexGridItemWidthSync()(OnResize),children)::Nil
-    )
+    )::Nil
 }
 

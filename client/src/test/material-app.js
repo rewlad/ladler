@@ -179,7 +179,7 @@ class DataTableRow extends React.Component{
 
     render(){
         const pStyle={
-            display:"flex",
+            //display:"flex",
             //height:"100%",
             border:"0px solid black",
             //fontFamily: 'Roboto, sans-serif',

@@ -202,7 +202,7 @@ class TestComponent(
   import tags._
   import materialTags._
   import flexTags._
-
+  val flexDataTables=new FlexDataTableImpl(flexTags)
   private def eventSource = handlerLists.single(SessionEventSource)
 
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =
@@ -357,118 +357,122 @@ class TestComponent(
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
-    val dtTable0=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableList",0.0f),true,true,true)
-    dtTable0.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())))
-    dtTable0.addColumns(List(
-      dtTable0.dtColumn("2",100,Some(100),"center",1,0,1,Some("x")),
-      dtTable0.dtColumn("3",150,None,"center",2,20,2,Some("a"))
-    ))
 
-    dtTable0.addHeadersForColumn(
-      Map(
-
-        "2"->List(
-          dtTable0.dtHeader("2",50,Some(50),1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            dtTable0.dtCheckBox("1","dtTableList",dtTablesState.dtTableCheckAll.getOrElse("dtTableList",false),
-              dtTablesState.handleCheckAll
-            )
-          ))))
-        ),
-        "3"->List(
-          dtTable0.dtHeader("2",180,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            List(text("1","Boat")))))),
-          dtTable0.dtHeader("3",150,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            List(text("1","Date")))))),
-          dtTable0.dtHeader("4",100,None,1,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            List(text("1","Total duration, hrs:min")))))),
-          dtTable0.dtHeader("5",100,None,3,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            List(text("1","Confirmed")))))),
-          dtTable0.dtHeader("6",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            List(text("1","Confirmed by")))))),
-          dtTable0.dtHeader("7",150,None,2,List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            List(text("1","Confirmed on")))))),
-          dtTable0.dtHeader("8",100,None,List(withSideMargin("1",10,divAlignWrapper("1","center","middle",
-            List(text("1","xx"))))))
-        )
-      )
-    )
-  entryList().foreach{ (entry:Obj)=>{
-    val entrySrcId = entry(uniqueNodes.srcId).get
-    val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-    dtTablesState.dtTableCheck("dtTableList_"+entrySrcId.toString)=
-      dtTablesState.dtTableCheck.getOrElse("dtTableList_"+entrySrcId.toString,false)
-    dtTable0.addRecordsForColumn(entrySrcId.toString,
-      Map(
-        "2"->List(
-
-          dtTable0.dtRecord("2",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            dtTable0.dtCheckBox("1","dtTableList_"+entrySrcId.toString,dtTablesState.dtTableCheck.getOrElse("dtTableList_"+entrySrcId.toString,false),
-              dtTablesState.handleCheck
-            )
-          ))))
-        ),
-        "3"->List(
-          dtTable0.dtRecord("2",List(withSideMargin("1",10,objField(entry, logAt.boat, editable = false)))//,
-            //List(withSideMargin("1",10,instantField(work, logAt.workStart, editable,Some("Start"))))
-          ),
-          dtTable0.dtRecord("3",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            instantField(entry, logAt.date, editable = false)))),
-
-            List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-              instantField(entry, logAt.date, editable=false,Some("Date")))))
-          ),
-          dtTable0.dtRecord("4",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",
-            durationField(entry, logAt.durationTotal))))//,
-            //List(withSideMargin("1",10,durationField(work, logAt.workDuration,false,Some("Duration hrs:min"))))
-          ),
-          dtTable0.dtRecord("5",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",{
-            val confirmed = entry(logAt.asConfirmed)
-            if(confirmed.nonEmpty) List(materialChip("1","CONFIRMED")) else Nil //todo: MaterialChip
-            })))//,
-            //List(withSideMargin("1",10,strField(entry, logAt.workComment, editable,Some("Comment"))))
-          ),
-
-          dtTable0.dtRecord("6",List(withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false)))//,
-           // List(withSideMargin("1",10,strField(entry, logAt.log00Engineer, editable,Some("Engineer"))))
-          ),
-          dtTable0.dtRecord("7",List(withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false)))//,
-            //List(withSideMargin("1",10,strField(entry, logAt.log00Master, editable,Some("Master"))))
-          ),
-          dtTable0.dtRecord("8",List(divAlignWrapper("1","center","middle",
-            List(
-              btnRemove("btn1",entryRemoveAct(entrySrcId)),
-              btnCreate("btn2",go.get)
-            )))
-          )
-        )
-      )
-    )
-  }}
   root(
     List(
     //class LootsBoatLogList
       toolbar(),
       withMaxWidth("1",1200,
         List(
-
-            paperWithMargin("margin1",flexGrid("flexGridList",
-              flexGridItemTable("dtTableList","dtTableList",1000,None,dtTable0,dtTablesState,Nil)::Nil))
-
-              ,
           paperWithMargin("margin2",flexGrid("flexGridList2",
             flexGridItemWidthSync("dtTableList2",1000,None,Some(newVal=>dtTablesState.handleResize("dtTableList2",newVal.toFloat)),
-              FlexDataTable(dtTablesState.dtTableWidths.getOrElse("dtTableList2",0.0f),
-                FlexDataTableControlPanel("control",flexTags,btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())),
-                FlexDataTableHeader("thead",flexTags,
-                  FlexDataTableRow(
-                    FlexDataTableColGroup(
-                      FlexDataTableCell(),
-                      FlexDataTableCell()
+              flexDataTables.table("1",flexDataTables.Width(dtTablesState.dtTableWidths.getOrElse("dtTableList2",0.0f)))(
+                flexDataTables.controlPanel("",btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())),
+                flexDataTables.header("",
+                  flexDataTables.row("row",
+                    flexDataTables.MaxVisibleLines(1))(None)(
+                    flexDataTables.group("1",flexDataTables.MinWidth(50),
+                      flexDataTables.MaxWidth(50),flexDataTables.Priority(0),
+                      flexDataTables.TextAlign("center"),flexDataTables.Caption("x1"))(
+                      flexDataTables.cell("1",flexDataTables.MinWidth(50))(
+                        divFlexWrapper("1",Some(50),displayFlex = false,flexWrap = false,Some(50),Some(50),None,None,borderRight = false,List(
+                          divPositionWrapper("1",Some("inline-block"),Some("relative"),Some("2px"),None,
+                            List(checkBox("1",dtTablesState.dtTableCheckAll.getOrElse("dtTableList2",false),dtTablesState.handleCheckAll("dtTableList2",_))))))
+                      )
+                    ),
+                    flexDataTables.group("2",flexDataTables.MinWidth(150),
+                      flexDataTables.Priority(3),flexDataTables.TextAlign("center"),
+                      flexDataTables.Caption("x2"))(
+                      flexDataTables.cell("1",flexDataTables.MinWidth(180))(
+                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                          List(text("1","Boat"))))
+                      ),
+                      flexDataTables.cell("2",flexDataTables.MinWidth(150))(
+                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                          List(text("1","Date"))))
+                      ),
+                      flexDataTables.cell("3",flexDataTables.MinWidth(100))(
+                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                          List(text("1","Total duration, hrs:min"))))
+                      ),
+                      flexDataTables.cell("4",flexDataTables.MinWidth(100))(
+                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                          List(text("1","Confirmed"))))
+                      ),
+                      flexDataTables.cell("5",flexDataTables.MinWidth(150))(
+                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                          List(text("1","Confirmed by"))))
+                      ),
+                      flexDataTables.cell("6",flexDataTables.MinWidth(150))(
+                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                          List(text("1","Confirmed on"))))
+                      ),
+                      flexDataTables.cell("7",flexDataTables.MinWidth(100),flexDataTables.Priority(0))(
+                        withSideMargin("1",10,divAlignWrapper("1","center","middle",
+                          List(text("1","xx"))))
+                      )
                     )
                   )
+                ),
+                flexDataTables.body("", {
+                  entryList().map{ (entry:Obj)=>{
+                    val entrySrcId = entry(uniqueNodes.srcId).get
+                    val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
+                    flexDataTables.row(entrySrcId.toString,
+                      flexDataTables.Toggled(dtTablesState.dtTableToggleRecordRow.getOrElseUpdate(entrySrcId.toString, false)),
+                      flexDataTables.Selected(dtTablesState.dtTableCheck.getOrElse("dtTableList2_"+entrySrcId.toString, false)),
+                      flexDataTables.MaxVisibleLines(1))(Some(() => dtTablesState.handleToggle(entrySrcId.toString)))(
+                      flexDataTables.group("1", flexDataTables.MinWidth(50),
+                        flexDataTables.MaxWidth(50), flexDataTables.Priority(1),
+                        flexDataTables.TextAlign("center"), flexDataTables.Caption("x1"))(
+                        flexDataTables.cell("1", flexDataTables.MinWidth(50))(
+                          divFlexWrapper("1", Some(50), displayFlex = false, flexWrap = false, Some(50), Some(50), None, None, borderRight = false, List(
+                            divPositionWrapper("1", Some("inline-block"), Some("relative"), Some("2px"), None,
+                              List(checkBox("1", dtTablesState.dtTableCheck.getOrElseUpdate("dtTableList2_"+entrySrcId.toString, false),
+                                dtTablesState.handleCheck("dtTableList2_"+entrySrcId.toString, _))))))
+                        )
+                      ),
+                      flexDataTables.group("2", flexDataTables.MinWidth(150),
+                        flexDataTables.Priority(3), flexDataTables.TextAlign("center"),
+                        flexDataTables.Caption("x2"))(
+                        flexDataTables.cell("1",flexDataTables.MinWidth(180))(
+                          withSideMargin("1",10,objField(entry, logAt.boat, editable = false))
+                        ),
+                        flexDataTables.cell("2",flexDataTables.MinWidth(150))(
+                          withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                            instantField(entry, logAt.date, editable = false)))
+                        ),
+                        flexDataTables.cell("3",flexDataTables.MinWidth(100))(
+                          withSideMargin("1",10,divAlignWrapper("1","left","middle",
+                            durationField(entry, logAt.durationTotal)))
+                        ),
+                        flexDataTables.cell("4",flexDataTables.MinWidth(100))(
+                          withSideMargin("1",10,divAlignWrapper("1","left","middle",{
+                            if(entry(logAt.asConfirmed).nonEmpty)
+                              List(materialChip("1","CONFIRMED"))
+                            else Nil
+                          }))
+                        ),
+                        flexDataTables.cell("5",flexDataTables.MinWidth(150))(
+                          withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false))
+                        ),
+                        flexDataTables.cell("6",flexDataTables.MinWidth(150))(
+                          withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false))
+                        ),
+                        flexDataTables.cell("7",flexDataTables.MinWidth(100),flexDataTables.Priority(0))(
+                          divAlignWrapper("1","center","middle",
+                            List(
+                              btnRemove("btn1",entryRemoveAct(entrySrcId)),
+                              btnCreate("btn2",go.get)
+                            )
+                          )
+                        )
+                      )
+                    )
+                }}}
                 )
-              ).genView()
-            )::Nil
+              )
+            )
           ))
         )
       )
