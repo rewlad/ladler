@@ -33,10 +33,10 @@ class SysAttrsImpl(
   mandatory: Mandatory,
   unique: Unique
 )(
-  val seq: Attr[Obj] = attr(new PropId(0x0001), nodeValueConverter),
-  val asSrcIdentifiable: Attr[Obj] = label(0x0002),
-  val srcId: Attr[Option[UUID]] = attr(new PropId(0x0003), uuidValueConverter),
-  val justIndexed: Attr[String] = attr(new PropId(0x0004), stringValueConverter)
+  val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", nodeValueConverter),
+  val asSrcIdentifiable: Attr[Obj] = label("d3576ce3-100f-437c-bd00-febe9c0f1906"),
+  val srcId: Attr[Option[UUID]] = attr("54d45fef-e9ee-44f7-8522-aec1cd78743e", uuidValueConverter),
+  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", stringValueConverter)
 )(val handlers: List[BaseCoHandler] =
   unique(asSrcIdentifiable, srcId) :::
   mandatory(asSrcIdentifiable, srcId, mutual = true) :::

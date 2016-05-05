@@ -71,11 +71,11 @@ class AttrValueConverter(
 ) extends RawValueConverter[Attr[Boolean]] {
   def convertEmpty() = attrFactory.noAttr
   def convert(valueA: Long, valueB: Long) =
-    attrFactory(new LabelId(valueA),new PropId(valueB),definedValueConverter)
+    attrFactory(new HiAttrId(valueA),new LoAttrId(valueB),definedValueConverter)
   def convert(value: String) = Never()
   def allocWrite(before: Int, value: Attr[Boolean], after: Int) = {
     val attr = value.asInstanceOf[RawAttr[Boolean]]
-    inner.allocWrite(before, attr.labelId.value, attr.propId.value, after)
+    inner.allocWrite(before, attr.hiAttrId.value, attr.loAttrId.value, after)
   }
   def nonEmpty(value: Attr[Boolean]) = value.isInstanceOf[RawAttr[_]]
 }

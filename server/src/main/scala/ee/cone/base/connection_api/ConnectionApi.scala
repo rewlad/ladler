@@ -78,4 +78,4 @@ case class DictMessage(value: Map[String,String])
 case object ShowToAlien extends EventKey[()=>List[(String,String)]]
 
 case class AddUpdateEvent[Value](attr: Attr[Value]) extends EventKey[(UUID,Value)=>Unit]
-case class AddCreateEvent(eventAttr: Attr[Boolean], labelAttr: Attr[Boolean]) extends EventKey[UUID=>Unit]
+case class AddCreateEvent(labelAttr: Attr[Boolean]) extends EventKey[UUID=>Unit]

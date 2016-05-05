@@ -25,13 +25,9 @@ class SearchIndexImpl(
     rawVisitor.execute(rawIndex, rawKeyExtractor, whileKey, minKey.length, in.feed)
   }
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
-    val labelRawAttr = labelAttr.asInstanceOf[RawAttr[_]]
+    val labelRawAttr = labelAttr.defined.asInstanceOf[RawAttr[Boolean]]
     val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
-    if(labelRawAttr.propId.value != 0L)
-      throw new Exception(s"bad index on label: $labelAttr")
-    if(propRawAttr.labelId.value != 0L)
-      throw new Exception(s"bad index on prop: $propAttr")
-    val attr = attrFactory(labelRawAttr.labelId, propRawAttr.propId, propRawAttr.converter)
+    val attr = attrFactory.derive(labelRawAttr, propRawAttr)
     def setter(on: Boolean, node: Obj) = {
       val key = converter.key(attr, node(propAttr), node(nodeFactory.objId))
       val rawIndex = node(nodeFactory.rawIndex)

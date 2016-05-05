@@ -61,5 +61,5 @@ trait SessionMainTxManager {
 }
 
 trait LabelFactory {
-  def apply(id: Long): Attr[Obj]
+  def apply(uuid: String): Attr[Obj]
 }

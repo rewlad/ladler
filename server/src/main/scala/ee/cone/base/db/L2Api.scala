@@ -15,8 +15,9 @@ trait NodeFactory {
 
 trait AttrFactory {
   def noAttr: Attr[Boolean]
-  def apply[V](labelId: LabelId, propId: PropId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
-  def apply[V](propId: PropId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
+  def apply[V](hiAttrId: HiAttrId, loAttrId: LoAttrId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
+  def apply[V](uuid: String, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
+  def derive[V](attrA: Attr[Boolean], attrB: Attr[V]): Attr[V] with RawAttr[V]
 }
 
 trait FactIndex {

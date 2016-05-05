@@ -8,12 +8,12 @@ object Types {
 }
 
 class ObjId(val value: Long) extends AnyVal
-class LabelId(val value: Long) extends AnyVal
-class PropId(val value: Long) extends AnyVal
+class HiAttrId(val value: Long) extends AnyVal
+class LoAttrId(val value: Long) extends AnyVal
 
 trait RawAttr[Value] {
-  def labelId: LabelId
-  def propId: PropId
+  def hiAttrId: HiAttrId
+  def loAttrId: LoAttrId
   def converter: RawValueConverter[Value]
 }
 

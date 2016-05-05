@@ -7,41 +7,44 @@ import ee.cone.base.util.Single
 
 class AlienAccessAttrs(
   attr: AttrFactory,
-  searchIndex: SearchIndex,
-  nodeValueConverter: RawValueConverter[Obj],
-  uuidValueConverter: RawValueConverter[Option[UUID]],
-  mandatory: Mandatory
+  definedValueConverter: RawValueConverter[Boolean]
 )(
-  val targetSrcId: Attr[Option[UUID]] = attr(new PropId(0x0022), uuidValueConverter)
+  val target: Attr[Boolean] = attr("5a7300e9-a1d9-41a6-959f-cbd2f6791deb", definedValueConverter),
+  val created: Attr[Boolean] = attr("7947ca07-d72f-438d-9e21-1ed8196689ae", definedValueConverter)
 )()
 
 class AlienCanChange(
-  at: AlienAccessAttrs, handlerLists: CoHandlerLists,
+  at: AlienAccessAttrs, attrFactory: AttrFactory, handlerLists: CoHandlerLists,
   uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
 ) {
   private def eventSource = handlerLists.single(SessionEventSource)
-  def update[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
+  private def targetSrcId = attrFactory.derive(at.target, uniqueNodes.srcId)
+  def update[Value](attr: Attr[Value]) = {
+    val targetAttr = attrFactory.derive(at.target, attr)
     CoHandler(AddUpdateEvent(attr)){ (srcId:UUID,newValue:Value) =>
       eventSource.addEvent{ event =>
-        event(at.targetSrcId) = Option(srcId)
+        event(targetSrcId) = Option(srcId)
         event(targetAttr) = newValue
         (attr.defined, s"value of $attr was changed to $newValue")
       }
     } ::
     CoHandler(ApplyEvent(attr.defined)){ event =>
       //println(event(at.targetSrcId).get)
-      val node = uniqueNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
+      val node = uniqueNodes.whereSrcId(mainTx(), event(targetSrcId).get)
       node(attr) = event(targetAttr)
     } :: Nil
-  def create(eventAttr: Attr[Boolean], labelAttr: Attr[Obj]) =
-    CoHandler(AddCreateEvent(eventAttr,labelAttr.defined)){ srcId ⇒
+  }
+  def create(labelAttr: Attr[Obj]) = {
+    val eventAttr = attrFactory.derive(at.created, labelAttr.defined)
+    CoHandler(AddCreateEvent(labelAttr.defined)) { srcId ⇒
       eventSource.addEvent { ev =>
-        ev(at.targetSrcId) = Option(srcId)
-        (eventAttr, s"$eventAttr was created")
+        ev(targetSrcId) = Option(srcId)
+        (eventAttr, s"$labelAttr was created")
       }
     } ::
     CoHandler(ApplyEvent(eventAttr)) { ev =>
-      val srcId = ev(at.targetSrcId).get
+      val srcId = ev(targetSrcId).get
       val item = uniqueNodes.create(mainTx(), labelAttr, srcId)
     } :: Nil
+  }
 }

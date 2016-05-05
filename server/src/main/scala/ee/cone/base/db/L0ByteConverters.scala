@@ -11,19 +11,19 @@ import ee.cone.base.db.Types._
 class RawFactConverterImpl extends RawFactConverter {
   def head = 0L
   def key(objId: ObjId, attrId: RawAttr[_]): RawKey =
-    key(objId, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
+    key(objId, attrId.hiAttrId, attrId.loAttrId, hasObjId=true, hasAttrId=true)
   def keyWithoutAttrId(objId: ObjId): RawKey =
-    key(objId, new LabelId(0L), new PropId(0L), hasObjId=true, hasAttrId=false)
+    key(objId, new HiAttrId(0L), new LoAttrId(0L), hasObjId=true, hasAttrId=false)
   def keyHeadOnly: RawKey =
-    key(new ObjId(0L), new LabelId(0L), new PropId(0L), hasObjId=false, hasAttrId=false)
-  private def key(objId: ObjId, labelId: LabelId, propId: PropId, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
+    key(new ObjId(0L), new HiAttrId(0L), new LoAttrId(0L), hasObjId=false, hasAttrId=false)
+  private def key(objId: ObjId, hiAttrId: HiAttrId, loAttrId: LoAttrId, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
     val exHead = CompactBytes.toWrite(head).at(0)
     exHead.write(head, if(!hasObjId) exHead.alloc(0) else {
       val exObjId = CompactBytes.toWrite(objId.value).after(exHead)
       exObjId.write(objId.value, if(!hasAttrId) exObjId.alloc(0) else {
-        val exLabelId = CompactBytes.toWrite(labelId.value).after(exObjId)
-        val exPropId = CompactBytes.toWrite(propId.value).after(exLabelId)
-        exLabelId.write(labelId.value, exPropId.write(propId.value, exPropId.alloc(0)))
+        val exHiAttrId = CompactBytes.toWrite(hiAttrId.value).after(exObjId)
+        val exLoAttrId = CompactBytes.toWrite(loAttrId.value).after(exHiAttrId)
+        exHiAttrId.write(hiAttrId.value, exLoAttrId.write(loAttrId.value, exLoAttrId.alloc(0)))
       })
     })
   }
@@ -78,13 +78,13 @@ class RawSearchConverterImpl extends RawSearchConverter {
   def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey =
     key(attrId, value, new ObjId(0L), hasObjId=false)
   private def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
-    val labelId = attrId.labelId
-    val propId = attrId.propId
+    val hiAttrId = attrId.hiAttrId
+    val loAttrId = attrId.loAttrId
     val exHead = CompactBytes.toWrite(head).at(0)
-    val exLabelId = CompactBytes.toWrite(labelId.value).after(exHead)
-    val exPropId = CompactBytes.toWrite(propId.value).after(exLabelId)
-    val valuePos = exPropId.nextPos
-    exHead.write(head, exLabelId.write(labelId.value, exPropId.write(propId.value,
+    val exHiAttrId = CompactBytes.toWrite(hiAttrId.value).after(exHead)
+    val exLoAttrId = CompactBytes.toWrite(loAttrId.value).after(exHiAttrId)
+    val valuePos = exLoAttrId.nextPos
+    exHead.write(head, exHiAttrId.write(hiAttrId.value, exLoAttrId.write(loAttrId.value,
       OuterRawValueConverter.allocWrite(valuePos, attrId.converter, value, objId, hasObjId) //allowEmptyValue = false
     )))
   }
@@ -146,9 +146,9 @@ class AttrIdExtractor extends RawKeyExtractor {
   def apply(keyPrefix: RawKey, minSame: Int, key: RawKey, feed: Feed): Boolean = {
     val same = BytesSame.part(keyPrefix, key)
     if(same < minSame) return false
-    val exLabelId = CompactBytes.toReadAt(key, minSame)
-    val exPropId = CompactBytes.toReadAfter(key, exLabelId).checkIsLastIn(key)
-    feed(exLabelId.readLong(key), exPropId.readLong(key))
+    val exHiAttrId = CompactBytes.toReadAt(key, minSame)
+    val exLoAttrId = CompactBytes.toReadAfter(key, exHiAttrId).checkIsLastIn(key)
+    feed(exHiAttrId.readLong(key), exLoAttrId.readLong(key))
   }
 }
 
