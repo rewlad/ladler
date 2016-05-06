@@ -51,7 +51,7 @@ class TestAttrs(
 )(val handlers: List[BaseCoHandler] =
   mandatory(asTestTask,testState, mutual = true) :::
   mandatory(asTestTask,comments, mutual = true) :::
-  searchIndex.handlers(asTestTask.defined, testState) :::
+  searchIndex.handlers(asTestTask, testState) :::
   alienCanChange.update(comments) ::: Nil
 ) extends CoHandlerProvider
 
@@ -75,7 +75,7 @@ class TestComponent(
       val changeComments: (UUID) => (String) => Unit = alienAttr(at.comments)
       val tasks = findNodes.where(
         mainTx(),
-        at.asTestTask.defined,
+        at.asTestTask,
         at.testState,
         "A",
         Nil

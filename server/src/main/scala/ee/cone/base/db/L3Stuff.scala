@@ -8,14 +8,13 @@ import ee.cone.base.util.{Never, Single}
 class ListByDBNodeImpl(
   inner: FactIndex, attrValueConverter: RawValueConverter[Attr[Boolean]]
 ) extends ListByDBNode {
-  def defined = Never()
   def get(node: Obj) = {
     val feed = new AttrListFeedImpl(attrValueConverter)
     inner.execute(node, feed)
     feed.result
   }
   def set(node: Obj, value: List[Attr[_]]) = if(value.nonEmpty) Never()
-    else node(this).foreach(attr => node(attr.defined) = false)
+    else node(this).foreach(attr => node(attr) = false)
 }
 
 trait SysAttrs {
@@ -45,10 +44,10 @@ class SysAttrsImpl(
 ) extends SysAttrs with CoHandlerProvider
 
 class FindNodesImpl(
-  handlerLists: CoHandlerLists, nodeFactory: NodeFactory
+  handlerLists: CoHandlerLists, nodeFactory: NodeFactory, attrFactory: AttrFactory
 ) extends FindNodes {
   def where[Value](
-    tx: BoundToTx, label: Attr[Boolean], prop: Attr[Value], value: Value,
+    tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value,
     options: List[SearchOption]
   ) = {
     var from: Option[ObjId] = None
@@ -69,7 +68,7 @@ class FindNodesImpl(
         upTo = node(nodeFactory.objId)
       case FindNextValues ⇒ needSameValue = false
     }
-    val searchKey = SearchByLabelProp[Value](label.defined, prop.defined)
+    val searchKey = SearchByLabelProp[Value](attrFactory.defined(label), attrFactory.defined(prop))
     //println(s"searchKey: $searchKey")
     val handler = handlerLists.single(searchKey)
     val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory, tx)
@@ -85,7 +84,7 @@ class UniqueNodesImpl(
   findNodes: FindNodes
 ) extends UniqueNodes {
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
-    findNodes.where(tx, at.asSrcIdentifiable.defined, at.srcId, Some(srcId), Nil) match {
+    findNodes.where(tx, at.asSrcIdentifiable, at.srcId, Some(srcId), Nil) match {
       case Nil => converter.convertEmpty()
       case node :: Nil => node
       case _ => Never()

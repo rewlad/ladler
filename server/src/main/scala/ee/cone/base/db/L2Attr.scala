@@ -26,9 +26,11 @@ class AttrFactoryImpl(
     buffer.putLong(rawAttrB.hiAttrId.value).putLong(rawAttrB.loAttrId.value)
     apply(UUID.nameUUIDFromBytes(buffer.array()), rawAttrB.converter)
   }
+  def defined(attr: Attr[_]) = attr.asInstanceOf[DefinedAttr].defined
 }
 
-trait NoAttr extends Attr[Boolean]
+trait DefinedAttr { def defined: Attr[Boolean] }
+trait NoAttr extends Attr[Boolean] with DefinedAttr
 case object NoAttr extends NoAttr {
   def defined = this
   def set(node: Obj, value: Boolean) = Never()
@@ -38,7 +40,7 @@ case object NoAttr extends NoAttr {
 case class AttrImpl[Value](hiAttrId: HiAttrId, loAttrId: LoAttrId)(
   val factIndex: FactIndex, val converter: RawValueConverter[Value],
   getNonEmpty: Attr[Value]=>Attr[Boolean]
-) extends Attr[Value] with RawAttr[Value] {
+) extends Attr[Value] with RawAttr[Value] with DefinedAttr {
   def get(node: Obj) = factIndex.get(node, this)
   def set(node: Obj, value: Value) = factIndex.set(node, this, value)
   def defined: Attr[Boolean] = getNonEmpty(this)

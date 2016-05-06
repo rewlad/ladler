@@ -18,6 +18,7 @@ trait AttrFactory {
   def apply[V](hiAttrId: HiAttrId, loAttrId: LoAttrId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
   def apply[V](uuid: String, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
   def derive[V](attrA: Attr[Boolean], attrB: Attr[V]): Attr[V] with RawAttr[V]
+  def defined(attr: Attr[_]): Attr[Boolean]
 }
 
 trait FactIndex {
@@ -40,5 +41,5 @@ case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
 case class AfterUpdate(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
 trait OnUpdate {
   //invoke will be called before and after update if all attrs are defined
-  def handlers(attrs: List[Attr[_]], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
+  def handlers(definedAttrs: List[Attr[Boolean]], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
 }

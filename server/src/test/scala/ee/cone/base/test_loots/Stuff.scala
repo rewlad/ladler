@@ -11,6 +11,8 @@ import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
+import scala.collection.mutable
+
 /*
 object TimeZoneOffsetProvider{
   val defaultTimeZoneID="Europe/Tallinn" //EST
@@ -218,13 +220,13 @@ class TestComponent(
     }
   }
   private def lazyLinkingObj[Value](asType: Attr[Obj], atKey: Attr[Value], key: Value): Obj = {
-    val obj = findNodes.where(mainTx(), asType.defined, atKey, key, Nil) match {
+    val obj = findNodes.where(mainTx(), asType, atKey, key, Nil) match {
       case Nil ⇒ uniqueNodes.noNode
       case o :: Nil ⇒ o
     }
     forUpdate(obj) { ()⇒
       val srcId = UUID.randomUUID
-      handlerLists.single(AddCreateEvent(asType.defined))(srcId)
+      handlerLists.single(AddCreateEvent(attrFactory.defined(asType)))(srcId)
       handlerLists.single(AddUpdateEvent(atKey))(srcId, key)
       srcId
     }
@@ -246,17 +248,56 @@ class TestComponent(
     def hiAttrId = new HiAttrId(0L)
   }
 */
-  def selectedItemsRemoved: Attr[Boolean]
-  def allItemsSelected: Attr[Boolean]
-  def itemSelected:  Attr[Option[UUID]]
-  def itemUnSelected: Attr[Option[UUID]]
   trait ItemList {
     def add(srcId: UUID): Unit
-    def list(): List[Obj]
+    def list: List[Obj]
     def select(srcId: UUID, on: Boolean)
     def selectAll(on: Boolean): Unit
     def removeSelected(): Unit
   }
+
+  trait ListedAttr
+  class ListedObj(item: Obj) extends Obj {
+    def nonEmpty = item.nonEmpty
+    def apply[Value](attr: Attr[Value]) = attr match {
+      case a: ListedAttr ⇒ a.get(this)
+      case _ ⇒ item(attr)
+    }
+    def update[Value](attr: Attr[Value], value: Value) = attr match {
+      case a: ListedAttr ⇒ a.set(this, value)
+      case _ ⇒ item(attr) = value
+    }
+    def tx = ???
+
+  }
+
+
+  def itemList[Value](
+    asType: Attr[Obj],
+    parentAttr: Attr[Value],
+    parentValue: Value,
+    filterObj: Obj
+  ): ItemList = {
+    val items = findNodes.where(mainTx(), asType, parentAttr, parentValue, Nil).map(forUpdate(_)())
+    new ItemList {
+      def list = items
+      def add(srcId: UUID) = {
+        handlerLists.single(AddCreateEvent(attrFactory.defined(asType)))(srcId)
+        handlerLists.single(AddUpdateEvent(parentAttr))(srcId, parentValue)
+      }
+      def removeSelected() = ???
+      def selectAll(on: Boolean) = ???
+      def select(srcId: UUID, on: Boolean) = ???
+
+    }
+  }
+
+
+  def selectedItemsRemoved: Attr[Boolean]
+  def allItemsSelected: Attr[Boolean]
+  def itemSelected:  Attr[Option[UUID]]
+  def itemUnSelected: Attr[Option[UUID]]
+
   class ItemListImpl[Value](
     asType: Attr[Obj],
     parentAttr: Attr[Value]
@@ -266,12 +307,12 @@ class TestComponent(
     def list(filterObj: Obj, parentValue: Value) = new ItemList {
       //private def parentValue = filterObj(filterByParentAttr)
       def add(srcId: UUID) = {
-        handlerLists.single(AddCreateEvent(asType.defined))(srcId)
+        handlerLists.single(AddCreateEvent(attrFactory.defined(asType)))(srcId)
         handlerLists.single(AddUpdateEvent(parentAttr))(srcId, parentValue)
       }
       def list() = {
 
-        findNodes.where(mainTx(), asType.defined, parentAttr, parentValue, Nil)
+        findNodes.where(mainTx(), asType, parentAttr, parentValue, Nil)
       }
       def removeSelected() = filterObj(selectedItemsRemoved) = true
       def selectAll(on: Boolean) = filterObj(allItemsSelected) = on
@@ -338,22 +379,22 @@ class TestComponent(
 
 
   private def userList(): List[Obj] = findNodes.where(
-    mainTx(), logAt.asUser.defined,
+    mainTx(), logAt.asUser,
     logAt.justIndexed, findNodes.justIndexed,
     Nil
   )
   private def boatList(): List[Obj] = findNodes.where(
-    mainTx(), logAt.asBoat.defined,
+    mainTx(), logAt.asBoat,
     logAt.justIndexed, findNodes.justIndexed,
     Nil
   )
   private def entryList(): List[Obj] = findNodes.where(
-    mainTx(), logAt.asEntry.defined,
+    mainTx(), logAt.asEntry,
     logAt.justIndexed, findNodes.justIndexed,
     Nil
   )
   private def workList(entry: Obj): List[Obj] = if(entry.nonEmpty) findNodes.where(
-    mainTx(), logAt.asWork.defined,
+    mainTx(), logAt.asWork,
     logAt.entryOfWork, entry,
     Nil
   ) else Nil
@@ -908,7 +949,7 @@ class TestComponent(
     CoHandler(ApplyEvent(logAt.entryReopened))(entryReopened)::
     CoHandler(ApplyEvent(logAt.workCreated))(workCreated) ::
     CoHandler(ApplyEvent(logAt.workRemoved))(workRemoved) ::
-    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop), calcWorkDuration) :::
-    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork), calcEntryDuration) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.defined), calcWorkDuration) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.defined), calcEntryDuration) :::
     Nil
 }

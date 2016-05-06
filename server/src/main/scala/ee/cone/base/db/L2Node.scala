@@ -20,19 +20,16 @@ case class DBNodeImpl(objId: ObjId)(val tx: ProtectedBoundToTx[_]) extends Obj {
 }
 
 case object ObjIdAttr extends Attr[ObjId] {
-  def defined = Never()
   def set(node: Obj, value: ObjId) = Never()
   def get(node: Obj) = node.asInstanceOf[DBNodeImpl].objId
 }
 
 case object NextObjIdAttr extends Attr[ObjId] {
-  def defined = Never()
   def set(node: Obj, value: ObjId) = Never()
   def get(node: Obj) = new ObjId(node.asInstanceOf[DBNodeImpl].objId.value + 1L)
 }
 
 case object RawIndexAttr extends Attr[RawIndex] {
-  def defined = Never()
   def set(node: Obj, value: RawIndex) = Never()
   def get(node: Obj) = {
     val tx = node.asInstanceOf[DBNodeImpl].tx

@@ -72,7 +72,7 @@ class EventSourceOperationsImpl(
   mainTx: CurrentTx[MainEnvKey] //u
 ) extends ForMergerEventSourceOperations with ForSessionEventSourceOperations {
   private def isUndone(event: Obj) =
-    findNodes.where(instantTx(), at.asUndo.defined, at.statesAbout, event, Nil).nonEmpty
+    findNodes.where(instantTx(), at.asUndo, at.statesAbout, event, Nil).nonEmpty
   private def lastInstant = uniqueNodes.seqNode(instantTx())(sysAttrs.seq)
   def unmergedEvents(instantSession: Obj): List[Obj] =
     unmergedEvents(instantSession,at.lastMergedEvent,lastInstant).list
@@ -87,7 +87,7 @@ class EventSourceOperationsImpl(
       if(lastMergedEvent.nonEmpty) FindAfter(lastMergedEvent) :: Nil else Nil
     if(!upTo.nonEmpty) Never()
     val events = findNodes.where(
-      instantTx(), at.asEvent.defined, at.instantSession, instantSession,
+      instantTx(), at.asEvent, at.instantSession, instantSession,
       FindUpTo(upTo) :: findAfter
     ).filterNot(isUndone)
     new UnmergedEvents(events)(() =>
@@ -116,7 +116,6 @@ class EventSourceOperationsImpl(
   def applyEvents(instantSession: Obj) = {
     val upTo = lastInstant
     val attr = new Attr[Obj] {
-      def defined = Never()
       def set(node: Obj, value: Obj) = Never()
       def get(node: Obj) = {
         val res = node(at.lastAppliedEvent)
@@ -141,7 +140,7 @@ class EventSourceOperationsImpl(
     val lastNode = uniqueNodes.seqNode(mainTx())(at.lastMergedRequest)
     val from = if(lastNode.nonEmpty) FindAfter(lastNode) :: Nil else Nil
     val result = findNodes.where(
-      instantTx(), at.asEvent.defined, at.applyAttr, at.requested, FindFirstOnly :: from
+      instantTx(), at.asEvent, at.applyAttr, at.requested, FindFirstOnly :: from
     )
     if(result.isEmpty){ return uniqueNodes.noNode }
     val event :: Nil = result

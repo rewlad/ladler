@@ -25,9 +25,11 @@ class SearchIndexImpl(
     rawVisitor.execute(rawIndex, rawKeyExtractor, whileKey, minKey.length, in.feed)
   }
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
-    val labelRawAttr = labelAttr.defined.asInstanceOf[RawAttr[Boolean]]
+    val labelDefinedAttr = attrFactory.defined(labelAttr)
+    val propDefinedAttr = attrFactory.defined(propAttr)
+    val labelRawAttr = labelDefinedAttr.asInstanceOf[RawAttr[Boolean]]
     val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
-    val attr = attrFactory.derive(labelRawAttr, propRawAttr)
+    val attr = attrFactory.derive(labelDefinedAttr, propAttr)
     def setter(on: Boolean, node: Obj) = {
       val key = converter.key(attr, node(propAttr), node(nodeFactory.objId))
       val rawIndex = node(nodeFactory.rawIndex)
@@ -35,15 +37,14 @@ class SearchIndexImpl(
       rawIndex.set(key, value)
       //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
     }
-    val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
+    val searchKey = SearchByLabelProp[Value](labelDefinedAttr, propDefinedAttr)
     CoHandler(searchKey)(execute[Value](attr)) ::
-      OnUpdateImpl.handlers(labelAttr :: propAttr :: Nil, setter)
+      OnUpdateImpl.handlers(labelDefinedAttr :: propDefinedAttr :: Nil, setter)
   }
 }
 
 object OnUpdateImpl extends OnUpdate {
-  def handlers(attrs: List[Attr[_]], invoke: (Boolean,Obj) ⇒ Unit) = {
-    val definedAttrs = attrs.map(_.defined)
+  def handlers(definedAttrs: List[Attr[Boolean]], invoke: (Boolean,Obj) ⇒ Unit) = {
     def setter(on: Boolean)(node: Obj) =
       if (definedAttrs.forall(node(_))) invoke(on, node)
     definedAttrs.flatMap{ a => List(

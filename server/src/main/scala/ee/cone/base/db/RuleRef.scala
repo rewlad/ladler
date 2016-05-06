@@ -3,6 +3,7 @@ package ee.cone.base.db
 import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 
 class RefIntegrityImpl(
+    attrFactory: AttrFactory,
     preCommitCheck: PreCommitCheckAllOfConnection,
     searchIndex: SearchIndex,
     findNodes: FindNodes,
@@ -27,7 +28,7 @@ class RefIntegrityImpl(
       CoHandler(AfterUpdate(existsA))(
         preCommitCheck.create(checkPairs)
       ) ::
-      CoHandler(AfterUpdate(toAttr.defined))(
+      CoHandler(AfterUpdate(attrFactory.defined(toAttr)))(
         preCommitCheck.create(checkPairs)
       ) :: Nil
   }

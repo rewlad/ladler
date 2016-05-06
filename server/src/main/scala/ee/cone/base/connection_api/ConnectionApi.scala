@@ -58,7 +58,6 @@ trait Obj {
   def tx: BoundToTx
 }
 trait Attr[Value] {
-  def defined: Attr[Boolean]
   def get(node: Obj): Value
   def set(node: Obj, value: Value): Unit
 }

@@ -4,10 +4,10 @@ import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 import ee.cone.base.db.Types._
 
 class DeleteAttrCalcList(
-  typeId: Attr[_],
+  typeIdDefined: Attr[Boolean],
   attrs: ListByDBNode
 ) {
-  def apply() = CoHandler[Obj=>Unit](AfterUpdate(typeId.defined)){ node =>
-    if(!node(typeId.defined)) node(attrs) = Nil
+  def apply() = CoHandler[Obj=>Unit](AfterUpdate(typeIdDefined)){ node =>
+    if(!node(typeIdDefined)) node(attrs) = Nil
   } :: Nil
 }
