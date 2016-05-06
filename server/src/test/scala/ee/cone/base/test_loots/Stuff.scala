@@ -202,7 +202,7 @@ class TestComponent(
   import tags._
   import materialTags._
   import flexTags._
-  val flexDataTables=new FlexDataTableImpl(flexTags)
+  val tbl: HtmlTableWithControl = new FlexDataTableImpl(flexTags)
   private def eventSource = handlerLists.single(SessionEventSource)
 
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =
@@ -355,127 +355,149 @@ class TestComponent(
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
+  private def genTList()={
+    println("aaa")
+   /* entryList().map{ (entry:Obj)=>{
+      val entrySrcId = entry(uniqueNodes.srcId).get
+      val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
+      tbl.row(entrySrcId.toString,
+        Toggled(dtTablesState.dtTableToggleRecordRow.getOrElseUpdate(entrySrcId.toString, false))(
+          Some(() => dtTablesState.handleToggle(entrySrcId.toString))),
+        Selected(dtTablesState.dtTableCheck.getOrElse("dtTableList2_"+entrySrcId.toString, false)),
+        MaxVisibleLines(1))(
 
+        tbl.group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlign("center"), Caption("x1")),
+        tbl.cell("1", MinWidth(50),TextAlign("left"),VerticalAlign("middle"))(
+          checkBox("1", dtTablesState.dtTableCheck.getOrElseUpdate("dtTableList2_"+entrySrcId.toString, false),
+            dtTablesState.handleCheck("dtTableList2_"+entrySrcId.toString, _))
+        ),
+
+        tbl.group("2_grp", MinWidth(150),Priority(3), TextAlign("center"),Caption("x2")),
+        tbl.cell("2",MinWidth(100))(
+          withSideMargin("1",10,objField(entry, logAt.boat, editable = false))
+        ),
+        tbl.cell("3",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
+          instantField(entry, logAt.date, editable = false):_*
+        ),
+        tbl.cell("4",MinWidth(180),TextAlign("left"),VerticalAlign("middle"))(
+          durationField(entry, logAt.durationTotal):_*
+        ),
+        tbl.cell("5",MinWidth(100),TextAlign("left"),VerticalAlign("middle"))(
+          withSideMargin("1",10,{
+            if(entry(logAt.asConfirmed).nonEmpty)
+              List(materialChip("1","CONFIRMED"))
+            else Nil
+          })
+        ),
+        tbl.cell("6",MinWidth(150))(
+          withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false))
+        ),
+        tbl.cell("7",MinWidth(150))(
+          withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false))
+        ),
+        tbl.cell("8",MinWidth(100),Priority(0),TextAlign("left"),VerticalAlign("middle"))(
+          btnRemove("btn1",entryRemoveAct(entrySrcId)),
+          btnCreate("btn2",go.get)
+        )
+      )
+
+    }}*/
+    println("aaa")
+  }
   private def entryListView(pf: String) = wrapDBView{ ()=>{
+
+ val x=entryList().map{ (entry:Obj)=>{
+   val entrySrcId = entry(uniqueNodes.srcId).get
+   val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
+   tbl.row(entrySrcId.toString,
+     Toggled(dtTablesState.dtTableToggleRecordRow.getOrElseUpdate(entrySrcId.toString, false))(
+       Some(() => dtTablesState.handleToggle(entrySrcId.toString))),
+     Selected(dtTablesState.dtTableCheck.getOrElse("dtTableList2_"+entrySrcId.toString, false)),
+     MaxVisibleLines(1))(
+
+     tbl.group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlign("center"), Caption("x1")),
+     tbl.cell("1", MinWidth(50),TextAlign("left"),VerticalAlign("middle"))(
+       checkBox("1", dtTablesState.dtTableCheck.getOrElseUpdate("dtTableList2_"+entrySrcId.toString, false),
+         dtTablesState.handleCheck("dtTableList2_"+entrySrcId.toString, _))
+     ),
+
+     tbl.group("2_grp", MinWidth(150),Priority(3), TextAlign("center"),Caption("x2")),
+     tbl.cell("2",MinWidth(100))(
+       withSideMargin("1",10,objField(entry, logAt.boat, editable = false))
+     ),
+     tbl.cell("3",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
+       instantField(entry, logAt.date, editable = false):_*
+     ),
+     tbl.cell("4",MinWidth(180),TextAlign("left"),VerticalAlign("middle"))(
+       durationField(entry, logAt.durationTotal):_*
+     ),
+     tbl.cell("5",MinWidth(100),TextAlign("left"),VerticalAlign("middle"))(
+       withSideMargin("1",10,{
+         if(entry(logAt.asConfirmed).nonEmpty)
+           List(materialChip("1","CONFIRMED"))
+         else Nil
+       })
+     ),
+     tbl.cell("6",MinWidth(150))(
+       withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false))
+     ),
+     tbl.cell("7",MinWidth(150))(
+       withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false))
+     ),
+     tbl.cell("8",MinWidth(100),Priority(0),TextAlign("left"),VerticalAlign("middle"))(
+       btnRemove("btn1",entryRemoveAct(entrySrcId)),
+       btnCreate("btn2",go.get)
+     )
+   )
+
+ }}
 
   root(
     List(
     //class LootsBoatLogList
-      toolbar(),
+      toolbar()/*,
       withMaxWidth("1",1200,
         List(
           paperWithMargin("margin2",flexGrid("flexGridList2",
             flexGridItemWidthSync("dtTableList2",1000,None,Some(newVal=>dtTablesState.handleResize("dtTableList2",newVal.toFloat)),
-              flexDataTables.table("1",flexDataTables.Width(dtTablesState.dtTableWidths.getOrElse("dtTableList2",0.0f)))(
-                flexDataTables.controlPanel("",btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())),
-                flexDataTables.header("",
-                  flexDataTables.row("row",
-                    flexDataTables.MaxVisibleLines(1))(None)(
-                    flexDataTables.group("1",flexDataTables.MinWidth(50),
-                      flexDataTables.MaxWidth(50),flexDataTables.Priority(0),
-                      flexDataTables.TextAlign("center"),flexDataTables.Caption("x1"))(
-                      flexDataTables.cell("1",flexDataTables.MinWidth(50))(
-                        divFlexWrapper("1",Some(50),displayFlex = false,flexWrap = false,Some(50),Some(50),None,None,borderRight = false,List(
-                          divPositionWrapper("1",Some("inline-block"),Some("relative"),Some("2px"),None,
-                            List(checkBox("1",dtTablesState.dtTableCheckAll.getOrElse("dtTableList2",false),dtTablesState.handleCheckAll("dtTableList2",_))))))
-                      )
-                    ),
-                    flexDataTables.group("2",flexDataTables.MinWidth(150),
-                      flexDataTables.Priority(3),flexDataTables.TextAlign("center"),
-                      flexDataTables.Caption("x2"))(
-                      flexDataTables.cell("1",flexDataTables.MinWidth(180))(
-                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                          List(text("1","Boat"))))
-                      ),
-                      flexDataTables.cell("2",flexDataTables.MinWidth(150))(
-                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                          List(text("1","Date"))))
-                      ),
-                      flexDataTables.cell("3",flexDataTables.MinWidth(100))(
-                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                          List(text("1","Total duration, hrs:min"))))
-                      ),
-                      flexDataTables.cell("4",flexDataTables.MinWidth(100))(
-                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                          List(text("1","Confirmed"))))
-                      ),
-                      flexDataTables.cell("5",flexDataTables.MinWidth(150))(
-                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                          List(text("1","Confirmed by"))))
-                      ),
-                      flexDataTables.cell("6",flexDataTables.MinWidth(150))(
-                        withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                          List(text("1","Confirmed on"))))
-                      ),
-                      flexDataTables.cell("7",flexDataTables.MinWidth(100),flexDataTables.Priority(0))(
-                        withSideMargin("1",10,divAlignWrapper("1","center","middle",
-                          List(text("1","xx"))))
-                      )
-                    )
+              tbl.table("1",Width(dtTablesState.dtTableWidths.getOrElse("dtTableList2",0.0f)))(
+                tbl.controlPanel("",btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())),
+                tbl.row("row",MaxVisibleLines(1)::Nil)(List(
+                  tbl.group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlign("center"),Caption("x1")),
+                  tbl.cell("1",MinWidth(50),TextAlign("left"),VerticalAlign("middle"))(
+                    checkBox("1",dtTablesState.dtTableCheckAll.getOrElse("dtTableList2",false),
+                      dtTablesState.handleCheckAll("dtTableList2",_))
+                  ),
+                  tbl.group("2_grp",MinWidth(150),Priority(3),TextAlign("center"),Caption("x2")),
+                  tbl.cell("2",MinWidth(100),TextAlign("left"),VerticalAlign("middle"))(
+                    withSideMargin("1",10,List(text("1","Boat")))
+                  ),
+                  tbl.cell("3",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
+                    withSideMargin("1",10,List(text("1","Date")))
+                  ),
+                  tbl.cell("4",MinWidth(180),TextAlign("left"),VerticalAlign("middle"))(
+                    withSideMargin("1",10,List(text("1","Total duration, hrs:min")))
+                  ),
+                  tbl.cell("5",MinWidth(100),TextAlign("left"),VerticalAlign("middle"))(
+                    withSideMargin("1",10,List(text("1","Confirmed")))
+                  ),
+                  tbl.cell("6",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
+                    withSideMargin("1",10,List(text("1","Confirmed by")))
+                  ),
+                  tbl.cell("7",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
+                    withSideMargin("1",10,List(text("1","Confirmed on")))
+                  ),
+                  tbl.cell("8",MinWidth(100),Priority(0),TextAlign("center"),VerticalAlign("middle"))(
+                    withSideMargin("1",10,List(text("1","xx")))
                   )
-                ),
-                flexDataTables.body("", {
-                  entryList().map{ (entry:Obj)=>{
-                    val entrySrcId = entry(uniqueNodes.srcId).get
-                    val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-                    flexDataTables.row(entrySrcId.toString,
-                      flexDataTables.Toggled(dtTablesState.dtTableToggleRecordRow.getOrElseUpdate(entrySrcId.toString, false)),
-                      flexDataTables.Selected(dtTablesState.dtTableCheck.getOrElse("dtTableList2_"+entrySrcId.toString, false)),
-                      flexDataTables.MaxVisibleLines(1))(Some(() => dtTablesState.handleToggle(entrySrcId.toString)))(
-                      flexDataTables.group("1", flexDataTables.MinWidth(50),
-                        flexDataTables.MaxWidth(50), flexDataTables.Priority(1),
-                        flexDataTables.TextAlign("center"), flexDataTables.Caption("x1"))(
-                        flexDataTables.cell("1", flexDataTables.MinWidth(50))(
-                          divFlexWrapper("1", Some(50), displayFlex = false, flexWrap = false, Some(50), Some(50), None, None, borderRight = false, List(
-                            divPositionWrapper("1", Some("inline-block"), Some("relative"), Some("2px"), None,
-                              List(checkBox("1", dtTablesState.dtTableCheck.getOrElseUpdate("dtTableList2_"+entrySrcId.toString, false),
-                                dtTablesState.handleCheck("dtTableList2_"+entrySrcId.toString, _))))))
-                        )
-                      ),
-                      flexDataTables.group("2", flexDataTables.MinWidth(150),
-                        flexDataTables.Priority(3), flexDataTables.TextAlign("center"),
-                        flexDataTables.Caption("x2"))(
-                        flexDataTables.cell("1",flexDataTables.MinWidth(180))(
-                          withSideMargin("1",10,objField(entry, logAt.boat, editable = false))
-                        ),
-                        flexDataTables.cell("2",flexDataTables.MinWidth(150))(
-                          withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                            instantField(entry, logAt.date, editable = false)))
-                        ),
-                        flexDataTables.cell("3",flexDataTables.MinWidth(100))(
-                          withSideMargin("1",10,divAlignWrapper("1","left","middle",
-                            durationField(entry, logAt.durationTotal)))
-                        ),
-                        flexDataTables.cell("4",flexDataTables.MinWidth(100))(
-                          withSideMargin("1",10,divAlignWrapper("1","left","middle",{
-                            if(entry(logAt.asConfirmed).nonEmpty)
-                              List(materialChip("1","CONFIRMED"))
-                            else Nil
-                          }))
-                        ),
-                        flexDataTables.cell("5",flexDataTables.MinWidth(150))(
-                          withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false))
-                        ),
-                        flexDataTables.cell("6",flexDataTables.MinWidth(150))(
-                          withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false))
-                        ),
-                        flexDataTables.cell("7",flexDataTables.MinWidth(100),flexDataTables.Priority(0))(
-                          divAlignWrapper("1","center","middle",
-                            List(
-                              btnRemove("btn1",entryRemoveAct(entrySrcId)),
-                              btnCreate("btn2",go.get)
-                            )
-                          )
-                        )
-                      )
-                    )
-                }}}
+                )
+
                 )
               )
             )
           ))
         )
-      )
+      )*/
     )
   )
 }}

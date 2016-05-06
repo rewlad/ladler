@@ -75,7 +75,6 @@ class DataTable extends React.Component{
     }
     componentDidMount(){
         const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
-        //console.log(drect)
         this.props.onResize({width:drect.width,height:drect.height})
         console.log("dMounted");
     }
@@ -97,7 +96,6 @@ class DataTable extends React.Component{
     render(){
         const tStyle={
             width:this.props.width||"100%",
-           // height:this.props.height||"",
             top:this.props.y||"0px",
             left:this.props.x||"0px",
             transition:"all 300ms ease-out",
@@ -119,11 +117,9 @@ class FlexGridItemWidthSync extends React.Component{
     }
     componentDidMount(){
         const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
-        //console.log(drect)
         this.props.onResize({width:drect.width,height:drect.height})
         console.log("dMounted");
     }
-    componentWillUnmount(){}
     componentWillReceiveProps(nextProps){
 
       if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
@@ -133,15 +129,9 @@ class FlexGridItemWidthSync extends React.Component{
       }
 
     }
-    handleResize(){
-      //  console.log("reize")
-    }
-
-
     render(){
         const tStyle={
             width:this.props.width||"100%",
-           // height:this.props.height||"",
             top:this.props.y||"0px",
             left:this.props.x||"0px",
             transition:"all 300ms ease-out",
@@ -173,16 +163,11 @@ class DataTableRow extends React.Component{
     handleMouseLeave(){
         if(leave) leave()
         leave = null
-
-        //this.setState({mouseOver:false})
     }
 
     render(){
         const pStyle={
-            //display:"flex",
-            //height:"100%",
             border:"0px solid black",
-            //fontFamily: 'Roboto, sans-serif',
             fontSize:13,
             fontWeight:400,
             color:"rgba(0,0,0,0.87)",
@@ -242,7 +227,6 @@ class LabeledText extends React.Component{
             height:"72px"
         }
         const lStyle={
-            //fontSize:"12px",
             position:"absolute",
             cursor:"text",
             pointerEvents:"none",
@@ -255,7 +239,6 @@ class LabeledText extends React.Component{
         }
         const tStyle={
             font:"inherit",
-            //paddingTop:"30px",
             height:"100%",
             color:"rgba(0,0,0,1)",
             position:"relative",

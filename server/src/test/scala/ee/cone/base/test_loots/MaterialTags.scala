@@ -124,7 +124,7 @@ case class MarginSideWrapper(value:Int) extends VDomValue{
       builder.append("style").startObject()
         builder.append("marginLeft").append(s"${value}px")
         builder.append("marginRight").append(s"${value}px")
-        builder.append("height").append("100%")
+        //builder.append("height").append("100%")
       builder.end()
     builder.end()
   }
