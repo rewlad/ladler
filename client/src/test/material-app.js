@@ -68,50 +68,6 @@ const TimeInput = React.createClass({
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
 })
-class DataTable extends React.Component{
-    constructor(props){
-        super(props)
-
-    }
-    componentDidMount(){
-        const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
-        //console.log(drect)
-        this.props.onResize({width:drect.width,height:drect.height})
-        console.log("dMounted");
-    }
-    componentWillUnmount(){}
-    componentWillReceiveProps(nextProps){
-
-      if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
-      if(typeof this.props.onResize ==="function"){
-
-        this.props.onResize({width:nextProps.width,height:nextProps.height})
-      }
-
-    }
-    handleResize(){
-      //  console.log("reize")
-    }
-
-
-    render(){
-        const tStyle={
-            width:this.props.width||"100%",
-           // height:this.props.height||"",
-            top:this.props.y||"0px",
-            left:this.props.x||"0px",
-            transition:"all 300ms ease-out",
-             position:"absolute"
-        }
-        if(this.props.minWidth) Object.assign(tStyle,{minWidth:this.props.minWidth})
-        if(this.props.maxWidth) Object.assign(tStyle,{maxWidth:this.props.maxWidth})
-        Object.assign(tStyle,this.props.style||{})
-        const ref = el => this.props.flexReg(true,el)
-
-        return React.createElement("div",{key:this.props.key,style:tStyle,ref},this.props.children)
-    }
-}
-
 class FlexGridItemWidthSync extends React.Component{
     constructor(props){
         super(props)
@@ -119,11 +75,9 @@ class FlexGridItemWidthSync extends React.Component{
     }
     componentDidMount(){
         const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
-        //console.log(drect)
         this.props.onResize({width:drect.width,height:drect.height})
         console.log("dMounted");
     }
-    componentWillUnmount(){}
     componentWillReceiveProps(nextProps){
 
       if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
@@ -133,15 +87,9 @@ class FlexGridItemWidthSync extends React.Component{
       }
 
     }
-    handleResize(){
-      //  console.log("reize")
-    }
-
-
     render(){
         const tStyle={
             width:this.props.width||"100%",
-           // height:this.props.height||"",
             top:this.props.y||"0px",
             left:this.props.x||"0px",
             transition:"all 300ms ease-out",
@@ -173,16 +121,11 @@ class DataTableRow extends React.Component{
     handleMouseLeave(){
         if(leave) leave()
         leave = null
-
-        //this.setState({mouseOver:false})
     }
 
     render(){
         const pStyle={
-            //display:"flex",
-            //height:"100%",
             border:"0px solid black",
-            //fontFamily: 'Roboto, sans-serif',
             fontSize:13,
             fontWeight:400,
             color:"rgba(0,0,0,0.87)",
@@ -216,18 +159,6 @@ class DataTableBody extends React.Component{
         return React.createElement("div",{key:"1",style:pStyle},this.props.children)
     }
 }
-class DataTableCells extends React.Component{
-    constructor(props){
-        super(props)
-    }
-    render(){
-        const pStyle={
-            display:"table-cell"
-        }
-
-        return React.createElement("div",{key:this.props.key,style:pStyle,onClick:this.props.onClick},this.props.children)
-    }
-}
 class LabeledText extends React.Component{
     constructor(props){
         super(props)
@@ -242,7 +173,6 @@ class LabeledText extends React.Component{
             height:"72px"
         }
         const lStyle={
-            //fontSize:"12px",
             position:"absolute",
             cursor:"text",
             pointerEvents:"none",
@@ -255,7 +185,6 @@ class LabeledText extends React.Component{
         }
         const tStyle={
             font:"inherit",
-            //paddingTop:"30px",
             height:"100%",
             color:"rgba(0,0,0,1)",
             position:"relative",
@@ -276,7 +205,7 @@ const tp = ({
     RaisedButton,
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
-    TextField, DateInput,TimeInput,Checkbox,DataTable,DataTableRow,DataTableCells,DataTableBody,
+    TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync
 })
 

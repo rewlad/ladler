@@ -124,7 +124,7 @@ case class MarginSideWrapper(value:Int) extends VDomValue{
       builder.append("style").startObject()
         builder.append("marginLeft").append(s"${value}px")
         builder.append("marginRight").append(s"${value}px")
-        builder.append("height").append("100%")
+        //builder.append("height").append("100%")
       builder.end()
     builder.end()
   }
@@ -192,13 +192,13 @@ case class DivEmpty() extends VDomValue{
     builder.end()
   }
 }
-case class InputField[Value](tp: String, label: String, value: Value,deferSend: Boolean,readOnly:Boolean=false)(
+case class InputField[Value](tp: String, value: Value, label: String,showLabel:Boolean,deferSend: Boolean)(
   input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
 ) extends VDomValue with OnChangeReceiver {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp)
-    builder.append("floatingLabelText").append(label)
+    if(showLabel) builder.append("floatingLabelText").append(label)
     builder.append("underlineStyle").startObject()
       builder.append("borderColor").append("rgba(0,0,0,0.24)")
     builder.end()
@@ -274,7 +274,7 @@ case class MaterialChip(text:String) extends VDomValue{
   /*
 //todo: DateField, SelectField
 //todo: Helmet, tap-event, StickyToolbars
-//todo: port: import MaterialChip      from './material-chip'
+//todo: port: import MaterialChip      from './material-chip'   !!!Done
 
 */
 
@@ -343,8 +343,8 @@ class MaterialTags(
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
 
-  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit,readOnly:Boolean=false) =
-    child[OfDiv](key, InputField("TextField", label, value, deferSend = true,readOnly)
+  def textInput(key: VDomKey, value: String, change: String⇒Unit,label: String,showLabel:Boolean) =
+    child[OfDiv](key, InputField("TextField",value, label,showLabel,deferSend = true)
       (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
   private def instantToString(value: Option[Instant]): String =
@@ -353,15 +353,16 @@ class MaterialTags(
   private def stringToInstant(value: String): Option[Instant] =
     if(value.nonEmpty) Some(Instant.ofEpochMilli(java.lang.Long.valueOf(value))) else None
 
-  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit,readOnly:Boolean=false) =
-    child[OfDiv](key, InputField("DateInput", label, value, deferSend = false,readOnly)(inputAttributes,
+  def dateInput(key: VDomKey, value: Option[Instant], change: Option[Instant]⇒Unit,label: String,showLabel:Boolean) =
+    child[OfDiv](key, InputField("DateInput",value,label,showLabel, deferSend = false)(inputAttributes,
       instantToString, Some(newValue ⇒ change(stringToInstant(newValue)))), Nil)
-  def timeInput(key:VDomKey, label:String,value:Option[Instant],change:Option[Instant]=>Unit,readOnly:Boolean=false)=
-    child[OfDiv](key,InputField("TimeInput",label,value, deferSend=false,readOnly)(inputAttributes,
+  def timeInput(key:VDomKey, value:Option[Instant],label:String,showLabel:Boolean,change:Option[Instant]=>Unit)=
+    child[OfDiv](key,InputField("TimeInput",value,label,showLabel, deferSend=false)(inputAttributes,
       instantToString,Some(newValue=>change(stringToInstant(newValue)))),Nil)
 
-  def labeledText(key:VDomKey,text:String,label:String)=
-    child[OfDiv](key,LabeledTextComponent(text,label),Nil)
+  def labeledText(key:VDomKey,content:String,label:String)=
+    child[OfDiv](key,LabeledTextComponent(content,label),Nil)
+
   def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv])=
     child[OfDiv](key,DivHeightWrapper(height),theChild::Nil)
   def divEmpty(key:VDomKey)=
