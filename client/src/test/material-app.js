@@ -68,48 +68,6 @@ const TimeInput = React.createClass({
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
 })
-class DataTable extends React.Component{
-    constructor(props){
-        super(props)
-
-    }
-    componentDidMount(){
-        const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
-        this.props.onResize({width:drect.width,height:drect.height})
-        console.log("dMounted");
-    }
-    componentWillUnmount(){}
-    componentWillReceiveProps(nextProps){
-
-      if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
-      if(typeof this.props.onResize ==="function"){
-
-        this.props.onResize({width:nextProps.width,height:nextProps.height})
-      }
-
-    }
-    handleResize(){
-      //  console.log("reize")
-    }
-
-
-    render(){
-        const tStyle={
-            width:this.props.width||"100%",
-            top:this.props.y||"0px",
-            left:this.props.x||"0px",
-            transition:"all 300ms ease-out",
-             position:"absolute"
-        }
-        if(this.props.minWidth) Object.assign(tStyle,{minWidth:this.props.minWidth})
-        if(this.props.maxWidth) Object.assign(tStyle,{maxWidth:this.props.maxWidth})
-        Object.assign(tStyle,this.props.style||{})
-        const ref = el => this.props.flexReg(true,el)
-
-        return React.createElement("div",{key:this.props.key,style:tStyle,ref},this.props.children)
-    }
-}
-
 class FlexGridItemWidthSync extends React.Component{
     constructor(props){
         super(props)
@@ -201,18 +159,6 @@ class DataTableBody extends React.Component{
         return React.createElement("div",{key:"1",style:pStyle},this.props.children)
     }
 }
-class DataTableCells extends React.Component{
-    constructor(props){
-        super(props)
-    }
-    render(){
-        const pStyle={
-            display:"table-cell"
-        }
-
-        return React.createElement("div",{key:this.props.key,style:pStyle,onClick:this.props.onClick},this.props.children)
-    }
-}
 class LabeledText extends React.Component{
     constructor(props){
         super(props)
@@ -259,7 +205,7 @@ const tp = ({
     RaisedButton,
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
-    TextField, DateInput,TimeInput,Checkbox,DataTable,DataTableRow,DataTableCells,DataTableBody,
+    TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync
 })
 
