@@ -222,7 +222,6 @@ class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialT
   def dataTableColumnRow(key:VDomKey,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DataTableColGroupRow(),children)
   def dataTableRecordRow(key:VDomKey,selected:Boolean,handle:Option[()=>Unit], children:List[ChildPair[OfDiv]])={
-    //val selected=dtTablesState.dtTableToggleRecordRow.getOrElse(id,false)
     child[OfDiv](key,DataTableRecordRow(selected)(handle),children)}
   def dataTableHeaderRow(key:VDomKey,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DataTableHeaderRow(),children)
