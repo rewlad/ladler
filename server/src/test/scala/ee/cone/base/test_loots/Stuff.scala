@@ -154,33 +154,38 @@ class BoatLogEntryAttributes(
 ) extends CoHandlerProvider
 
 class DataTablesState(currentVDom: CurrentVDom){
-  val dtTableWidths=scala.collection.mutable.Map[VDomKey,Float]()
-  val dtTableCheckAll=scala.collection.mutable.Map[VDomKey,Boolean]()
-  val dtTableCheck=scala.collection.mutable.Map[VDomKey,Boolean]()
-  val dtTableToggleRecordRow=scala.collection.mutable.Map[VDomKey,Boolean]()
-
+  val widthOfTables=scala.collection.mutable.Map[VDomKey,Float]()
+  val areAllRowsCheckedOfTables=scala.collection.mutable.Map[VDomKey,Boolean]()
+  val isRowCheckedOfTables=scala.collection.mutable.Map[VDomKey,Boolean]()
+  val isRowToggledOfTables=scala.collection.mutable.Map[VDomKey,Boolean]()
+  def width(id:VDomKey)=widthOfTables.getOrElse(id,0.0f)
+  def areAllRowsChecked(id:VDomKey)=areAllRowsCheckedOfTables.getOrElse(id,false)
+  def isRowChecked(id:VDomKey)=isRowCheckedOfTables.getOrElseUpdate(id,false)
+  def isRowToggled(id:VDomKey)=isRowToggledOfTables.getOrElseUpdate(id,false)
+  def getCheckedRowsSrcId(id:VDomKey):Seq[UUID]={
+    isRowCheckedOfTables.filter{case (k,v)=>k.indexOf(id)==0 && v}.
+      map{case (k,_)=> k.takeRight(k.length-id.length).toString}.
+      map(x=>UUID.fromString(x)).toList
+  }
   def handleResize(id:VDomKey,cWidth:Float)={
-    dtTableWidths(id)=cWidth
+    widthOfTables(id)=cWidth
     println(id,cWidth)
     currentVDom.invalidate()
   }
   def handleCheckAll(id:VDomKey,checked:Boolean): Unit ={
-
-    dtTableCheckAll(id)=checked
-    val selKeys=dtTableCheck.filter{case(k,v)=>k.indexOf(id)==0}.keySet
-    println(selKeys)
-    selKeys.foreach(k=>dtTableCheck(k)=checked)
+    areAllRowsCheckedOfTables(id)=checked
+    isRowCheckedOfTables.foreach{case(k,_)=>if(k.indexOf(id)==0) isRowCheckedOfTables(k)=checked}
     currentVDom.invalidate()
   }
   def handleCheck(id:VDomKey,checked:Boolean)={
-    dtTableCheck(id)=checked
+    isRowCheckedOfTables(id)=checked
     currentVDom.invalidate()
   }
   def handleToggle(id:VDomKey)={
     println("toggle",id)
     val newVal=true
-    dtTableToggleRecordRow(id)=newVal
-    dtTableToggleRecordRow.foreach{case (k,v)=>if(k!=id&&newVal)dtTableToggleRecordRow(k)=false}
+    isRowToggledOfTables(id)=newVal
+    isRowToggledOfTables.foreach{case (k,v)=>if(k!=id&&newVal)isRowToggledOfTables(k)=false}
     currentVDom.invalidate()
   }
 
@@ -284,7 +289,7 @@ class TestComponent(
       ev(alienAccessAttrs.targetSrcId) = Some(entrySrcId)
       (logAt.entryRemoved, "entry was removed")
     }
-    currentVDom.invalidate()
+
   }
   private def entryRemoved(ev: Obj): Unit = {
     val entry = uniqueNodes.whereSrcId(mainTx(), ev(alienAccessAttrs.targetSrcId).get)
@@ -355,117 +360,22 @@ class TestComponent(
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
-  private def genTList()={
-    println("aaa")
-   /* entryList().map{ (entry:Obj)=>{
-      val entrySrcId = entry(uniqueNodes.srcId).get
-      val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-      tbl.row(entrySrcId.toString,
-        Toggled(dtTablesState.dtTableToggleRecordRow.getOrElseUpdate(entrySrcId.toString, false))(
-          Some(() => dtTablesState.handleToggle(entrySrcId.toString))),
-        Selected(dtTablesState.dtTableCheck.getOrElse("dtTableList2_"+entrySrcId.toString, false)),
-        MaxVisibleLines(1))(
 
-        tbl.group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlign("center"), Caption("x1")),
-        tbl.cell("1", MinWidth(50),TextAlign("left"),VerticalAlign("middle"))(
-          checkBox("1", dtTablesState.dtTableCheck.getOrElseUpdate("dtTableList2_"+entrySrcId.toString, false),
-            dtTablesState.handleCheck("dtTableList2_"+entrySrcId.toString, _))
-        ),
-
-        tbl.group("2_grp", MinWidth(150),Priority(3), TextAlign("center"),Caption("x2")),
-        tbl.cell("2",MinWidth(100))(
-          withSideMargin("1",10,objField(entry, logAt.boat, editable = false))
-        ),
-        tbl.cell("3",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
-          instantField(entry, logAt.date, editable = false):_*
-        ),
-        tbl.cell("4",MinWidth(180),TextAlign("left"),VerticalAlign("middle"))(
-          durationField(entry, logAt.durationTotal):_*
-        ),
-        tbl.cell("5",MinWidth(100),TextAlign("left"),VerticalAlign("middle"))(
-          withSideMargin("1",10,{
-            if(entry(logAt.asConfirmed).nonEmpty)
-              List(materialChip("1","CONFIRMED"))
-            else Nil
-          })
-        ),
-        tbl.cell("6",MinWidth(150))(
-          withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false))
-        ),
-        tbl.cell("7",MinWidth(150))(
-          withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false))
-        ),
-        tbl.cell("8",MinWidth(100),Priority(0),TextAlign("left"),VerticalAlign("middle"))(
-          btnRemove("btn1",entryRemoveAct(entrySrcId)),
-          btnCreate("btn2",go.get)
-        )
-      )
-
-    }}*/
-    println("aaa")
-  }
   private def entryListView(pf: String) = wrapDBView{ ()=>{
-
- val x=entryList().map{ (entry:Obj)=>{
-   val entrySrcId = entry(uniqueNodes.srcId).get
-   val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-   tbl.row(entrySrcId.toString,
-     Toggled(dtTablesState.dtTableToggleRecordRow.getOrElseUpdate(entrySrcId.toString, false))(
-       Some(() => dtTablesState.handleToggle(entrySrcId.toString))),
-     Selected(dtTablesState.dtTableCheck.getOrElse("dtTableList2_"+entrySrcId.toString, false)),
-     MaxVisibleLines(1))(
-
-     tbl.group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlign("center"), Caption("x1")),
-     tbl.cell("1", MinWidth(50),TextAlign("left"),VerticalAlign("middle"))(
-       checkBox("1", dtTablesState.dtTableCheck.getOrElseUpdate("dtTableList2_"+entrySrcId.toString, false),
-         dtTablesState.handleCheck("dtTableList2_"+entrySrcId.toString, _))
-     ),
-
-     tbl.group("2_grp", MinWidth(150),Priority(3), TextAlign("center"),Caption("x2")),
-     tbl.cell("2",MinWidth(100))(
-       withSideMargin("1",10,objField(entry, logAt.boat, editable = false))
-     ),
-     tbl.cell("3",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
-       instantField(entry, logAt.date, editable = false):_*
-     ),
-     tbl.cell("4",MinWidth(180),TextAlign("left"),VerticalAlign("middle"))(
-       durationField(entry, logAt.durationTotal):_*
-     ),
-     tbl.cell("5",MinWidth(100),TextAlign("left"),VerticalAlign("middle"))(
-       withSideMargin("1",10,{
-         if(entry(logAt.asConfirmed).nonEmpty)
-           List(materialChip("1","CONFIRMED"))
-         else Nil
-       })
-     ),
-     tbl.cell("6",MinWidth(150))(
-       withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false))
-     ),
-     tbl.cell("7",MinWidth(150))(
-       withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false))
-     ),
-     tbl.cell("8",MinWidth(100),Priority(0),TextAlign("left"),VerticalAlign("middle"))(
-       btnRemove("btn1",entryRemoveAct(entrySrcId)),
-       btnCreate("btn2",go.get)
-     )
-   )
-
- }}
-
   root(
     List(
     //class LootsBoatLogList
-      toolbar()/*,
+      toolbar(),
       withMaxWidth("1",1200,
         List(
           paperWithMargin("margin2",flexGrid("flexGridList2",
             flexGridItemWidthSync("dtTableList2",1000,None,Some(newVal=>dtTablesState.handleResize("dtTableList2",newVal.toFloat)),
-              tbl.table("1",Width(dtTablesState.dtTableWidths.getOrElse("dtTableList2",0.0f)))(
-                tbl.controlPanel("",btnDelete("1", ()=>{}),btnAdd("2", entryAddAct())),
-                tbl.row("row",MaxVisibleLines(1)::Nil)(List(
+              tbl.table("1",Width(dtTablesState.width("dtTableList2"))::Nil)(List(
+                tbl.controlPanel("",btnDelete("1", ()=>removeSelectedRows("dtTableList2")),btnAdd("2", entryAddAct())),
+                tbl.row("row",MaxVisibleLines(2),IsHeader(true))(
                   tbl.group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlign("center"),Caption("x1")),
                   tbl.cell("1",MinWidth(50),TextAlign("left"),VerticalAlign("middle"))(
-                    checkBox("1",dtTablesState.dtTableCheckAll.getOrElse("dtTableList2",false),
+                    checkBox("1",dtTablesState.areAllRowsChecked("dtTableList2"),
                       dtTablesState.handleCheckAll("dtTableList2",_))
                   ),
                   tbl.group("2_grp",MinWidth(150),Priority(3),TextAlign("center"),Caption("x2")),
@@ -491,19 +401,69 @@ class TestComponent(
                     withSideMargin("1",10,List(text("1","xx")))
                   )
                 )
+              ):::{
+                entryList().map{ (entry:Obj)=>{
+                  val entrySrcId = entry(uniqueNodes.srcId).get
+                  val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
+                  tbl.row(entrySrcId.toString,
+                    Toggled(dtTablesState.isRowToggled(entrySrcId.toString))(
+                      Some(() => dtTablesState.handleToggle(entrySrcId.toString))),
+                    Selected(dtTablesState.isRowChecked("dtTableList2"+entrySrcId.toString)),
+                    MaxVisibleLines(2))(
 
-                )
+                    tbl.group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlign("center"), Caption("x1")),
+                    tbl.cell("1", MinWidth(50),TextAlign("left"),VerticalAlign("middle"))(
+                      checkBox("1", dtTablesState.isRowChecked("dtTableList2"+entrySrcId.toString),
+                        dtTablesState.handleCheck("dtTableList2"+entrySrcId.toString, _))
+                    ),
+                    tbl.group("2_grp", MinWidth(150),Priority(3), TextAlign("center"),Caption("x2")),
+                    tbl.cell("2",MinWidth(100))(
+                      withSideMargin("1",10,objField(entry, logAt.boat, editable = false))
+                    ),
+                    tbl.cell("3",MinWidth(150),TextAlign("left"),VerticalAlign("middle"))(
+                      instantField(entry, logAt.date, editable = false):_*
+                    ),
+                    tbl.cell("4",MinWidth(180),TextAlign("left"),VerticalAlign("middle"))(
+                      durationField(entry, logAt.durationTotal):_*
+                    ),
+                    tbl.cell("5",MinWidth(100),TextAlign("left"),VerticalAlign("middle"))(
+                      withSideMargin("1",10,{
+                        if(entry(logAt.asConfirmed).nonEmpty)
+                          List(materialChip("1","CONFIRMED"))
+                        else Nil
+                      })
+                    ),
+                    tbl.cell("6",MinWidth(150))(
+                      withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false))
+                    ),
+                    tbl.cell("7",MinWidth(150))(
+                      withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false))
+                    ),
+                    tbl.cell("8",MinWidth(100),Priority(0),TextAlign("left"),VerticalAlign("middle"))(
+                      btnCreate("btn2",go.get)
+                    )
+                  )
+
+                }}
+              }
               )
             )
           ))
         )
-      )*/
+      )
     )
   )
 }}
-  private def deleteSelected()={
+  private def removeSelectedRows(id:VDomKey)={
 
+    dtTablesState.getCheckedRowsSrcId(id).foreach(srcId=>{
+      entryRemoveAct(srcId)()
+      dtTablesState.handleCheck(id+srcId.toString,checked = false)
+    })
 
+    if(dtTablesState.areAllRowsChecked(id))
+      dtTablesState.handleCheckAll(id,checked = false)
+    currentVDom.invalidate()
   }
   private def entryEditView(pf: String) = wrapDBView { () =>
     //println(pf)
@@ -516,7 +476,7 @@ class TestComponent(
 
   private def editViewInner(srcId: UUID, entry: Obj) = {
     val editable = true /*todo rw rule*/
-    val dtTable1=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit1",0.0f),false,false,false)
+    val dtTable1=new DtTable(dtTablesState.width("dtTableEdit1"),false,false,false)
     dtTable1.addColumns(List(
       dtTable1.dtColumn("2",1000,None,"center",0,0,1,None)
     ))
@@ -636,7 +596,7 @@ class TestComponent(
         )
       )
     )
-    val dtTable2=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit2",0.0f),true,true,true)
+    val dtTable2=new DtTable(dtTablesState.width("dtTableEdit2"),true,true,true)
     dtTable2.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", workAddAct(srcId))))
     dtTable2.addColumns(List(
       dtTable2.dtColumn("2",1000,None,"center",0,20,1,None)

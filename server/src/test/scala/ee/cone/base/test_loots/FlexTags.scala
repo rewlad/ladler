@@ -448,7 +448,7 @@ class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialT
           {
             visibleColumns.zipWithIndex.map{case (x,i)=> {
               val records=dtR.getOrElse(x.key,Nil)
-              val toggled=dtState.dtTableToggleRecordRow.getOrElse(records.head.id,false)
+              val toggled=dtState.isRowToggled(records.head.id)
               val basisSum=dtColumns.take(columnsNtoShow).map(w=>w.basisWidth).sum
 
               val cColWidth=if(cWidth==0.0f) cWidth else x.basisWidth+(cWidth-basisSum)/columnsNtoShow
@@ -491,7 +491,7 @@ class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialT
       divWrapper(key+"hidden", None, None, None, None, None, None,
         hiddenColumns.flatMap(c => {
           val recordsForC = currentRecords.getOrElse(c.key, Nil)
-          val toggled=dtState.dtTableToggleRecordRow.getOrElse(recordsForC.head.id, false)
+          val toggled=dtState.isRowToggled(recordsForC.head.id)
           if(!toggled) Nil
           else
           {
