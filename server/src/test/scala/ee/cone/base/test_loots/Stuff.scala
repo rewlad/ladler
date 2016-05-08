@@ -90,15 +90,16 @@ class BoatLogEntryAttributes(
 
   val asEntry: Attr[Obj] = label(0x6700),
   val boat: Attr[Obj] = attr(new PropId(0x6701), nodeValueConverter),
-  //val boat:Attr[String]=attr(new PropId(0x6701),stringValueConverter),
   val date: Attr[Option[Instant]] = attr(new PropId(0x6702), instantValueConverter),
   val durationTotal: Attr[Option[Duration]] = attr(new PropId(0x6703), durationValueConverter),
   val asConfirmed: Attr[Obj] = label(0x6704),
   val confirmedBy: Attr[Obj] = attr(new PropId(0x6705), nodeValueConverter),
-  //val confirmedBy: Attr[String] = attr(new PropId(0x6705), stringValueConverter),
   val confirmedOn: Attr[Option[Instant]] = attr(new PropId(0x6706), instantValueConverter), //0x6709
   val entryCreated: Attr[Boolean] = attr(new PropId(0x6707), definedValueConverter),
   val entryRemoved: Attr[Boolean] = attr(new PropId(0x6708), definedValueConverter),
+
+  val chuckNorris:Attr[Obj] = attr(new PropId(0x666),nodeValueConverter),
+  val chuckCreated: Attr[Boolean] = attr(new PropId(0x6669), definedValueConverter),
 
   val log00Date: Attr[Option[Instant]] = attr(new PropId(0x6710), instantValueConverter),
   val log00Fuel: Attr[String] = attr(new PropId(0x6711), stringValueConverter),
@@ -184,7 +185,7 @@ class DataTablesState(currentVDom: CurrentVDom){
   }
   def handleToggle(tableId:VDomKey,rowId:VDomKey)={
     val id=tableId+rowId
-    println("toggle",id)
+    //println("toggle",id)
     val newVal=true
     isRowToggledOfTables(id)=newVal
     isRowToggledOfTables.foreach{case (k,v)=>if(k!=id&&newVal)isRowToggledOfTables(k)=false}
@@ -711,7 +712,11 @@ class TestComponent(
     entry(logAt.durationTotal) =
       Option(if(on) was.plus(delta) else was.minus(delta))
   }
-
+  private def setEntryConfirmDate(on: Boolean, entry: Obj): Unit={
+    if(on){
+      entry(logAt.confirmedOn)=Option(Instant.now())
+    }
+  }
   def handlers = CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/eventList"))(eventListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
@@ -724,5 +729,6 @@ class TestComponent(
     CoHandler(ApplyEvent(logAt.workRemoved))(workRemoved) ::
     onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop), calcWorkDuration) :::
     onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork), calcEntryDuration) :::
+    onUpdate.handlers(List(logAt.asEntry,logAt.asConfirmed), setEntryConfirmDate) :::
     Nil
 }
