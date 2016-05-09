@@ -322,7 +322,7 @@ class TestComponent(
   }
   private def entryConfirmed(ev:Obj)={
     val entry=uniqueNodes.whereSrcId(mainTx(),ev(alienAccessAttrs.targetSrcId).get)
-    entry(logAt.asConfirmed)=entry
+    entry(logAt.confirmedOn)=Option(Instant.now())
   }
   private def workAddAct(entrySrcId: UUID)() = {
     eventSource.addEvent{ ev =>
@@ -379,31 +379,31 @@ class TestComponent(
             flexGridItemWidthSync("widthSync",1000,None,Some(newVal=>dtTablesState.handleResize("dtTableList2",newVal.toFloat)),
               tbl.table("1",Width(dtTablesState.width("dtTableList2"))::Nil)(List(
                 tbl.controlPanel("",btnDelete("1", ()=>removeSelectedRows("dtTableList2",entryRemoveAct)),btnAdd("2", entryAddAct())),
-                tbl.row("row",MaxVisibleLines(2),IsHeader(true))(
-                  tbl.group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlign("center"),Caption("x1")),
-                  tbl.cell("1",MinWidth(50),VerticalAlign("middle"))((_)=>
+                tbl.row("row",MaxVisibleLines(2),IsHeader)(
+                  tbl.group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter,Caption("x1")),
+                  tbl.cell("1",MinWidth(50),VerticalAlignMiddle)((_)=>
                     checkBox("1", dtTablesState.areAllRowsChecked("dtTableList2"), dtTablesState.handleCheckAll("dtTableList2", _))::Nil
                   ),
-                  tbl.group("2_grp",MinWidth(150),Priority(3),TextAlign("center"),Caption("x2")),
-                  tbl.cell("2",MinWidth(100),VerticalAlign("middle"))((_)=>
+                  tbl.group("2_grp",MinWidth(150),Priority(3),TextAlignCenter,Caption("x2")),
+                  tbl.cell("2",MinWidth(100),VerticalAlignMiddle)((_)=>
                     withSideMargin("1",10,List(text("1","Boat")))::Nil
                   ),
-                  tbl.cell("3",MinWidth(150),VerticalAlign("middle"))((_)=>
+                  tbl.cell("3",MinWidth(150),VerticalAlignMiddle)(_=>
                     withSideMargin("1",10,List(text("1","Date")))::Nil
                   ),
-                  tbl.cell("4",MinWidth(180),VerticalAlign("middle"))((_)=>
+                  tbl.cell("4",MinWidth(180),VerticalAlignMiddle)((_)=>
                     withSideMargin("1",10,List(text("1","Total duration, hrs:min")))::Nil
                   ),
-                  tbl.cell("5",MinWidth(100),VerticalAlign("middle"))((_)=>
+                  tbl.cell("5",MinWidth(100),VerticalAlignMiddle)((_)=>
                     withSideMargin("1",10,List(text("1","Confirmed")))::Nil
                   ),
-                  tbl.cell("6",MinWidth(150),VerticalAlign("middle"))((_)=>
+                  tbl.cell("6",MinWidth(150),VerticalAlignMiddle)((_)=>
                     withSideMargin("1",10,List(text("1","Confirmed by")))::Nil
                   ),
-                  tbl.cell("7",MinWidth(150),VerticalAlign("middle"))((_)=>
+                  tbl.cell("7",MinWidth(150),VerticalAlignMiddle)((_)=>
                     withSideMargin("1",10,List(text("1","Confirmed on")))::Nil
                   ),
-                  tbl.cell("8",MinWidth(100),Priority(0),TextAlign("center"),VerticalAlign("middle"))((_)=>
+                  tbl.cell("8",MinWidth(100),Priority(0),TextAlignCenter,VerticalAlignMiddle)((_)=>
                     withSideMargin("1",10,List(text("1","xx")))::Nil
                   )
                 )
@@ -414,37 +414,41 @@ class TestComponent(
                   tbl.row(entrySrcId.toString,
                     Toggled(dtTablesState.isRowToggled("dtTableList2",entrySrcId.toString))(
                       Some(() => dtTablesState.handleToggle("dtTableList2",entrySrcId.toString))),
-                    Selected(dtTablesState.isRowChecked("dtTableList2",entrySrcId.toString)),
+                    IsSelected(dtTablesState.isRowChecked("dtTableList2",entrySrcId.toString)),
                     MaxVisibleLines(2))(
-                    tbl.group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlign("center"), Caption("x1")),
-                    tbl.cell("1", MinWidth(50),VerticalAlign("middle"))((_)=>
+                    tbl.group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter, Caption("x1")),
+                    tbl.cell("1", MinWidth(50),VerticalAlignMiddle)((_)=>
                       checkBox("1", dtTablesState.isRowChecked("dtTableList2",entrySrcId.toString),
                         dtTablesState.handleCheck("dtTableList2",entrySrcId.toString, _))::Nil
                     ),
-                    tbl.group("2_grp", MinWidth(150),Priority(3), TextAlign("center"),Caption("x2")),
+                    tbl.group("2_grp", MinWidth(150),Priority(3), TextAlignCenter,Caption("x2")),
                     tbl.cell("2",MinWidth(100))((showLabel)=>
-                      withSideMargin("1", 10, objField(entry, logAt.boat, editable = false,"Boat",showLabel>0)) :: Nil
+                      withSideMargin("1", 10, objField(entry, logAt.boat, editable = false,"Boat",showLabel)) :: Nil
                     ),
-                    tbl.cell("3",MinWidth(150),VerticalAlign("middle"))((showLabel)=>
-                      instantField(entry, logAt.date, editable = false,"Data",showLabel>0)
+                    tbl.cell("3",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
+                      withSideMargin("1",10,
+                        instantField(entry, logAt.date, editable = false,"Date",showLabel)
+                      )::Nil
                     ),
-                    tbl.cell("4",MinWidth(180),VerticalAlign("middle"))((showLabel)=>
-                      durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel>0)
+                    tbl.cell("4",MinWidth(180),VerticalAlignMiddle)((showLabel)=>
+                      withSideMargin("1",10,
+                        durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)
+                      )::Nil
                     ),
-                    tbl.cell("5",MinWidth(100),VerticalAlign("middle"))((_)=>
+                    tbl.cell("5",MinWidth(100),VerticalAlignMiddle)((_)=>
                       withSideMargin("1",10,{
                         if(entry(logAt.asConfirmed).nonEmpty)
                           List(materialChip("1","CONFIRMED"))
                         else Nil
                       })::Nil
                     ),
-                    tbl.cell("6",MinWidth(150))((showLabel)=>
-                      withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel>0))::Nil
+                    tbl.cell("6",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
+                      withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel))::Nil
                     ),
-                    tbl.cell("7",MinWidth(150))((showLabel)=>
-                      withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel>0))::Nil
+                    tbl.cell("7",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
+                      withSideMargin("1",10,instantField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel))::Nil
                     ),
-                    tbl.cell("8",MinWidth(100),Priority(0),TextAlign("center"),VerticalAlign("middle"))((_)=>
+                    tbl.cell("8",MinWidth(100),Priority(0),TextAlignCenter,VerticalAlignMiddle)((_)=>
                       btnCreate("btn2",go.get)::Nil
                     )
                   )
@@ -518,93 +522,93 @@ class TestComponent(
         paperWithMargin(s"$srcId-2",flexGrid("flexGridEdit2",
           flexGridItemWidthSync("widthSync",1000,None,Some(newVal=>dtTablesState.handleResize("dtTableEdit1",newVal.toFloat)),
             tbl.table("dtTableEdit1",Width(dtTablesState.width("dtTableEdit1")))(
-              tbl.row("row",IsHeader(true))(
-                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Time")))::Nil),
-                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","ME Hours.Min")))::Nil),
-                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Fuel rest/quantity")))::Nil),
-                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Comment")))::Nil),
-                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Engineer")))::Nil),
-                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Master")))::Nil)
+              tbl.row("row",IsHeader)(
+                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Time")))::Nil),
+                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","ME Hours.Min")))::Nil),
+                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Fuel rest/quantity")))::Nil),
+                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Comment")))::Nil),
+                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Engineer")))::Nil),
+                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Master")))::Nil)
               ),
               tbl.row("row1",Toggled(dtTablesState.isRowToggled("dtTableEdit1","row1"))(
                 Some(()=>dtTablesState.handleToggle("dtTableEdit1","row1"))))(
-                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,List(if(showLabel>0) labeledText("1","00:00","Time") else text("1","00:00")))::Nil
+                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,List(if(showLabel) labeledText("1","00:00","Time") else text("1","00:00")))::Nil
                 ),
-                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlign("middle"))((showLabel)=>
+                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((showLabel)=>
                   withSideMargin("1",10,timeInput("1",entry(logAt.log00Date),
-                  "Date",showLabel>0,alienAttr(logAt.log00Date)(entry(uniqueNodes.srcId).get)))::Nil
+                  "Date",showLabel,alienAttr(logAt.log00Date)(entry(uniqueNodes.srcId).get)))::Nil
                 ),
-                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log00Fuel, editable,"Fuel rest/quantity",showLabel>0))::Nil
+                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log00Fuel, editable,"Fuel rest/quantity",showLabel))::Nil
                 ),
-                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log00Comment, editable,"Comment",showLabel>0))::Nil
+                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log00Comment, editable,"Comment",showLabel))::Nil
                 ),
-                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log00Engineer, editable,"Engineer",showLabel>0))::Nil
+                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log00Engineer, editable,"Engineer",showLabel))::Nil
                 ),
-                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log00Master, editable,"Master",showLabel>0))::Nil
+                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log00Master, editable,"Master",showLabel))::Nil
                 )
 
               ),
               tbl.row("row2",Toggled(dtTablesState.isRowToggled("dtTableEdit1","row2"))(
                 Some(()=>dtTablesState.handleToggle("dtTableEdit1","row2"))))(
-                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,List(if(showLabel>0) labeledText("1","08:00","Time") else text("1","08:00")))::Nil
+                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,List(if(showLabel) labeledText("1","08:00","Time") else text("1","08:00")))::Nil
                 ),
-                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,timeInput("1",entry(logAt.log08Date),"Date",showLabel>0,
+                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,timeInput("1",entry(logAt.log08Date),"Date",showLabel,
                   alienAttr(logAt.log08Date)(entry(uniqueNodes.srcId).get)))::Nil
                 ),
-                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log08Fuel, editable,"Fuel rest/quantity",showLabel>0))::Nil
+                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log08Fuel, editable,"Fuel rest/quantity",showLabel))::Nil
                 ),
-                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log08Comment, editable,"Comment",showLabel>0))::Nil
+                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log08Comment, editable,"Comment",showLabel))::Nil
                 ),
-                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log08Engineer, editable,"Engineer",showLabel>0))::Nil
+                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log08Engineer, editable,"Engineer",showLabel))::Nil
                 ),
-                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log08Master, editable,"Master",showLabel>0))::Nil
+                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log08Master, editable,"Master",showLabel))::Nil
                 )
 
               ),
               tbl.row("row3",Toggled(dtTablesState.isRowToggled("dtTableEdit1","row3"))(
                 Some(()=>dtTablesState.handleToggle("dtTableEdit1","row3"))))(
-                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Passed")))::Nil),
-                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Received Fuel")))::Nil),
-                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.logRFFuel, editable,"Fuel rest/quantity",showLabel>0))::Nil
+                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Passed")))::Nil),
+                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Received Fuel")))::Nil),
+                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.logRFFuel, editable,"Fuel rest/quantity",showLabel))::Nil
                 ),
-                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.logRFComment, editable,"Comment",showLabel>0))::Nil),
-                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.logRFEngineer, editable,"Engineer",showLabel>0))::Nil),
-                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlign("middle"))((_)=>withSideMargin("1",10,Nil)::Nil)
+                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.logRFComment, editable,"Comment",showLabel))::Nil),
+                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.logRFEngineer, editable,"Engineer",showLabel))::Nil),
+                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,Nil)::Nil)
 
               ),
               tbl.row("row4",Toggled(dtTablesState.isRowToggled("dtTableEdit1","row4"))(
                 Some(()=>dtTablesState.handleToggle("dtTableEdit1","row4"))))(
-                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,List(if(showLabel>0) labeledText("1","24:00","Time") else text("1","24:00")))::Nil
+                tbl.cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,List(if(showLabel) labeledText("1","24:00","Time") else text("1","24:00")))::Nil
                 ),
-                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,timeInput("1",entry(logAt.log24Date),"Date",showLabel>0,
+                tbl.cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,timeInput("1",entry(logAt.log24Date),"Date",showLabel,
                   alienAttr(logAt.log24Date)(entry(uniqueNodes.srcId).get)))::Nil),
-                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log24Fuel, editable,"Fuel rest/quantity",showLabel>0))::Nil
+                tbl.cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log24Fuel, editable,"Fuel rest/quantity",showLabel))::Nil
                 ),
-                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log24Comment, editable,"Comment",showLabel>0))::Nil
+                tbl.cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log24Comment, editable,"Comment",showLabel))::Nil
                 ),
-                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log24Engineer, editable,"Engineer",showLabel>0))::Nil
+                tbl.cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log24Engineer, editable,"Engineer",showLabel))::Nil
                 ),
-                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlign("middle"))((showLabel)=>
-                  withSideMargin("1",10,strField(entry, logAt.log24Master, editable,"Master",showLabel>0))::Nil
+                tbl.cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
+                  withSideMargin("1",10,strField(entry, logAt.log24Master, editable,"Master",showLabel))::Nil
                 )
               )
             )
@@ -616,41 +620,41 @@ class TestComponent(
           flexGridItemWidthSync("widthSync",1000,None,Some(newVal=>dtTablesState.handleResize("dtTableEdit2",newVal.toFloat)),
             tbl.table("dtTableEdit2",Width(dtTablesState.width("dtTableEdit2"))::Nil)(List(
               tbl.controlPanel("",btnDelete("1", ()=>removeSelectedRows("dtTableEdit2",workRemoveAct)),btnAdd("2", workAddAct(srcId))),
-              tbl.row("row",IsHeader(true))(
+              tbl.row("row",IsHeader)(
                 tbl.group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-                tbl.cell("1",MinWidth(50),VerticalAlign("middle"))((_)=>
+                tbl.cell("1",MinWidth(50),VerticalAlignMiddle)((_)=>
                   checkBox("1",dtTablesState.areAllRowsChecked("dtTableEdit2"),dtTablesState.handleCheckAll("dtTableEdit2",_))::Nil
                 ),
                 tbl.group("2_group",MinWidth(150)),
-                tbl.cell("2",MinWidth(100),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Start")))::Nil),
-                tbl.cell("3",MinWidth(100),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Stop")))::Nil),
-                tbl.cell("4",MinWidth(150),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Duration, hrs:min")))::Nil),
-                tbl.cell("5",MinWidth(250),Priority(3),VerticalAlign("middle"))((_)=>withSideMargin("1",10,List(text("1","Comment")))::Nil)
+                tbl.cell("2",MinWidth(100),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Start")))::Nil),
+                tbl.cell("3",MinWidth(100),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Stop")))::Nil),
+                tbl.cell("4",MinWidth(150),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Duration, hrs:min")))::Nil),
+                tbl.cell("5",MinWidth(250),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Comment")))::Nil)
               )):::
               workList(entry).map { (work: Obj) =>
                 val workSrcId = work(uniqueNodes.srcId).get
                 tbl.row(workSrcId.toString,Toggled(dtTablesState.isRowToggled("dtTableEdit2",workSrcId.toString))(
                   Some(()=>dtTablesState.handleToggle("dtTableEdit2",workSrcId.toString))),
-                  Selected(dtTablesState.isRowChecked("dtTableEdit2",workSrcId.toString)))(
+                  IsSelected(dtTablesState.isRowChecked("dtTableEdit2",workSrcId.toString)))(
                   tbl.group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-                  tbl.cell("1",MinWidth(50),VerticalAlign("middle"))((_)=>
+                  tbl.cell("1",MinWidth(50),VerticalAlignMiddle)((_)=>
                     checkBox("1", dtTablesState.isRowChecked("dtTableEdit2",workSrcId.toString),
                       dtTablesState.handleCheck("dtTableEdit2",workSrcId.toString, _))::Nil
                   ),
                   tbl.group("2_group",MinWidth(150)),
-                  tbl.cell("2",MinWidth(100),VerticalAlign("middle"))((showLabel)=>
-                    withSideMargin("1",10,timeInput("1",work(logAt.workStart),"Start",showLabel>0,
+                  tbl.cell("2",MinWidth(100),VerticalAlignMiddle)((showLabel)=>
+                    withSideMargin("1",10,timeInput("1",work(logAt.workStart),"Start",showLabel,
                     alienAttr(logAt.workStart)(work(uniqueNodes.srcId).get)))::Nil
                   ),
-                  tbl.cell("3",MinWidth(100),VerticalAlign("middle"))((showLabel)=>
-                    withSideMargin("1",10,timeInput("1",work(logAt.workStop),"Stop",showLabel>0,
+                  tbl.cell("3",MinWidth(100),VerticalAlignMiddle)((showLabel)=>
+                    withSideMargin("1",10,timeInput("1",work(logAt.workStop),"Stop",showLabel,
                     alienAttr(logAt.workStop)(work(uniqueNodes.srcId).get)))::Nil
                   ),
-                  tbl.cell("4",MinWidth(150),VerticalAlign("middle"))((showLabel)=>
-                    withSideMargin("1",10,durationField(work, logAt.workDuration,"Duration, hrs:min",showLabel>0))::Nil
+                  tbl.cell("4",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
+                    withSideMargin("1",10,durationField(work, logAt.workDuration,"Duration, hrs:min",showLabel))::Nil
                   ),
-                  tbl.cell("5",MinWidth(250),Priority(3),VerticalAlign("middle"))((showLabel)=>
-                    withSideMargin("1",10,strField(entry, logAt.workComment, editable,"Comment",showLabel>0))::Nil
+                  tbl.cell("5",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
+                    withSideMargin("1",10,strField(entry, logAt.workComment, editable,"Comment",showLabel))::Nil
                   )
                 )
               }
@@ -714,8 +718,10 @@ class TestComponent(
   }
   private def setEntryConfirmDate(on: Boolean, entry: Obj): Unit={
     if(on){
-      entry(logAt.confirmedOn)=Option(Instant.now())
+      entry(logAt.asConfirmed)=entry
     }
+    else
+      entry(logAt.asConfirmed)=NoDBNode
   }
   def handlers = CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/eventList"))(eventListView) ::
@@ -729,6 +735,6 @@ class TestComponent(
     CoHandler(ApplyEvent(logAt.workRemoved))(workRemoved) ::
     onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop), calcWorkDuration) :::
     onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork), calcEntryDuration) :::
-    onUpdate.handlers(List(logAt.asEntry,logAt.asConfirmed), setEntryConfirmDate) :::
+    onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn), setEntryConfirmDate) :::
     Nil
 }

@@ -30,7 +30,10 @@ import TimePicker        from 'material-ui/lib/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
 import injectTapEventPlugin from "react-tap-event-plugin"
 injectTapEventPlugin()
-document.body.style.overflowY="scroll"
+function fixOnScrollBug(){
+    document.body.style.overflowY="scroll"
+}
+fixOnScrollBug()
 function fail(data){ alert(data) }
 
 const feedback = Feedback()
