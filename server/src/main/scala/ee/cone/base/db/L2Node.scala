@@ -7,10 +7,8 @@ import ee.cone.base.util.Never
 
 case object NoDBNode extends Obj {
   def nonEmpty = false
-  def objId = Never()
   def apply[Value](attr: Attr[Value]) = Never()
   def update[Value](attr: Attr[Value], value: Value) = Never()
-  def tx = Never()
 }
 
 case class DBNodeImpl(objId: ObjId)(val tx: ProtectedBoundToTx[_]) extends Obj {
@@ -37,10 +35,16 @@ case object RawIndexAttr extends Attr[RawIndex] {
   }
 }
 
+case object BoundToTxAttr extends Attr[BoundToTx] {
+  def set(node: Obj, value: BoundToTx) = Never()
+  def get(node: Obj) = node.asInstanceOf[DBNodeImpl].tx
+}
+
 class NodeFactoryImpl(
   val objId: Attr[ObjId] = ObjIdAttr,
   val nextObjId: Attr[ObjId] = NextObjIdAttr,
-  val rawIndex: Attr[RawIndex] = RawIndexAttr
+  val rawIndex: Attr[RawIndex] = RawIndexAttr,
+  val boundToTx: Attr[BoundToTx] = BoundToTxAttr
 ) extends NodeFactory {
   def noNode = NoDBNode
   def toNode(tx: BoundToTx, objId: ObjId) = new DBNodeImpl(objId)(tx.asInstanceOf[ProtectedBoundToTx[_]])

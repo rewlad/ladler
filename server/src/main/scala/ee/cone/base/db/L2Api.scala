@@ -5,12 +5,15 @@ import ee.cone.base.db.Types._
 
 class ProtectedBoundToTx[DBEnvKey](val rawIndex: RawIndex, var enabled: Boolean) extends BoundToTx // not case
 
+trait BoundToTx
+
 trait NodeFactory {
   def noNode: Obj
   def toNode(tx: BoundToTx, objId: ObjId): Obj
   def objId: Attr[ObjId]
   def nextObjId: Attr[ObjId]
   def rawIndex: Attr[RawIndex]
+  def boundToTx: Attr[BoundToTx]
 }
 
 trait AttrFactory {

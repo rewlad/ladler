@@ -4,6 +4,7 @@ import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 
 class RefIntegrityImpl(
     attrFactory: AttrFactory,
+    nodeFactory: NodeFactory,
     preCommitCheck: PreCommitCheckAllOfConnection,
     searchIndex: SearchIndex,
     findNodes: FindNodes,
@@ -22,7 +23,7 @@ class RefIntegrityImpl(
       searchIndex.handlers(existsA,toAttr) :::
       CoHandler(AfterUpdate(existsB))(
         preCommitCheck.create{ nodesB =>
-          checkPairs(nodesB.flatMap(nodeB => findNodes.where(nodeB.tx,existsA,toAttr,nodeB,Nil)))
+          checkPairs(nodesB.flatMap(nodeB => findNodes.where(nodeB(nodeFactory.boundToTx),existsA,toAttr,nodeB,Nil)))
         }
       ) ::
       CoHandler(AfterUpdate(existsA))(

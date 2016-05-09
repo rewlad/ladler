@@ -190,6 +190,7 @@ class TestComponent(
   logAt: BoatLogEntryAttributes,
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
+  attrFactory: AttrFactory,
   findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
   alienCanChange: AlienCanChange,
   onUpdate: OnUpdate,
@@ -216,7 +217,6 @@ class TestComponent(
         currentVDom.invalidate()
       }
       def nonEmpty = Never()
-      def tx = Never()
     }
   }
   private def lazyLinkingObj[Value](asType: Attr[Obj], atKey: Attr[Value], key: Value): Obj = {
@@ -267,7 +267,6 @@ class TestComponent(
       case a: ListedAttr ⇒ a.set(this, value)
       case _ ⇒ item(attr) = value
     }
-    def tx = ???
 
   }
 

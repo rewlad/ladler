@@ -50,12 +50,14 @@ trait AppMixBase extends CanStart {
 
 ////////////////////////////////
 
-trait BoundToTx
+trait ObjContext {
+
+}
+
 trait Obj {
   def nonEmpty: Boolean
   def apply[Value](attr: Attr[Value]): Value
   def update[Value](attr: Attr[Value], value: Value): Unit
-  def tx: BoundToTx
 }
 trait Attr[Value] {
   def get(node: Obj): Value

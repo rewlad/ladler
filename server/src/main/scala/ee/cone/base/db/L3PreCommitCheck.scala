@@ -22,11 +22,13 @@ class PreCommitCheckAllOfTx(
   def checkAll(): Seq[ValidationFailure] = checkList.flatMap(check=>check.checkAll())
 }
 
-class PreCommitCheckAllOfConnectionImpl extends PreCommitCheckAllOfConnection {
+class PreCommitCheckAllOfConnectionImpl(
+  nodeFactory: NodeFactory
+) extends PreCommitCheckAllOfConnection {
   private var txs = mutable.Map[BoundToTx,PreCommitCheckAllOfTx]()
   def switchTx(tx: BoundToTx, on: Boolean) =
     if(on) txs(tx) = new PreCommitCheckAllOfTx(this) else txs.remove(tx)
   def checkTx(tx: BoundToTx) = txs(tx).checkAll()
   def create(later: Seq[Obj]=>Seq[ValidationFailure]): Obj=>Unit =
-    node => txs(node.tx).of(later).add(node)
+    node => txs(node(nodeFactory.boundToTx)).of(later).add(node)
 }

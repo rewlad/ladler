@@ -40,7 +40,7 @@ class NodeValueConverter[DBEnvKey](
   def convert(value: String) = Never()
   def allocWrite(before: Int, node: Obj, after: Int): RawValue = {
     val tx = currentTx.value
-    if(tx.nonEmpty && node.tx == tx.get)
+    if(tx.nonEmpty && node(nodeFactory.boundToTx) == tx.get)
       inner.allocWrite(before, currentTx.dbId, node(nodeFactory.objId).value, after)
     else next.allocWrite(before, node, after)
   }
