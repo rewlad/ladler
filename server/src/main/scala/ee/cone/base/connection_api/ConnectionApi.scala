@@ -50,18 +50,15 @@ trait AppMixBase extends CanStart {
 
 ////////////////////////////////
 
-trait ObjContext {
-
-}
-
+trait WrapType[WrapData]
 trait Obj {
-  def nonEmpty: Boolean
   def apply[Value](attr: Attr[Value]): Value
   def update[Value](attr: Attr[Value], value: Value): Unit
+  def wrap[FWrapData](wrapType: WrapType[FWrapData], wrapData: FWrapData): Obj
 }
 trait Attr[Value] {
-  def get(node: Obj): Value
-  def set(node: Obj, value: Value): Unit
+//  def get(node: Obj): Value
+//  def set(node: Obj, value: Value): Unit
 }
 
 ////////////////////////////////

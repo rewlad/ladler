@@ -3,6 +3,7 @@ package ee.cone.base.db
 import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 import ee.cone.base.db.Types._
 
+/*
 class DeleteAttrCalcList(
   typeIdDefined: Attr[Boolean],
   attrs: ListByDBNode
@@ -11,3 +12,4 @@ class DeleteAttrCalcList(
     if(!node(typeIdDefined)) node(attrs) = Nil
   } :: Nil
 }
+*/

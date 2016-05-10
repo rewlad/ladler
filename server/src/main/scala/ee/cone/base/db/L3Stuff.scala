@@ -5,6 +5,7 @@ import java.util.UUID
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, Single}
 
+/*
 class ListByDBNodeImpl(
   inner: FactIndex, attrValueConverter: RawValueConverter[Attr[Boolean]]
 ) extends ListByDBNode {
@@ -16,6 +17,7 @@ class ListByDBNodeImpl(
   def set(node: Obj, value: List[Attr[_]]) = if(value.nonEmpty) Never()
     else node(this).foreach(attr => node(attr) = false)
 }
+*/
 
 trait SysAttrs {
   def seq: Attr[Obj]

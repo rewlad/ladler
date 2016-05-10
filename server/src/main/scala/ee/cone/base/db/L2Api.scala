@@ -7,6 +7,13 @@ class ProtectedBoundToTx[DBEnvKey](val rawIndex: RawIndex, var enabled: Boolean)
 
 trait BoundToTx
 
+trait DBNode {
+  def nonEmpty: Boolean
+  def objId: ObjId
+  def tx: BoundToTx
+  def rawIndex: RawIndex
+}
+
 trait NodeFactory {
   def noNode: Obj
   def toNode(tx: BoundToTx, objId: ObjId): Obj
@@ -14,6 +21,7 @@ trait NodeFactory {
   def nextObjId: Attr[ObjId]
   def rawIndex: Attr[RawIndex]
   def boundToTx: Attr[BoundToTx]
+  def nonEmpty: Attr[Boolean]
 }
 
 trait AttrFactory {
@@ -26,9 +34,8 @@ trait AttrFactory {
 
 trait FactIndex {
   def switchReason(node: Obj): Unit
-  def get[Value](node: Obj, attr: RawAttr[Value]): Value
-  def set[Value](node: Obj, attr: Attr[Value] with RawAttr[Value], value: Value): Unit
   def execute(node: Obj, feed: Feed): Unit
+  def handlers[Value](attr: Attr[Value]): List[BaseCoHandler]
 }
 
 trait SearchIndex {

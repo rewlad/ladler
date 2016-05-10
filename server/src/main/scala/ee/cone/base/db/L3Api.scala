@@ -28,7 +28,7 @@ trait UniqueNodes {
   def noNode: Obj
 }
 
-trait ListByDBNode extends Attr[List[Attr[_]]]
+//trait ListByDBNode extends Attr[List[Attr[_]]]
 
 trait PreCommitCheckAllOfConnection {
   def switchTx(tx: BoundToTx, on: Boolean): Unit
