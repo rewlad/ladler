@@ -307,7 +307,12 @@ class MaterialTags(
       IconButton(tooltip)(Some(action)),
       child("icon", SVGIcon(picture), Nil) :: Nil
     )
-
+  def btnViewList(key:VDomKey, action: ()=>Unit) =
+    iconButton(key,"view list","IconActionViewList",action)
+  def btnSave(key:VDomKey, action: ()=>Unit) =
+    iconButton(key,"save","IconContentSave",action)
+  def btnRestore(key:VDomKey, action: ()=>Unit) =
+    iconButton(key,"restore","IconActionRestore",action)
   def btnFilterList(key: VDomKey, action: ()=>Unit) =
     iconButton(key,"filters","IconContentFilterList",action)
   def btnClear(key: VDomKey, action: ()=>Unit) =

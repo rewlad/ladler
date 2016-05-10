@@ -372,7 +372,7 @@ class TestComponent(
   root(
     List(
     //class LootsBoatLogList
-      toolbar(),
+      toolbar("Boat List"),
       withMaxWidth("1",1200,
         List(
           paperWithMargin("margin2",flexGrid("flexGridList2",
@@ -485,7 +485,7 @@ class TestComponent(
     val editable = true /*todo rw rule*/
 
     root(List(
-      toolbar(),
+      toolbar("Boat Edit"),
       withMaxWidth("1",1200,List(
       paperWithMargin(s"$srcId-1",
         flexGrid("flexGridEdit1",List(
@@ -668,7 +668,7 @@ class TestComponent(
 
   private def eventListView(pf: String) = wrapDBView { () =>
     root(List(
-      toolbar(),
+      toolbar("Events"),
       paperWithMargin("margin",table("table",
         List(
           row("head",
@@ -692,17 +692,22 @@ class TestComponent(
     currentVDom.invalidate()
   }
 
-  private def toolbar() = {
-    paperWithMargin("toolbar", table("table", Nil, List(row("1",
-      //cell("1")(List(btnRaised("boats","Boats")(()⇒currentVDom.relocate("/boatList")))),
-      cell("2")(List(btnRaised("entries","Entries")(()=>currentVDom.relocate("/entryList")))),
-      cell("3")(
-        if(eventSource.unmergedEvents.isEmpty) Nil else List(
-          btnRaised("events","Events")(()⇒currentVDom.relocate("/eventList")),
-          btnRaised("save","Save")(saveAction())
-        )
-      )
-    ))))
+  private def toolbar(title:String) = {
+    paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,
+      divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
+        divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
+      )::
+      divWrapper("2",None,None,None,None,Some("right"),None,
+        btnViewList("entries",()=>currentVDom.relocate("/entryList"))::
+        {
+          if (eventSource.unmergedEvents.isEmpty) Nil
+          else List(
+            btnRestore("events", () ⇒ currentVDom.relocate("/eventList")),
+            btnSave("save", saveAction())
+          )
+        }
+      )::Nil
+    ))
   }
 
   private def calcWorkDuration(on: Boolean, work: Obj): Unit = {

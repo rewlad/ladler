@@ -20,7 +20,10 @@ import IconButton        from 'material-ui/lib/icon-button'
 import IconContentCreate from 'material-ui/lib/svg-icons/content/create'
 import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
 import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
-import IconActionDelete from 'material-ui/lib/svg-icons/action/delete'
+import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
+import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
+import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
+import IconActionViewList from 'material-ui/lib/svg-icons/action/view-list'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
 import TextField         from 'material-ui/lib/TextField/TextField'
@@ -209,7 +212,7 @@ const tp = ({
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
-    LabeledText,FlexGridItemWidthSync
+    LabeledText,FlexGridItemWidthSync,IconActionViewList,IconActionRestore,IconContentSave
 })
 
 const transforms = ({tp})
