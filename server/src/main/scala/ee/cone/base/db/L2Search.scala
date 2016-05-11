@@ -1,24 +1,26 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{BaseCoHandler, Obj, Attr, CoHandler}
+import ee.cone.base.connection_api._
 import ee.cone.base.util.{Hex, HexDebug, Never}
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
 class SearchIndexImpl(
+  handlerLists: CoHandlerLists,
   converter: RawSearchConverter,
   rawKeyExtractor: RawKeyExtractor,
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory,
   nodeFactory: NodeFactory
 ) extends SearchIndex {
-  private def execute[Value](attr: RawAttr[Value])(in: SearchRequest[Value]) = {
+  private def execute[Value](attr: RawAttr[Value], getConverter: ()⇒RawValueConverter[Value])(in: SearchRequest[Value]) = {
     //println("SS",attr)
-    val minKey = converter.keyWithoutObjId(attr, attr.converter.convertEmpty())
-    val whileKey = converter.keyWithoutObjId(attr, in.value) // not protected from empty
+    val valueConverter = getConverter()
+    val minKey = converter.keyWithoutObjId(attr, valueConverter, valueConverter.convertEmpty())
+    val whileKey = converter.keyWithoutObjId(attr, valueConverter, in.value) // not protected from empty
     val fromKey = if(in.objId.isEmpty) whileKey
-      else converter.key(attr, in.value, in.objId.get)
+      else converter.key(attr, valueConverter, in.value, in.objId.get)
     val tx = in.tx.asInstanceOf[ProtectedBoundToTx[_]]
     val rawIndex = if(tx.enabled) tx.rawIndex else throw new Exception("tx is disabled")
     rawIndex.seek(fromKey)
@@ -30,15 +32,17 @@ class SearchIndexImpl(
     val labelRawAttr = labelDefinedAttr.asInstanceOf[RawAttr[Boolean]]
     val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
     val attr = attrFactory.derive(labelDefinedAttr, propAttr)
+    val getConverter = () ⇒ handlerLists.single(ToRawValueConverter(propRawAttr.valueType))
     def setter(on: Boolean, node: Obj) = {
-      val key = converter.key(attr, node(propAttr), node(nodeFactory.objId))
-      val rawIndex = node(nodeFactory.rawIndex)
+      val dbNode = node(nodeFactory.dbNode)
+      val key = converter.key(attr, getConverter(), node(propAttr), dbNode.objId)
+      val rawIndex = dbNode.rawIndex
       val value = converter.value(on)
       rawIndex.set(key, value)
       //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
     }
     val searchKey = SearchByLabelProp[Value](labelDefinedAttr, propDefinedAttr)
-    CoHandler(searchKey)(execute[Value](attr)) ::
+    CoHandler(searchKey)(execute[Value](attr,getConverter)) ::
       OnUpdateImpl.handlers(labelDefinedAttr :: propDefinedAttr :: Nil, setter)
   }
 }

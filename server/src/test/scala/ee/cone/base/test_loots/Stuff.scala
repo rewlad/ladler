@@ -69,9 +69,9 @@ class InstantValueConverter(inner: InnerRawValueConverter) extends RawValueConve
 class TestAttributes(
   attr: AttrFactory,
   label: LabelFactory,
-  strValueConverter: RawValueConverter[String]
+  asString: AttrValueType[String]
 )(
-  val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", strValueConverter)
+  val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", asString)
 )
 
 class BoatLogEntryAttributes(
@@ -79,67 +79,67 @@ class BoatLogEntryAttributes(
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
-  definedValueConverter: RawValueConverter[Boolean],
-  nodeValueConverter: RawValueConverter[Obj],
-  stringValueConverter: RawValueConverter[String],
-  uuidValueConverter: RawValueConverter[Option[UUID]],
-  instantValueConverter: RawValueConverter[Option[Instant]],
-  durationValueConverter: RawValueConverter[Option[Duration]],
+  asDefined: AttrValueType[Boolean],
+  asObj: AttrValueType[Obj],
+  asString: AttrValueType[String],
+  asUUID: AttrValueType[Option[UUID]],
+  asInstant: AttrValueType[Option[Instant]],
+  asDuration: AttrValueType[Option[Duration]],
 
   alienCanChange: AlienCanChange
 )(
   val justIndexed: Attr[String] = sysAttrs.justIndexed,
 
-  val asEntry: Attr[Obj] = label(0x6700),
-  val boat: Attr[Obj] = attr("b65d201b-8b83-41cb-85a1-c0cb2b3f8b18", nodeValueConverter),
+  val asEntry: Attr[Obj] = label("21f5378d-ee29-4603-bc12-eb5040287a0d"),
+  val boat: Attr[Obj] = attr("b65d201b-8b83-41cb-85a1-c0cb2b3f8b18", asObj),
   //val boat:Attr[String]=attr(new PropId(0x6701),stringValueConverter),
-  val date: Attr[Option[Instant]] = attr("7680a4db-0a6a-45a3-bc92-c3c60db42ef9", instantValueConverter),
-  val durationTotal: Attr[Option[Duration]] = attr("6678a3d1-9472-4dc5-b79c-e43121d2b704", durationValueConverter),
+  val date: Attr[Option[Instant]] = attr("7680a4db-0a6a-45a3-bc92-c3c60db42ef9", asInstant),
+  val durationTotal: Attr[Option[Duration]] = attr("6678a3d1-9472-4dc5-b79c-e43121d2b704", asDuration),
   val asConfirmed: Attr[Obj] = label("c54e4fd2-0989-4555-a8a5-be57589ff79d"),
-  val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", nodeValueConverter),
+  val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", asObj),
   //val confirmedBy: Attr[String] = attr(new PropId(0x6705), stringValueConverter),
-  val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", instantValueConverter), //0x6709
-  val entryCreated: Attr[Boolean] = attr("5cf568bf-6e00-4c01-b914-9c9f8adaadc6", definedValueConverter),
-  val entryRemoved: Attr[Boolean] = attr("3fc7422c-791f-4b9f-b56e-f89e5f41bbd9", definedValueConverter),
+  val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", asInstant), //0x6709
+  val entryCreated: Attr[Boolean] = attr("5cf568bf-6e00-4c01-b914-9c9f8adaadc6", asDefined),
+  val entryRemoved: Attr[Boolean] = attr("3fc7422c-791f-4b9f-b56e-f89e5f41bbd9", asDefined),
 
-  val log00Date: Attr[Option[Instant]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", instantValueConverter),
-  val log00Fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", stringValueConverter),
-  val log00Comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", stringValueConverter),
-  val log00Engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", stringValueConverter),
-  val log00Master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", stringValueConverter),
-  val log08Date: Attr[Option[Instant]] = attr("6e5f46e6-0aca-4863-b010-52ec04979b84", instantValueConverter),
-  val log08Fuel: Attr[String] = attr("8740c331-3080-4080-b09e-02d2a4d6b93e", stringValueConverter),
-  val log08Comment: Attr[String] = attr("32222649-c14d-4a50-b420-f748df40f1d5", stringValueConverter),
-  val log08Engineer: Attr[String] = attr("06230e9b-ba76-42a6-be0f-a221dea7924c", stringValueConverter),
-  val log08Master: Attr[String] = attr("6f45d7aa-1c92-416f-93d0-45b035997b86", stringValueConverter),
-  val logRFFuel: Attr[String] = attr("2954c1c8-6335-4654-8367-22bae26a19f3", stringValueConverter),
-  val logRFComment: Attr[String] = attr("eae6e221-fde1-4d1f-aa64-7e0cf56e128a", stringValueConverter),
-  val logRFEngineer: Attr[String] = attr("1c4dc625-1bbd-4d67-b54a-8562d240c2fc", stringValueConverter), // 0x670A,0x670E,0x670F
-  val log24Date: Attr[Option[Instant]] = attr("69b1b080-1094-4780-9898-4fb15f634c27", instantValueConverter),
-  val log24Fuel: Attr[String] = attr("76053737-d75d-4b7b-b0a5-f2cadae61f6f", stringValueConverter),
-  val log24Comment: Attr[String] = attr("6ec9cda4-78d9-4964-8be2-9b596e355525", stringValueConverter),
-  val log24Engineer: Attr[String] = attr("735a1265-81e0-4ade-83a3-99bf86702925", stringValueConverter),
-  val log24Master: Attr[String] = attr("5930f78d-285d-499e-a665-387792f49807", stringValueConverter), // 0x671F
+  val log00Date: Attr[Option[Instant]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asInstant),
+  val log00Fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asString),
+  val log00Comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
+  val log00Engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
+  val log00Master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString),
+  val log08Date: Attr[Option[Instant]] = attr("6e5f46e6-0aca-4863-b010-52ec04979b84", asInstant),
+  val log08Fuel: Attr[String] = attr("8740c331-3080-4080-b09e-02d2a4d6b93e", asString),
+  val log08Comment: Attr[String] = attr("32222649-c14d-4a50-b420-f748df40f1d5", asString),
+  val log08Engineer: Attr[String] = attr("06230e9b-ba76-42a6-be0f-a221dea7924c", asString),
+  val log08Master: Attr[String] = attr("6f45d7aa-1c92-416f-93d0-45b035997b86", asString),
+  val logRFFuel: Attr[String] = attr("2954c1c8-6335-4654-8367-22bae26a19f3", asString),
+  val logRFComment: Attr[String] = attr("eae6e221-fde1-4d1f-aa64-7e0cf56e128a", asString),
+  val logRFEngineer: Attr[String] = attr("1c4dc625-1bbd-4d67-b54a-8562d240c2fc", asString), // 0x670A,0x670E,0x670F
+  val log24Date: Attr[Option[Instant]] = attr("69b1b080-1094-4780-9898-4fb15f634c27", asInstant),
+  val log24Fuel: Attr[String] = attr("76053737-d75d-4b7b-b0a5-f2cadae61f6f", asString),
+  val log24Comment: Attr[String] = attr("6ec9cda4-78d9-4964-8be2-9b596e355525", asString),
+  val log24Engineer: Attr[String] = attr("735a1265-81e0-4ade-83a3-99bf86702925", asString),
+  val log24Master: Attr[String] = attr("5930f78d-285d-499e-a665-387792f49807", asString), // 0x671F
 
   val asWork: Attr[Obj] = label("5cce1cf2-1793-4e54-8523-c810f7e5637a"),
-  val workStart: Attr[Option[Instant]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", instantValueConverter),
-  val workStop: Attr[Option[Instant]] = attr("5259ef2d-f4de-47b7-bc61-0cfe33cb58d3", instantValueConverter),
-  val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", durationValueConverter),
-  val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", stringValueConverter),
-  val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", nodeValueConverter),
-  val workCreated: Attr[Boolean] = attr("ddea5561-c0e9-4d5c-86cb-aa5c744f7f31", definedValueConverter),
-  val workRemoved: Attr[Boolean] = attr("48c7db59-ee4e-432b-a36b-809f4aa67e41", definedValueConverter),
-  val targetEntryOfWork: Attr[Option[UUID]] = attr("c4c35442-a674-495d-af06-3d8b0fa5be16", uuidValueConverter),
+  val workStart: Attr[Option[Instant]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", asInstant),
+  val workStop: Attr[Option[Instant]] = attr("5259ef2d-f4de-47b7-bc61-0cfe33cb58d3", asInstant),
+  val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", asDuration),
+  val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
+  val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
+  val workCreated: Attr[Boolean] = attr("ddea5561-c0e9-4d5c-86cb-aa5c744f7f31", asDefined),
+  val workRemoved: Attr[Boolean] = attr("48c7db59-ee4e-432b-a36b-809f4aa67e41", asDefined),
+  val targetEntryOfWork: Attr[Option[UUID]] = attr("c4c35442-a674-495d-af06-3d8b0fa5be16", asUUID),
 
   val asUser: Attr[Obj] = label("f8c8d6da-0942-40aa-9005-261e63498973"),
-  val userCreated: Attr[Boolean] = attr("f352a49b-3b7c-462a-a432-45977e23b556", definedValueConverter),
-  val userRemoved: Attr[Boolean] = attr("b8225da2-2e3d-4b73-9f9c-1c400a4f7a61", definedValueConverter),
+  val userCreated: Attr[Boolean] = attr("f352a49b-3b7c-462a-a432-45977e23b556", asDefined),
+  val userRemoved: Attr[Boolean] = attr("b8225da2-2e3d-4b73-9f9c-1c400a4f7a61", asDefined),
   val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
-  val boatCreated: Attr[Boolean] = attr("434d27db-4314-429f-862f-a067506c008c", definedValueConverter),
-  val boatRemoved: Attr[Boolean] = attr("9a30cd13-71a8-463c-a501-6e7db0d0932e", definedValueConverter),
+  val boatCreated: Attr[Boolean] = attr("434d27db-4314-429f-862f-a067506c008c", asDefined),
+  val boatRemoved: Attr[Boolean] = attr("9a30cd13-71a8-463c-a501-6e7db0d0932e", asDefined),
 
-  val entryConfirmed: Attr[Boolean] = attr("ee9097c9-ae32-4470-a143-91a9513b585e",definedValueConverter),
-  val entryReopened: Attr[Boolean] = attr("c35f7bfb-586e-430e-be63-6b4cc06d811f",definedValueConverter)
+  val entryConfirmed: Attr[Boolean] = attr("ee9097c9-ae32-4470-a143-91a9513b585e",asDefined),
+  val entryReopened: Attr[Boolean] = attr("c35f7bfb-586e-430e-be63-6b4cc06d811f",asDefined)
 
 )(val handlers: List[BaseCoHandler] =
   searchIndex.handlers(asEntry, justIndexed) :::

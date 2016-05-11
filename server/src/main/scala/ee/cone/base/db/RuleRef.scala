@@ -23,7 +23,7 @@ class RefIntegrityImpl(
       searchIndex.handlers(existsA,toAttr) :::
       CoHandler(AfterUpdate(existsB))(
         preCommitCheck.create{ nodesB =>
-          checkPairs(nodesB.flatMap(nodeB => findNodes.where(nodeB(nodeFactory.boundToTx),existsA,toAttr,nodeB,Nil)))
+          checkPairs(nodesB.flatMap(nodeB => findNodes.where(nodeB(nodeFactory.dbNode).tx,existsA,toAttr,nodeB,Nil)))
         }
       ) ::
       CoHandler(AfterUpdate(existsA))(

@@ -30,5 +30,5 @@ class PreCommitCheckAllOfConnectionImpl(
     if(on) txs(tx) = new PreCommitCheckAllOfTx(this) else txs.remove(tx)
   def checkTx(tx: BoundToTx) = txs(tx).checkAll()
   def create(later: Seq[Obj]=>Seq[ValidationFailure]): Obj=>Unit =
-    node => txs(node(nodeFactory.boundToTx)).of(later).add(node)
+    node => txs(node(nodeFactory.dbNode).tx).of(later).add(node)
 }

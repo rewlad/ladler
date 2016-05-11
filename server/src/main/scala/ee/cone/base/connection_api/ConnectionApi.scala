@@ -56,10 +56,7 @@ trait Obj {
   def update[Value](attr: Attr[Value], value: Value): Unit
   def wrap[FWrapData](wrapType: WrapType[FWrapData], wrapData: FWrapData): Obj
 }
-trait Attr[Value] {
-//  def get(node: Obj): Value
-//  def set(node: Obj, value: Value): Unit
-}
+trait Attr[Value]
 
 ////////////////////////////////
 

@@ -36,18 +36,18 @@ class TestAttrs(
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
-  definedValueConverter: RawValueConverter[Boolean],
-  nodeValueConverter: RawValueConverter[Obj],
-  uuidValueConverter: RawValueConverter[Option[UUID]],
-  stringValueConverter: RawValueConverter[String],
+  asDefined: AttrValueType[Boolean],
+  asObj: AttrValueType[Obj],
+  asUUID: AttrValueType[Option[UUID]],
+  asString: AttrValueType[String],
   mandatory: Mandatory,
   alienCanChange: AlienCanChange
 )(
   val asTestTask: Attr[Obj] = label("690cb4c2-55e8-4fca-bf23-394fbb2c65ba"),
-  val testState: Attr[String] = attr("6e60c1f1-a0b2-4a9a-84f7-c3627ac50727", stringValueConverter),
-  val comments: Attr[String] = attr("c9ab1b7a-5339-4360-aa8d-b3c47d0099cf", stringValueConverter),
-  val taskCreated: Attr[Boolean] = attr("8af608d3-7c5d-42dc-be26-c4aa1a073638", definedValueConverter),
-  val taskRemoved: Attr[Boolean] = attr("9e86aae3-2094-4b38-a38b-41c1e285410d", definedValueConverter)
+  val testState: Attr[String] = attr("6e60c1f1-a0b2-4a9a-84f7-c3627ac50727", asString),
+  val comments: Attr[String] = attr("c9ab1b7a-5339-4360-aa8d-b3c47d0099cf", asString),
+  val taskCreated: Attr[Boolean] = attr("8af608d3-7c5d-42dc-be26-c4aa1a073638", asDefined),
+  val taskRemoved: Attr[Boolean] = attr("9e86aae3-2094-4b38-a38b-41c1e285410d", asDefined)
 )(val handlers: List[BaseCoHandler] =
   mandatory(asTestTask,testState, mutual = true) :::
   mandatory(asTestTask,comments, mutual = true) :::

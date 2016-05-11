@@ -27,8 +27,8 @@ class RawFactConverterImpl extends RawFactConverter {
       })
     })
   }
-  def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId) =
-    OuterRawValueConverter.allocWrite[Value](0,attrId.converter,value,valueSrcId,hasIdAfter=true)
+  def value[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, valueSrcId: ObjId) =
+    OuterRawValueConverter.allocWrite[Value](0,converter,value,valueSrcId,hasIdAfter=true)
   def valueFromBytes[Value](converter: RawValueConverter[Value], b: RawValue): Value = {
     if(b.length==0) return converter.convertEmpty()
     val exchangeA = CompactBytes.toReadAt(b,0)
@@ -73,11 +73,11 @@ object RawDumpImpl extends RawDump {
 
 class RawSearchConverterImpl extends RawSearchConverter {
   def head = 1L
-  def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId): RawKey =
-    key(attrId, value, objId, hasObjId=true)
-  def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey =
-    key(attrId, value, new ObjId(0L), hasObjId=false)
-  private def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
+  def key[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, objId: ObjId): RawKey =
+    key(attrId, converter, value, objId, hasObjId=true)
+  def keyWithoutObjId[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value): RawKey =
+    key(attrId, converter, value, new ObjId(0L), hasObjId=false)
+  private def key[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
     val hiAttrId = attrId.hiAttrId
     val loAttrId = attrId.loAttrId
     val exHead = CompactBytes.toWrite(head).at(0)
@@ -85,7 +85,7 @@ class RawSearchConverterImpl extends RawSearchConverter {
     val exLoAttrId = CompactBytes.toWrite(loAttrId.value).after(exHiAttrId)
     val valuePos = exLoAttrId.nextPos
     exHead.write(head, exHiAttrId.write(hiAttrId.value, exLoAttrId.write(loAttrId.value,
-      OuterRawValueConverter.allocWrite(valuePos, attrId.converter, value, objId, hasObjId) //allowEmptyValue = false
+      OuterRawValueConverter.allocWrite(valuePos, converter, value, objId, hasObjId) //allowEmptyValue = false
     )))
   }
   def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {

@@ -28,16 +28,16 @@ class SysAttrsImpl(
   attr: AttrFactory,
   label: LabelFactory,
   searchIndex: SearchIndex,
-  nodeValueConverter: RawValueConverter[Obj],
-  uuidValueConverter: RawValueConverter[Option[UUID]],
-  stringValueConverter: RawValueConverter[String],
+  asObj: AttrValueType[Obj],
+  asUUID: AttrValueType[Option[UUID]],
+  asString: AttrValueType[String],
   mandatory: Mandatory,
   unique: Unique
 )(
-  val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", nodeValueConverter),
+  val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", asObj),
   val asSrcIdentifiable: Attr[Obj] = label("d3576ce3-100f-437c-bd00-febe9c0f1906"),
-  val srcId: Attr[Option[UUID]] = attr("54d45fef-e9ee-44f7-8522-aec1cd78743e", uuidValueConverter),
-  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", stringValueConverter)
+  val srcId: Attr[Option[UUID]] = attr("54d45fef-e9ee-44f7-8522-aec1cd78743e", asUUID),
+  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString)
 )(val handlers: List[BaseCoHandler] =
   unique(asSrcIdentifiable, srcId) :::
   mandatory(asSrcIdentifiable, srcId, mutual = true) :::
@@ -61,13 +61,11 @@ class FindNodesImpl(
       case FindFirstOnly if limit == Long.MaxValue => limit = 1L
       case FindLastOnly => lastOnly = true
       case FindFrom(node) if from.isEmpty =>
-        from = Some(node(nodeFactory.objId)
-      )
+        from = Some(node(nodeFactory.dbNode).objId)
       case FindAfter(node) if from.isEmpty =>
-        from = Some(node(nodeFactory.nextObjId)
-      )
+        from = Some(node(nodeFactory.dbNode).nextObjId)
       case FindUpTo(node) if upTo.value == Long.MaxValue =>
-        upTo = node(nodeFactory.objId)
+        upTo = node(nodeFactory.dbNode).objId
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](attrFactory.defined(label), attrFactory.defined(prop))
@@ -82,12 +80,12 @@ class FindNodesImpl(
 }
 
 class UniqueNodesImpl(
-  converter: RawValueConverter[Obj], nodeFactory: NodeFactory, at: SysAttrsImpl,
+  nodeFactory: NodeFactory, at: SysAttrsImpl,
   findNodes: FindNodes
 ) extends UniqueNodes {
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
     findNodes.where(tx, at.asSrcIdentifiable, at.srcId, Some(srcId), Nil) match {
-      case Nil => converter.convertEmpty()
+      case Nil => nodeFactory.noNode
       case node :: Nil => node
       case _ => Never()
     }
@@ -95,8 +93,8 @@ class UniqueNodesImpl(
   def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,new ObjId(0L))
   def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj = {
     val sNode = seqNode(tx)
-    val lastNode = sNode(at.seq)
-    val nextObjId = (if(lastNode.nonEmpty) lastNode else sNode)(nodeFactory.nextObjId)
+    val lastNode = sNode(at.seq)(nodeFactory.dbNode)
+    val nextObjId = (if(lastNode.nonEmpty) lastNode else sNode(nodeFactory.dbNode)).nextObjId
     val res = nodeFactory.toNode(tx,nextObjId)
     sNode(at.seq) = res
 

@@ -12,22 +12,20 @@ trait DBNode {
   def objId: ObjId
   def tx: BoundToTx
   def rawIndex: RawIndex
+  def nextObjId: ObjId
 }
 
 trait NodeFactory {
   def noNode: Obj
   def toNode(tx: BoundToTx, objId: ObjId): Obj
-  def objId: Attr[ObjId]
-  def nextObjId: Attr[ObjId]
-  def rawIndex: Attr[RawIndex]
-  def boundToTx: Attr[BoundToTx]
+  def dbNode: Attr[DBNode]
   def nonEmpty: Attr[Boolean]
 }
 
 trait AttrFactory {
   def noAttr: Attr[Boolean]
-  def apply[V](hiAttrId: HiAttrId, loAttrId: LoAttrId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
-  def apply[V](uuid: String, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
+  def apply[V](hiAttrId: HiAttrId, loAttrId: LoAttrId, valueType: AttrValueType[V]): Attr[V] with RawAttr[V]
+  def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V] with RawAttr[V]
   def derive[V](attrA: Attr[Boolean], attrB: Attr[V]): Attr[V] with RawAttr[V]
   def defined(attr: Attr[_]): Attr[Boolean]
 }
@@ -53,3 +51,6 @@ trait OnUpdate {
   //invoke will be called before and after update if all attrs are defined
   def handlers(definedAttrs: List[Attr[Boolean]], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
 }
+
+case class ToRawValueConverter[Value](valueType: AttrValueType[Value])
+  extends EventKey[RawValueConverter[Value]]

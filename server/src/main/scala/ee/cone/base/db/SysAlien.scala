@@ -7,10 +7,10 @@ import ee.cone.base.util.Single
 
 class AlienAccessAttrs(
   attr: AttrFactory,
-  definedValueConverter: RawValueConverter[Boolean]
+  asDefined: AttrValueType[Boolean]
 )(
-  val target: Attr[Boolean] = attr("5a7300e9-a1d9-41a6-959f-cbd2f6791deb", definedValueConverter),
-  val created: Attr[Boolean] = attr("7947ca07-d72f-438d-9e21-1ed8196689ae", definedValueConverter)
+  val target: Attr[Boolean] = attr("5a7300e9-a1d9-41a6-959f-cbd2f6791deb", asDefined),
+  val created: Attr[Boolean] = attr("7947ca07-d72f-438d-9e21-1ed8196689ae", asDefined)
 )()
 
 class AlienCanChange(

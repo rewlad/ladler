@@ -15,7 +15,7 @@ class UniqueImpl(
     def checkNode(node: Obj): List[ValidationFailure] =
       if(definedAttrs.forall(node(_))){
         findNodes
-          .where(node(nodeFactory.boundToTx), label, uniqueAttr, node(uniqueAttr), Nil) match {
+          .where(node(nodeFactory.dbNode).tx, label, uniqueAttr, node(uniqueAttr), Nil) match {
           case _ :: Nil => Nil
           case ns => ns.map(ValidationFailure("unique", _))
         }

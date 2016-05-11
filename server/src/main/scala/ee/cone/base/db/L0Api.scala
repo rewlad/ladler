@@ -11,10 +11,12 @@ class ObjId(val value: Long) extends AnyVal
 class HiAttrId(val value: Long) extends AnyVal
 class LoAttrId(val value: Long) extends AnyVal
 
+class AttrValueType[Value]
+
 trait RawAttr[Value] {
   def hiAttrId: HiAttrId
   def loAttrId: LoAttrId
-  def converter: RawValueConverter[Value]
+  def valueType: AttrValueType[Value]
 }
 
 // raw converters
@@ -26,12 +28,12 @@ trait RawFactConverter {
   def key(objId: ObjId, attrId: RawAttr[_]): RawKey
   def keyWithoutAttrId(objId: ObjId): RawKey
   def keyHeadOnly: RawKey
-  def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId): RawValue
+  def value[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, valueSrcId: ObjId): RawValue
   def valueFromBytes[Value](converter: RawValueConverter[Value], b: RawValue): Value
 }
 trait RawSearchConverter {
-  def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId): RawKey
-  def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey
+  def key[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, objId: ObjId): RawKey
+  def keyWithoutObjId[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value): RawKey
   def value(on: Boolean): RawValue
 }
 trait RawKeyExtractor {
