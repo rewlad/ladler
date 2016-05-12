@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{BoundToTx, LifeCycle}
+import ee.cone.base.connection_api.LifeCycle
 import ee.cone.base.util.{Setup, Never}
 
 class CurrentTxImpl[DBEnvKey](env: DBEnv[DBEnvKey]) extends CurrentTx[DBEnvKey] {

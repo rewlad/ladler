@@ -48,7 +48,7 @@ class ExecutionManagerImpl(threadCount: Int) extends ExecutionManager {
       lifeCycle.open()
       val connection = setup(lifeCycle)
       try{
-        while(true) connection.handlerLists.single(ActivateReceiver)()
+        while(true) connection.handlerLists.single(ActivateReceiver, ()⇒Never())()
       } catch {
         case e: Exception ⇒
           //println(e)

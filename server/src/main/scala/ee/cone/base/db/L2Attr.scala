@@ -7,13 +7,13 @@ import ee.cone.base.connection_api.{Obj, Attr}
 import ee.cone.base.util.{HexDebug, Hex, Never}
 
 class AttrFactoryImpl(asBoolean: AttrValueType[Boolean])(val noAttr: NoAttr=NoAttr) extends AttrFactory {
-  def apply[Value](hiAttrId: HiAttrId, loAttrId: LoAttrId, valueType: AttrValueType[Value]) = {
+  def apply[V](hiAttrId: HiAttrId, loAttrId: LoAttrId, valueType: AttrValueType[V]): Attr[V] with RawAttr[V] = {
     val booleanAttr = AttrImpl[Boolean](hiAttrId, loAttrId)(asBoolean, identity)
     AttrImpl(hiAttrId, loAttrId)(valueType, _=>booleanAttr)
   }
-  def apply[V](uuid: UUID, valueType: AttrValueType[V]) =
+  private def apply[V](uuid: UUID, valueType: AttrValueType[V]): Attr[V] with RawAttr[V] =
     apply(new HiAttrId(uuid.getMostSignificantBits), new LoAttrId(uuid.getLeastSignificantBits), valueType)
-  def apply[V](uuid: String, valueType: AttrValueType[V]) =
+  def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V] with RawAttr[V] =
     apply(UUID.fromString(uuid), valueType)
     //UUID.nameUUIDFromBytes()
   def derive[V](attrA: Attr[Boolean], attrB: Attr[V]) = {

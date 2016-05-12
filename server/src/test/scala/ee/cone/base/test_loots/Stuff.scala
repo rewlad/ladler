@@ -48,7 +48,9 @@ class FailOfConnection(
   } :: Nil
 }
 
-class DurationValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Option[Duration]] {
+class DurationValueConverter(
+  val valueType: AttrValueType[Option[Duration]], inner: InnerRawValueConverter
+) extends RawValueConverterImpl[Option[Duration]] {
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(Duration.ofSeconds(valueA,valueB))
   def convert(value: String) = Never()
@@ -57,7 +59,9 @@ class DurationValueConverter(inner: InnerRawValueConverter) extends RawValueConv
   def nonEmpty(value: Option[Duration]) = value.nonEmpty
 }
 
-class InstantValueConverter(inner: InnerRawValueConverter) extends RawValueConverter[Option[Instant]] {
+class InstantValueConverter(
+  val valueType: AttrValueType[Option[Instant]], inner: InnerRawValueConverter
+) extends RawValueConverterImpl[Option[Instant]] {
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(Instant.ofEpochSecond(valueA,valueB))
   def convert(value: String) = Never()
@@ -75,32 +79,23 @@ class TestAttributes(
 )
 
 class BoatLogEntryAttributes(
-  sysAttrs: SysAttrs,
   attr: AttrFactory,
   label: LabelFactory,
-  searchIndex: SearchIndex,
+
   asDefined: AttrValueType[Boolean],
   asObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   asUUID: AttrValueType[Option[UUID]],
   asInstant: AttrValueType[Option[Instant]],
-  asDuration: AttrValueType[Option[Duration]],
-
-  alienCanChange: AlienCanChange
+  asDuration: AttrValueType[Option[Duration]]
 )(
-  val justIndexed: Attr[String] = sysAttrs.justIndexed,
-
   val asEntry: Attr[Obj] = label("21f5378d-ee29-4603-bc12-eb5040287a0d"),
   val boat: Attr[Obj] = attr("b65d201b-8b83-41cb-85a1-c0cb2b3f8b18", asObj),
-  //val boat:Attr[String]=attr(new PropId(0x6701),stringValueConverter),
   val date: Attr[Option[Instant]] = attr("7680a4db-0a6a-45a3-bc92-c3c60db42ef9", asInstant),
   val durationTotal: Attr[Option[Duration]] = attr("6678a3d1-9472-4dc5-b79c-e43121d2b704", asDuration),
   val asConfirmed: Attr[Obj] = label("c54e4fd2-0989-4555-a8a5-be57589ff79d"),
   val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", asObj),
-  //val confirmedBy: Attr[String] = attr(new PropId(0x6705), stringValueConverter),
   val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", asInstant), //0x6709
-  val entryCreated: Attr[Boolean] = attr("5cf568bf-6e00-4c01-b914-9c9f8adaadc6", asDefined),
-  val entryRemoved: Attr[Boolean] = attr("3fc7422c-791f-4b9f-b56e-f89e5f41bbd9", asDefined),
 
   val log00Date: Attr[Option[Instant]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asInstant),
   val log00Fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asString),
@@ -127,32 +122,11 @@ class BoatLogEntryAttributes(
   val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", asDuration),
   val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
   val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
-  val workCreated: Attr[Boolean] = attr("ddea5561-c0e9-4d5c-86cb-aa5c744f7f31", asDefined),
-  val workRemoved: Attr[Boolean] = attr("48c7db59-ee4e-432b-a36b-809f4aa67e41", asDefined),
   val targetEntryOfWork: Attr[Option[UUID]] = attr("c4c35442-a674-495d-af06-3d8b0fa5be16", asUUID),
 
   val asUser: Attr[Obj] = label("f8c8d6da-0942-40aa-9005-261e63498973"),
-  val userCreated: Attr[Boolean] = attr("f352a49b-3b7c-462a-a432-45977e23b556", asDefined),
-  val userRemoved: Attr[Boolean] = attr("b8225da2-2e3d-4b73-9f9c-1c400a4f7a61", asDefined),
-  val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
-  val boatCreated: Attr[Boolean] = attr("434d27db-4314-429f-862f-a067506c008c", asDefined),
-  val boatRemoved: Attr[Boolean] = attr("9a30cd13-71a8-463c-a501-6e7db0d0932e", asDefined),
-
-  val entryConfirmed: Attr[Boolean] = attr("ee9097c9-ae32-4470-a143-91a9513b585e",asDefined),
-  val entryReopened: Attr[Boolean] = attr("c35f7bfb-586e-430e-be63-6b4cc06d811f",asDefined)
-
-)(val handlers: List[BaseCoHandler] =
-  searchIndex.handlers(asEntry, justIndexed) :::
-  searchIndex.handlers(asWork, entryOfWork) :::
-  List(
-    date, workStart, workStop, workComment,
-    log00Date,log00Fuel,log00Comment,log00Engineer,log00Master,
-    log08Date,log08Fuel,log08Comment,log08Engineer,log08Master,
-    logRFFuel,logRFComment,logRFEngineer,
-    log24Date,log24Fuel,log24Comment,log24Engineer,log24Master
-  ).flatMap(alienCanChange.update(_))
-
-) extends CoHandlerProvider
+  val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2")
+)
 
 class DataTablesState(currentVDom: CurrentVDom){
   val dtTableWidths=scala.collection.mutable.Map[VDomKey,Float]()
@@ -182,10 +156,10 @@ class DataTablesState(currentVDom: CurrentVDom){
     dtTableToggleRecordRow.foreach{case (k,v)=>if(k!=id&&newVal)dtTableToggleRecordRow(k)=false}
     currentVDom.invalidate()
   }
-
 }
 
 class TestComponent(
+  sysAttrs: SysAttrs,
   at: TestAttributes,
   logAt: BoatLogEntryAttributes,
   alienAccessAttrs: AlienAccessAttrs,
@@ -198,37 +172,32 @@ class TestComponent(
   materialTags: MaterialTags,
   flexTags:FlexTags,
   currentVDom: CurrentVDom,
-  dtTablesState: DataTablesState
+  dtTablesState: DataTablesState,
+  searchIndex: SearchIndex,
+  factIndex: FactIndex,
+  nodeAttrs: NodeAttrs,
+  alienWrapType: WrapType[DemandedNode]
 ) extends CoHandlerProvider {
   import tags._
   import materialTags._
   import flexTags._
 
-  private def eventSource = handlerLists.single(SessionEventSource)
+  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-  private def forUpdate(obj: Obj)(create: ()⇒UUID = ()⇒Never()): Obj = {
-    val existingSrcId = if(obj.nonEmpty) Some(obj(uniqueNodes.srcId).get) else None
-    lazy val justCreated = create()
-    def srcId = existingSrcId.getOrElse(justCreated)
-    new Obj {
-      def apply[Value](attr: Attr[Value]) = obj(attr)
-      def update[Value](attr: Attr[Value], value: Value) = {
-        handlerLists.single(AddUpdateEvent(attr))(srcId,value)
-        currentVDom.invalidate()
-      }
-      def nonEmpty = Never()
-    }
+
+
+  private def forUpdate(obj: Obj)(setup: (Obj,UUID)⇒Unit = (_,_)⇒Never()): Obj = {
+    var srcId = if(obj(nodeAttrs.nonEmpty)) Some(obj(uniqueNodes.srcId).get) else None
+    obj.wrap(alienWrapType, new DemandedNode(srcId)(setup))
   }
   private def lazyLinkingObj[Value](asType: Attr[Obj], atKey: Attr[Value], key: Value): Obj = {
     val obj = findNodes.where(mainTx(), asType, atKey, key, Nil) match {
       case Nil ⇒ uniqueNodes.noNode
       case o :: Nil ⇒ o
     }
-    forUpdate(obj) { ()⇒
-      val srcId = UUID.randomUUID
-      handlerLists.single(AddCreateEvent(attrFactory.defined(asType)))(srcId)
-      handlerLists.single(AddUpdateEvent(atKey))(srcId, key)
-      srcId
+    forUpdate(obj) { (obj, srcId) ⇒
+      handlerLists.single(AddCreateEvent(attrFactory.defined(asType)), ()⇒Never())(srcId)
+      obj(atKey) = key
     }
   }
 
@@ -256,6 +225,22 @@ class TestComponent(
     def removeSelected(): Unit
   }
 
+  class ListedNode(val filterObj: Obj, val selected: Set[UUID])
+  def listedWrapType: WrapType[ListedNode]
+  def listed: Attr[Boolean]
+  def selected: Attr[List[UUID]]
+  CoHandler(GetValue(listedWrapType,listed)){ (obj,innerObj)⇒
+    val srcId = obj(uniqueNodes.srcId).get
+    
+  } ::
+  CoHandler(SetValue(listedWrapType,listed)){ (obj,innerObj,value)⇒
+    val selectedSet = innerObj.data.selected
+    val srcId = obj(uniqueNodes.srcId/*inercept*/).get
+    innerObj.data.filterObj(selected) = if(value) selectedSet + srcId else selectedSet - srcId
+  } :: Nil
+
+
+
   trait ListedAttr
   class ListedObj(item: Obj) extends Obj {
     def nonEmpty = item.nonEmpty
@@ -281,8 +266,8 @@ class TestComponent(
     new ItemList {
       def list = items
       def add(srcId: UUID) = {
-        handlerLists.single(AddCreateEvent(attrFactory.defined(asType)))(srcId)
-        handlerLists.single(AddUpdateEvent(parentAttr))(srcId, parentValue)
+        handlerLists.single(AddCreateEvent(attrFactory.defined(asType)), ()⇒Never())(srcId)
+        handlerLists.single(AddUpdateEvent(parentAttr), ()⇒Never())(srcId, parentValue)
       }
       def removeSelected() = ???
       def selectAll(on: Boolean) = ???
@@ -306,8 +291,8 @@ class TestComponent(
     def list(filterObj: Obj, parentValue: Value) = new ItemList {
       //private def parentValue = filterObj(filterByParentAttr)
       def add(srcId: UUID) = {
-        handlerLists.single(AddCreateEvent(attrFactory.defined(asType)))(srcId)
-        handlerLists.single(AddUpdateEvent(parentAttr))(srcId, parentValue)
+        handlerLists.single(AddCreateEvent(attrFactory.defined(asType)), ()⇒Never())(srcId)
+        handlerLists.single(AddUpdateEvent(parentAttr), ()⇒Never())(srcId, parentValue)
       }
       def list() = {
 
@@ -932,7 +917,24 @@ class TestComponent(
       Option(if(on) was.plus(delta) else was.minus(delta))
   }
 
-  def handlers = CoHandler(ViewPath(""))(emptyView) ::
+  def handlers =
+    searchIndex.handlers(logAt.asEntry, sysAttrs.justIndexed) :::
+    searchIndex.handlers(logAt.asWork, logAt.entryOfWork) :::
+    List(
+      logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
+    ).flatMap(factIndex.handlers(_)) :::
+    List(
+      logAt.asEntry, logAt.asWork, logAt.asUser, logAt.asBoat
+    ).flatMap(alienCanChange.create) :::
+    List(
+      logAt.boat, logAt.confirmedOn, logAt.entryOfWork,
+      logAt.date, logAt.workStart, logAt.workStop, logAt.workComment,
+      logAt.log00Date,logAt.log00Fuel,logAt.log00Comment,logAt.log00Engineer,logAt.log00Master,
+      logAt.log08Date,logAt.log08Fuel,logAt.log08Comment,logAt.log08Engineer,logAt.log08Master,
+      logAt.logRFFuel,logAt.logRFComment,logAt.logRFEngineer,
+      logAt.log24Date,logAt.log24Fuel,logAt.log24Comment,logAt.log24Engineer,logAt.log24Master
+    ).flatMap(alienCanChange.update(_)) :::
+    CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/eventList"))(eventListView) ::
     CoHandler(ViewPath("/userList"))(userListView) ::
     CoHandler(ViewPath("/boatList"))(boatListView) ::
@@ -952,3 +954,8 @@ class TestComponent(
     onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.defined), calcEntryDuration) :::
     Nil
 }
+
+
+
+
+

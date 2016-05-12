@@ -10,13 +10,13 @@ class FactIndexImpl(
   rawKeyExtractor: RawKeyExtractor,
   rawVisitor: RawVisitor,
   calcLists: CoHandlerLists,
-  nodeFactory: NodeFactory,
+  nodeAttributes: NodeAttrs,
   attrFactory: AttrFactory,
   dbWrapType: WrapType[DBNode]
 ) extends FactIndex {
   private var srcObjId = new ObjId(0L)
   def switchReason(node: Obj): Unit = {
-    val dbNode = node(nodeFactory.dbNode)
+    val dbNode = node(nodeAttributes.dbNode)
     srcObjId = if(dbNode.nonEmpty) dbNode.objId else new ObjId(0L)
   }
 
@@ -35,7 +35,7 @@ class FactIndexImpl(
     rawIndex.set(key, rawValue)
   }
   def execute(node: Obj, feed: Feed): Unit = {
-    val dbNode = node(nodeFactory.dbNode)
+    val dbNode = node(nodeAttributes.dbNode)
     val key = rawFactConverter.keyWithoutAttrId(dbNode.objId)
     val rawIndex = dbNode.rawIndex
     rawIndex.seek(key)
@@ -44,7 +44,7 @@ class FactIndexImpl(
   def handlers[Value](attr: Attr[Value]) = {
     val rawAttr = attr.asInstanceOf[RawAttr[Value]]
     val definedAttr = attrFactory.defined(attr)
-    val getConverter = () ⇒ calcLists.single(ToRawValueConverter(rawAttr.valueType))
+    val getConverter = () ⇒ calcLists.single(ToRawValueConverter(rawAttr.valueType), ()⇒Never())
     List(
       CoHandler(GetValue(dbWrapType, attr))((obj, innerObj)⇒get(innerObj.data, rawAttr, getConverter())),
       CoHandler(SetValue(dbWrapType, attr)){ (obj, innerObj, value)⇒

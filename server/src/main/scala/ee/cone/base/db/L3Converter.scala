@@ -23,17 +23,19 @@ class NeverValueConverter[Value] extends RawValueConverter[Value] {
 
 class MainNodeValueConverter(
   valueType: AttrValueType[Obj],
-  inner: InnerRawValueConverter, nodeFactory: NodeFactory,
+  inner: InnerRawValueConverter,
+  nodeFactory: NodeFactory, nodeAttributes: NodeAttrs,
   mainTx: CurrentTx[MainEnvKey], instantTx: CurrentTx[InstantEnvKey]
-) extends NodeValueConverter[MainEnvKey](valueType,inner,nodeFactory,mainTx)(
-  new NodeValueConverter[InstantEnvKey](valueType,inner,nodeFactory,instantTx)(
+) extends NodeValueConverter[MainEnvKey](valueType,inner,nodeFactory,nodeAttributes,mainTx)(
+  new NodeValueConverter[InstantEnvKey](valueType,inner,nodeFactory,nodeAttributes,instantTx)(
     new NeverValueConverter[Obj]
   )
 )
 
 class NodeValueConverter[DBEnvKey](
   val valueType: AttrValueType[Obj],
-  inner: InnerRawValueConverter, nodeFactory: NodeFactory,
+  inner: InnerRawValueConverter,
+  nodeFactory: NodeFactory, nodeAttributes: NodeAttrs,
   currentTx: CurrentTx[DBEnvKey]
 )(
   next: RawValueConverter[Obj]
@@ -47,12 +49,12 @@ class NodeValueConverter[DBEnvKey](
   def convert(value: String) = Never()
   def allocWrite(before: Int, node: Obj, after: Int): RawValue = {
     val tx = currentTx.value
-    val dbNode = node(nodeFactory.dbNode)
+    val dbNode = node(nodeAttributes.dbNode)
     if(tx.nonEmpty && dbNode.tx == tx.get)
       inner.allocWrite(before, currentTx.dbId, dbNode.objId.value, after)
     else next.allocWrite(before, node, after)
   }
-  def nonEmpty(value: Obj) = value(nodeFactory.nonEmpty)
+  def nonEmpty(value: Obj) = value(nodeAttributes.nonEmpty)
 }
 
 class StringValueConverter(

@@ -30,24 +30,20 @@ class SysAttrsImpl(
   searchIndex: SearchIndex,
   asObj: AttrValueType[Obj],
   asUUID: AttrValueType[Option[UUID]],
-  asString: AttrValueType[String],
-  mandatory: Mandatory,
-  unique: Unique
+  asString: AttrValueType[String]
 )(
   val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", asObj),
   val asSrcIdentifiable: Attr[Obj] = label("d3576ce3-100f-437c-bd00-febe9c0f1906"),
   val srcId: Attr[Option[UUID]] = attr("54d45fef-e9ee-44f7-8522-aec1cd78743e", asUUID),
   val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString)
-)(val handlers: List[BaseCoHandler] =
-  unique(asSrcIdentifiable, srcId) :::
-  mandatory(asSrcIdentifiable, srcId, mutual = true) :::
-  // searchIndex.handlers(asSrcIdentifiable, srcId) ::: // inside unique
-  Nil
-) extends SysAttrs with CoHandlerProvider
+) extends SysAttrs
 
 class FindNodesImpl(
-  handlerLists: CoHandlerLists, nodeFactory: NodeFactory, attrFactory: AttrFactory
-) extends FindNodes {
+  at: SysAttrs,
+  handlerLists: CoHandlerLists,
+  nodeAttributes: NodeAttrs, nodeFactory: NodeFactory,
+  attrFactory: AttrFactory, factIndex: FactIndex
+) extends FindNodes  with CoHandlerProvider {
   def where[Value](
     tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value,
     options: List[SearchOption]
@@ -61,28 +57,29 @@ class FindNodesImpl(
       case FindFirstOnly if limit == Long.MaxValue => limit = 1L
       case FindLastOnly => lastOnly = true
       case FindFrom(node) if from.isEmpty =>
-        from = Some(node(nodeFactory.dbNode).objId)
+        from = Some(node(nodeAttributes.dbNode).objId)
       case FindAfter(node) if from.isEmpty =>
-        from = Some(node(nodeFactory.dbNode).nextObjId)
+        from = Some(node(nodeAttributes.dbNode).nextObjId)
       case FindUpTo(node) if upTo.value == Long.MaxValue =>
-        upTo = node(nodeFactory.dbNode).objId
+        upTo = node(nodeAttributes.dbNode).objId
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](attrFactory.defined(label), attrFactory.defined(prop))
     //println(s"searchKey: $searchKey")
-    val handler = handlerLists.single(searchKey)
+    val handler = handlerLists.single(searchKey, ()⇒Never())
     val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory, tx)
     val request = new SearchRequest[Value](tx, value, from, feed)
     handler(request)
     if(lastOnly) feed.result.headOption.toList else feed.result.reverse
   }
   def justIndexed = "Y"
+  def handlers = factIndex.handlers(at.justIndexed)
 }
 
 class UniqueNodesImpl(
-  nodeFactory: NodeFactory, at: SysAttrsImpl,
-  findNodes: FindNodes
-) extends UniqueNodes {
+  nodeAttributes: NodeAttrs, nodeFactory: NodeFactory, at: SysAttrsImpl,
+  findNodes: FindNodes, mandatory: Mandatory, unique: Unique, factIndex: FactIndex
+) extends UniqueNodes with CoHandlerProvider {
   def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
     findNodes.where(tx, at.asSrcIdentifiable, at.srcId, Some(srcId), Nil) match {
       case Nil => nodeFactory.noNode
@@ -93,8 +90,8 @@ class UniqueNodesImpl(
   def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,new ObjId(0L))
   def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj = {
     val sNode = seqNode(tx)
-    val lastNode = sNode(at.seq)(nodeFactory.dbNode)
-    val nextObjId = (if(lastNode.nonEmpty) lastNode else sNode(nodeFactory.dbNode)).nextObjId
+    val lastNode = sNode(at.seq)(nodeAttributes.dbNode)
+    val nextObjId = (if(lastNode.nonEmpty) lastNode else sNode(nodeAttributes.dbNode)).nextObjId
     val res = nodeFactory.toNode(tx,nextObjId)
     sNode(at.seq) = res
 
@@ -105,6 +102,10 @@ class UniqueNodesImpl(
     res
   }
   def noNode = nodeFactory.noNode
+  def handlers: List[BaseCoHandler] =
+    List(at.seq,at.asSrcIdentifiable,srcId).flatMap(factIndex.handlers(_)) :::
+    unique(at.asSrcIdentifiable, srcId) :::
+    mandatory(at.asSrcIdentifiable, srcId, mutual = true)
 }
 
 class NodeListFeedImpl(needSameValue: Boolean, upTo: ObjId, var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {

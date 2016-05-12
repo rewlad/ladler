@@ -10,7 +10,8 @@ class CoHandlerListsImpl(createHandlers: ()=>List[BaseCoHandler]) extends CoHand
   }
   private lazy val value = createHandlers().map{ case h: CoHandler[_] ⇒ h }
     .groupBy(_.on).mapValues(_.map(_.handle))
-  def single[Item](ev: EventKey[Item]) = list(ev) match {
+  def single[Item](ev: EventKey[Item], fail: ()⇒Item) = list(ev) match {
+    case Nil ⇒ fail()
     case h :: Nil => h
     case l => throw new Exception(s"${l.size} handlers for $ev")
   }

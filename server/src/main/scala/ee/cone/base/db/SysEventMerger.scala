@@ -8,7 +8,7 @@ import ee.cone.base.connection_api._
 class CurrentRequest(var value: Option[UUID])
 
 class MergerEventSourceOperationsImpl(
-    ops: ForMergerEventSourceOperations,
+    ops: ForMergerEventSourceOperations, nodeAttributes: NodeAttrs,
     instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: DefaultTxManager[MainEnvKey],
     uniqueNodes: UniqueNodes, currentRequest: CurrentRequest
 ) extends CoHandlerProvider {
@@ -23,7 +23,7 @@ class MergerEventSourceOperationsImpl(
     mainTxManager.rwTx { () ⇒
       instantTxManager.roTx { () ⇒
         val req = ops.nextRequest()
-        if (req.nonEmpty) {
+        if (req(nodeAttributes.nonEmpty)) {
           currentRequest.value = req(uniqueNodes.srcId)
           ops.applyRequestedEvents(req)
         }

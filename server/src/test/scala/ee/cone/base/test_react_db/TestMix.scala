@@ -30,10 +30,10 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     attrFactory,
     labelFactory,
     searchIndex,
-    definedValueConverter,
-    nodeValueConverter,
-    uuidValueConverter,
-    stringValueConverter,
+    asDefined,
+    asNode,
+    asUUID,
+    asString,
     mandatory,
     alienCanChange
   )()()
@@ -43,7 +43,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
       testAttrs.handlers :::
       new TestComponent(
         testAttrs, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx,
-        tags, testTags, alienAttrFactory, currentView
+        tags, testTags, currentView
       ).handlers :::
       //new DynEdit(sessionEventSourceOperations).handlers :::
       super.handlers

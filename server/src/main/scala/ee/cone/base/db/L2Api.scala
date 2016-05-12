@@ -15,11 +15,14 @@ trait DBNode {
   def nextObjId: ObjId
 }
 
+trait NodeAttrs {
+  def dbNode: Attr[DBNode]
+  def nonEmpty: Attr[Boolean]
+}
+
 trait NodeFactory {
   def noNode: Obj
   def toNode(tx: BoundToTx, objId: ObjId): Obj
-  def dbNode: Attr[DBNode]
-  def nonEmpty: Attr[Boolean]
 }
 
 trait AttrFactory {

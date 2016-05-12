@@ -18,7 +18,7 @@ case class CoHandler[Item](on: EventKey[Item])(val handle: Item)
 
 trait CoHandlerLists {
   def list[Item](ev: EventKey[Item]): List[Item]
-  def single[Item](ev: EventKey[Item]): Item
+  def single[Item](ev: EventKey[Item], fail: ()⇒Item): Item
 }
 trait CoHandlerProvider {
   def handlers: List[BaseCoHandler]
@@ -72,5 +72,4 @@ case object FromAlienDictMessage extends EventKey[DictMessage=>Unit]
 case class DictMessage(value: Map[String,String])
 case object ShowToAlien extends EventKey[()=>List[(String,String)]]
 
-case class AddUpdateEvent[Value](attr: Attr[Value]) extends EventKey[(UUID,Value)=>Unit]
 case class AddCreateEvent(labelAttr: Attr[Boolean]) extends EventKey[UUID=>Unit]

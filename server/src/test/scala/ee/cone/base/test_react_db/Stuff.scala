@@ -6,7 +6,7 @@ import ee.cone.base.connection_api._
 import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.{Never, Single}
 import ee.cone.base.vdom.Types.VDomKey
-import ee.cone.base.vdom.{Tags, AlienAttrFactory, CurrentVDom, ViewPath}
+import ee.cone.base.vdom.{Tags, CurrentVDom, ViewPath}
 import ee.cone.base.db._
 
 class FailOfConnection(
@@ -35,25 +35,17 @@ class DynEdit(
 class TestAttrs(
   attr: AttrFactory,
   label: LabelFactory,
-  searchIndex: SearchIndex,
   asDefined: AttrValueType[Boolean],
   asObj: AttrValueType[Obj],
   asUUID: AttrValueType[Option[UUID]],
   asString: AttrValueType[String],
-  mandatory: Mandatory,
-  alienCanChange: AlienCanChange
 )(
   val asTestTask: Attr[Obj] = label("690cb4c2-55e8-4fca-bf23-394fbb2c65ba"),
   val testState: Attr[String] = attr("6e60c1f1-a0b2-4a9a-84f7-c3627ac50727", asString),
   val comments: Attr[String] = attr("c9ab1b7a-5339-4360-aa8d-b3c47d0099cf", asString),
   val taskCreated: Attr[Boolean] = attr("8af608d3-7c5d-42dc-be26-c4aa1a073638", asDefined),
   val taskRemoved: Attr[Boolean] = attr("9e86aae3-2094-4b38-a38b-41c1e285410d", asDefined)
-)(val handlers: List[BaseCoHandler] =
-  mandatory(asTestTask,testState, mutual = true) :::
-  mandatory(asTestTask,comments, mutual = true) :::
-  searchIndex.handlers(asTestTask, testState) :::
-  alienCanChange.update(comments) ::: Nil
-) extends CoHandlerProvider
+)
 
 class TestComponent(
   at: TestAttrs,
@@ -62,11 +54,14 @@ class TestComponent(
   findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
   rTags: Tags,
   tags: TestTags,
-  alienAttr: AlienAttrFactory,
-  currentVDom: CurrentVDom
+  currentVDom: CurrentVDom,
+  searchIndex: SearchIndex,
+  mandatory: Mandatory,
+  alienCanChange: AlienCanChange,
+  factIndex: FactIndex
 ) extends CoHandlerProvider {
   import rTags._
-  private def eventSource = handlerLists.single(SessionEventSource)
+  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   private def emptyView(pf: String) =
     root(List(text("text", "Loading...")))
   private def testView(pf: String) = {
@@ -114,7 +109,7 @@ class TestComponent(
     }
   }
   private def failAction()() = throw new Exception("test fail")
-  private def dumpAction()() = handlerLists.single(DumpKey)(mainTx)
+  private def dumpAction()() = handlerLists.single(DumpKey, ()⇒Never())(mainTx)
 
   private def saveAction()() = {
     eventSource.addRequest()
@@ -149,10 +144,14 @@ class TestComponent(
 
 
   def handlers =
+    mandatory(at.asTestTask,at.testState, mutual = true) :::
+    mandatory(at.asTestTask,at.comments, mutual = true) :::
+    searchIndex.handlers(at.asTestTask, at.testState) :::
+    factIndex.handlers(at.testState) :::
+    alienCanChange.update(at.comments) :::
     CoHandler(ApplyEvent(at.taskCreated))(taskCreated) ::
     CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/test"))(testView) :: Nil
 }
-
 

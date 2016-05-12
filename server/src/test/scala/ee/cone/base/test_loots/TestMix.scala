@@ -1,13 +1,12 @@
 package ee.cone.base.test_loots
 
 import java.nio.file.Paths
+import java.time.{Duration, Instant}
 
-import ee.cone.base.connection_api.{CoMixBase, CoHandlerProvider, LifeCycle}
+import ee.cone.base.connection_api.LifeCycle
 import ee.cone.base.db._
-import ee.cone.base.lifecycle.{BaseConnectionMix,
-BaseAppMix}
-import ee.cone.base.lmdb.{LightningDBAppMix, LightningConnection,
-LightningDBEnv}
+import ee.cone.base.lifecycle.{BaseConnectionMix,BaseAppMix}
+import ee.cone.base.lmdb.LightningDBAppMix
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
 import ee.cone.base.vdom.{InputAttributesImpl,VDomConnectionMix}
 
@@ -32,13 +31,13 @@ class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
 }
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
-  lazy val instantValueConverter = new InstantValueConverter(InnerRawValueConverterImpl)
-  lazy val durationValueConverter = new DurationValueConverter(InnerRawValueConverterImpl)
+  lazy val asInstant = new AttrValueType[Option[Instant]]
+  lazy val asDuration = new AttrValueType[Option[Duration]]
 
-  lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, stringValueConverter)()
+  lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, asString)()
   lazy val logAttributes = new BoatLogEntryAttributes(
     sysAttrs,attrFactory,labelFactory,searchIndex,
-    definedValueConverter,nodeValueConverter,stringValueConverter,uuidValueConverter,instantValueConverter,durationValueConverter,
+    asDefined,asNode,asString,asUUID,asInstant,asDuration,
 
     alienCanChange
   )()()
@@ -46,10 +45,13 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
   override def handlers =
+    new InstantValueConverter(asInstant,InnerRawValueConverterImpl).handlers :::
+    new DurationValueConverter(asDuration,InnerRawValueConverterImpl).handlers :::
     //testAttributes.handlers,
     logAttributes.handlers ::: new TestComponent(
       testAttributes, logAttributes, alienAccessAttrs, handlerLists,
-      findNodes, uniqueNodes, mainTx, alienAttrFactory, OnUpdateImpl,
+      attrFactory,
+      findNodes, uniqueNodes, mainTx, alienCanChange, OnUpdateImpl,
       tags, materialTags, flexTags, currentView, dtTablesState
     ).handlers ::: super.handlers
 }

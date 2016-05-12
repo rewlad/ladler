@@ -12,7 +12,7 @@ class SearchIndexImpl(
   rawKeyExtractor: RawKeyExtractor,
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory,
-  nodeFactory: NodeFactory
+  nodeAttributes: NodeAttrs
 ) extends SearchIndex {
   private def execute[Value](attr: RawAttr[Value], getConverter: ()⇒RawValueConverter[Value])(in: SearchRequest[Value]) = {
     //println("SS",attr)
@@ -32,9 +32,9 @@ class SearchIndexImpl(
     val labelRawAttr = labelDefinedAttr.asInstanceOf[RawAttr[Boolean]]
     val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
     val attr = attrFactory.derive(labelDefinedAttr, propAttr)
-    val getConverter = () ⇒ handlerLists.single(ToRawValueConverter(propRawAttr.valueType))
+    val getConverter = () ⇒ handlerLists.single(ToRawValueConverter(propRawAttr.valueType), ()⇒Never())
     def setter(on: Boolean, node: Obj) = {
-      val dbNode = node(nodeFactory.dbNode)
+      val dbNode = node(nodeAttributes.dbNode)
       val key = converter.key(attr, getConverter(), node(propAttr), dbNode.objId)
       val rawIndex = dbNode.rawIndex
       val value = converter.value(on)

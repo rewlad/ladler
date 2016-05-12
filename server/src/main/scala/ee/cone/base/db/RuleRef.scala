@@ -4,7 +4,7 @@ import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 
 class RefIntegrityImpl(
     attrFactory: AttrFactory,
-    nodeFactory: NodeFactory,
+    nodeAttributes: NodeAttrs,
     preCommitCheck: PreCommitCheckAllOfConnection,
     searchIndex: SearchIndex,
     findNodes: FindNodes,
@@ -16,14 +16,14 @@ class RefIntegrityImpl(
     def checkPairs(nodesA: Seq[Obj]): Seq[ValidationFailure] =
       nodesA.flatMap{ nodeA =>
         val nodeB = if(nodeA(existsA)) nodeA(toAttr) else uniqueNodes.noNode
-        if(!nodeB.nonEmpty || nodeB(existsB)) None
+        if(!nodeB(nodeAttributes.nonEmpty) || nodeB(existsB)) None
         else Some(ValidationFailure("refs",nodeA)) //, s"attr $toAttrId should refer to valid object, but $v found")
       }
     mandatory(toAttr,existsA, mutual=false) :::
       searchIndex.handlers(existsA,toAttr) :::
       CoHandler(AfterUpdate(existsB))(
         preCommitCheck.create{ nodesB =>
-          checkPairs(nodesB.flatMap(nodeB => findNodes.where(nodeB(nodeFactory.dbNode).tx,existsA,toAttr,nodeB,Nil)))
+          checkPairs(nodesB.flatMap(nodeB => findNodes.where(nodeB(nodeAttributes.dbNode).tx,existsA,toAttr,nodeB,Nil)))
         }
       ) ::
       CoHandler(AfterUpdate(existsA))(

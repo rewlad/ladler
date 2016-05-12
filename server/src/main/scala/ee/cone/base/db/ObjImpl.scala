@@ -10,15 +10,15 @@ class ObjImpl[WrapData](
   def apply[Value](attr: Attr[Value]) = get(this, attr)
   def update[Value](attr: Attr[Value], value: Value) = set(this, attr, value)
   def get[Value](obj: Obj, attr: Attr[Value]): Value =
-    handlerLists.list(GetValue(wrapType, attr)) match { // todo: cache it in wrapType by attr index
-      case Nil ⇒ next.get(obj, attr)
-      case h :: Nil ⇒ h(obj, this)
-    }
+    handlerLists.single(
+      GetValue(wrapType, attr),
+      ()⇒(obj:Obj,_:InnerObj[WrapData])⇒next.get(obj, attr)
+    )(obj, this) // todo: cache it in wrapType by attr index
   def set[Value](obj: Obj, attr: Attr[Value], value: Value): Unit =
-    handlerLists.list(SetValue(wrapType, attr)) match {
-      case Nil ⇒ next.set(obj, attr, value)
-      case h :: Nil ⇒ h(obj, this, value)
-    }
+    handlerLists.single(
+      SetValue(wrapType, attr),
+      ()⇒(obj:Obj,_:InnerObj[WrapData], value: Value)⇒next.set(obj, attr, value)
+    )(obj, this, value)
   def wrap[FWrapData](wrapType: WrapType[FWrapData], wrapData: FWrapData): Obj = {
     new ObjImpl[FWrapData](handlerLists, this, wrapType, wrapData)
   }
