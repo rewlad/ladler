@@ -13,10 +13,11 @@ case object NoDBNode extends DBNode {
   def rawIndex = Never()
   def nextObjId = Never()
 }
-case class DBNodeImpl(objId: ObjId)(val tx: ProtectedBoundToTx[_]) extends DBNode {
+case class DBNodeImpl(hiObjId: Long, loObjId: Long)(val tx: ProtectedBoundToTx[_]) extends DBNode with ObjId {
   def nonEmpty = true
   def rawIndex = if(tx.enabled) tx.rawIndex else Never()
-  def nextObjId = new ObjId(objId.value + 1L)
+  def nextObjId = if(hiObjId==0L) new DBNodeImpl(hiObjId, loObjId + 1L)(tx) else Never()
+  def objId = this
 }
 
 class NodeAttrsImpl(
@@ -35,7 +36,7 @@ class NodeFactoryImpl(
 )(
   val noNode: Obj = noObj.wrap(dbWrapType, NoDBNode)
 ) extends NodeFactory with CoHandlerProvider {
-  def toNode(tx: BoundToTx, objId: ObjId) = noObj.wrap(dbWrapType, new DBNodeImpl(objId)(tx.asInstanceOf[ProtectedBoundToTx[_]]))
+  def toNode(tx: BoundToTx, hiObjId: Long, loObjId: Long) = noObj.wrap(dbWrapType, new DBNodeImpl(hiObjId, loObjId)(tx.asInstanceOf[ProtectedBoundToTx[_]]))
   def handlers = List(
     CoHandler(GetValue(dbWrapType, at.dbNode))((obj,innerObj)⇒innerObj.data),
     CoHandler(GetValue(dbWrapType, at.nonEmpty))((obj,innerObj)⇒innerObj.data.nonEmpty)

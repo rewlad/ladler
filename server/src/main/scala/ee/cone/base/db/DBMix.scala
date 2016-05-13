@@ -81,7 +81,8 @@ trait DBConnectionMix extends CoMixBase {
     new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,sysAttrs,factIndex,handlerLists,findNodes,uniqueNodes,instantTx,mainTx,searchIndex,mandatory)
 
   lazy val alienAccessAttrs = new AlienAccessAttrs(attrFactory, asDefined)()
-  lazy val alienCanChange = new AlienCanChange(alienAccessAttrs,attrFactory,handlerLists,uniqueNodes,mainTx,factIndex)()
+  lazy val alienWrapType = new WrapType[DemandedNode] {}
+  lazy val alienCanChange = new AlienCanChange(alienAccessAttrs,nodeAttrs,attrFactory,handlerLists,uniqueNodes,mainTx,factIndex,alienWrapType)()
 
   override def handlers =
     nodeFactory.handlers :::

@@ -7,7 +7,10 @@ object Types {
   type RawValue = Array[Byte]
 }
 
-class ObjId(val value: Long) extends AnyVal
+trait ObjId {
+  def hiObjId: Long
+  def loObjId: Long
+}
 class HiAttrId(val value: Long) extends AnyVal
 class LoAttrId(val value: Long) extends AnyVal
 
@@ -40,7 +43,7 @@ trait RawKeyExtractor {
   def apply(keyPrefix: RawKey, minSame: Int, key: RawKey, feed: Feed): Boolean
 }
 trait Feed {
-  def apply(valueA: Long, valueB: Long): Boolean
+  def feed(diff: Long, valueA: Long, valueB: Long): Boolean
 }
 
 // Value should deal with equal properly for fact update need check

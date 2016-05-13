@@ -22,7 +22,7 @@ trait NodeAttrs {
 
 trait NodeFactory {
   def noNode: Obj
-  def toNode(tx: BoundToTx, objId: ObjId): Obj
+  def toNode(tx: BoundToTx, hiObjId: Long, loObjId: Long): Obj
 }
 
 trait AttrFactory {

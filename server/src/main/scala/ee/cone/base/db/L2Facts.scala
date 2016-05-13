@@ -12,12 +12,13 @@ class FactIndexImpl(
   calcLists: CoHandlerLists,
   nodeAttributes: NodeAttrs,
   attrFactory: AttrFactory,
-  dbWrapType: WrapType[DBNode]
+  dbWrapType: WrapType[DBNode],
+  zeroObj: ObjId
 ) extends FactIndex {
-  private var srcObjId = new ObjId(0L)
+  private var srcObjId = zeroObj
   def switchReason(node: Obj): Unit = {
     val dbNode = node(nodeAttributes.dbNode)
-    srcObjId = if(dbNode.nonEmpty) dbNode.objId else new ObjId(0L)
+    srcObjId = if(dbNode.nonEmpty) dbNode.objId else zeroObj
   }
 
   private def get[Value](node: DBNode, attr: RawAttr[Value], valueConverter: RawValueConverter[Value]) = {

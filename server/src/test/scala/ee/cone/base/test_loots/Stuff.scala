@@ -175,8 +175,7 @@ class TestComponent(
   dtTablesState: DataTablesState,
   searchIndex: SearchIndex,
   factIndex: FactIndex,
-  nodeAttrs: NodeAttrs,
-  alienWrapType: WrapType[DemandedNode]
+  nodeAttrs: NodeAttrs
 ) extends CoHandlerProvider {
   import tags._
   import materialTags._
@@ -184,18 +183,12 @@ class TestComponent(
 
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-
-
-  private def forUpdate(obj: Obj)(setup: (Obj,UUID)⇒Unit = (_,_)⇒Never()): Obj = {
-    var srcId = if(obj(nodeAttrs.nonEmpty)) Some(obj(uniqueNodes.srcId).get) else None
-    obj.wrap(alienWrapType, new DemandedNode(srcId)(setup))
-  }
   private def lazyLinkingObj[Value](asType: Attr[Obj], atKey: Attr[Value], key: Value): Obj = {
     val obj = findNodes.where(mainTx(), asType, atKey, key, Nil) match {
       case Nil ⇒ uniqueNodes.noNode
       case o :: Nil ⇒ o
     }
-    forUpdate(obj) { (obj, srcId) ⇒
+    alienCanChange.wrap(obj) { (obj, srcId) ⇒
       handlerLists.single(AddCreateEvent(attrFactory.defined(asType)), ()⇒Never())(srcId)
       obj(atKey) = key
     }
@@ -207,69 +200,78 @@ class TestComponent(
     lazyLinkingObj(asFilter, filterFullKey, s"${eventSource.sessionKey}$key")
   }
 
-  /*
-  def action[Value](id: LoAttrId)(f: (Obj,Value)⇒Unit) = new Attr[Value] with RawAttr[Value] {
-    def defined = Never()
-    def set(node: Obj, value: Value) = f(node, value)
-    def get(node: Obj) = Never()
-    def converter = Never()
-    def loAttrId = id
-    def hiAttrId = new HiAttrId(0L)
+  trait InnerItemList {
+    def isSelected(obj: Obj): Boolean
+    def setSelected(obj: Obj): Unit
+    def resetSelected(obj: Obj): Unit
+    def isListed(obj: Obj): Boolean
+    def setListed(obj: Obj): Unit
+    def resetListed(obj: Obj): Unit
   }
-*/
+  def listedWrapType: WrapType[InnerItemList]
+  def isSelected: Attr[Boolean]
+  def isListed: Attr[Boolean]
+  CoHandler(GetValue(listedWrapType,isSelected)){ (obj,innerObj)⇒
+    innerObj.data.isSelected(obj)
+  } ::
+  CoHandler(SetValue(listedWrapType,isSelected)){ (obj,innerObj,value)⇒
+    if(value) innerObj.data.setSelected(obj) else innerObj.data.resetSelected(obj)
+  } ::
+  CoHandler(GetValue(listedWrapType,isListed)){ (obj,innerObj)⇒
+    innerObj.data.isListed(obj)
+  } ::
+  CoHandler(SetValue(listedWrapType,isListed)){ (obj,innerObj,value)⇒
+    if(value) innerObj.data.setListed(obj) else innerObj.data.resetListed(obj)
+  } ::Nil
+
+
+  def selectedItems: Attr[List[Obj]]
   trait ItemList {
-    def add(srcId: UUID): Unit
+    def add(): Unit
     def list: List[Obj]
-    def select(srcId: UUID, on: Boolean)
     def selectAll(on: Boolean): Unit
     def removeSelected(): Unit
   }
-
-  class ListedNode(val filterObj: Obj, val selected: Set[UUID])
-  def listedWrapType: WrapType[ListedNode]
-  def listed: Attr[Boolean]
-  def selected: Attr[List[UUID]]
-  CoHandler(GetValue(listedWrapType,listed)){ (obj,innerObj)⇒
+  def sameObj(obj: Obj): Obj⇒Boolean = {
     val srcId = obj(uniqueNodes.srcId).get
-    
-  } ::
-  CoHandler(SetValue(listedWrapType,listed)){ (obj,innerObj,value)⇒
-    val selectedSet = innerObj.data.selected
-    val srcId = obj(uniqueNodes.srcId/*inercept*/).get
-    innerObj.data.filterObj(selected) = if(value) selectedSet + srcId else selectedSet - srcId
-  } :: Nil
-
-
-
-  trait ListedAttr
-  class ListedObj(item: Obj) extends Obj {
-    def nonEmpty = item.nonEmpty
-    def apply[Value](attr: Attr[Value]) = attr match {
-      case a: ListedAttr ⇒ a.get(this)
-      case _ ⇒ item(attr)
-    }
-    def update[Value](attr: Attr[Value], value: Value) = attr match {
-      case a: ListedAttr ⇒ a.set(this, value)
-      case _ ⇒ item(attr) = value
-    }
-
+    other ⇒ other(uniqueNodes.srcId).get == srcId
   }
-
-
   def itemList[Value](
     asType: Attr[Obj],
     parentAttr: Attr[Value],
     parentValue: Value,
     filterObj: Obj
   ): ItemList = {
-    val items = findNodes.where(mainTx(), asType, parentAttr, parentValue, Nil).map(forUpdate(_)())
+    val selectedList = filterObj(selectedItems)
+    val definedParentAttr = attrFactory.defined(parentAttr)
+
+    val inner = new InnerItemList {
+      def isSelected(obj: Obj) = selectedList.exists(sameObj(obj))
+      def setSelected(obj: Obj) =
+        filterObj(selectedItems) = obj :: selectedList.filterNot(sameObj(obj))
+      def resetSelected(obj: Obj) =
+        filterObj(selectedItems) = selectedList.filterNot(sameObj(obj))
+      def isListed(obj: Obj) = obj(definedParentAttr)
+      def setListed(obj: Obj) = obj(parentAttr) = parentValue
+      def resetListed(obj: Obj) = obj(definedParentAttr) = false
+    }
+    val items = findNodes.where(mainTx(), asType, parentAttr, parentValue, Nil)
+      .map(obj⇒
+        alienCanChange.wrap(obj)().wrap(listedWrapType,inner)
+      )
+    val newItem = alienCanChange.wrap(uniqueNodes.noNode) { (obj, srcId) ⇒
+      handlerLists.single(AddCreateEvent(attrFactory.defined(asType)), ()⇒Never())(srcId)
+    }
+
+
+
     new ItemList {
       def list = items
-      def add(srcId: UUID) = {
-        handlerLists.single(AddCreateEvent(attrFactory.defined(asType)), ()⇒Never())(srcId)
-        handlerLists.single(AddUpdateEvent(parentAttr), ()⇒Never())(srcId, parentValue)
+      def add() = newItem(isListed) = true
+      def removeSelected() = {
+        selectedList.foreach(_(isListed)=false)
+        filterObj(selectedItems) = Nil
       }
-      def removeSelected() = ???
       def selectAll(on: Boolean) = ???
       def select(srcId: UUID, on: Boolean) = ???
 
@@ -614,7 +616,7 @@ class TestComponent(
     val srcId = UUID.fromString(pf.tail)
     val obj = uniqueNodes.whereSrcId(mainTx(), srcId)
     if(!obj.nonEmpty) root(List(text("text","???")))
-    else editViewInner(srcId, forUpdate(obj(logAt.asEntry))())
+    else editViewInner(srcId, alienCanChange.wrap(obj(logAt.asEntry))())
   }
 
 
@@ -762,7 +764,7 @@ class TestComponent(
       )
     )
     workList(entry).foreach { (obj: Obj) =>
-      val work = forUpdate(obj)()
+      val work = alienCanChange.wrap(obj)()
       val workSrcId = work(uniqueNodes.srcId).get
 
 
@@ -854,7 +856,7 @@ class TestComponent(
           )
         ),
         userList().map{ obj ⇒
-          val user = forUpdate(obj)()
+          val user = alienCanChange.wrap(obj)()
           val srcId = user(uniqueNodes.srcId).get
           row(srcId.toString,
             cell("0")(List(checkBox("1", ))),

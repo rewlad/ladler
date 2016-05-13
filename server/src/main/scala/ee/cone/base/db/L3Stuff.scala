@@ -49,7 +49,7 @@ class FindNodesImpl(
     options: List[SearchOption]
   ) = {
     var from: Option[ObjId] = None
-    var upTo = new ObjId(Long.MaxValue)
+    var upTo: Option[ObjId] = None
     var limit = Long.MaxValue
     var lastOnly = false
     var needSameValue = true
@@ -60,8 +60,8 @@ class FindNodesImpl(
         from = Some(node(nodeAttributes.dbNode).objId)
       case FindAfter(node) if from.isEmpty =>
         from = Some(node(nodeAttributes.dbNode).nextObjId)
-      case FindUpTo(node) if upTo.value == Long.MaxValue =>
-        upTo = node(nodeAttributes.dbNode).objId
+      case FindUpTo(node) if upTo.isEmpty =>
+        upTo = Some(node(nodeAttributes.dbNode).objId)
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](attrFactory.defined(label), attrFactory.defined(prop))
@@ -108,10 +108,10 @@ class UniqueNodesImpl(
     mandatory(at.asSrcIdentifiable, srcId, mutual = true)
 }
 
-class NodeListFeedImpl(needSameValue: Boolean, upTo: ObjId, var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {
+class NodeListFeedImpl(needSameValue: Boolean, upTo: Option[ObjId], var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {
   var result: List[Obj] = Nil
-  def apply(diff: Long, objId: Long): Boolean = {
-    if(needSameValue && diff > 0 || objId > upTo.value){ return false }
+  def feed(diff: Long, valueA: Long, valueB: Long): Boolean = {
+    if(needSameValue && diff > 0 || upTo.nonEmpty && objId > upTo.get.value){ return false }
     result = nodeFactory.toNode(tx,new ObjId(objId)) :: result
     limit -= 1L
     limit > 0L
@@ -120,7 +120,7 @@ class NodeListFeedImpl(needSameValue: Boolean, upTo: ObjId, var limit: Long, nod
 
 class AttrListFeedImpl(converter: RawValueConverter[Attr[Boolean]]) extends Feed {
   var result: List[Attr[Boolean]] = Nil
-  def apply(valueA: Long, valueB: Long) = {
+  def feed(diff: Long, valueA: Long, valueB: Long) = {
     result = converter.convert(valueA,valueB) :: result
     true
   }

@@ -16,7 +16,7 @@ class AlienAccessAttrs(
 class DemandedNode(var srcId: Option[UUID])(val setup: (Obj,UUID)⇒Unit)
 
 class AlienCanChange(
-  at: AlienAccessAttrs, attrFactory: AttrFactory, handlerLists: CoHandlerLists,
+  at: AlienAccessAttrs, nodeAttrs: NodeAttrs, attrFactory: AttrFactory, handlerLists: CoHandlerLists,
   uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey], factIndex: FactIndex,
   alienWrapType: WrapType[DemandedNode]
 )(
@@ -61,5 +61,13 @@ class AlienCanChange(
       val item = uniqueNodes.create(mainTx(), labelAttr, srcId)
     } :: Nil
   }
-  def handlers = factIndex.handlers(targetSrcId)
+  def wrap(obj: Obj)(setup: (Obj,UUID)⇒Unit = (_,_)⇒Never()): Obj = {
+    var srcId = if(obj(nodeAttrs.nonEmpty)) Some(obj(uniqueNodes.srcId).get) else None
+    obj.wrap(alienWrapType, new DemandedNode(srcId)(setup))
+  }
+  def handlers =
+    CoHandler(GetValue(alienWrapType,uniqueNodes.srcId)){ (obj,innerObj)⇒
+      innerObj.data.srcId
+    } ::
+    factIndex.handlers(targetSrcId)
 }

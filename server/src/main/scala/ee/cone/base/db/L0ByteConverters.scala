@@ -11,20 +11,23 @@ import ee.cone.base.db.Types._
 class RawFactConverterImpl extends RawFactConverter {
   def head = 0L
   def key(objId: ObjId, attrId: RawAttr[_]): RawKey =
-    key(objId, attrId.hiAttrId, attrId.loAttrId, hasObjId=true, hasAttrId=true)
+    key(objId.hiObjId, objId.loObjId, attrId.hiAttrId, attrId.loAttrId, hasObjId=true, hasAttrId=true)
   def keyWithoutAttrId(objId: ObjId): RawKey =
-    key(objId, new HiAttrId(0L), new LoAttrId(0L), hasObjId=true, hasAttrId=false)
+    key(objId.hiObjId, objId.loObjId, new HiAttrId(0L), new LoAttrId(0L), hasObjId=true, hasAttrId=false)
   def keyHeadOnly: RawKey =
-    key(new ObjId(0L), new HiAttrId(0L), new LoAttrId(0L), hasObjId=false, hasAttrId=false)
-  private def key(objId: ObjId, hiAttrId: HiAttrId, loAttrId: LoAttrId, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
+    key(0L, 0L, new HiAttrId(0L), new LoAttrId(0L), hasObjId=false, hasAttrId=false)
+  private def key(hiObjId: Long, loObjId: Long, hiAttrId: HiAttrId, loAttrId: LoAttrId, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
     val exHead = CompactBytes.toWrite(head).at(0)
     exHead.write(head, if(!hasObjId) exHead.alloc(0) else {
-      val exObjId = CompactBytes.toWrite(objId.value).after(exHead)
-      exObjId.write(objId.value, if(!hasAttrId) exObjId.alloc(0) else {
-        val exHiAttrId = CompactBytes.toWrite(hiAttrId.value).after(exObjId)
-        val exLoAttrId = CompactBytes.toWrite(loAttrId.value).after(exHiAttrId)
-        exHiAttrId.write(hiAttrId.value, exLoAttrId.write(loAttrId.value, exLoAttrId.alloc(0)))
-      })
+      val exHiObjId = CompactBytes.toWrite(hiObjId).after(exHead)
+      val exLoObjId = CompactBytes.toWrite(loObjId).after(exHiObjId)
+      exHiObjId.write(hiObjId, exLoObjId.write(loObjId,
+        if(!hasAttrId) exLoObjId.alloc(0) else {
+          val exHiAttrId = CompactBytes.toWrite(hiAttrId.value).after(exLoObjId)
+          val exLoAttrId = CompactBytes.toWrite(loAttrId.value).after(exHiAttrId)
+          exHiAttrId.write(hiAttrId.value, exLoAttrId.write(loAttrId.value, exLoAttrId.alloc(0)))
+        }
+      ))
     })
   }
   def value[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, valueSrcId: ObjId) =
@@ -37,12 +40,6 @@ class RawFactConverterImpl extends RawFactConverter {
     if(exchangeA.head == CompactBytes.`strHead` && exchangeB.isSplitter)
       converter.convert(exchangeA.readString(b))
     else converter.convert(exchangeA.readLong(b), exchangeB.readLong(b))
-  }
-  def srcObjIdFromBytes(spaceBefore: Int, b: RawValue): ObjId = {
-    val exchangeA = CompactBytes.toReadAt(b,spaceBefore)
-    val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
-    val exchangeC = CompactBytes.toReadAfter(b,exchangeB).checkIsLastIn(b)
-    new ObjId(exchangeC.readLong(b))
   }
   /*
   def keyFromBytes(key: RawKey): (Long,Long) = {
@@ -71,12 +68,12 @@ object RawDumpImpl extends RawDump {
   }
 }
 
-class RawSearchConverterImpl extends RawSearchConverter {
+class RawSearchConverterImpl(noObj: ObjId) extends RawSearchConverter {
   def head = 1L
   def key[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, objId: ObjId): RawKey =
     key(attrId, converter, value, objId, hasObjId=true)
   def keyWithoutObjId[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value): RawKey =
-    key(attrId, converter, value, new ObjId(0L), hasObjId=false)
+    key(attrId, converter, value, noObj, hasObjId=false)
   private def key[Value](attrId: RawAttr[Value], converter: RawValueConverter[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
     val hiAttrId = attrId.hiAttrId
     val loAttrId = attrId.loAttrId
@@ -104,9 +101,14 @@ object OuterRawValueConverter {
   ): Array[Byte] = {
     if(!converter.nonEmpty(dbValue)) return new Array[Byte](spaceBefore)
     if(!hasIdAfter) return converter.allocWrite(spaceBefore, dbValue, 0)
-    val absEx = CompactBytes.toWrite(idAfter.value)
-    val res = converter.allocWrite(spaceBefore, dbValue, absEx.size)
-    absEx.atTheEndOf(res).write(idAfter.value, res)
+    val absExHi = CompactBytes.toWrite(idAfter.hiObjId)
+    val absExLo = CompactBytes.toWrite(idAfter.loObjId)
+    val size = absExHi.size + absExLo.size
+    val res = converter.allocWrite(spaceBefore, dbValue, size)
+    val exHi = absExHi.at(res.length - size)
+    val exLo = absExLo.after(exHi)
+    exHi.write(idAfter.hiObjId, res)
+    exLo.write(idAfter.loObjId, res)
   }
 }
 
@@ -135,10 +137,14 @@ object BytesSame {
 }
 
 class ObjIdExtractor(rawFactConverter: RawFactConverterImpl) extends RawKeyExtractor {
-  def apply(keyPrefix: RawKey, minSame: Int, key: RawKey, feed: Feed): Boolean = {
-    val same = BytesSame.part(keyPrefix, key)
-    same >= minSame &&
-      feed(keyPrefix.length - same, rawFactConverter.srcObjIdFromBytes(minSame, key).value)
+  def apply(keyPrefix: RawKey, minSame: Int, b: RawKey, feed: Feed): Boolean = {
+    val same = BytesSame.part(keyPrefix, b)
+    if(same < minSame){ return false }
+    val exValueA = CompactBytes.toReadAt(b,minSame)
+    val exValueB = CompactBytes.toReadAfter(b,exValueA)
+    val exHiObjId = CompactBytes.toReadAfter(b,exValueB)
+    val exLoObjId = CompactBytes.toReadAfter(b,exHiObjId).checkIsLastIn(b)
+    feed.feed(keyPrefix.length - same, exHiObjId.readLong(b), exLoObjId.readLong(b))
   }
 }
 
@@ -148,7 +154,7 @@ class AttrIdExtractor extends RawKeyExtractor {
     if(same < minSame) return false
     val exHiAttrId = CompactBytes.toReadAt(key, minSame)
     val exLoAttrId = CompactBytes.toReadAfter(key, exHiAttrId).checkIsLastIn(key)
-    feed(exHiAttrId.readLong(key), exLoAttrId.readLong(key))
+    feed.feed(0L, exHiAttrId.readLong(key), exLoAttrId.readLong(key))
   }
 }
 
@@ -202,7 +208,6 @@ class LongByteExchange private (val value: Long) extends AnyVal {
   final def nextPos = pos + size
   final def at(v: Int) = new LongByteExchange((value & ~posMask) | v)
   final def after(prev: LongByteExchange) = at(prev.nextPos)
-  final def atTheEndOf(b: Array[Byte]) = at(b.length - size)
 
   final def readLong(b: Array[Byte]): Long = {
     CompactBytes.checkLongInfo(head)

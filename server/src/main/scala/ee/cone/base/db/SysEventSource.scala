@@ -57,13 +57,13 @@ class EventSourceOperationsImpl(
     findNodes.where(instantTx(), at.asUndo, at.statesAbout, event, Nil).nonEmpty
   private def lastInstant = uniqueNodes.seqNode(instantTx())(sysAttrs.seq)
   def unmergedEvents(instantSession: Obj): List[Obj] =
-    unmergedEvents(instantSession,at.lastMergedEvent,lastInstant).list
+    unmergedEvents(instantSession,_(at.lastMergedEvent),lastInstant).list
   class UnmergedEvents(val list: List[Obj])(val needMainSession: ()=>Obj)
-  private def unmergedEvents(instantSession: Obj, markAttr: Attr[Obj], upTo: Obj): UnmergedEvents = {
+  private def unmergedEvents(instantSession: Obj, lastMergedEventOfSession: Obj⇒Obj, upTo: Obj): UnmergedEvents = {
     val mainSrcId = instantSession(at.mainSessionSrcId).get
     val existingMainSession = uniqueNodes.whereSrcId(mainTx(), mainSrcId)
     val lastMergedEvent =
-      if(existingMainSession(nonEmpty)) existingMainSession(markAttr)
+      if(existingMainSession(nonEmpty)) lastMergedEventOfSession(existingMainSession)
       else uniqueNodes.noNode
     val findAfter =
       if(lastMergedEvent(nonEmpty)) FindAfter(lastMergedEvent) :: Nil else Nil
@@ -91,20 +91,16 @@ class EventSourceOperationsImpl(
   def applyRequestedEvents(req: Obj) = {
     val upTo = req
     val instantSession = req(at.instantSession)
-    val events = unmergedEvents(instantSession, at.lastMergedEvent, upTo)
+    val events = unmergedEvents(instantSession, _(at.lastMergedEvent), upTo)
     val mainSession = applyEvents(events)
     mainSession(at.lastMergedEvent) = upTo
   }
   def applyEvents(instantSession: Obj) = {
     val upTo = lastInstant
-    val attr = new Attr[Obj] {
-      def set(node: Obj, value: Obj) = Never()
-      def get(node: Obj) = {
-        val res = node(at.lastAppliedEvent)
-        if(res(nonEmpty)) res else node(at.lastMergedEvent)
-      }
-    }
-    val events = unmergedEvents(instantSession, attr, upTo)
+    val events = unmergedEvents(instantSession, { session ⇒
+      val res = session(at.lastAppliedEvent)
+      if(res(nonEmpty)) res else session(at.lastMergedEvent)
+    }, upTo)
     val mainSession = applyEvents(events)
     mainSession(at.lastAppliedEvent) = upTo
   }
