@@ -87,7 +87,7 @@ class UniqueNodesImpl(
       case _ => Never()
     }
   def srcId = at.srcId
-  def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,new ObjId(0L))
+  def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,0L,0L)
   def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj = {
     val sNode = seqNode(tx)
     val lastNode = sNode(at.seq)(nodeAttributes.dbNode)
@@ -111,8 +111,8 @@ class UniqueNodesImpl(
 class NodeListFeedImpl(needSameValue: Boolean, upTo: Option[ObjId], var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {
   var result: List[Obj] = Nil
   def feed(diff: Long, valueA: Long, valueB: Long): Boolean = {
-    if(needSameValue && diff > 0 || upTo.nonEmpty && objId > upTo.get.value){ return false }
-    result = nodeFactory.toNode(tx,new ObjId(objId)) :: result
+    if(needSameValue && diff > 0 || upTo.nonEmpty && (valueA > upTo.get.hiObjId || valueA == upTo.get.hiObjId && valueB > upTo.get.loObjId)){ return false }
+    result = nodeFactory.toNode(tx,valueA,valueB) :: result
     limit -= 1L
     limit > 0L
   }
