@@ -16,15 +16,14 @@ case object FindLastOnly extends SearchOption
 case object FindNextValues extends SearchOption
 
 trait FindNodes {
+  def nextNode(obj: Obj): Obj
   def where[Value](tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value, options: List[SearchOption]): List[Obj]
   def justIndexed: String
 }
 
 trait UniqueNodes {
-  def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj
-  def whereSrcId(tx: BoundToTx, srcId: UUID): Obj
-  def srcId: Attr[Option[UUID]]
-  def seqNode(tx: BoundToTx): Obj
+  def whereObjId(uuid: UUID): Obj
+  def objIdStr: Attr[String]
   def noNode: Obj
 }
 

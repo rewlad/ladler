@@ -5,35 +5,31 @@ import java.util.concurrent.Future
 
 import ee.cone.base.connection_api._
 
-class CurrentRequest(var value: Option[UUID])
+class CurrentRequest(var value: Obj)
 
 class MergerEventSourceOperationsImpl(
-    ops: ForMergerEventSourceOperations, nodeAttributes: NodeAttrs,
+    ops: ForMergerEventSourceOperations, nodeAttrs: NodeAttrs,
     instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: DefaultTxManager[MainEnvKey],
-    uniqueNodes: UniqueNodes, currentRequest: CurrentRequest
+    uniqueNodes: UniqueNodes
+)(
+    var currentRequest: Obj = uniqueNodes.noNode
 ) extends CoHandlerProvider {
-  private def toInstantNode(uuid: UUID) =
-    uniqueNodes.whereSrcId(instantTxManager.currentTx(),uuid)
-
   def handlers = CoHandler(ActivateReceiver){ ()=>
-    currentRequest.value.foreach { uuid ⇒
-      currentRequest.value = None
-      instantTxManager.rwTx{ ()⇒ ops.undo(toInstantNode(uuid)) }
+    if(currentRequest(nodeAttrs.nonEmpty)) {
+      val req = currentRequest
+      currentRequest = uniqueNodes.noNode
+      instantTxManager.rwTx{ ()⇒ ops.undo(req) }
     }
     mainTxManager.rwTx { () ⇒
       instantTxManager.roTx { () ⇒
-        val req = ops.nextRequest()
-        if (req(nodeAttributes.nonEmpty)) {
-          currentRequest.value = req(uniqueNodes.srcId)
-          ops.applyRequestedEvents(req)
-        }
+        currentRequest = ops.nextRequest()
+        if (currentRequest(nodeAttrs.nonEmpty))
+          ops.applyRequestedEvents(currentRequest)
       }
     }
-    if(currentRequest.value.nonEmpty) {
-      instantTxManager.rwTx { () ⇒
-        ops.addCommit (toInstantNode(currentRequest.value.get))
-      }
-      currentRequest.value = None
+    if(currentRequest(nodeAttrs.nonEmpty)) {
+      instantTxManager.rwTx { () ⇒ ops.addCommit(currentRequest) }
+      currentRequest = uniqueNodes.noNode
     } else Thread.sleep(1000)
     //? then notify
   } :: Nil

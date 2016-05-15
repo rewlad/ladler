@@ -5,7 +5,7 @@ import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 
 class UniqueImpl(
   attrFactory: AttrFactory,
-  nodeAttributes: NodeAttrs,
+  txSelector: TxSelector,
   preCommitCheck: PreCommitCheckAllOfConnection,
   searchIndex: SearchIndex,
   findNodes: FindNodes
@@ -15,7 +15,7 @@ class UniqueImpl(
     def checkNode(node: Obj): List[ValidationFailure] =
       if(definedAttrs.forall(node(_))){
         findNodes
-          .where(node(nodeAttributes.dbNode).tx, label, uniqueAttr, node(uniqueAttr), Nil) match {
+          .where(txSelector.txOf(node), label, uniqueAttr, node(uniqueAttr), Nil) match {
           case _ :: Nil => Nil
           case ns => ns.map(ValidationFailure("unique", _))
         }

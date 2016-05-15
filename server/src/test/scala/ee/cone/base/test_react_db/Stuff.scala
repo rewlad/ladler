@@ -38,7 +38,7 @@ class TestAttrs(
   asDefined: AttrValueType[Boolean],
   asObj: AttrValueType[Obj],
   asUUID: AttrValueType[Option[UUID]],
-  asString: AttrValueType[String],
+  asString: AttrValueType[String]
 )(
   val asTestTask: Attr[Obj] = label("690cb4c2-55e8-4fca-bf23-394fbb2c65ba"),
   val testState: Attr[String] = attr("6e60c1f1-a0b2-4a9a-84f7-c3627ac50727", asString),
@@ -67,7 +67,6 @@ class TestComponent(
   private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
       val startTime = System.currentTimeMillis
-      val changeComments: (UUID) => (String) => Unit = alienAttr(at.comments)
       val tasks = findNodes.where(
         mainTx(),
         at.asTestTask,
@@ -75,23 +74,24 @@ class TestComponent(
         "A",
         Nil
       )
-      val taskLines = tasks.map { task =>
-        val srcId = task(uniqueNodes.srcId).get
+      val taskLines = tasks.map { obj =>
+        val task = alienCanChange.wrap(obj)()
+        val objIdStr = task(uniqueNodes.objIdStr)
         tags.div(
-          srcId.toString,
-          tags.input("comments", task(at.comments), changeComments(srcId)) ::
-            tags.button("remove", "-", removeTaskAction(srcId)) ::
+          objIdStr,
+          tags.input("comments", task(at.comments), task(at.comments)=_) ::
+            tags.button("remove", "-", removeTaskAction(task)) ::
             //tags.text("dbg0",if(task(at.asTestTask.defined)) "D" else "d") ::
             //tags.text("dbg1",s"[${task(at.testState)}]") ::
             Nil
         )
       }
       val eventLines = eventSource.unmergedEvents.map { ev =>
-        val srcId = ev(uniqueNodes.srcId).get
+        val objIdStr = ev(uniqueNodes.objIdStr)
         tags.div(
-          srcId.toString,
+          objIdStr,
           text("text", ev(eventSource.comment)) ::
-          tags.button("remove", "-", ()=>eventSource.addUndo(srcId)) ::
+          tags.button("remove", "-", ()=>eventSource.addUndo(ev)) ::
           Nil
         )
       }
@@ -115,30 +115,29 @@ class TestComponent(
     eventSource.addRequest()
     currentVDom.invalidate()
   }
-  private def removeTaskAction(srcId: UUID)() = {
+  private def removeTaskAction(obj: Obj)() = {
     eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetSrcId) = Option(srcId)
+      ev(alienAccessAttrs.targetObj) = obj
       (at.taskRemoved, "task was removed")
     }
     currentVDom.invalidate()
   }
   private def taskRemoved(ev: Obj): Unit = {
-    val srcId = ev(alienAccessAttrs.targetSrcId).get
-    val task = uniqueNodes.whereSrcId(mainTx(), srcId)
+    val task = ev(alienAccessAttrs.targetObj)
     task(at.asTestTask) = uniqueNodes.noNode
     task(at.comments) = ""
     task(at.testState) = ""
   }
   private def createTaskAction()() = {
     eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
+      ev(alienAccessAttrs.targetObj) = uniqueNodes.whereObjId(UUID.randomUUID)
       (at.taskCreated, "task was created")
     }
     currentVDom.invalidate()
   }
   private def taskCreated(ev: Obj): Unit = {
-    val srcId = ev(alienAccessAttrs.targetSrcId).get
-    val task = uniqueNodes.create(mainTx(), at.asTestTask, srcId)
+    val task = ev(alienAccessAttrs.targetObj)
+    task(at.asTestTask) = task
     task(at.testState) = "A"
   }
 

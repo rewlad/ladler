@@ -233,8 +233,8 @@ class TestComponent(
     def removeSelected(): Unit
   }
   def sameObj(obj: Obj): Obj⇒Boolean = {
-    val srcId = obj(uniqueNodes.srcId).get
-    other ⇒ other(uniqueNodes.srcId).get == srcId
+    val objId = obj(nodeAttrs.objId)
+    other ⇒ other(nodeAttrs.objId) == objId
   }
   def itemList[Value](
     asType: Attr[Obj],
@@ -553,7 +553,7 @@ class TestComponent(
       )
     )
   entryList().foreach{ (entry:Obj)=>{
-    val entrySrcId = entry(uniqueNodes.srcId).get
+    val entrySrcId = entry(uniqueNodes.objIdStr)
     val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
 
     dtTable0.addRecordsForColumn(
@@ -613,14 +613,12 @@ class TestComponent(
   }
   private def entryEditView(pf: String) = wrapDBView { () =>
     //println(pf)
-    val srcId = UUID.fromString(pf.tail)
-    val obj = uniqueNodes.whereSrcId(mainTx(), srcId)
-    if(!obj.nonEmpty) root(List(text("text","???")))
-    else editViewInner(srcId, alienCanChange.wrap(obj(logAt.asEntry))())
+    val obj = uniqueNodes.whereObjId(UUID.fromString(pf.tail))
+    editViewInner(alienCanChange.wrap(obj(logAt.asEntry))())
   }
 
 
-  private def editViewInner(srcId: UUID, entry: Obj) = {
+  private def editViewInner(entry: Obj) = {
     val editable = true /*todo rw rule*/
     val dtTable1=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit1",0.0f),false,false,false)
     dtTable1.addColumns(List(
@@ -765,7 +763,7 @@ class TestComponent(
     )
     workList(entry).foreach { (obj: Obj) =>
       val work = alienCanChange.wrap(obj)()
-      val workSrcId = work(uniqueNodes.srcId).get
+      val workSrcId = work(uniqueNodes.objIdStr)
 
 
     dtTable2.addRecordsForColumn(
@@ -857,8 +855,8 @@ class TestComponent(
         ),
         userList().map{ obj ⇒
           val user = alienCanChange.wrap(obj)()
-          val srcId = user(uniqueNodes.srcId).get
-          row(srcId.toString,
+          val srcId = user(uniqueNodes.objIdStr)
+          row(srcId,
             cell("0")(List(checkBox("1", ))),
             cell("1")(strField(user,at.caption,editable = true))
           )
@@ -878,10 +876,10 @@ class TestComponent(
           )
         ),
         eventSource.unmergedEvents.map { ev =>
-          val srcId = ev(uniqueNodes.srcId).get
-          row(srcId.toString,
+          val srcId = ev(uniqueNodes.objIdStr)
+          row(srcId,
             cell("1")(List(text("text", ev(eventSource.comment)))),
-            cell("2")(List(btnRemove("btn", () => eventSource.addUndo(srcId))))
+            cell("2")(List(btnRemove("btn", () => eventSource.addUndo(ev))))
           )
         }
       ))

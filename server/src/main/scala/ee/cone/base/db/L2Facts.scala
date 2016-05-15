@@ -12,33 +12,34 @@ class FactIndexImpl(
   calcLists: CoHandlerLists,
   nodeAttributes: NodeAttrs,
   attrFactory: AttrFactory,
-  dbWrapType: WrapType[DBNode],
-  zeroObj: ObjId
+  dbWrapType: WrapType[ObjId],
+  zeroObjId: ObjId
 ) extends FactIndex {
-  private var srcObjId = zeroObj
+  private var srcObjId = zeroObjId
   def switchReason(node: Obj): Unit = {
-    val dbNode = node(nodeAttributes.dbNode)
-    srcObjId = if(dbNode.nonEmpty) dbNode.objId else zeroObj
+    val dbNode = node(nodeAttributes.objId)
+    srcObjId = if(dbNode.nonEmpty) dbNode else zeroObjId
   }
-
-  private def get[Value](node: DBNode, attr: RawAttr[Value], valueConverter: RawValueConverter[Value]) = {
+  private def getRawIndex(node: ObjId) =
+    calcLists.single(TxSelectorKey, ()⇒Never()).rawIndex(node)
+  private def get[Value](node: ObjId, attr: RawAttr[Value], valueConverter: RawValueConverter[Value]) = {
     val rawValue =
-      if(node.nonEmpty) node.rawIndex.get(rawFactConverter.key(node.objId, attr))
+      if(node.nonEmpty) getRawIndex(node).get(rawFactConverter.key(node, attr))
       else Array[Byte]()
     //println(s"get -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- [${Hex(key)}] -- [${Hex(rawIndex.get(key))}]")
     rawFactConverter.valueFromBytes(valueConverter, rawValue)
   }
-  private def set[Value](node: DBNode, attr: RawAttr[Value], valueConverter: RawValueConverter[Value], value: Value): Unit = {
-    val rawIndex = node.rawIndex
-    val key = rawFactConverter.key(node.objId, attr)
+  private def set[Value](node: ObjId, attr: RawAttr[Value], valueConverter: RawValueConverter[Value], value: Value): Unit = {
+    val rawIndex = getRawIndex(node)
+    val key = rawFactConverter.key(node, attr)
     val rawValue = rawFactConverter.value(attr, valueConverter, value, srcObjId)
     //println(s"set -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- $value -- [${Hex(key)}] -- [${Hex(rawValue)}]")
     rawIndex.set(key, rawValue)
   }
   def execute(node: Obj, feed: Feed): Unit = {
-    val dbNode = node(nodeAttributes.dbNode)
-    val key = rawFactConverter.keyWithoutAttrId(dbNode.objId)
-    val rawIndex = dbNode.rawIndex
+    val dbNode = node(nodeAttributes.objId)
+    val key = rawFactConverter.keyWithoutAttrId(dbNode)
+    val rawIndex = getRawIndex(dbNode)
     rawIndex.seek(key)
     rawVisitor.execute(rawIndex, rawKeyExtractor, key, key.length, feed)
   }

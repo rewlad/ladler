@@ -7,22 +7,21 @@ class ProtectedBoundToTx[DBEnvKey](val rawIndex: RawIndex, var enabled: Boolean)
 
 trait BoundToTx
 
-trait DBNode {
-  def nonEmpty: Boolean
-  def objId: ObjId
-  def tx: BoundToTx
-  def rawIndex: RawIndex
-  def nextObjId: ObjId
+case object TxSelectorKey extends EventKey[TxSelector]
+trait TxSelector {
+  def txOf(obj: Obj): BoundToTx
+  def rawIndex(objId: ObjId): RawIndex
+  def rawIndex(tx: BoundToTx): RawIndex
 }
 
 trait NodeAttrs {
-  def dbNode: Attr[DBNode]
+  def objId: Attr[ObjId]
   def nonEmpty: Attr[Boolean]
 }
 
 trait NodeFactory {
   def noNode: Obj
-  def toNode(tx: BoundToTx, hiObjId: Long, loObjId: Long): Obj
+  def toNode(hiObjId: Long, loObjId: Long): Obj
 }
 
 trait AttrFactory {

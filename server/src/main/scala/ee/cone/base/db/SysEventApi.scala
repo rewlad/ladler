@@ -43,7 +43,7 @@ trait SessionEventSourceOperations {
   def unmergedEvents: List[Obj]
   def addEvent(setup: Obj=>(Attr[Boolean],String)): Unit
   def addRequest(): Unit
-  def addUndo(eventSrcId: UUID): Unit
+  def addUndo(event: Obj): Unit
   def sessionKey: UUID
   def comment: Attr[String]
 }
@@ -52,7 +52,7 @@ trait SessionEventSourceAttrs {
   def asInstantSession: Attr[Obj]
   def instantSession: Attr[Obj]
   def sessionKey: Attr[Option[UUID]]
-  def mainSessionSrcId: Attr[Option[UUID]]
+  def mainSession: Attr[Obj]
   def asEvent: Attr[Obj]
   def requested: Attr[Boolean]
   def asCommit: Attr[Obj]

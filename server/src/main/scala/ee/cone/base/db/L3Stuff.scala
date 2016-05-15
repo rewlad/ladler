@@ -20,30 +20,29 @@ class ListByDBNodeImpl(
 */
 
 trait SysAttrs {
-  def seq: Attr[Obj]
   def justIndexed: Attr[String]
 }
 
 class SysAttrsImpl(
   attr: AttrFactory,
-  label: LabelFactory,
-  searchIndex: SearchIndex,
   asObj: AttrValueType[Obj],
-  asUUID: AttrValueType[Option[UUID]],
   asString: AttrValueType[String]
 )(
-  val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", asObj),
-  val asSrcIdentifiable: Attr[Obj] = label("d3576ce3-100f-437c-bd00-febe9c0f1906"),
-  val srcId: Attr[Option[UUID]] = attr("54d45fef-e9ee-44f7-8522-aec1cd78743e", asUUID),
-  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString)
+  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString),
+  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString)
 ) extends SysAttrs
 
 class FindNodesImpl(
   at: SysAttrs,
   handlerLists: CoHandlerLists,
-  nodeAttributes: NodeAttrs, nodeFactory: NodeFactory,
+  nodeAttrs: NodeAttrs, nodeFactory: NodeFactory,
   attrFactory: AttrFactory, factIndex: FactIndex
 ) extends FindNodes  with CoHandlerProvider {
+  def nextNode(obj: Obj) = {
+    val node = obj(nodeAttrs.objId)
+    if(node.hiObjId!=0L || node.loObjId == Long.MaxValue) Never()
+    nodeFactory.toNode(node.hiObjId, node.loObjId + 1L)
+  }
   def where[Value](
     tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value,
     options: List[SearchOption]
@@ -57,17 +56,17 @@ class FindNodesImpl(
       case FindFirstOnly if limit == Long.MaxValue => limit = 1L
       case FindLastOnly => lastOnly = true
       case FindFrom(node) if from.isEmpty =>
-        from = Some(node(nodeAttributes.dbNode).objId)
+        from = Some(node(nodeAttrs.objId))
       case FindAfter(node) if from.isEmpty =>
-        from = Some(node(nodeAttributes.dbNode).nextObjId)
+        from = Some(nextNode(node)(nodeAttrs.objId))
       case FindUpTo(node) if upTo.isEmpty =>
-        upTo = Some(node(nodeAttributes.dbNode).objId)
+        upTo = Some(node(nodeAttrs.objId))
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](attrFactory.defined(label), attrFactory.defined(prop))
     //println(s"searchKey: $searchKey")
     val handler = handlerLists.single(searchKey, ()⇒Never())
-    val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory, tx)
+    val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory)
     val request = new SearchRequest[Value](tx, value, from, feed)
     handler(request)
     if(lastOnly) feed.result.headOption.toList else feed.result.reverse
@@ -77,42 +76,27 @@ class FindNodesImpl(
 }
 
 class UniqueNodesImpl(
-  nodeAttributes: NodeAttrs, nodeFactory: NodeFactory, at: SysAttrsImpl,
-  findNodes: FindNodes, mandatory: Mandatory, unique: Unique, factIndex: FactIndex
+  nodeAttrs: NodeAttrs, nodeFactory: NodeFactory, at: SysAttrsImpl,
+  findNodes: FindNodes, mandatory: Mandatory, unique: Unique, factIndex: FactIndex,
+  dbWrapType: DBWrapType
 ) extends UniqueNodes with CoHandlerProvider {
-  def whereSrcId(tx: BoundToTx, srcId: UUID): Obj =
-    findNodes.where(tx, at.asSrcIdentifiable, at.srcId, Some(srcId), Nil) match {
-      case Nil => nodeFactory.noNode
-      case node :: Nil => node
-      case _ => Never()
-    }
-  def srcId = at.srcId
-  def seqNode(tx: BoundToTx) = nodeFactory.toNode(tx,0L,0L)
-  def create(tx: BoundToTx, label: Attr[Obj], srcId: UUID): Obj = {
-    val sNode = seqNode(tx)
-    val lastNode = sNode(at.seq)(nodeAttributes.dbNode)
-    val nextObjId = (if(lastNode.nonEmpty) lastNode else sNode(nodeAttributes.dbNode)).nextObjId
-    val res = nodeFactory.toNode(tx,nextObjId)
-    sNode(at.seq) = res
-
-    res(label) = res
-    res(at.asSrcIdentifiable) = res
-    res(at.srcId) = Some(srcId)
-
-    res
-  }
+  def whereObjId(uuid: UUID): Obj =
+    nodeFactory.toNode(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
+  def objIdStr: Attr[String] = at.objIdStr
   def noNode = nodeFactory.noNode
   def handlers: List[BaseCoHandler] =
-    List(at.seq,at.asSrcIdentifiable,srcId).flatMap(factIndex.handlers(_)) :::
-    unique(at.asSrcIdentifiable, srcId) :::
-    mandatory(at.asSrcIdentifiable, srcId, mutual = true)
+    CoHandler(GetValue(dbWrapType, objIdStr)){ (obj, innerObj)⇒
+      val objId = innerObj.data
+      new UUID(objId.hiObjId,objId.loObjId).toString
+    } :: Nil
+
 }
 
-class NodeListFeedImpl(needSameValue: Boolean, upTo: Option[ObjId], var limit: Long, nodeFactory: NodeFactory, tx: BoundToTx) extends Feed {
+class NodeListFeedImpl(needSameValue: Boolean, upTo: Option[ObjId], var limit: Long, nodeFactory: NodeFactory) extends Feed {
   var result: List[Obj] = Nil
   def feed(diff: Long, valueA: Long, valueB: Long): Boolean = {
     if(needSameValue && diff > 0 || upTo.nonEmpty && (valueA > upTo.get.hiObjId || valueA == upTo.get.hiObjId && valueB > upTo.get.loObjId)){ return false }
-    result = nodeFactory.toNode(tx,valueA,valueB) :: result
+    result = nodeFactory.toNode(valueA,valueB) :: result
     limit -= 1L
     limit > 0L
   }

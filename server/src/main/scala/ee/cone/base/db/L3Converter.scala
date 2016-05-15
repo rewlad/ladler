@@ -21,19 +21,18 @@ class NeverValueConverter[Value] extends RawValueConverter[Value] {
   def nonEmpty(value: Value) = Never()
 }
 
-class NodeValueConverter[DBEnvKey](
+class NodeValueConverter(
   val valueType: AttrValueType[Obj],
   inner: InnerRawValueConverter,
-  nodeFactory: NodeFactory, nodeAttributes: NodeAttrs,
-  currentTx: CurrentTx[DBEnvKey]
+  nodeFactory: NodeFactory, nodeAttributes: NodeAttrs
 ) extends RawValueConverterImpl[Obj] {
   def convertEmpty() = nodeFactory.noNode
   def convert(valueA: Long, valueB: Long) =
-    nodeFactory.toNode(currentTx(),valueA,valueB)
+    nodeFactory.toNode(valueA,valueB)
   def convert(value: String) = Never()
-  def allocWrite(before: Int, node: Obj, after: Int): RawValue = {
-    val objId = node(nodeAttributes.dbNode).objId
-    inner.allocWrite(before, objId.hiObjId, objId.loObjId, after)
+  def allocWrite(before: Int, obj: Obj, after: Int): RawValue = {
+    val node = obj(nodeAttributes.objId)
+    inner.allocWrite(before, node.hiObjId, node.loObjId, after)
   }
   def nonEmpty(value: Obj) = value(nodeAttributes.nonEmpty)
 }

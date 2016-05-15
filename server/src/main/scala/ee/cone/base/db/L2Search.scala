@@ -14,6 +14,7 @@ class SearchIndexImpl(
   attrFactory: AttrFactory,
   nodeAttributes: NodeAttrs
 ) extends SearchIndex {
+  private def txSelector = handlerLists.single(TxSelectorKey, ()⇒Never())
   private def execute[Value](attr: RawAttr[Value], getConverter: ()⇒RawValueConverter[Value])(in: SearchRequest[Value]) = {
     //println("SS",attr)
     val valueConverter = getConverter()
@@ -21,8 +22,7 @@ class SearchIndexImpl(
     val whileKey = converter.keyWithoutObjId(attr, valueConverter, in.value) // not protected from empty
     val fromKey = if(in.objId.isEmpty) whileKey
       else converter.key(attr, valueConverter, in.value, in.objId.get)
-    val tx = in.tx.asInstanceOf[ProtectedBoundToTx[_]]
-    val rawIndex = if(tx.enabled) tx.rawIndex else throw new Exception("tx is disabled")
+    val rawIndex = txSelector.rawIndex(in.tx)
     rawIndex.seek(fromKey)
     rawVisitor.execute(rawIndex, rawKeyExtractor, whileKey, minKey.length, in.feed)
   }
@@ -34,11 +34,10 @@ class SearchIndexImpl(
     val attr = attrFactory.derive(labelDefinedAttr, propAttr)
     val getConverter = () ⇒ handlerLists.single(ToRawValueConverter(propRawAttr.valueType), ()⇒Never())
     def setter(on: Boolean, node: Obj) = {
-      val dbNode = node(nodeAttributes.dbNode)
-      val key = converter.key(attr, getConverter(), node(propAttr), dbNode.objId)
-      val rawIndex = dbNode.rawIndex
+      val dbNode = node(nodeAttributes.objId)
+      val key = converter.key(attr, getConverter(), node(propAttr), dbNode)
       val value = converter.value(on)
-      rawIndex.set(key, value)
+      txSelector.rawIndex(dbNode).set(key, value)
       //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
     }
     val searchKey = SearchByLabelProp[Value](labelDefinedAttr, propDefinedAttr)

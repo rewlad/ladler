@@ -20,6 +20,7 @@ class EventSourceAttrsImpl(
   asUUID: AttrValueType[Option[UUID]],
   asString: AttrValueType[String]
 ) (
+  val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", asObj),
   val asInstantSession: Attr[Obj] = label("b11bfecb-d53d-4577-870d-d499fbd4d9d3"),
   val sessionKey: Attr[Option[UUID]] = attr("f7d2a81f-ed6b-46c3-b87b-8290f5ef8942", asUUID),
   val asMainSession: Attr[Obj] = label("c4e3189a-956e-4b0c-af03-3af6889ea694"),
@@ -34,14 +35,15 @@ class EventSourceAttrsImpl(
   val requested: Attr[Boolean] = attr("55b09b31-3af4-402e-963b-522f71646e9e", asDefined),
   //0x001C
   val applyAttr: Attr[Attr[Boolean]] = attr("a105c5e0-aaee-41ca-8f8a-5d4328594670", asAttr),
-  val mainSessionSrcId: Attr[Option[UUID]] = attr("363bb985-aa39-48bf-a866-e74dd3584056", asUUID),
+  val mainSession: Attr[Obj] = attr("363bb985-aa39-48bf-a866-e74dd3584056", asObj),
   val comment: Attr[String] = attr("c0e6114b-bfb2-49fc-b9ef-5110ed3a9521", asString)
 ) extends SessionEventSourceAttrs
 
 class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
-  nodeAttributes: NodeAttrs,
+  nodeAttrs: NodeAttrs,
   sysAttrs: SysAttrs,
+  nodeFactory: NodeFactory,
   factIndex: FactIndex, //u
   nodeHandlerLists: CoHandlerLists, //u
   findNodes: FindNodes,
@@ -51,20 +53,18 @@ class EventSourceOperationsImpl(
   searchIndex: SearchIndex,
   mandatory: Mandatory
 ) extends ForMergerEventSourceOperations with ForSessionEventSourceOperations with CoHandlerProvider {
-  import nodeAttributes.nonEmpty
+  import nodeAttrs.nonEmpty
   import at._
   private def isUndone(event: Obj) =
     findNodes.where(instantTx(), at.asUndo, at.statesAbout, event, Nil).nonEmpty
-  private def lastInstant = uniqueNodes.seqNode(instantTx())(sysAttrs.seq)
+  private def instantSeqNode() = nodeFactory.toNode(0L,0L)
+  private def lastInstant = instantSeqNode()(at.seq)
   def unmergedEvents(instantSession: Obj): List[Obj] =
     unmergedEvents(instantSession,_(at.lastMergedEvent),lastInstant).list
   class UnmergedEvents(val list: List[Obj])(val needMainSession: ()=>Obj)
   private def unmergedEvents(instantSession: Obj, lastMergedEventOfSession: Obj⇒Obj, upTo: Obj): UnmergedEvents = {
-    val mainSrcId = instantSession(at.mainSessionSrcId).get
-    val existingMainSession = uniqueNodes.whereSrcId(mainTx(), mainSrcId)
-    val lastMergedEvent =
-      if(existingMainSession(nonEmpty)) lastMergedEventOfSession(existingMainSession)
-      else uniqueNodes.noNode
+    val mainSession = instantSession(at.mainSession)
+    val lastMergedEvent = lastMergedEventOfSession(mainSession)
     val findAfter =
       if(lastMergedEvent(nonEmpty)) FindAfter(lastMergedEvent) :: Nil else Nil
     if(!upTo(nonEmpty)) Never()
@@ -72,10 +72,10 @@ class EventSourceOperationsImpl(
       instantTx(), at.asEvent, at.instantSession, instantSession,
       FindUpTo(upTo) :: findAfter
     ).filterNot(isUndone)
-    new UnmergedEvents(events)(() =>
-      if(existingMainSession(nonEmpty)) existingMainSession
-        else uniqueNodes.create(mainTx(), at.asMainSession, mainSrcId)
-    )
+    new UnmergedEvents(events)({ () =>
+      mainSession(at.asMainSession) = mainSession
+      mainSession
+    })
   }
 
   def undo(ev: Obj) = {
@@ -126,18 +126,24 @@ class EventSourceOperationsImpl(
     if(isUndone(event)) nextRequest() else event
   }
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
-    val res = uniqueNodes.create(instantTx(), label, UUID.randomUUID)
+    val sNode = instantSeqNode()
+    val lastObj = sNode(at.seq)
+    val res = findNodes.nextNode(if(lastObj(nodeAttrs.nonEmpty)) lastObj else sNode)
+    sNode(at.seq) = res
+    res(label) = res
     res(at.instantSession) = instantSession
     res
   }
+
   def handlers: List[BaseCoHandler] =
     List(
+      seq,
       asInstantSession,sessionKey,asMainSession,instantSession,lastMergedEvent,
       asEvent,lastAppliedEvent,statesAbout,asUndo,asCommit,lastMergedRequest,
-      applyAttr,mainSessionSrcId,comment
+      applyAttr,mainSession,comment
     ).flatMap(factIndex.handlers(_)) :::
       mandatory(asInstantSession,sessionKey,mutual = true) :::
-      mandatory(asInstantSession,mainSessionSrcId,mutual = true) :::
+      mandatory(asInstantSession,mainSession,mutual = true) :::
       //mandatory(asMainSession,instantSession,mutual = false) :::
       mandatory(asMainSession,lastMergedEvent,mutual = true) :::
       mandatory(asEvent,instantSession,mutual = false) :::

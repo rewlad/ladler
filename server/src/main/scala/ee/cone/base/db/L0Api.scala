@@ -10,6 +10,7 @@ object Types {
 trait ObjId {
   def hiObjId: Long
   def loObjId: Long
+  def nonEmpty: Boolean
 }
 class HiAttrId(val value: Long) extends AnyVal
 class LoAttrId(val value: Long) extends AnyVal
