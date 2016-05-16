@@ -38,6 +38,7 @@ class CurrentVDom(
         case (Some("click"), Some(v: OnClickReceiver)) => v.onClick.getOrElse(()=>{})()
         case (Some("change"), Some(v: OnChangeReceiver)) => v.onChange.get(decoded)
         case (Some("resize"), Some(v: OnResizeReceiver)) => v.onResize.get(decoded)
+        case (Some("blur"), Some(v: OnBlurReceiver)) => v.onBlur.getOrElse(()=>())()
         case v => throw new Exception(s"$path ($v) can not receive $message")
       }
     }

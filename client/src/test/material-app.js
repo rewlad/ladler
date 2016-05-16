@@ -31,6 +31,7 @@ import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 import Checkbox          from 'material-ui/lib/checkbox'
 import TimePicker        from 'material-ui/lib/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
+//import SelectField       from '../test/select-field'
 import injectTapEventPlugin from "react-tap-event-plugin"
 injectTapEventPlugin()
 function fixOnScrollBug(){
@@ -212,7 +213,7 @@ const tp = ({
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
-    LabeledText,FlexGridItemWidthSync,IconActionViewList,IconActionRestore,IconContentSave
+    LabeledText,FlexGridItemWidthSync,IconActionViewList,IconActionRestore,IconContentSave//,SelectField
 })
 
 const transforms = ({tp})

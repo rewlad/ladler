@@ -480,6 +480,15 @@ class TestComponent(
     else editViewInner(srcId, obj(logAt.asEntry))
   }
 
+  var selectDropShow=false
+  private def selectDropShowHandle()= selectDropShow match{
+    case true=>
+      selectDropShow = false
+
+    case false =>
+      selectDropShow = true
+
+  }
 
   private def editViewInner(srcId: UUID, entry: Obj) = {
     val editable = true /*todo rw rule*/
@@ -491,7 +500,17 @@ class TestComponent(
         flexGrid("flexGridEdit1",List(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
-              flexGridItem("boat",150,None,objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)),
+              flexGridItem("boat",150,None,
+                fieldPopupBox("1",selectDropShow,divClickable("1",Some(selectDropShowHandle),labeledText("1","aaa","a2"))::Nil,
+                  divNoWrap("1",text("1","aaa"))::
+                    divNoWrap("2",text("1","aaa sdfsdfs sds fs df sfs fsfsf sfs dfsfs fdf fs fsfgs f sd"))::
+                    divNoWrap("3",text("1","aaa"))::
+                    divNoWrap("4",text("1","aaa"))::
+                    divNoWrap("5",text("1","aaa"))::
+                    divNoWrap("6",text("1","aaa"))::Nil
+
+                )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
+              ),
               flexGridItem("date",150,None,instantField(entry, logAt.date, editable,"Date",showLabel = true/*todo date */)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 durationField(entry,logAt.durationTotal,"Total duration, hrs:min",showLabel = true))))
