@@ -56,7 +56,8 @@ trait DBConnectionMix extends CoMixBase {
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl(txSelector)
   //lazy val listByDBNode =
   //  new ListByDBNodeImpl(factIndex,attrValueConverter)
-  lazy val findNodes = new FindNodesImpl(sysAttrs, handlerLists, nodeAttrs, nodeFactory, attrFactory, factIndex)
+  lazy val findAttrs = new FindAttrsImpl(attrFactory,asString)()
+  lazy val findNodes = new FindNodesImpl(findAttrs, handlerLists, nodeAttrs, nodeFactory, attrFactory, factIndex)
 
   lazy val mandatory = new MandatoryImpl(attrFactory, preCommitCheckCheckAll)
   lazy val unique = new UniqueImpl(attrFactory, txSelector, preCommitCheckCheckAll, searchIndex, findNodes)
@@ -66,9 +67,6 @@ trait DBConnectionMix extends CoMixBase {
   lazy val asString = new AttrValueType[String]
 
   lazy val labelFactory = new LabelFactoryImpl(attrFactory,asNode)
-  lazy val sysAttrs = new SysAttrsImpl(attrFactory,labelFactory,searchIndex,asNode,asUUID,asString)()
-
-  lazy val uniqueNodes = new UniqueNodesImpl(nodeAttrs, nodeFactory, sysAttrs, findNodes, mandatory, unique, factIndex)
 
   lazy val instantTxManager =
     new DefaultTxManagerImpl[InstantEnvKey](lifeCycle, dbAppMix.instantDB, instantTx, preCommitCheckCheckAll)
@@ -77,17 +75,17 @@ trait DBConnectionMix extends CoMixBase {
   lazy val eventSourceAttrs =
     new EventSourceAttrsImpl(attrFactory,labelFactory,asDefined,asNode,asAttr,asUUID,asString)()
   lazy val eventSourceOperations =
-    new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,sysAttrs,factIndex,handlerLists,findNodes,uniqueNodes,instantTx,mainTx,searchIndex,mandatory)
+    new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,findAttrs,factIndex,handlerLists,findNodes,instantTx,mainTx,searchIndex,mandatory)
 
-  lazy val alienAccessAttrs = new AlienAccessAttrs(attrFactory, asDefined)()
-  lazy val alienWrapType = new WrapType[DemandedNode] {}
-  lazy val alienCanChange = new AlienCanChange(alienAccessAttrs,nodeAttrs,attrFactory,handlerLists,uniqueNodes,mainTx,factIndex,alienWrapType)()
+  lazy val alienAccessAttrs = new AlienAccessAttrs(attrFactory, asDefined, asNode, asString)()
+  lazy val alienWrapType = new WrapType[Unit] {}
+  lazy val demandedWrapType = new WrapType[DemandedNode] {}
+  lazy val alienCanChange = new Alien(alienAccessAttrs,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,NoObjId)
 
   override def handlers =
     nodeFactory.handlers :::
       txSelector.handlers :::
       findNodes.handlers :::
-      uniqueNodes.handlers :::
       eventSourceOperations.handlers :::
       alienCanChange.handlers :::
       new DefinedValueConverter(asDefined, InnerRawValueConverterImpl).handlers :::
@@ -102,7 +100,7 @@ trait MergerDBConnectionMix extends DBConnectionMix {
   lazy val mainTxManager =
     new DefaultTxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
   override def handlers =
-    new MergerEventSourceOperationsImpl(eventSourceOperations, nodeAttrs, instantTxManager, mainTxManager, uniqueNodes)().handlers :::
+    new MergerEventSourceOperationsImpl(eventSourceOperations, nodeAttrs, instantTxManager, mainTxManager, findNodes)().handlers :::
     super.handlers
 }
 
@@ -112,8 +110,8 @@ trait SessionDBConnectionMix extends DBConnectionMix {
     new SessionMainTxManagerImpl(lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll, muxFactory)
   override def handlers =
     new SessionEventSourceOperationsImpl(
-      eventSourceOperations, eventSourceAttrs, sysAttrs, instantTxManager, mainTxManager, findNodes, uniqueNodes
-    ).handlers :::
+      eventSourceOperations, eventSourceAttrs, nodeAttrs, findAttrs, instantTxManager, mainTxManager, findNodes
+    )().handlers :::
     super.handlers
 }
 

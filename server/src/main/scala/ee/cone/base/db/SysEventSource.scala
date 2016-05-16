@@ -20,6 +20,7 @@ class EventSourceAttrsImpl(
   asUUID: AttrValueType[Option[UUID]],
   asString: AttrValueType[String]
 ) (
+  val mainSeqUUID: UUID = UUID.fromString("270500fe-42f7-4498-ae56-2e836dcda159"),
   val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", asObj),
   val asInstantSession: Attr[Obj] = label("b11bfecb-d53d-4577-870d-d499fbd4d9d3"),
   val sessionKey: Attr[Option[UUID]] = attr("f7d2a81f-ed6b-46c3-b87b-8290f5ef8942", asUUID),
@@ -42,12 +43,10 @@ class EventSourceAttrsImpl(
 class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
   nodeAttrs: NodeAttrs,
-  sysAttrs: SysAttrs,
-  nodeFactory: NodeFactory,
+  sysAttrs: FindAttrs,
   factIndex: FactIndex, //u
   nodeHandlerLists: CoHandlerLists, //u
   findNodes: FindNodes,
-  uniqueNodes: UniqueNodes,
   instantTx: CurrentTx[InstantEnvKey], //u
   mainTx: CurrentTx[MainEnvKey], //u
   searchIndex: SearchIndex,
@@ -57,8 +56,7 @@ class EventSourceOperationsImpl(
   import at._
   private def isUndone(event: Obj) =
     findNodes.where(instantTx(), at.asUndo, at.statesAbout, event, Nil).nonEmpty
-  private def instantSeqNode() = nodeFactory.toNode(0L,0L)
-  private def lastInstant = instantSeqNode()(at.seq)
+  private def lastInstant = findNodes.zeroNode(at.seq)
   def unmergedEvents(instantSession: Obj): List[Obj] =
     unmergedEvents(instantSession,_(at.lastMergedEvent),lastInstant).list
   class UnmergedEvents(val list: List[Obj])(val needMainSession: ()=>Obj)
@@ -109,24 +107,25 @@ class EventSourceOperationsImpl(
       // println(s"$markAttr applied: ${event(uniqueNodes.srcId)}")
       factIndex.switchReason(event)
       nodeHandlerLists.single(ApplyEvent(event(at.applyAttr)), ()⇒Never())(event)
-      factIndex.switchReason(uniqueNodes.noNode)
+      factIndex.switchReason(findNodes.noNode)
     }
     events.needMainSession()
   }
 
   def nextRequest(): Obj = {
-    val lastNode = uniqueNodes.seqNode(mainTx())(at.lastMergedRequest)
+    val mainSeq = findNodes.whereObjId(findNodes.toObjId(mainSeqUUID))
+    val lastNode = mainSeq(at.lastMergedRequest)
     val from = if(lastNode(nonEmpty)) FindAfter(lastNode) :: Nil else Nil
     val result = findNodes.where(
       instantTx(), at.asEvent, at.applyAttr, at.requested, FindFirstOnly :: from
     )
-    if(result.isEmpty){ return uniqueNodes.noNode }
+    if(result.isEmpty){ return findNodes.noNode }
     val event :: Nil = result
-    uniqueNodes.seqNode(mainTx())(at.lastMergedRequest) = event
+    mainSeq(at.lastMergedRequest) = event
     if(isUndone(event)) nextRequest() else event
   }
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
-    val sNode = instantSeqNode()
+    val sNode = findNodes.zeroNode
     val lastObj = sNode(at.seq)
     val res = findNodes.nextNode(if(lastObj(nodeAttrs.nonEmpty)) lastObj else sNode)
     sNode(at.seq) = res

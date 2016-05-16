@@ -19,25 +19,23 @@ class ListByDBNodeImpl(
 }
 */
 
-trait SysAttrs {
-  def justIndexed: Attr[String]
-}
 
-class SysAttrsImpl(
+
+class FindAttrsImpl(
   attr: AttrFactory,
-  asObj: AttrValueType[Obj],
   asString: AttrValueType[String]
 )(
-  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString),
-  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString)
-) extends SysAttrs
+  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString)
+) extends FindAttrs
 
 class FindNodesImpl(
-  at: SysAttrs,
+  at: FindAttrs,
   handlerLists: CoHandlerLists,
   nodeAttrs: NodeAttrs, nodeFactory: NodeFactory,
   attrFactory: AttrFactory, factIndex: FactIndex
 ) extends FindNodes  with CoHandlerProvider {
+  def noNode = nodeFactory.noNode
+  def zeroNode = nodeFactory.toNode(0L,0L)
   def nextNode(obj: Obj) = {
     val node = obj(nodeAttrs.objId)
     if(node.hiObjId!=0L || node.loObjId == Long.MaxValue) Never()
@@ -72,24 +70,11 @@ class FindNodesImpl(
     if(lastOnly) feed.result.headOption.toList else feed.result.reverse
   }
   def justIndexed = "Y"
+  def whereObjId(objId: ObjId): Obj = nodeFactory.toNode(objId)
+  def toObjId(uuid: UUID): ObjId =
+    nodeFactory.toObjId(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
+  def toUUIDString(objId: ObjId) = new UUID(objId.hiObjId,objId.loObjId).toString
   def handlers = factIndex.handlers(at.justIndexed)
-}
-
-class UniqueNodesImpl(
-  nodeAttrs: NodeAttrs, nodeFactory: NodeFactory, at: SysAttrsImpl,
-  findNodes: FindNodes, mandatory: Mandatory, unique: Unique, factIndex: FactIndex,
-  dbWrapType: DBWrapType
-) extends UniqueNodes with CoHandlerProvider {
-  def whereObjId(uuid: UUID): Obj =
-    nodeFactory.toNode(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
-  def objIdStr: Attr[String] = at.objIdStr
-  def noNode = nodeFactory.noNode
-  def handlers: List[BaseCoHandler] =
-    CoHandler(GetValue(dbWrapType, objIdStr)){ (obj, innerObj)⇒
-      val objId = innerObj.data
-      new UUID(objId.hiObjId,objId.loObjId).toString
-    } :: Nil
-
 }
 
 class NodeListFeedImpl(needSameValue: Boolean, upTo: Option[ObjId], var limit: Long, nodeFactory: NodeFactory) extends Feed {

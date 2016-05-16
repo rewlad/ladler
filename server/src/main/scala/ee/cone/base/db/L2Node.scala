@@ -31,7 +31,9 @@ class NodeFactoryImpl(
 )(
   val noNode: Obj = noObj.wrap(dbWrapType, NoObjId)
 ) extends NodeFactory with CoHandlerProvider {
-  def toNode(hiObjId: Long, loObjId: Long) = noObj.wrap(dbWrapType, new ObjIdImpl(hiObjId, loObjId))
+  def toNode(objId: ObjId) = noObj.wrap(dbWrapType, objId)
+  def toNode(hiObjId: Long, loObjId: Long) = toNode(toObjId(hiObjId, loObjId))
+  def toObjId(hiObjId: Long, loObjId: Long) = new ObjIdImpl(hiObjId, loObjId)
   def handlers = List(
     CoHandler(GetValue(dbWrapType, at.objId))((obj,innerObj)⇒innerObj.data),
     CoHandler(GetValue(dbWrapType, at.nonEmpty))((obj,innerObj)⇒innerObj.data.nonEmpty)

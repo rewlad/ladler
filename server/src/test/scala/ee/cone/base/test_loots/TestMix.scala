@@ -36,11 +36,8 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
 
   lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, asString)()
   lazy val logAttributes = new BoatLogEntryAttributes(
-    sysAttrs,attrFactory,labelFactory,searchIndex,
-    asDefined,asNode,asString,asUUID,asInstant,asDuration,
-
-    alienCanChange
-  )()()
+    attrFactory,labelFactory,asDefined,asNode,asString,asInstant,asDuration
+  )()
   lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl)
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)

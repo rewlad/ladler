@@ -10,14 +10,14 @@ class CurrentRequest(var value: Obj)
 class MergerEventSourceOperationsImpl(
     ops: ForMergerEventSourceOperations, nodeAttrs: NodeAttrs,
     instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: DefaultTxManager[MainEnvKey],
-    uniqueNodes: UniqueNodes
+  findNodes: FindNodes
 )(
-    var currentRequest: Obj = uniqueNodes.noNode
+    var currentRequest: Obj = findNodes.noNode
 ) extends CoHandlerProvider {
   def handlers = CoHandler(ActivateReceiver){ ()=>
     if(currentRequest(nodeAttrs.nonEmpty)) {
       val req = currentRequest
-      currentRequest = uniqueNodes.noNode
+      currentRequest = findNodes.noNode
       instantTxManager.rwTx{ ()⇒ ops.undo(req) }
     }
     mainTxManager.rwTx { () ⇒
@@ -29,7 +29,7 @@ class MergerEventSourceOperationsImpl(
     }
     if(currentRequest(nodeAttrs.nonEmpty)) {
       instantTxManager.rwTx { () ⇒ ops.addCommit(currentRequest) }
-      currentRequest = uniqueNodes.noNode
+      currentRequest = findNodes.noNode
     } else Thread.sleep(1000)
     //? then notify
   } :: Nil

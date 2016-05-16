@@ -21,7 +21,9 @@ trait NodeAttrs {
 
 trait NodeFactory {
   def noNode: Obj
+  def toNode(objId: ObjId): Obj
   def toNode(hiObjId: Long, loObjId: Long): Obj
+  def toObjId(hiObjId: Long, loObjId: Long): ObjId
 }
 
 trait AttrFactory {

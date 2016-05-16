@@ -51,13 +51,14 @@ class TestComponent(
   at: TestAttrs,
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
-  findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
+  findNodes: FindNodes,
+  mainTx: CurrentTx[MainEnvKey],
   rTags: Tags,
   tags: TestTags,
   currentVDom: CurrentVDom,
   searchIndex: SearchIndex,
   mandatory: Mandatory,
-  alienCanChange: AlienCanChange,
+  alienCanChange: Alien,
   factIndex: FactIndex
 ) extends CoHandlerProvider {
   import rTags._
@@ -75,8 +76,8 @@ class TestComponent(
         Nil
       )
       val taskLines = tasks.map { obj =>
-        val task = alienCanChange.wrap(obj)()
-        val objIdStr = task(uniqueNodes.objIdStr)
+        val task = alienCanChange.wrap(obj)
+        val objIdStr = task(alienCanChange.objIdStr)
         tags.div(
           objIdStr,
           tags.input("comments", task(at.comments), task(at.comments)=_) ::
@@ -87,7 +88,7 @@ class TestComponent(
         )
       }
       val eventLines = eventSource.unmergedEvents.map { ev =>
-        val objIdStr = ev(uniqueNodes.objIdStr)
+        val objIdStr = ev(alienCanChange.objIdStr)
         tags.div(
           objIdStr,
           text("text", ev(eventSource.comment)) ::
@@ -124,13 +125,13 @@ class TestComponent(
   }
   private def taskRemoved(ev: Obj): Unit = {
     val task = ev(alienAccessAttrs.targetObj)
-    task(at.asTestTask) = uniqueNodes.noNode
+    task(at.asTestTask) = findNodes.noNode
     task(at.comments) = ""
     task(at.testState) = ""
   }
   private def createTaskAction()() = {
     eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetObj) = uniqueNodes.whereObjId(UUID.randomUUID)
+      ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
       (at.taskCreated, "task was created")
     }
     currentVDom.invalidate()

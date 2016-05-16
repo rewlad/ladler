@@ -7,11 +7,11 @@ import ee.cone.base.util.{Never, Single}
 
 class SessionEventSourceOperationsImpl(
   ops: ForSessionEventSourceOperations,
-  at: SessionEventSourceAttrs, nodeAttrs: NodeAttrs, sysAttrs: SysAttrs,
+  at: SessionEventSourceAttrs, nodeAttrs: NodeAttrs, sysAttrs: FindAttrs,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
-  findNodes: FindNodes, uniqueNodes: UniqueNodes
+  findNodes: FindNodes
 )(
-    var lastStatus: Obj = uniqueNodes.noNode
+    var lastStatus: Obj = findNodes.noNode
 ) extends SessionEventSourceOperations with CoHandlerProvider {
   private var sessionKeyOpt: Option[UUID] = None
   def sessionKey = sessionKeyOpt.get
@@ -25,9 +25,9 @@ class SessionEventSourceOperationsImpl(
   }
   private def findOrAddSession() = findSession().getOrElse{
     val tx = instantTxManager.currentTx()
-    val instantSession = ops.addInstant(uniqueNodes.noNode, at.asInstantSession)
+    val instantSession = ops.addInstant(findNodes.noNode, at.asInstantSession)
     instantSession(at.sessionKey) = sessionKeyOpt
-    instantSession(at.mainSession) = uniqueNodes.whereObjId(UUID.randomUUID)
+    instantSession(at.mainSession) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
     instantSession
   }
   def incrementalApplyAndView[R](view: () => R) = {
