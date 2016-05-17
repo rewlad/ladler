@@ -32,61 +32,60 @@ class FindNodesImpl(
   at: FindAttrs,
   handlerLists: CoHandlerLists,
   nodeAttrs: NodeAttrs, nodeFactory: NodeFactory,
-  attrFactory: AttrFactory, factIndex: FactIndex
+  attrFactory: AttrFactory, factIndex: FactIndex, noObjId: ObjId,
+  dBObjValueConverter: RawValueConverter[ObjId]
 ) extends FindNodes  with CoHandlerProvider {
   def noNode = nodeFactory.noNode
-  def zeroNode = nodeFactory.toNode(0L,0L)
+  def zeroNode = nodeFactory.toNode(dBObjValueConverter.convert(0L,0L))
   def nextNode(obj: Obj) = {
     val node = obj(nodeAttrs.objId)
-    if(node.hiObjId!=0L || node.loObjId == Long.MaxValue) Never()
-    nodeFactory.toNode(node.hiObjId, node.loObjId + 1L)
+    if(node.hi!=0L || node.lo == Long.MaxValue) Never()
+    nodeFactory.toNode(dBObjValueConverter.convert(node.hi, node.lo + 1L))
   }
   def where[Value](
     tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value,
     options: List[SearchOption]
   ) = {
-    var from: Option[ObjId] = None
-    var upTo: Option[ObjId] = None
+    var from: ObjId = noObjId
+    var upTo: ObjId = noObjId
     var limit = Long.MaxValue
     var lastOnly = false
     var needSameValue = true
     options.foreach {
       case FindFirstOnly if limit == Long.MaxValue => limit = 1L
       case FindLastOnly => lastOnly = true
-      case FindFrom(node) if from.isEmpty =>
-        from = Some(node(nodeAttrs.objId))
-      case FindAfter(node) if from.isEmpty =>
-        from = Some(nextNode(node)(nodeAttrs.objId))
-      case FindUpTo(node) if upTo.isEmpty =>
-        upTo = Some(node(nodeAttrs.objId))
+      case FindFrom(node) if !from.nonEmpty =>
+        from = node(nodeAttrs.objId)
+      case FindAfter(node) if !from.nonEmpty =>
+        from = nextNode(node)(nodeAttrs.objId)
+      case FindUpTo(node) if !upTo.nonEmpty =>
+        upTo = node(nodeAttrs.objId)
       case FindNextValues ⇒ needSameValue = false
     }
     val searchKey = SearchByLabelProp[Value](attrFactory.defined(label), attrFactory.defined(prop))
     //println(s"searchKey: $searchKey")
     val handler = handlerLists.single(searchKey, ()⇒Never())
-    val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory)
-    val request = new SearchRequest[Value](tx, value, from, feed)
+    //val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory)
+    var result: List[Obj] = Nil
+    val request = new SearchRequest[Value](tx, value, needSameValue, from, objId ⇒
+      if(upTo.nonEmpty && (objId.hi > upTo.hi || objId.hi == upTo.hi && objId.lo > upTo.lo)) false else {
+        result = nodeFactory.toNode(objId) :: result
+        limit -= 1L
+        limit > 0L
+      }
+    )
     handler(request)
-    if(lastOnly) feed.result.headOption.toList else feed.result.reverse
+    if(lastOnly) result.headOption.toList else result.reverse
   }
   def justIndexed = "Y"
   def whereObjId(objId: ObjId): Obj = nodeFactory.toNode(objId)
   def toObjId(uuid: UUID): ObjId =
-    nodeFactory.toObjId(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
-  def toUUIDString(objId: ObjId) = new UUID(objId.hiObjId,objId.loObjId).toString
+    dBObjValueConverter.convert(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
+  def toUUIDString(objId: ObjId) = new UUID(objId.hi,objId.lo).toString
   def handlers = factIndex.handlers(at.justIndexed)
 }
 
-class NodeListFeedImpl(needSameValue: Boolean, upTo: Option[ObjId], var limit: Long, nodeFactory: NodeFactory) extends Feed {
-  var result: List[Obj] = Nil
-  def feed(diff: Long, valueA: Long, valueB: Long): Boolean = {
-    if(needSameValue && diff > 0 || upTo.nonEmpty && (valueA > upTo.get.hiObjId || valueA == upTo.get.hiObjId && valueB > upTo.get.loObjId)){ return false }
-    result = nodeFactory.toNode(valueA,valueB) :: result
-    limit -= 1L
-    limit > 0L
-  }
-}
-
+/*
 class AttrListFeedImpl(converter: RawValueConverter[Attr[Boolean]]) extends Feed {
   var result: List[Attr[Boolean]] = Nil
   def feed(diff: Long, valueA: Long, valueB: Long) = {
@@ -94,7 +93,7 @@ class AttrListFeedImpl(converter: RawValueConverter[Attr[Boolean]]) extends Feed
     true
   }
 }
-
+*/
 
 
 

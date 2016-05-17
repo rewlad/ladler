@@ -36,19 +36,21 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
 
   lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, asString)()
   lazy val logAttributes = new BoatLogEntryAttributes(
-    attrFactory,labelFactory,asDefined,asNode,asString,asInstant,asDuration
+    attrFactory,labelFactory,asDefined,asDBObj,asString,asInstant,asDuration
   )()
   lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl)
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
+  lazy val asObjIdSet = new AttrValueType[Set[ObjId]]
+  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asDefined, asObjIdSet)
   override def handlers =
     new InstantValueConverter(asInstant,InnerRawValueConverterImpl).handlers :::
     new DurationValueConverter(asDuration,InnerRawValueConverterImpl).handlers :::
-    //testAttributes.handlers,
-    logAttributes.handlers ::: new TestComponent(
-      testAttributes, logAttributes, alienAccessAttrs, handlerLists,
+    new ObjIdSetValueConverter(asObjIdSet,InnerRawValueConverterImpl,findNodes).handlers :::
+    new TestComponent(
+      testAttributes, logAttributes, alienAccessAttrs, filterAttrs, handlerLists,
       attrFactory,
-      findNodes, uniqueNodes, mainTx, alienCanChange, OnUpdateImpl,
+      findNodes, mainTx, alienCanChange, OnUpdateImpl,
       tags, materialTags, flexTags, currentView, dtTablesState
     ).handlers ::: super.handlers
 }

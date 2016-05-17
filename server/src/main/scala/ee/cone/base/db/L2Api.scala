@@ -3,8 +3,6 @@ package ee.cone.base.db
 import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
 
-class ProtectedBoundToTx[DBEnvKey](val rawIndex: RawIndex, var enabled: Boolean) extends BoundToTx // not case
-
 trait BoundToTx
 
 case object TxSelectorKey extends EventKey[TxSelector]
@@ -19,24 +17,32 @@ trait NodeAttrs {
   def nonEmpty: Attr[Boolean]
 }
 
+trait ObjIdFactory {
+  def noObjId: ObjId
+  def toObjId(hiObjId: Long, loObjId: Long): ObjId
+}
+
 trait NodeFactory {
   def noNode: Obj
   def toNode(objId: ObjId): Obj
-  def toNode(hiObjId: Long, loObjId: Long): Obj
-  def toObjId(hiObjId: Long, loObjId: Long): ObjId
 }
 
 trait AttrFactory {
   def noAttr: Attr[Boolean]
-  def apply[V](hiAttrId: HiAttrId, loAttrId: LoAttrId, valueType: AttrValueType[V]): Attr[V] with RawAttr[V]
-  def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V] with RawAttr[V]
-  def derive[V](attrA: Attr[Boolean], attrB: Attr[V]): Attr[V] with RawAttr[V]
+  def apply[V](hiAttrId: Long, loAttrId: Long, valueType: AttrValueType[V]): Attr[V] with ObjId
+  def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V] with ObjId
+  def derive[V](attrA: Attr[Boolean], attrB: Attr[V]): Attr[V] with ObjId
   def defined(attr: Attr[_]): Attr[Boolean]
+}
+
+class AttrValueType[Value]
+trait RawAttr[Value] {
+  def valueType: AttrValueType[Value]
 }
 
 trait FactIndex {
   def switchReason(node: Obj): Unit
-  def execute(node: Obj, feed: Feed): Unit
+  def execute(obj: Obj)(feed: Attr[Boolean]⇒Boolean): Unit
   def handlers[Value](attr: Attr[Value]): List[BaseCoHandler]
 }
 
@@ -46,7 +52,9 @@ trait SearchIndex {
 case class SearchByLabelProp[Value](label: Attr[Boolean], prop: Attr[Boolean])
   extends EventKey[SearchRequest[Value]=>Unit]
 class SearchRequest[Value](
-  val tx: BoundToTx, val value: Value, val objId: Option[ObjId], val feed: Feed
+  val tx: BoundToTx,
+  val value: Value, val onlyThisValue: Boolean,
+  val objId: ObjId, val feed: ObjId⇒Boolean
 )
 
 case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]

@@ -3,6 +3,8 @@ package ee.cone.base.db
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Setup, Never}
 
+class ProtectedBoundToTx[DBEnvKey](val rawIndex: RawIndex, var enabled: Boolean) extends BoundToTx // not case
+
 class CurrentTxImpl[DBEnvKey](env: DBEnv[DBEnvKey]) extends CurrentTx[DBEnvKey] {
   def dbId = env.dbId
   var value: Option[BoundToTx] = None
@@ -17,7 +19,7 @@ class TxSelectorImpl(
   instantTx: CurrentTx[InstantEnvKey], mainTx: CurrentTx[MainEnvKey]
 ) extends TxSelector with CoHandlerProvider {
   def txOf(obj: Obj) = txOf(obj(nodeAttrs.objId))
-  private def txOf(objId: ObjId) = if(objId.hiObjId==0) instantTx() else mainTx()
+  private def txOf(objId: ObjId) = if(objId.hi==0) instantTx() else mainTx()
   def rawIndex(tx: BoundToTx) = {
     val pTx = tx.asInstanceOf[ProtectedBoundToTx[_]]
     if(pTx.enabled) pTx.rawIndex else Never()

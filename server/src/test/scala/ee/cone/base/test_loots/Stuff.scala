@@ -49,25 +49,23 @@ class FailOfConnection(
 }
 
 class DurationValueConverter(
-  val valueType: AttrValueType[Option[Duration]], inner: InnerRawValueConverter
+  val valueType: AttrValueType[Option[Duration]], inner: RawConverter
 ) extends RawValueConverterImpl[Option[Duration]] {
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(Duration.ofSeconds(valueA,valueB))
   def convert(value: String) = Never()
-  def allocWrite(before: Int, value: Option[Duration], after: Int) =
-    inner.allocWrite(before, value.get.getSeconds, value.get.getNano, after)
-  def nonEmpty(value: Option[Duration]) = value.nonEmpty
+  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
+    if(value.nonEmpty) inner.toBytes(preId, value.get.getSeconds, value.get.getNano, finId) else Array()
 }
 
 class InstantValueConverter(
-  val valueType: AttrValueType[Option[Instant]], inner: InnerRawValueConverter
+  val valueType: AttrValueType[Option[Instant]], inner: RawConverter
 ) extends RawValueConverterImpl[Option[Instant]] {
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(Instant.ofEpochSecond(valueA,valueB))
   def convert(value: String) = Never()
-  def allocWrite(before: Int, value: Option[Instant], after: Int) =
-    inner.allocWrite(before, value.get.getEpochSecond, value.get.getNano, after)
-  def nonEmpty(value: Option[Instant]) = value.nonEmpty
+  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
+    if(value.nonEmpty) inner.toBytes(preId, value.get.getEpochSecond, value.get.getNano, finId) else Array()
 }
 
 class TestAttributes(
@@ -189,16 +187,15 @@ trait ItemList {
 }
 
 class ObjIdSetValueConverter(
-  val valueType: AttrValueType[Set[ObjId]], inner: InnerRawValueConverter, findNodes: FindNodes
+  val valueType: AttrValueType[Set[ObjId]], inner: RawConverter, findNodes: FindNodes
 ) extends RawValueConverterImpl[Set[ObjId]] {
   private def splitter = " "
   def convertEmpty() = Set()
   def convert(valueA: Long, valueB: Long) = Never()
   def convert(value: String) =
     value.split(splitter).map(s⇒findNodes.toObjId(UUID.fromString(s))).toSet
-  def allocWrite(before: Int, value: Set[ObjId], after: Int) =
-    inner.allocWrite(before, value.toSeq.map(findNodes.toUUIDString).sorted.mkString(splitter), after)
-  def nonEmpty(value: Set[ObjId]) = value.nonEmpty
+  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
+    if(value.nonEmpty) inner.toBytes(preId, value.toSeq.map(findNodes.toUUIDString).sorted.mkString(splitter), finId) else Array()
 }
 
 

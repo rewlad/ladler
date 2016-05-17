@@ -31,7 +31,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     labelFactory,
     searchIndex,
     asDefined,
-    asNode,
+    asDBObj,
     asUUID,
     asString,
     mandatory,

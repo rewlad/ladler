@@ -2,18 +2,8 @@
 package ee.cone.base.db
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.Never
 
 class DBWrapType extends WrapType[ObjId]
-
-case object NoObjId extends ObjId {
-  def hiObjId: Long = Never()
-  def loObjId: Long = Never()
-  def nonEmpty = false
-}
-case class ObjIdImpl(hiObjId: Long, loObjId: Long) extends ObjId {
-  def nonEmpty = true
-}
 
 class NodeAttrsImpl(
   attr: AttrFactory,
@@ -32,8 +22,6 @@ class NodeFactoryImpl(
   val noNode: Obj = noObj.wrap(dbWrapType, NoObjId)
 ) extends NodeFactory with CoHandlerProvider {
   def toNode(objId: ObjId) = noObj.wrap(dbWrapType, objId)
-  def toNode(hiObjId: Long, loObjId: Long) = toNode(toObjId(hiObjId, loObjId))
-  def toObjId(hiObjId: Long, loObjId: Long) = new ObjIdImpl(hiObjId, loObjId)
   def handlers = List(
     CoHandler(GetValue(dbWrapType, at.objId))((obj,innerObj)⇒innerObj.data),
     CoHandler(GetValue(dbWrapType, at.nonEmpty))((obj,innerObj)⇒innerObj.data.nonEmpty)

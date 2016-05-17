@@ -8,35 +8,40 @@ import ee.cone.base.util.{Hex, HexDebug, Never}
 
 class SearchIndexImpl(
   handlerLists: CoHandlerLists,
-  converter: RawSearchConverter,
-  rawKeyExtractor: RawKeyExtractor,
+  rawConverter: RawConverter,
+  nodeValueConverter: RawValueConverter[ObjId],
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory,
-  nodeAttributes: NodeAttrs
+  nodeAttributes: NodeAttrs,
+  noObjId: ObjId
 ) extends SearchIndex {
+  private type GetConverter[Value] = ()⇒(Value,ObjId)⇒Array[Byte]
   private def txSelector = handlerLists.single(TxSelectorKey, ()⇒Never())
-  private def execute[Value](attr: RawAttr[Value], getConverter: ()⇒RawValueConverter[Value])(in: SearchRequest[Value]) = {
+  private def execute[Value](attr: ObjId, getConverter: GetConverter[Value])(in: SearchRequest[Value]) = {
     //println("SS",attr)
     val valueConverter = getConverter()
-    val minKey = converter.keyWithoutObjId(attr, valueConverter, valueConverter.convertEmpty())
-    val whileKey = converter.keyWithoutObjId(attr, valueConverter, in.value) // not protected from empty
-    val fromKey = if(in.objId.isEmpty) whileKey
-      else converter.key(attr, valueConverter, in.value, in.objId.get)
+    val fromKey = valueConverter(in.value, in.objId)
+    val whileKey = if(!in.onlyThisValue) rawConverter.toBytes(attr, noObjId)
+      else if(in.objId.nonEmpty) valueConverter(in.value, noObjId) else fromKey
     val rawIndex = txSelector.rawIndex(in.tx)
     rawIndex.seek(fromKey)
-    rawVisitor.execute(rawIndex, rawKeyExtractor, whileKey, minKey.length, in.feed)
+    rawVisitor.execute(rawIndex, whileKey, b ⇒ in.feed(rawConverter.fromBytes(b,2,nodeValueConverter,0)))
   }
   def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
     val labelDefinedAttr = attrFactory.defined(labelAttr)
     val propDefinedAttr = attrFactory.defined(propAttr)
-    val labelRawAttr = labelDefinedAttr.asInstanceOf[RawAttr[Boolean]]
-    val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
+    val propRawAttr = propAttr.asInstanceOf[ObjId with RawAttr[Value]]
     val attr = attrFactory.derive(labelDefinedAttr, propAttr)
-    val getConverter = () ⇒ handlerLists.single(ToRawValueConverter(propRawAttr.valueType), ()⇒Never())
+    val getConverter: GetConverter[Value] = { ()⇒
+      val converter = handlerLists.single(ToRawValueConverter(propRawAttr.valueType), ()⇒Never())
+      (value, objId) ⇒
+        val key = converter.toBytes(attr, value, objId)
+        if(key.length > 0) key else Never()
+    }
     def setter(on: Boolean, node: Obj) = {
       val dbNode = node(nodeAttributes.objId)
-      val key = converter.key(attr, getConverter(), node(propAttr), dbNode)
-      val value = converter.value(on)
+      val key = getConverter()(node(propAttr), dbNode)
+      val value = if(on) rawConverter.toBytes(noObjId,noObjId) else Array[Byte]()
       txSelector.rawIndex(dbNode).set(key, value)
       //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
     }

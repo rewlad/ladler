@@ -3,6 +3,11 @@ package ee.cone.base.db
 import ee.cone.base.db.Types._
 import ee.cone.base.util.Never
 
+object Types {
+  type RawKey = Array[Byte]
+  type RawValue = Array[Byte]
+}
+
 trait RawIndex {
   def set(key: RawKey, value: RawValue): Unit
   def get(key: RawKey): RawValue
@@ -24,7 +29,7 @@ case object NotFoundStatus extends SeekStatus {
 }
 
 trait RawVisitor {
-  def execute(tx: RawIndex, matcher: RawKeyExtractor, whileKeyPrefix: RawKey, minSame: Int, feed: Feed): Unit
+  def execute(tx: RawIndex, whileKeyPrefix: RawKey, feed: RawKey⇒Boolean): Unit
 }
 
 trait MuxFactory {
