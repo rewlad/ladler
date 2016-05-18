@@ -50,7 +50,7 @@ trait AppMixBase extends CanStart {
 
 ////////////////////////////////
 
-trait WrapType[WrapData]
+class WrapType[WrapData]
 trait Obj {
   def apply[Value](attr: Attr[Value]): Value
   def update[Value](attr: Attr[Value], value: Value): Unit
@@ -71,5 +71,3 @@ case object SwitchSession extends EventKey[UUID=>Unit]
 case object FromAlienDictMessage extends EventKey[DictMessage=>Unit]
 case class DictMessage(value: Map[String,String])
 case object ShowToAlien extends EventKey[()=>List[(String,String)]]
-
-case class AddCreateEvent(labelAttr: Attr[Boolean]) extends EventKey[UUID=>Unit]

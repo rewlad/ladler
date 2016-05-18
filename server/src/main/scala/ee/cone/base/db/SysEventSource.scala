@@ -12,15 +12,15 @@ import ee.cone.base.util.{Never, Single}
 // apply handling, notify
 
 class EventSourceAttrsImpl(
+  objIdFactory: ObjIdFactory,
   attr: AttrFactory,
   label: LabelFactory,
-  asDefined: AttrValueType[Boolean],
   asObj: AttrValueType[Obj],
-  asAttr: AttrValueType[Attr[Boolean]],
+  asDBObjId:  AttrValueType[ObjId],
   asUUID: AttrValueType[Option[UUID]],
   asString: AttrValueType[String]
 ) (
-  val mainSeqUUID: UUID = UUID.fromString("270500fe-42f7-4498-ae56-2e836dcda159"),
+  val mainSeqObjId: ObjId = objIdFactory.toObjId("270500fe-42f7-4498-ae56-2e836dcda159"),
   val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", asObj),
   val asInstantSession: Attr[Obj] = label("b11bfecb-d53d-4577-870d-d499fbd4d9d3"),
   val sessionKey: Attr[Option[UUID]] = attr("f7d2a81f-ed6b-46c3-b87b-8290f5ef8942", asUUID),
@@ -33,9 +33,9 @@ class EventSourceAttrsImpl(
   val asUndo: Attr[Obj] = label("d46a9cee-6d55-4d3c-aceb-6af11b8a9c0e"),
   val asCommit: Attr[Obj] = label("091ffe85-2317-47e1-91da-59bcd221a480"),
   val lastMergedRequest: Attr[Obj] = attr("9b1e43fc-a60d-4f41-96bc-6504eb0ccb80", asObj),
-  val requested: Attr[Boolean] = attr("55b09b31-3af4-402e-963b-522f71646e9e", asDefined),
+  val requested: ObjId = objIdFactory.toObjId("55b09b31-3af4-402e-963b-522f71646e9e"),
   //0x001C
-  val applyAttr: Attr[Attr[Boolean]] = attr("a105c5e0-aaee-41ca-8f8a-5d4328594670", asAttr),
+  val applyAttr: Attr[ObjId] = attr("a105c5e0-aaee-41ca-8f8a-5d4328594670", asDBObjId),
   val mainSession: Attr[Obj] = attr("363bb985-aa39-48bf-a866-e74dd3584056", asObj),
   val comment: Attr[String] = attr("c0e6114b-bfb2-49fc-b9ef-5110ed3a9521", asString)
 ) extends SessionEventSourceAttrs
@@ -52,7 +52,7 @@ class EventSourceOperationsImpl(
   searchIndex: SearchIndex,
   mandatory: Mandatory
 ) extends ForMergerEventSourceOperations with ForSessionEventSourceOperations with CoHandlerProvider {
-  import nodeAttrs.nonEmpty
+  import sysAttrs.nonEmpty
   import at._
   private def isUndone(event: Obj) =
     findNodes.where(instantTx(), at.asUndo, at.statesAbout, event, Nil).nonEmpty
@@ -113,7 +113,7 @@ class EventSourceOperationsImpl(
   }
 
   def nextRequest(): Obj = {
-    val mainSeq = findNodes.whereObjId(findNodes.toObjId(mainSeqUUID))
+    val mainSeq = findNodes.whereObjId(mainSeqObjId)
     val lastNode = mainSeq(at.lastMergedRequest)
     val from = if(lastNode(nonEmpty)) FindAfter(lastNode) :: Nil else Nil
     val result = findNodes.where(
@@ -127,7 +127,7 @@ class EventSourceOperationsImpl(
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj = {
     val sNode = findNodes.zeroNode
     val lastObj = sNode(at.seq)
-    val res = findNodes.nextNode(if(lastObj(nodeAttrs.nonEmpty)) lastObj else sNode)
+    val res = findNodes.nextNode(if(lastObj(nonEmpty)) lastObj else sNode)
     sNode(at.seq) = res
     res(label) = res
     res(at.instantSession) = instantSession

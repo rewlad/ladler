@@ -2,9 +2,10 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
 
+/*
 class RefIntegrityImpl(
     attrFactory: AttrFactory,
-    nodeAttributes: NodeAttrs,
+    findAttrs: FindAttrs,
     txSelector: TxSelector,
     preCommitCheck: PreCommitCheckAllOfConnection,
     searchIndex: SearchIndex,
@@ -16,7 +17,7 @@ class RefIntegrityImpl(
     def checkPairs(nodesA: Seq[Obj]): Seq[ValidationFailure] =
       nodesA.flatMap{ nodeA =>
         val nodeB = if(nodeA(existsA)) nodeA(toAttr) else findNodes.noNode
-        if(!nodeB(nodeAttributes.nonEmpty) || nodeB(existsB)) None
+        if(!nodeB(findAttrs.nonEmpty) || nodeB(existsB)) None
         else Some(ValidationFailure("refs",nodeA)) //, s"attr $toAttrId should refer to valid object, but $v found")
       }
     mandatory(toAttr,existsA, mutual=false) :::
@@ -34,3 +35,4 @@ class RefIntegrityImpl(
       ) :: Nil
   }
 }
+*/

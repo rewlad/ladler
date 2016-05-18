@@ -11,9 +11,9 @@ class UniqueImpl(
   findNodes: FindNodes
 ) extends Unique {
   def apply[Value](label: Attr[_], uniqueAttr: Attr[Value]) = {
-    val definedAttrs = (label :: uniqueAttr :: Nil).map(attrFactory.defined)
+    val attrIds = (label :: uniqueAttr :: Nil).map(attrFactory.attrId(_))
     def checkNode(node: Obj): List[ValidationFailure] =
-      if(definedAttrs.forall(node(_))){
+      if(attrIds.forall(attrId⇒node(attrFactory.defined(attrId)))){
         findNodes
           .where(txSelector.txOf(node), label, uniqueAttr, node(uniqueAttr), Nil) match {
           case _ :: Nil => Nil
@@ -22,7 +22,7 @@ class UniqueImpl(
       } else Nil
 
     searchIndex.handlers(label,uniqueAttr) :::
-      definedAttrs.map{ a =>
+      attrIds.map{ a =>
         CoHandler(AfterUpdate(a))(
           preCommitCheck.create{ nodes => nodes.flatMap(checkNode) }
         )

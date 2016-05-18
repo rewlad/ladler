@@ -27,23 +27,19 @@ class TestAppMix extends BaseAppMix with ServerAppMix with InMemoryDBAppMix {
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
   lazy val testAttrs = new TestAttrs(
+    objIdFactory,
     attrFactory,
     labelFactory,
-    searchIndex,
-    asDefined,
     asDBObj,
     asUUID,
-    asString,
-    mandatory,
-    alienCanChange
-  )()()
+    asString
+  )()
   lazy val testTags = new TestTags(childPairFactory, InputAttributesImpl)
 
   override def handlers =
-      testAttrs.handlers :::
       new TestComponent(
-        testAttrs, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx,
-        tags, testTags, currentView
+        testAttrs, alienAccessAttrs, handlerLists, findNodes, mainTx,
+        tags, testTags, currentView, searchIndex, mandatory, alienCanChange, factIndex
       ).handlers :::
       //new DynEdit(sessionEventSourceOperations).handlers :::
       super.handlers

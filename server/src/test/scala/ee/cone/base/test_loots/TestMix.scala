@@ -3,7 +3,7 @@ package ee.cone.base.test_loots
 import java.nio.file.Paths
 import java.time.{Duration, Instant}
 
-import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.connection_api.{WrapType, LifeCycle}
 import ee.cone.base.db._
 import ee.cone.base.lifecycle.{BaseConnectionMix,BaseAppMix}
 import ee.cone.base.lmdb.LightningDBAppMix
@@ -36,22 +36,26 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
 
   lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, asString)()
   lazy val logAttributes = new BoatLogEntryAttributes(
-    attrFactory,labelFactory,asDefined,asDBObj,asString,asInstant,asDuration
+    attrFactory,labelFactory,asDBObj,asString,asInstant,asDuration
   )()
   lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl)
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
   lazy val asObjIdSet = new AttrValueType[Set[ObjId]]
-  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asDefined, asObjIdSet)
+  lazy val listedWrapType = new WrapType[InnerItemList]
+  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asDefined, asObjIdSet)()
+  lazy val filters = new Filters(filterAttrs,nodeAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType)
   override def handlers =
-    new InstantValueConverter(asInstant,InnerRawValueConverterImpl).handlers :::
-    new DurationValueConverter(asDuration,InnerRawValueConverterImpl).handlers :::
-    new ObjIdSetValueConverter(asObjIdSet,InnerRawValueConverterImpl,findNodes).handlers :::
+    new InstantValueConverter(asInstant,rawConverter).handlers :::
+    new DurationValueConverter(asDuration,rawConverter).handlers :::
+    new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes).handlers :::
     new TestComponent(
-      testAttributes, logAttributes, alienAccessAttrs, filterAttrs, handlerLists,
+      nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes,
+      handlerLists,
       attrFactory,
-      findNodes, mainTx, alienCanChange, OnUpdateImpl,
-      tags, materialTags, flexTags, currentView, dtTablesState
+      findNodes, mainTx, alienCanChange, onUpdate,
+      tags, materialTags, flexTags, currentView, dtTablesState,
+      searchIndex, factIndex, filters
     ).handlers ::: super.handlers
 }
 

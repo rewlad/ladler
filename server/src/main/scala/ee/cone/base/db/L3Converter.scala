@@ -37,26 +37,15 @@ class UUIDValueConverter(
 class DBObjValueConverter(
   val valueType: AttrValueType[Obj],
   inner: DBObjIdValueConverter,
-  nodeFactory: NodeFactory,
+  findNodes: FindNodes,
   nodeAttributes: NodeAttrs
 ) extends RawValueConverterImpl[Obj] {
-  def convertEmpty() = nodeFactory.noNode
+  def convertEmpty() = findNodes.noNode
   def convert(valueA: Long, valueB: Long) =
-    nodeFactory.toNode(inner.convert(valueA,valueB))
+    findNodes.whereObjId(inner.convert(valueA,valueB))
   def convert(value: String) = Never()
   def toBytes(preId: ObjId, value: Value, finId: ObjId) =
     inner.toBytes(preId, value(nodeAttributes.objId), finId)
-}
-
-// for true Boolean converter? if(nonEmpty(value)) inner.allocWrite(before, 1L, 0L, after) else Never()
-class DefinedValueConverter(
-  val valueType: AttrValueType[Boolean], inner: RawConverter
-) extends RawValueConverterImpl[Boolean] {
-  def convertEmpty() = false
-  def convert(valueA: Long, valueB: Long) = true
-  def convert(value: String) = true
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value) Never() else Array()
 }
 
 class BooleanValueConverter(

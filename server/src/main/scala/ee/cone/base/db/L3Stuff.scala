@@ -3,51 +3,39 @@ package ee.cone.base.db
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.{Never, Single}
-
-/*
-class ListByDBNodeImpl(
-  inner: FactIndex, attrValueConverter: RawValueConverter[Attr[Boolean]]
-) extends ListByDBNode {
-  def get(node: Obj) = {
-    val feed = new AttrListFeedImpl(attrValueConverter)
-    inner.execute(node, feed)
-    feed.result
-  }
-  def set(node: Obj, value: List[Attr[_]]) = if(value.nonEmpty) Never()
-    else node(this).foreach(attr => node(attr) = false)
-}
-*/
-
-
+import ee.cone.base.util.Never
 
 class FindAttrsImpl(
   attr: AttrFactory,
+  asDefined: AttrValueType[Boolean],
   asString: AttrValueType[String]
 )(
-  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString)
+  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString),
+  val nonEmpty: Attr[Boolean] = attr("1cc81826-a1c0-4045-ab2a-e2501b4a71fc", asDefined)
 ) extends FindAttrs
 
 class FindNodesImpl(
   at: FindAttrs,
   handlerLists: CoHandlerLists,
-  nodeAttrs: NodeAttrs, nodeFactory: NodeFactory,
-  attrFactory: AttrFactory, factIndex: FactIndex, noObjId: ObjId,
-  dBObjValueConverter: RawValueConverter[ObjId]
+  nodeAttrs: NodeAttrs, noObj: Obj,
+  attrFactory: AttrFactory, factIndex: FactIndex, objIdFactory: ObjIdFactory,
+  dBObjValueConverter: RawValueConverter[ObjId], dbWrapType: WrapType[ObjId]
+)(
+  val noNode: Obj = noObj.wrap(dbWrapType, NoObjId)
 ) extends FindNodes  with CoHandlerProvider {
-  def noNode = nodeFactory.noNode
-  def zeroNode = nodeFactory.toNode(dBObjValueConverter.convert(0L,0L))
+  def whereObjId(objId: ObjId): Obj = noObj.wrap(dbWrapType, objId)
+  def zeroNode = whereObjId(dBObjValueConverter.convert(0L,0L))
   def nextNode(obj: Obj) = {
     val node = obj(nodeAttrs.objId)
     if(node.hi!=0L || node.lo == Long.MaxValue) Never()
-    nodeFactory.toNode(dBObjValueConverter.convert(node.hi, node.lo + 1L))
+    whereObjId(dBObjValueConverter.convert(node.hi, node.lo + 1L))
   }
   def where[Value](
     tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value,
     options: List[SearchOption]
   ) = {
-    var from: ObjId = noObjId
-    var upTo: ObjId = noObjId
+    var from: ObjId = objIdFactory.noObjId
+    var upTo: ObjId = objIdFactory.noObjId
     var limit = Long.MaxValue
     var lastOnly = false
     var needSameValue = true
@@ -62,14 +50,14 @@ class FindNodesImpl(
         upTo = node(nodeAttrs.objId)
       case FindNextValues ⇒ needSameValue = false
     }
-    val searchKey = SearchByLabelProp[Value](attrFactory.defined(label), attrFactory.defined(prop))
+    val searchKey = SearchByLabelProp[Value](attrFactory.attrId(label), attrFactory.attrId(prop))
     //println(s"searchKey: $searchKey")
     val handler = handlerLists.single(searchKey, ()⇒Never())
     //val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory)
     var result: List[Obj] = Nil
     val request = new SearchRequest[Value](tx, value, needSameValue, from, objId ⇒
       if(upTo.nonEmpty && (objId.hi > upTo.hi || objId.hi == upTo.hi && objId.lo > upTo.lo)) false else {
-        result = nodeFactory.toNode(objId) :: result
+        result = whereObjId(objId) :: result
         limit -= 1L
         limit > 0L
       }
@@ -78,14 +66,27 @@ class FindNodesImpl(
     if(lastOnly) result.headOption.toList else result.reverse
   }
   def justIndexed = "Y"
-  def whereObjId(objId: ObjId): Obj = nodeFactory.toNode(objId)
-  def toObjId(uuid: UUID): ObjId =
-    dBObjValueConverter.convert(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
+  def toObjId(uuid: UUID): ObjId = objIdFactory.toObjId(uuid)
   def toUUIDString(objId: ObjId) = new UUID(objId.hi,objId.lo).toString
-  def handlers = factIndex.handlers(at.justIndexed)
+  def handlers =
+    CoHandler(GetValue(dbWrapType, at.nonEmpty))((obj,innerObj)⇒innerObj.data.nonEmpty) ::
+    CoHandler(GetValue(dbWrapType, nodeAttrs.objId))((obj,innerObj)⇒innerObj.data) ::
+    factIndex.handlers(at.justIndexed)
 }
 
 /*
+class ListByDBNodeImpl(
+  inner: FactIndex, attrValueConverter: RawValueConverter[Attr[Boolean]]
+) extends ListByDBNode {
+  def get(node: Obj) = {
+    val feed = new AttrListFeedImpl(attrValueConverter)
+    inner.execute(node, feed)
+    feed.result
+  }
+  def set(node: Obj, value: List[Attr[_]]) = if(value.nonEmpty) Never()
+    else node(this).foreach(attr => node(attr) = false)
+}
+
 class AttrListFeedImpl(converter: RawValueConverter[Attr[Boolean]]) extends Feed {
   var result: List[Attr[Boolean]] = Nil
   def feed(diff: Long, valueA: Long, valueB: Long) = {

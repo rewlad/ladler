@@ -80,7 +80,6 @@ class BoatLogEntryAttributes(
   attr: AttrFactory,
   label: LabelFactory,
 
-  asDefined: AttrValueType[Boolean],
   asObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   asInstant: AttrValueType[Option[Instant]],
@@ -227,7 +226,7 @@ class Filters(
     filterObj: Obj
   ): ItemList = {
     val selectedSet = filterObj(at.selectedItems)
-    val definedParentAttr = attrFactory.defined(parentAttr)
+
 
     val inner = new InnerItemList {
       def isSelected(obj: Obj) = selectedSet contains obj(nodeAttrs.objId)
@@ -235,9 +234,9 @@ class Filters(
         filterObj(at.selectedItems) = selectedSet + obj(nodeAttrs.objId)
       def resetSelected(obj: Obj) =
         filterObj(at.selectedItems) = selectedSet - obj(nodeAttrs.objId)
-      def isListed(obj: Obj) = obj(definedParentAttr)
+      def isListed(obj: Obj) = obj(parentAttr) == parentValue
       def setListed(obj: Obj) = obj(parentAttr) = parentValue
-      def resetListed(obj: Obj) = obj(definedParentAttr) = false
+      def resetListed(obj: Obj) = obj(attrFactory.defined(attrFactory.attrId(parentAttr))) = false
     }
     val items = findNodes.where(mainTx(), asType, parentAttr, parentValue, Nil)
       .map(obj⇒
@@ -249,7 +248,7 @@ class Filters(
       def add() = newItem(at.isListed) = true
       def removeSelected() = {
         selectedSet.foreach(findNodes.whereObjId(_)(at.isListed)=false)
-        filterObj(at.selectedItems) = Nil
+        filterObj(at.selectedItems) = Set[ObjId]()
       }
       def selectAllListed() =
         filterObj(at.selectedItems) = selectedSet ++ items.map(_(nodeAttrs.objId))
@@ -274,11 +273,8 @@ class Filters(
 }
 
 class TestComponent(
-  sysAttrs: FindAttrs,
-  at: TestAttributes,
-  logAt: BoatLogEntryAttributes,
-  alienAccessAttrs: AlienAccessAttrs,
-  filterAttrs: FilterAttrs,
+  nodeAttrs: NodeAttrs, findAttrs: FindAttrs,
+  filterAttrs: FilterAttrs, at: TestAttributes, logAt: BoatLogEntryAttributes,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
@@ -292,18 +288,17 @@ class TestComponent(
   dtTablesState: DataTablesState,
   searchIndex: SearchIndex,
   factIndex: FactIndex,
-  nodeAttrs: NodeAttrs,
-  findAttrs: FindAttrs,
   filters: Filters
 ) extends CoHandlerProvider {
   import tags._
   import materialTags._
   import flexTags._
+  import findAttrs.nonEmpty
 
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String,label:Option[String] ): List[ChildPair[OfDiv]] =
-    if(!obj(nodeAttrs.nonEmpty)) Nil
+    if(!obj(nonEmpty)) Nil
     else if(label.isEmpty)
       List(text("1",valueToText(obj(attr))))
     else
@@ -345,10 +340,10 @@ class TestComponent(
   }
 
   private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean): List[ChildPair[OfDiv]] =
-    toAlienText[Obj](obj,attr,v⇒if(v(nodeAttrs.nonEmpty)) v(at.caption) else "",None)
+    toAlienText[Obj](obj,attr,v⇒if(v(nonEmpty)) v(at.caption) else "",None)
   private def objField(obj: Obj, attr: Attr[Obj],tmp:String, editable: Boolean,label:Option[String]): List[ChildPair[OfDiv]] = {
     //toAlienText[Obj](obj,attr,v⇒if(v.nonEmpty) v(at.caption) else "")
-    if (!obj(nodeAttrs.nonEmpty)) return Nil
+    if (!obj(nonEmpty)) return Nil
     List(textInput("1", label.getOrElse(""), tmp, (String) => {}, !editable))
   }
 
@@ -567,7 +562,7 @@ class TestComponent(
           ),
           dtTable0.dtRecord("5",List(withSideMargin("1",10,divAlignWrapper("1","left","middle",{
             val confirmed = entry(logAt.asConfirmed)
-            if(confirmed(nodeAttrs.nonEmpty)) List(materialChip("1","CONFIRMED")) else Nil //todo: MaterialChip
+            if(confirmed(nonEmpty)) List(materialChip("1","CONFIRMED")) else Nil //todo: MaterialChip
             })))//,
             //List(withSideMargin("1",10,strField(entry, logAt.workComment, editable,Some("Comment"))))
           ),
@@ -811,8 +806,8 @@ class TestComponent(
                 divHeightWrapper("1",72,
                   divAlignWrapper("1","right","bottom",
 
-                    if(!entry(nodeAttrs.nonEmpty)) Nil
-                    else if(entry(logAt.asConfirmed)(nodeAttrs.nonEmpty))
+                    if(!entry(nonEmpty)) Nil
+                    else if(entry(logAt.asConfirmed)(nonEmpty))
                       List(btnRaised("reopen","Reopen")(()⇒entry(logAt.confirmedOn)=None))
                     else
                       List(btnRaised("confirm","Confirm")(()⇒entry(logAt.confirmedOn)=Option(Instant.now())))
@@ -852,7 +847,7 @@ class TestComponent(
             cell("0", isHead=true, isUnderline = true)(List(
               checkBox("1",
                 filterObj(filterAttrs.selectedItems).nonEmpty,
-                on ⇒ if(on) userList.selectAllListed() else filterObj(filterAttrs.selectedItems)=Set()
+                on ⇒ if(on) userList.selectAllListed() else filterObj(filterAttrs.selectedItems)=Set[ObjId]()
               )
             )),
             cell("1", isHead=true, isUnderline = true)(List(text("text", "Full Name")))
@@ -923,7 +918,7 @@ class TestComponent(
   }
 
   def handlers =
-    searchIndex.handlers(logAt.asEntry, sysAttrs.justIndexed) :::
+    searchIndex.handlers(logAt.asEntry, findAttrs.justIndexed) :::
     searchIndex.handlers(logAt.asWork, logAt.entryOfWork) :::
     List(
       logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
@@ -943,8 +938,8 @@ class TestComponent(
     //CoHandler(ViewPath("/boatList"))(boatListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
     CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
-    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.defined), calcWorkDuration) :::
-    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.defined), calcEntryDuration) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
     Nil
 }
 

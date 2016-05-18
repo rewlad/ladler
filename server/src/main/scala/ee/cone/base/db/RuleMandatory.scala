@@ -10,12 +10,12 @@ class MandatoryImpl(
   def apply(condAttr: Attr[_], mandatoryAttr: Attr[_], mutual: Boolean): List[BaseCoHandler] =
     apply(condAttr, mandatoryAttr) ::: (if(mutual) apply(mandatoryAttr, condAttr) ::: Nil else Nil)
   def apply(condAttr: Attr[_], mandatoryAttr: Attr[_]): List[BaseCoHandler] =
-    handlers(attrFactory.defined(condAttr), attrFactory.defined(mandatoryAttr))
-  def handlers(condAttr: Attr[Boolean], mandatoryAttr: Attr[Boolean]): List[BaseCoHandler] = {
-    (condAttr :: mandatoryAttr :: Nil).map{ a =>
-      CoHandler(AfterUpdate(a))(preCommitCheck.create(nodes=>
-        for(node ← nodes if node(condAttr) && !node(mandatoryAttr))
-          yield ValidationFailure(s"mandatory $condAttr => $mandatoryAttr", node)
+    handlers(attrFactory.attrId(condAttr), attrFactory.attrId(mandatoryAttr))
+  def handlers(condAttrId: ObjId, mandatoryAttrId: ObjId): List[BaseCoHandler] = {
+    (condAttrId :: mandatoryAttrId :: Nil).map{ attrId =>
+      CoHandler(AfterUpdate(attrId))(preCommitCheck.create(nodes=>
+        for(node ← nodes if node(attrFactory.defined(condAttrId)) && !node(attrFactory.defined(mandatoryAttrId)))
+          yield ValidationFailure(s"mandatory $condAttrId => $mandatoryAttrId", node)
       ))
     }
   }

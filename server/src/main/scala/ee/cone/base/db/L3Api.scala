@@ -17,6 +17,7 @@ case object FindNextValues extends SearchOption
 
 trait FindAttrs {
   def justIndexed: Attr[String]
+  def nonEmpty: Attr[Boolean]
 }
 
 trait FindNodes {

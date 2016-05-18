@@ -27,7 +27,7 @@ object RawDumpImpl extends RawDump {
 
 // converters //////////////////////////////////////////////////////////////////
 
-object RawConverterImpl extends RawConverter {
+class RawConverterImpl extends RawConverter {
   def head = 1L
   def toBytes(preId: ObjId, finId: ObjId) =
     toBytesInner(preId, valIdHas = false,    0L,    0L, valueHas = false, ""   , finId)

@@ -43,7 +43,7 @@ class SessionEventSourceOperationsImpl(
   var decoupled: Boolean = false
   private def needRecreate(instantSession: Obj): Boolean = {
     val tx = instantTxManager.currentTx()
-    val findAfter = if(lastStatus(nodeAttrs.nonEmpty)) List(FindAfter(lastStatus)) else Nil
+    val findAfter = if(lastStatus(sysAttrs.nonEmpty)) List(FindAfter(lastStatus)) else Nil
     val options = FindLastOnly :: findAfter
     val newStatuses = if(decoupled) findNodes.where(
       tx, at.asCommit, at.instantSession, instantSession, options
@@ -65,7 +65,7 @@ class SessionEventSourceOperationsImpl(
       }
     )
   }
-  def addEvent(fill: Obj=>(Attr[Boolean],String)): Unit = instantTxManager.rwTx { () ⇒
+  def addEvent(fill: Obj=>(ObjId,String)): Unit = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val ev = ops.addInstant(instantSession, at.asEvent)
     val (handler, comment) = fill(ev)
