@@ -42,13 +42,14 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
   lazy val asObjIdSet = new AttrValueType[Set[ObjId]]
-  lazy val listedWrapType = new WrapType[InnerItemList]
+  lazy val listedWrapType = new ListedWrapType
   lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asDefined, asObjIdSet)()
-  lazy val filters = new Filters(filterAttrs,nodeAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType)
+  lazy val filters = new Filters(filterAttrs,nodeAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex)()
   override def handlers =
     new InstantValueConverter(asInstant,rawConverter).handlers :::
     new DurationValueConverter(asDuration,rawConverter).handlers :::
     new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes).handlers :::
+    filters.handlers :::
     new TestComponent(
       nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes,
       handlerLists,
@@ -56,10 +57,10 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
       findNodes, mainTx, alienCanChange, onUpdate,
       tags, materialTags, flexTags, currentView, dtTablesState,
       searchIndex, factIndex, filters
-    ).handlers ::: super.handlers
+    )().handlers ::: super.handlers
 }
 
-
+class ListedWrapType extends WrapType[InnerItemList]
 
 class TestSessionConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle

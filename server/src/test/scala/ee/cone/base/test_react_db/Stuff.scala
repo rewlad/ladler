@@ -58,8 +58,10 @@ class TestComponent(
   currentVDom: CurrentVDom,
   searchIndex: SearchIndex,
   mandatory: Mandatory,
-  alienCanChange: Alien,
+  alien: Alien,
   factIndex: FactIndex
+)(
+  val testTaskByState: SearchByLabelProp[String] = searchIndex.create(at.asTestTask, at.testState)
 ) extends CoHandlerProvider {
   import rTags._
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
@@ -68,16 +70,10 @@ class TestComponent(
   private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
       val startTime = System.currentTimeMillis
-      val tasks = findNodes.where(
-        mainTx(),
-        at.asTestTask,
-        at.testState,
-        "A",
-        Nil
-      )
+      val tasks = findNodes.where(mainTx(), testTaskByState, "A", Nil)
       val taskLines = tasks.map { obj =>
-        val task = alienCanChange.wrap(obj)
-        val objIdStr = task(alienCanChange.objIdStr)
+        val task = alien.wrap(obj)
+        val objIdStr = task(alien.objIdStr)
         tags.div(
           objIdStr,
           tags.input("comments", task(at.comments), task(at.comments)=_) ::
@@ -88,7 +84,7 @@ class TestComponent(
         )
       }
       val eventLines = eventSource.unmergedEvents.map { ev =>
-        val objIdStr = ev(alienCanChange.objIdStr)
+        val objIdStr = ev(alien.objIdStr)
         tags.div(
           objIdStr,
           text("text", ev(eventSource.comment)) ::
@@ -142,13 +138,14 @@ class TestComponent(
     task(at.testState) = "A"
   }
 
-
   def handlers =
     mandatory(at.asTestTask,at.testState, mutual = true) :::
     mandatory(at.asTestTask,at.comments, mutual = true) :::
-    searchIndex.handlers(at.asTestTask, at.testState) :::
+    searchIndex.handlers(testTaskByState) :::
     factIndex.handlers(at.testState) :::
-    alienCanChange.update(at.comments) :::
+    List(at.comments).flatMap{ attr⇒
+      factIndex.handlers(attr) ::: alien.update(attr)
+    } :::
     CoHandler(ApplyEvent(at.taskCreated))(taskCreated) ::
     CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
     CoHandler(ViewPath(""))(emptyView) ::

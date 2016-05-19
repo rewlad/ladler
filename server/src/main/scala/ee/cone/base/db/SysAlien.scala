@@ -19,6 +19,9 @@ class AlienAccessAttrs(
 
 class DemandedNode(var objId: ObjId, val setup: Obj⇒Unit)
 
+class AlienWrapType extends WrapType[Unit]
+class DemandedWrapType extends WrapType[DemandedNode]
+
 class Alien(
   at: AlienAccessAttrs, nodeAttrs: NodeAttrs, attrFactory: AttrFactory,
   handlerLists: CoHandlerLists,
@@ -29,8 +32,8 @@ class Alien(
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   def update[Value](attr: Attr[Value]) = {
     val attrId = attrFactory.attrId(attr)
-    val targetAttr = attrFactory.derive(at.target, attr)
-    factIndex.handlers(attr) ::: factIndex.handlers(targetAttr) :::
+    val targetAttr = attrFactory.derive(at.target, attrId, attrFactory.valueType(attr))
+    factIndex.handlers(targetAttr) :::
     CoHandler(SetValue(demandedWrapType, attr)){
       (obj: Obj, innerObj : InnerObj[DemandedNode], value: Value)⇒
       val demanded = innerObj.data

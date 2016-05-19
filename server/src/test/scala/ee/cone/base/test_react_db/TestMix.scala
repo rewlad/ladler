@@ -40,7 +40,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
       new TestComponent(
         testAttrs, alienAccessAttrs, handlerLists, findNodes, mainTx,
         tags, testTags, currentView, searchIndex, mandatory, alienCanChange, factIndex
-      ).handlers :::
+      )().handlers :::
       //new DynEdit(sessionEventSourceOperations).handlers :::
       super.handlers
 }

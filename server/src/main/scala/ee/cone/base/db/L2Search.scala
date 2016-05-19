@@ -28,36 +28,42 @@ class SearchIndexImpl(
     rawIndex.seek(fromKey)
     rawVisitor.execute(rawIndex, whileKey, b ⇒ in.feed(rawConverter.fromBytes(b,2,nodeValueConverter,0)))
   }
-  def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
-    val labelAttrId = attrFactory.attrId(labelAttr)
-    val propAttrId = attrFactory.attrId(propAttr)
-    val attr = attrFactory.derive(labelAttrId, propAttr)
+  def create[Value](labelAttr: Attr[Obj], propAttr: Attr[Value]): SearchByLabelProp[Value] = {
+    SearchByLabelProp(
+      attrFactory.attrId(labelAttr), attrFactory.valueType(labelAttr),
+      attrFactory.attrId(propAttr), attrFactory.valueType(propAttr)
+    )
+  }
+  def handlers[Value](by: SearchByLabelProp[Value]) = {
+    val labelAttrId = by.labelId
+    val propAttrId = by.propId
+    val attr = attrFactory.derive(by.labelId, by.propId, by.propType)
     val attrId = attrFactory.attrId(attr)
     val getConverter: GetConverter[Value] = { ()⇒
-      val converter = attrFactory.converter(propAttr)
+      val converter = attrFactory.converter(by.propType)
       (value, objId) ⇒
         val key = converter.toBytes(attrId, value, objId)
         if(key.length > 0) key else Never()
     }
     def setter(on: Boolean, node: Obj) = {
       val dbNode = node(nodeAttributes.objId)
-      val key = getConverter()(node(propAttr), dbNode)
+      val prop = attrFactory.toAttr(by.propId, by.propType)
+      val key = getConverter()(node(prop), dbNode)
       val value = if(on)
         rawConverter.toBytes(objIdFactory.noObjId,objIdFactory.noObjId)
         else Array[Byte]()
       txSelector.rawIndex(dbNode).set(key, value)
       //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
     }
-    val searchKey = SearchByLabelProp[Value](labelAttrId, propAttrId)
-    CoHandler(searchKey)(execute[Value](attrId,getConverter)) ::
-      onUpdate.handlers(labelAttrId :: propAttrId :: Nil, setter)
+    CoHandler(by)(execute[Value](attrId,getConverter)) ::
+      onUpdate.handlers(by.labelId :: by.propId :: Nil, setter)
   }
 }
 
-class OnUpdateImpl(attrFactory: AttrFactory) extends OnUpdate {
+class OnUpdateImpl(factIndex: FactIndex) extends OnUpdate {
   def handlers(attrIds: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit) = {
     def setter(on: Boolean)(node: Obj) =
-      if (attrIds.forall(attrId⇒node(attrFactory.defined(attrId)))) invoke(on, node)
+      if (attrIds.forall(attrId⇒node(factIndex.defined(attrId)))) invoke(on, node)
     attrIds.flatMap{ a => List(
       CoHandler(BeforeUpdate(a))(setter(on=false)),
       CoHandler(AfterUpdate(a))(setter(on=true))

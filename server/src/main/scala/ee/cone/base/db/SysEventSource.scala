@@ -51,11 +51,19 @@ class EventSourceOperationsImpl(
   mainTx: CurrentTx[MainEnvKey], //u
   searchIndex: SearchIndex,
   mandatory: Mandatory
+)(
+  val findInstantSessionBySessionKey: SearchByLabelProp[Option[UUID]] = searchIndex.create(at.asInstantSession, at.sessionKey),
+  val findEventByInstantSession: SearchByLabelProp[Obj] = searchIndex.create(at.asEvent, at.instantSession),
+  val findUndoByStatesAbout: SearchByLabelProp[Obj] = searchIndex.create(at.asUndo, at.statesAbout),
+  val findCommitByStatesAbout: SearchByLabelProp[Obj] = searchIndex.create(at.asCommit, at.statesAbout),
+  val findCommit: SearchByLabelProp[String] = searchIndex.create(at.asCommit, sysAttrs.justIndexed),
+  val findEventByApplyAttr: SearchByLabelProp[ObjId] = searchIndex.create(at.asEvent, at.applyAttr),
+  val findCommitByInstantSession: SearchByLabelProp[Obj] = searchIndex.create(at.asCommit, at.instantSession)
 ) extends ForMergerEventSourceOperations with ForSessionEventSourceOperations with CoHandlerProvider {
   import sysAttrs.nonEmpty
   import at._
   private def isUndone(event: Obj) =
-    findNodes.where(instantTx(), at.asUndo, at.statesAbout, event, Nil).nonEmpty
+    findNodes.where(instantTx(), findUndoByStatesAbout, event, Nil).nonEmpty
   private def lastInstant = findNodes.zeroNode(at.seq)
   def unmergedEvents(instantSession: Obj): List[Obj] =
     unmergedEvents(instantSession,_(at.lastMergedEvent),lastInstant).list
@@ -67,7 +75,7 @@ class EventSourceOperationsImpl(
       if(lastMergedEvent(nonEmpty)) FindAfter(lastMergedEvent) :: Nil else Nil
     if(!upTo(nonEmpty)) Never()
     val events = findNodes.where(
-      instantTx(), at.asEvent, at.instantSession, instantSession,
+      instantTx(), findEventByInstantSession, instantSession,
       FindUpTo(upTo) :: findAfter
     ).filterNot(isUndone)
     new UnmergedEvents(events)({ () =>
@@ -117,7 +125,7 @@ class EventSourceOperationsImpl(
     val lastNode = mainSeq(at.lastMergedRequest)
     val from = if(lastNode(nonEmpty)) FindAfter(lastNode) :: Nil else Nil
     val result = findNodes.where(
-      instantTx(), at.asEvent, at.applyAttr, at.requested, FindFirstOnly :: from
+      instantTx(), findEventByApplyAttr, at.requested, FindFirstOnly :: from
     )
     if(result.isEmpty){ return findNodes.noNode }
     val event :: Nil = result
@@ -133,7 +141,6 @@ class EventSourceOperationsImpl(
     res(at.instantSession) = instantSession
     res
   }
-
   def handlers: List[BaseCoHandler] =
     List(
       seq,
@@ -150,14 +157,11 @@ class EventSourceOperationsImpl(
       mandatory(asCommit,instantSession,mutual = false) :::
       mandatory(asUndo, statesAbout, mutual = false) :::
       mandatory(asCommit, statesAbout, mutual = false) :::
-      searchIndex.handlers(asInstantSession, sessionKey) ::: ////
-      //searchIndex.handlers(asMainSession, instantSession) ::: //
-      searchIndex.handlers(asEvent, instantSession) ::: //
-      searchIndex.handlers(asUndo, statesAbout) ::: //
-      searchIndex.handlers(asCommit, statesAbout) ::: //
-      searchIndex.handlers(asCommit, sysAttrs.justIndexed) ::: //
-      searchIndex.handlers(asEvent, applyAttr) ::: ///
-      searchIndex.handlers(asCommit, instantSession) ::: ////
+    List(
+      findInstantSessionBySessionKey, findEventByInstantSession,
+      findUndoByStatesAbout, findCommitByStatesAbout, findCommit,
+      findEventByApplyAttr, findCommitByInstantSession
+    ).flatMap(searchIndex.handlers(_)) :::
       CoHandler(ApplyEvent(requested))(_=>()) ::
       Nil
 }

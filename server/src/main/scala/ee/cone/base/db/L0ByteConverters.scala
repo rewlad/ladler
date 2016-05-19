@@ -54,6 +54,7 @@ class RawConverterImpl extends RawConverter {
     val finIdLoEx = if(finIdHas) CompactBytes.toWrite(finId.lo).after(finIdHiEx) else valueLoEx
 
     val b = finIdLoEx.alloc(0)
+    headEx.write(head, b)
     if(preIdHas){ preIdHiEx.write(preId.hi, b); preIdLoEx.write(preId.lo, b) }
     if(valIdHas){ valIdHiEx.write(valIdHi , b); valIdLoEx.write(valIdLo , b) }
     if(valueHas){ valueHiEx.write(valueRaw, b); valueLoEx.writeHead(      b) }
@@ -64,10 +65,22 @@ class RawConverterImpl extends RawConverter {
     if(count > 0) skip(b, CompactBytes.toReadAfter(b,ex), count-1) else ex
   def fromBytes[Value](b: Array[Byte], skipBefore: Int, converter: RawValueConverter[Value], skipAfter: Int): Value = {
     if(b.length == 0){ return converter.convertEmpty() }
-    var skipEx = skip(b, CompactBytes.toReadAt(b,0), skipBefore)
+    var skipEx = skip(b, CompactBytes.toReadAt(b,0), skipBefore*2)
     val exchangeA = CompactBytes.toReadAfter(b,skipEx)
     val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
-    skip(b, exchangeB, skipAfter).checkIsLastIn(b)
+    val lastEx = skip(b, exchangeB, skipAfter*2)
+/*
+    if(b.length != lastEx.nextPos) {
+      println(RawDumpImpl(b))
+      println(b.length)
+      println(skipBefore,skipAfter)
+      println(skipEx.size,skipEx.nextPos)
+      println(exchangeA.size,exchangeA.nextPos)
+      println(exchangeB.size,exchangeB.nextPos)
+      println(lastEx.size,lastEx.nextPos)
+    }
+*/
+    lastEx.checkIsLastIn(b)
     if(exchangeA.head == CompactBytes.`strHead` && exchangeB.isSplitter)
       converter.convert(exchangeA.readString(b))
     else converter.convert(exchangeA.readLong(b), exchangeB.readLong(b))

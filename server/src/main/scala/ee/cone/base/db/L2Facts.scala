@@ -5,6 +5,8 @@ import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
 import ee.cone.base.util.{Hex, Never}
 
+class DBWrapType extends WrapType[ObjId]
+
 class FactIndexImpl(
   rawConverter: RawConverter,
   dBObjIdValueConverter: RawValueConverter[ObjId],
@@ -28,7 +30,8 @@ class FactIndexImpl(
   private def key(node: ObjId, attr: ObjId) = rawConverter.toBytes(objIdFactory.noObjId,node.hi,node.lo,attr)
 
   private def get[Value](node: ObjId, attr: ObjId, valueConverter: RawValueConverter[Value]) = {
-    val rawValue = if(attr.nonEmpty) getRawIndex(node).get(key(node, attr))
+    val rawValue =
+      if(node.nonEmpty && attr.nonEmpty) getRawIndex(node).get(key(node, attr))
       else Array[Byte]()
     //println(s"get -- $node -- $attr -- {${rawFactConverter.dump(key)}} -- [${Hex(key)}] -- [${Hex(rawIndex.get(key))}]")
     rawConverter.fromBytes(rawValue,0,valueConverter,1)
@@ -48,14 +51,15 @@ class FactIndexImpl(
   }
   def handlers[Value](attr: Attr[Value]) = {
     val attrId = attrFactory.attrId(attr)
-    val getConverter = () ⇒ attrFactory.converter(attr)
+    val valueType = attrFactory.valueType(attr)
     val definedAttr = attrFactory.define(attrId, asDefined)
     List(
       CoHandler(GetValue(dbWrapType, attr))((obj, innerObj)⇒
-        get(innerObj.data, attrId, attrFactory.converter(attr))
+        get(innerObj.data, attrId, attrFactory.converter(valueType))
       ),
+      CoHandler(ToAttr(attrId,valueType))(attr),
       CoHandler(SetValue(dbWrapType, attr)){ (obj, innerObj, value)⇒
-        val valueConverter = attrFactory.converter(attr)
+        val valueConverter = attrFactory.converter(valueType)
         if (get(innerObj.data, attrId, valueConverter) != value) { // we can't fail on empty values
           for(calc <- calcLists.list(BeforeUpdate(attrId))) calc(obj)
           set(innerObj.data, attrId, valueConverter, value)
@@ -63,10 +67,11 @@ class FactIndexImpl(
         }
       },
       CoHandler(GetValue(dbWrapType, definedAttr))((obj, innerObj)⇒
-        get(innerObj.data, attrId, attrFactory.converter(definedAttr))
+        get(innerObj.data, attrId, attrFactory.converter(asDefined))
       ),
-      CoHandler(ToDefined(attrId))(definedAttr)
+      CoHandler(ToAttr(attrId,asDefined))(definedAttr)
     )
   }
+  def defined(attrId: ObjId) = attrFactory.toAttr(attrId, asDefined)
 }
 

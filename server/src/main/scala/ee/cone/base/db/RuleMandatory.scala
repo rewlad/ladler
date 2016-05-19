@@ -3,7 +3,7 @@ package ee.cone.base.db
 import ee.cone.base.connection_api.{Attr, CoHandler, BaseCoHandler}
 
 class MandatoryImpl(
-  attrFactory: AttrFactory,
+  attrFactory: AttrFactory, factIndex: FactIndex,
   preCommitCheck: PreCommitCheckAllOfConnection
   //attrs: ListByDBNode
 ) extends Mandatory {
@@ -14,7 +14,7 @@ class MandatoryImpl(
   def handlers(condAttrId: ObjId, mandatoryAttrId: ObjId): List[BaseCoHandler] = {
     (condAttrId :: mandatoryAttrId :: Nil).map{ attrId =>
       CoHandler(AfterUpdate(attrId))(preCommitCheck.create(nodes=>
-        for(node ← nodes if node(attrFactory.defined(condAttrId)) && !node(attrFactory.defined(mandatoryAttrId)))
+        for(node ← nodes if node(factIndex.defined(condAttrId)) && !node(factIndex.defined(mandatoryAttrId)))
           yield ValidationFailure(s"mandatory $condAttrId => $mandatoryAttrId", node)
       ))
     }

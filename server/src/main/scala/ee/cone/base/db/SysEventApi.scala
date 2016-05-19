@@ -27,6 +27,9 @@ trait ForSessionEventSourceOperations extends EventSourceOperations {
   def unmergedEvents(instantSession: Obj): List[Obj]
   def applyEvents(instantSession: Obj): Unit
   def addInstant(instantSession: Obj, label: Attr[Obj]): Obj
+  def findCommit: SearchByLabelProp[String]
+  def findCommitByInstantSession: SearchByLabelProp[Obj]
+  def findInstantSessionBySessionKey: SearchByLabelProp[Option[UUID]]
 }
 
 trait ForMergerEventSourceOperations extends EventSourceOperations {

@@ -206,27 +206,32 @@ class Filters(
   findNodes: FindNodes,
   mainTx: CurrentTx[MainEnvKey],
   alien: Alien,
-  listedWrapType: WrapType[InnerItemList]
+  listedWrapType: WrapType[InnerItemList],
+  factIndex: FactIndex,
+  searchIndex: SearchIndex
+)(
+  val filterByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFilter,at.filterFullKey)
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-  private def lazyLinkingObj[Value](asType: Attr[Obj], atKey: Attr[Value], key: Value): Obj =
-    findNodes.where(mainTx(), asType, atKey, key, Nil) match {
+  private def lazyLinkingObj[Value](index: SearchByLabelProp[Value], key: Value): Obj =
+    findNodes.where(mainTx(), index, key, Nil) match {
       case Nil ⇒ alien.demandedNode { obj ⇒
-        obj(asType) = obj
-        obj(atKey) = key
+        obj(attrFactory.toAttr(index.labelId, index.labelType)) = obj
+        obj(attrFactory.toAttr(index.propId, index.propType)) = key
       }
       case o :: Nil ⇒ alien.wrap(o)
+      case _ ⇒ Never()
     }
   def filterObj(key: String): Obj =
-    lazyLinkingObj(at.asFilter, at.filterFullKey, s"${eventSource.sessionKey}$key")
+    lazyLinkingObj(filterByFullKey, s"${eventSource.sessionKey}$key")
   def itemList[Value](
-    asType: Attr[Obj],
-    parentAttr: Attr[Value],
+    index: SearchByLabelProp[Value],
     parentValue: Value,
     filterObj: Obj
   ): ItemList = {
     val selectedSet = filterObj(at.selectedItems)
-
+    val parentAttr = attrFactory.toAttr(index.propId, index.propType)
+    val asType = attrFactory.toAttr(index.labelId, index.labelType)
 
     val inner = new InnerItemList {
       def isSelected(obj: Obj) = selectedSet contains obj(nodeAttrs.objId)
@@ -236,13 +241,13 @@ class Filters(
         filterObj(at.selectedItems) = selectedSet - obj(nodeAttrs.objId)
       def isListed(obj: Obj) = obj(parentAttr) == parentValue
       def setListed(obj: Obj) = obj(parentAttr) = parentValue
-      def resetListed(obj: Obj) = obj(attrFactory.defined(attrFactory.attrId(parentAttr))) = false
+      def resetListed(obj: Obj) = obj(factIndex.defined(attrFactory.attrId(parentAttr))) = false
     }
-    val items = findNodes.where(mainTx(), asType, parentAttr, parentValue, Nil)
+    val items = findNodes.where(mainTx(), index, parentValue, Nil)
       .map(obj⇒
         alien.wrap(obj).wrap(listedWrapType,inner)
       )
-    val newItem = alien.demandedNode { obj ⇒ obj(asType) = obj }
+    val newItem = alien.demandedNode{ obj ⇒ obj(asType) = obj }.wrap(listedWrapType,inner)
     new ItemList {
       def list = items
       def add() = newItem(at.isListed) = true
@@ -269,7 +274,10 @@ class Filters(
     CoHandler(SetValue(listedWrapType,at.isListed)){ (obj,innerObj,value)⇒
       if(value) innerObj.data.setListed(obj) else innerObj.data.resetListed(obj)
     }
-  ) ::: List(at.asFilter,at.filterFullKey,at.selectedItems).flatMap(alien.update(_))
+  ) ::: List(at.asFilter,at.filterFullKey,at.selectedItems).flatMap{ attr⇒
+    factIndex.handlers(attr) ::: alien.update(attr)
+  } :::
+  searchIndex.handlers(filterByFullKey)
 }
 
 class TestComponent(
@@ -289,6 +297,10 @@ class TestComponent(
   searchIndex: SearchIndex,
   factIndex: FactIndex,
   filters: Filters
+)(
+  val findUser: SearchByLabelProp[String] = searchIndex.create(logAt.asUser, findAttrs.justIndexed),
+  val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
+  val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork)
 ) extends CoHandlerProvider {
   import tags._
   import materialTags._
@@ -512,7 +524,7 @@ class TestComponent(
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
-    val itemList = filters.itemList(logAt.asEntry,findAttrs.justIndexed,findNodes.justIndexed,filterObj)
+    val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj)
 
     val dtTable0=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableList",0.0f),true,true,true)
     dtTable0.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", itemList.add)))
@@ -726,7 +738,7 @@ class TestComponent(
       )
     )
 
-    val workList = filters.itemList(logAt.asWork,logAt.entryOfWork,entry,filters.filterObj(???))
+    val workList = filters.itemList(findWorkByEntry,entry,filters.filterObj(???))
 
     val dtTable2=new DtTable(dtTablesState.dtTableWidths.getOrElse("dtTableEdit2",0.0f),true,true,true)
     dtTable2.setControls(List(btnDelete("1", ()=>{}),btnAdd("2", workList.add)))
@@ -835,7 +847,7 @@ class TestComponent(
 
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj("/userList")
-    val userList = filters.itemList(logAt.asUser, findAttrs.justIndexed, findNodes.justIndexed, filterObj)
+    val userList = filters.itemList(findUser, findNodes.justIndexed, filterObj)
 
 
     root(List(
@@ -875,7 +887,7 @@ class TestComponent(
             cell("2", isHead=true, isUnderline = true)(Nil)
           )
         ),
-        eventSource.unmergedEvents.map { ev =>
+        eventSource.unmergedEvents.map(alien.wrap(_)).map { ev =>
           val srcId = ev(alien.objIdStr)
           row(srcId,
             cell("1")(List(text("text", ev(eventSource.comment)))),
@@ -918,12 +930,12 @@ class TestComponent(
   }
 
   def handlers =
-    searchIndex.handlers(logAt.asEntry, findAttrs.justIndexed) :::
-    searchIndex.handlers(logAt.asWork, logAt.entryOfWork) :::
+    List(findUser,findEntry,findWorkByEntry).flatMap(searchIndex.handlers(_)) :::
     List(
       logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
     ).flatMap(factIndex.handlers(_)) :::
     List(
+      at.caption,
       logAt.asEntry, logAt.asWork, logAt.asUser, logAt.asBoat, // <-create
       logAt.boat, logAt.confirmedOn, logAt.entryOfWork,
       logAt.date, logAt.workStart, logAt.workStop, logAt.workComment,
@@ -931,7 +943,10 @@ class TestComponent(
       logAt.log08Date,logAt.log08Fuel,logAt.log08Comment,logAt.log08Engineer,logAt.log08Master,
       logAt.logRFFuel,logAt.logRFComment,logAt.logRFEngineer,
       logAt.log24Date,logAt.log24Fuel,logAt.log24Comment,logAt.log24Engineer,logAt.log24Master
-    ).flatMap(alien.update(_)) :::
+    ).flatMap{ attr⇒
+      factIndex.handlers(attr) ::: alien.update(attr)
+    } :::
+    alien.update(findAttrs.justIndexed) :::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/eventList"))(eventListView) ::
     CoHandler(ViewPath("/userList"))(userListView) ::

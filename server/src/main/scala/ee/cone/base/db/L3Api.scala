@@ -24,7 +24,7 @@ trait FindNodes {
   def noNode: Obj
   def zeroNode: Obj
   def nextNode(obj: Obj): Obj
-  def where[Value](tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value, options: List[SearchOption]): List[Obj]
+  def where[Value](tx: BoundToTx, index: SearchByLabelProp[Value], value: Value, options: List[SearchOption]): List[Obj]
   def justIndexed: String
   def whereObjId(objId: ObjId): Obj
   def toObjId(uuid: UUID): ObjId

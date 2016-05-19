@@ -12,6 +12,7 @@ case object NoObjId extends ObjId {
 }
 case class ObjIdImpl(hi: Long, lo: Long) extends ObjId {
   def nonEmpty = true
+  override def toString = if(hi==0) super.toString else new UUID(hi,lo).toString
 }
 class ObjIdFactoryImpl extends ObjIdFactory {
   def noObjId = NoObjId

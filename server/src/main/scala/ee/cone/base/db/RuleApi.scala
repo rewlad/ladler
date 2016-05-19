@@ -15,5 +15,5 @@ trait RelType {
 }
 
 trait Unique {
-  def apply[Value](label: Attr[_], uniqueAttr: Attr[Value]): List[BaseCoHandler]
+  def apply[Value](label: Attr[Obj], uniqueAttr: Attr[Value]): List[BaseCoHandler]
 }

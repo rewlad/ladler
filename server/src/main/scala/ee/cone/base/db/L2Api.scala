@@ -28,10 +28,11 @@ trait ObjIdFactory {
 trait AttrFactory {
   def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V]
   def define[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V]
-  def derive[V](attrA: ObjId, attrB: Attr[V]): Attr[V]
-  def defined(attrId: ObjId): Attr[Boolean]
+  def derive[V](attrAId: ObjId, attrBId: ObjId, valueType: AttrValueType[V]): Attr[V]
   def attrId[V](attr: Attr[V]): ObjId
-  def converter[V](attr: Attr[V]): RawValueConverter[V]
+  def valueType[V](attr: Attr[V]): AttrValueType[V]
+  def toAttr[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V]
+  def converter[V](valueType: AttrValueType[V]): RawValueConverter[V]
 }
 
 class AttrValueType[Value]
@@ -40,12 +41,14 @@ trait FactIndex {
   def switchReason(node: Obj): Unit
   def execute(obj: Obj)(feed: ObjId⇒Boolean): Unit
   def handlers[Value](attr: Attr[Value]): List[BaseCoHandler]
+  def defined(attrId: ObjId): Attr[Boolean]
 }
 
 trait SearchIndex {
-  def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]): List[BaseCoHandler]
+  def create[Value](labelAttr: Attr[Obj], propAttr: Attr[Value]): SearchByLabelProp[Value]
+  def handlers[Value](by: SearchByLabelProp[Value]): List[BaseCoHandler]
 }
-case class SearchByLabelProp[Value](label: ObjId, prop: ObjId)
+case class SearchByLabelProp[Value](labelId: ObjId, labelType: AttrValueType[Obj], propId: ObjId, propType: AttrValueType[Value])
   extends EventKey[SearchRequest[Value]=>Unit]
 class SearchRequest[Value](
   val tx: BoundToTx,
@@ -59,6 +62,6 @@ trait OnUpdate {
   //invoke will be called before and after update if all attrs are defined
   def handlers(definedAttrs: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
 }
-case class ToDefined(attrId: ObjId) extends EventKey[Attr[Boolean]]
+case class ToAttr[Value](attrId: ObjId, valueType: AttrValueType[Value]) extends EventKey[Attr[Value]]
 case class ToRawValueConverter[Value](valueType: AttrValueType[Value])
   extends EventKey[RawValueConverter[Value]]

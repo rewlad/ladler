@@ -4,6 +4,7 @@ import ee.cone.base.connection_api.{Obj, Attr}
 
 // fail'll probably do nothing in case of outdated rel type
 
+/*
 class RelTypeImpl(
   relStartSide: Attr[Obj],
   relEndSide: Attr[Obj],
@@ -14,3 +15,4 @@ class RelTypeImpl(
     searchIndex.handlers(label, relEndSide)
     //add rel event
 }
+*/

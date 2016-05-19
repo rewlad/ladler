@@ -18,9 +18,7 @@ class SessionEventSourceOperationsImpl(
   private def findSession(): Option[Obj] = {
     val tx = instantTxManager.currentTx()
     Single.option(findNodes.where(
-      tx, at.asInstantSession,
-      at.sessionKey, sessionKeyOpt,
-      Nil
+      tx, ops.findInstantSessionBySessionKey, sessionKeyOpt, Nil
     ))
   }
   private def findOrAddSession() = findSession().getOrElse{
@@ -46,9 +44,9 @@ class SessionEventSourceOperationsImpl(
     val findAfter = if(lastStatus(sysAttrs.nonEmpty)) List(FindAfter(lastStatus)) else Nil
     val options = FindLastOnly :: findAfter
     val newStatuses = if(decoupled) findNodes.where(
-      tx, at.asCommit, at.instantSession, instantSession, options
+      tx, ops.findCommitByInstantSession, instantSession, options
     ) else findNodes.where(
-      tx, at.asCommit, sysAttrs.justIndexed, findNodes.justIndexed, options
+      tx, ops.findCommit, findNodes.justIndexed, options
     )
     if(newStatuses.isEmpty) return false
     val newStatus :: Nil = newStatuses

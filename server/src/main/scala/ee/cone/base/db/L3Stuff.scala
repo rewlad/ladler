@@ -31,8 +31,7 @@ class FindNodesImpl(
     whereObjId(dBObjValueConverter.convert(node.hi, node.lo + 1L))
   }
   def where[Value](
-    tx: BoundToTx, label: Attr[_], prop: Attr[Value], value: Value,
-    options: List[SearchOption]
+    tx: BoundToTx, searchKey: SearchByLabelProp[Value], value: Value, options: List[SearchOption]
   ) = {
     var from: ObjId = objIdFactory.noObjId
     var upTo: ObjId = objIdFactory.noObjId
@@ -50,9 +49,8 @@ class FindNodesImpl(
         upTo = node(nodeAttrs.objId)
       case FindNextValues ⇒ needSameValue = false
     }
-    val searchKey = SearchByLabelProp[Value](attrFactory.attrId(label), attrFactory.attrId(prop))
     //println(s"searchKey: $searchKey")
-    val handler = handlerLists.single(searchKey, ()⇒Never())
+    val handler = handlerLists.single(searchKey, ()⇒throw new Exception(s"$searchKey not indexed"))
     //val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory)
     var result: List[Obj] = Nil
     val request = new SearchRequest[Value](tx, value, needSameValue, from, objId ⇒
