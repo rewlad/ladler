@@ -225,6 +225,7 @@ case class InputField[Value](tp: String, value: Value, label: String,showLabel:B
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp)
+    //builder.append("errorText").append("ehhe")
     if(showLabel) builder.append("floatingLabelText").append(label)
     builder.append("underlineStyle").startObject()
       builder.append("borderColor").append("rgba(0,0,0,0.24)")

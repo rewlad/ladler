@@ -481,12 +481,21 @@ class TestComponent(
   }
 
   var selectDropShow=false
+  var selectDropShow1=false
   private def selectDropShowHandle()= selectDropShow match{
     case true=>
       selectDropShow = false
 
     case false =>
       selectDropShow = true
+
+  }
+  private def selectDropShowHandle1()= selectDropShow1 match{
+    case true=>
+      selectDropShow1 = false
+
+    case false =>
+      selectDropShow1 = true
 
   }
 
@@ -504,10 +513,17 @@ class TestComponent(
                 fieldPopupBox("1",selectDropShow,divClickable("1",Some(selectDropShowHandle),labeledText("1","aaa","a2"))::Nil,
                   divNoWrap("1",text("1","aaa"))::
                     divNoWrap("2",text("1","aaa sdfsdfs sds fs df sfs fsfsf sfs dfsfs fdf fs fsfgs f sd"))::
-                    divNoWrap("3",text("1","aaa"))::
-                    divNoWrap("4",text("1","aaa"))::
-                    divNoWrap("5",text("1","aaa"))::
-                    divNoWrap("6",text("1","aaa"))::Nil
+                    (0 to 4).map(x=>{
+                    divNoWrap("3"+x,text("1","aaa"))}).toList
+
+                )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
+              ),
+              flexGridItem("boat1",100,None,
+                fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
+                  divNoWrap("1",text("1","aaa"))::
+                    divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
+                    (0 to 20).map(x=>{
+                    divNoWrap("3"+x,text("1","aaa"))}).toList
 
                 )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
               ),

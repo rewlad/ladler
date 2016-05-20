@@ -49,6 +49,7 @@ const DateInput = React.createClass({
     render(){
         const at = {
             floatingLabelText: this.props.floatingLabelText,
+            errorText: this.props.errorText,
             //container: 'inline',
             //locale: "ee",
             disabled:this.props.disabled,
@@ -71,7 +72,7 @@ const TimeInput = React.createClass({
 
             this.props.onChange({target:{value: value.getTime().toString()}})
         }
-        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText,
+        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText, errorText: this.props.errorText,
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
 })
