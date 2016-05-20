@@ -30,12 +30,6 @@ trait ServerConnectionMix extends CoMixBase {
   lazy val connectionRegistry = serverAppMix.connectionRegistry
   lazy val sender = new SSESender(allowOrigin)
   lazy val receiver = new ReceiverOfConnectionImpl(lifeCycle,handlerLists,connectionRegistry,framePeriod,sender)
-
-
-  override def handlers =
-    new KeepAlive(handlerLists,receiver).handlers :::
-      receiver.handlers :::
-      sender.handlers :::
-      super.handlers
+  lazy val keepAlive = new KeepAlive(handlerLists,receiver)
 }
 

@@ -78,40 +78,28 @@ trait DBConnectionMix extends CoMixBase {
   lazy val demandedWrapType = new DemandedWrapType
   lazy val alienCanChange = new Alien(alienAccessAttrs,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,objIdFactory)
 
-
-
-
-  override def handlers =
-      txSelector.handlers :::
-      findNodes.handlers :::
-      eventSourceOperations.handlers :::
-      alienCanChange.handlers :::
-      new DefinedValueConverter(asDefined, rawConverter).handlers :::
-      new BooleanValueConverter(asBoolean, rawConverter).handlers :::
-      dbObjIdValueConverter.handlers :::
-      new DBObjValueConverter(asDBObj,dbObjIdValueConverter,findNodes,nodeAttrs).handlers :::
-      new UUIDValueConverter(asUUID,rawConverter).handlers :::
-      new StringValueConverter(asString,rawConverter).handlers :::
-      super.handlers
+  lazy val definedValueConverter = new DefinedValueConverter(asDefined, rawConverter)
+  lazy val booleanValueConverter = new BooleanValueConverter(asBoolean, rawConverter)
+  lazy val dbObjValueConverter = new DBObjValueConverter(asDBObj,dbObjIdValueConverter,findNodes,nodeAttrs)
+  lazy val uuidValueConverter = new UUIDValueConverter(asUUID,rawConverter)
+  lazy val stringValueConverter = new StringValueConverter(asString,rawConverter)
 }
 
 trait MergerDBConnectionMix extends DBConnectionMix {
   lazy val mainTxManager =
     new DefaultTxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
-  override def handlers =
-    new MergerEventSourceOperationsImpl(eventSourceOperations, findAttrs, instantTxManager, mainTxManager, findNodes)().handlers :::
-    super.handlers
+  lazy val mergerEventSourceOperations =
+    new MergerEventSourceOperationsImpl(eventSourceOperations, findAttrs, instantTxManager, mainTxManager, findNodes)()
 }
 
 trait SessionDBConnectionMix extends DBConnectionMix {
   lazy val muxFactory = new MuxFactoryImpl
   lazy val mainTxManager =
     new SessionMainTxManagerImpl(lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll, muxFactory)
-  override def handlers =
+  lazy val sessionEventSourceOperations =
     new SessionEventSourceOperationsImpl(
       eventSourceOperations, eventSourceAttrs, nodeAttrs, findAttrs, instantTxManager, mainTxManager, findNodes
-    )().handlers :::
-    super.handlers
+    )()
 }
 
 /*

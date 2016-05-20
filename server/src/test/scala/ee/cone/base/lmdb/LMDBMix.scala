@@ -15,6 +15,5 @@ trait LightningDBAppMix extends DBAppMix {
 class StorageConnectionMix(
   app: LightningDBAppMix, val lifeCycle: LifeCycle
 ) extends BaseConnectionMix {
-  override def handlers =
-    new LightningConnection(app.instantDB,lifeCycle).handlers ::: super.handlers
+  lazy val lightningConnection = new LightningConnection(app.instantDB,lifeCycle)
 }

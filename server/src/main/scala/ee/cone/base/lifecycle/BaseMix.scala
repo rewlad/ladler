@@ -11,5 +11,5 @@ trait BaseAppMix extends AppMixBase {
 }
 
 trait BaseConnectionMix extends CoMixBase {
-  lazy val handlerLists = new CoHandlerListsImpl(()⇒handlers)
+  lazy val handlerLists = new CoHandlerListsImpl(()⇒this)
 }

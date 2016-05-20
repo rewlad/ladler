@@ -25,10 +25,7 @@ class TestAppMix extends BaseAppMix with ServerAppMix {
 trait TestConnectionMix extends BaseConnectionMix with VDomConnectionMix {
   lazy val flexTags = new FlexTags(childPairFactory)
   lazy val materialTags = new MaterialTags(childPairFactory)
-
-  override def handlers =
-    new TestComponent(tags,flexTags,materialTags).handlers :::
-    super.handlers
+  lazy val testComponent = new TestComponent(tags,flexTags,materialTags)
 }
 
 class TestSessionConnectionMix(

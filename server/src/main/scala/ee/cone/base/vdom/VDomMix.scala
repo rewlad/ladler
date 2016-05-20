@@ -8,5 +8,4 @@ trait VDomConnectionMix extends CoMixBase {
   lazy val currentView =
     new CurrentVDom(handlerLists,diff,JsonToStringImpl,WasNoValueImpl)
   lazy val tags = new TagsImpl(childPairFactory)
-  override def handlers = currentView.handlers ::: super.handlers
 }

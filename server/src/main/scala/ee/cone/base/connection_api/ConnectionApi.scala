@@ -20,12 +20,15 @@ trait CoHandlerLists {
   def list[Item](ev: EventKey[Item]): List[Item]
   def single[Item](ev: EventKey[Item], fail: ()⇒Item): Item
 }
+/*
+* include public lazy val with provider into connection mix,
+* then provider will be found (using reflection) and its handlers used
+* */
 trait CoHandlerProvider {
   def handlers: List[BaseCoHandler]
 }
-trait CoMixBase extends CoHandlerProvider {
+trait CoMixBase {
   def handlerLists: CoHandlerLists
-  def handlers: List[BaseCoHandler] = Nil
 }
 
 // Single shared app object of a project gathers all shared app-level components;

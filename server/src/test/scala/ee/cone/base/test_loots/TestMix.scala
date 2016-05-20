@@ -45,19 +45,18 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val listedWrapType = new ListedWrapType
   lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asDefined, asObjIdSet)()
   lazy val filters = new Filters(filterAttrs,nodeAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex)()
-  override def handlers =
-    new InstantValueConverter(asInstant,rawConverter).handlers :::
-    new DurationValueConverter(asDuration,rawConverter).handlers :::
-    new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes).handlers :::
-    filters.handlers :::
-    new TestComponent(
-      nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes,
-      handlerLists,
-      attrFactory,
-      findNodes, mainTx, alienCanChange, onUpdate,
-      tags, materialTags, flexTags, currentView, dtTablesState,
-      searchIndex, factIndex, filters
-    )().handlers ::: super.handlers
+  //
+  lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
+  lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
+  lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes)
+  lazy val testComponent = new TestComponent(
+    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes,
+    handlerLists,
+    attrFactory,
+    findNodes, mainTx, alienCanChange, onUpdate,
+    tags, materialTags, flexTags, currentView, dtTablesState,
+    searchIndex, factIndex, filters
+  )()
 }
 
 class ListedWrapType extends WrapType[InnerItemList]
@@ -69,10 +68,7 @@ class TestSessionConnectionMix(
   lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
-  override def handlers =
-  //  new Dumper().handlers :::
-      new FailOfConnection(sender).handlers :::
-      super.handlers
+  lazy val failOfConnection = new FailOfConnection(sender)
 }
 
 class TestMergerConnectionMix(
