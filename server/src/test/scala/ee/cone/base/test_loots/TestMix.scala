@@ -49,13 +49,14 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes)
+  lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes,
     handlerLists,
     attrFactory,
     findNodes, mainTx, alienCanChange, onUpdate,
     tags, materialTags, flexTags, currentView, dtTablesState,
-    searchIndex, factIndex, filters
+    searchIndex, factIndex, filters, htmlTableWithControl
   )()
 }
 

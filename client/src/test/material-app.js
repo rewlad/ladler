@@ -20,6 +20,10 @@ import IconButton        from 'material-ui/lib/icon-button'
 import IconContentCreate from 'material-ui/lib/svg-icons/content/create'
 import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
 import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
+import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
+import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
+import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
+import IconActionViewList from 'material-ui/lib/svg-icons/action/view-list'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
 import TextField         from 'material-ui/lib/TextField/TextField'
@@ -27,9 +31,13 @@ import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 import Checkbox          from 'material-ui/lib/checkbox'
 import TimePicker        from 'material-ui/lib/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
+//import SelectField       from '../test/select-field'
 import injectTapEventPlugin from "react-tap-event-plugin"
 injectTapEventPlugin()
-
+function fixOnScrollBug(){
+    document.body.style.overflowY="scroll"
+}
+fixOnScrollBug()
 function fail(data){ alert(data) }
 
 const feedback = Feedback()
@@ -41,6 +49,7 @@ const DateInput = React.createClass({
     render(){
         const at = {
             floatingLabelText: this.props.floatingLabelText,
+            errorText: this.props.errorText,
             //container: 'inline',
             //locale: "ee",
             disabled:this.props.disabled,
@@ -63,22 +72,20 @@ const TimeInput = React.createClass({
 
             this.props.onChange({target:{value: value.getTime().toString()}})
         }
-        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText,
+        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText, errorText: this.props.errorText,
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
 })
-class DataTable extends React.Component{
+class FlexGridItemWidthSync extends React.Component{
     constructor(props){
         super(props)
 
     }
     componentDidMount(){
         const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
-        //console.log(drect)
         this.props.onResize({width:drect.width,height:drect.height})
         console.log("dMounted");
     }
-    componentWillUnmount(){}
     componentWillReceiveProps(nextProps){
 
       if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
@@ -88,15 +95,9 @@ class DataTable extends React.Component{
       }
 
     }
-    handleResize(){
-      //  console.log("reize")
-    }
-
-
     render(){
         const tStyle={
             width:this.props.width||"100%",
-           // height:this.props.height||"",
             top:this.props.y||"0px",
             left:this.props.x||"0px",
             transition:"all 300ms ease-out",
@@ -128,17 +129,11 @@ class DataTableRow extends React.Component{
     handleMouseLeave(){
         if(leave) leave()
         leave = null
-
-        //this.setState({mouseOver:false})
     }
 
     render(){
         const pStyle={
-            display:"table",
-            width:"100%",
-            height:"100%",
             border:"0px solid black",
-            //fontFamily: 'Roboto, sans-serif',
             fontSize:13,
             fontWeight:400,
             color:"rgba(0,0,0,0.87)",
@@ -146,7 +141,7 @@ class DataTableRow extends React.Component{
         }
 
         return React.createElement("div",{key:this.props.key,style:pStyle,onMouseEnter:this.handleMouseEnter,
-                        onMouseLeave:this.handleMouseLeave},this.props.children)
+                        onMouseLeave:this.handleMouseLeave,onClick:this.props.onClick},this.props.children)
     }
 }
 class DataTableBody extends React.Component{
@@ -165,21 +160,11 @@ class DataTableBody extends React.Component{
     componentWillUnmount(){}
     render(){
         const pStyle={
-            backgroundColor:"dodgerBlue"
+          //  backgroundColor:"dodgerBlue",
+           // overflowY:"auto",
+          //  height:"100px"
         }
         return React.createElement("div",{key:"1",style:pStyle},this.props.children)
-    }
-}
-class DataTableCells extends React.Component{
-    constructor(props){
-        super(props)
-    }
-    render(){
-        const pStyle={
-            display:"table-cell"
-        }
-
-        return React.createElement("div",{key:this.props.key,style:pStyle,onClick:this.props.onClick},this.props.children)
     }
 }
 class LabeledText extends React.Component{
@@ -196,7 +181,6 @@ class LabeledText extends React.Component{
             height:"72px"
         }
         const lStyle={
-            //fontSize:"12px",
             position:"absolute",
             cursor:"text",
             pointerEvents:"none",
@@ -205,11 +189,10 @@ class LabeledText extends React.Component{
             transformOrigin:"left top 0px",
             top:"38px",
             userSelect:"none",
-            color:"rgba(0,0,0,0.3)",
+            color:"rgba(0,0,0,0.5)",
         }
         const tStyle={
             font:"inherit",
-            //paddingTop:"30px",
             height:"100%",
             color:"rgba(0,0,0,1)",
             position:"relative",
@@ -229,9 +212,9 @@ const tp = ({
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
     RaisedButton,
     IconButton, IconContentCreate,MaterialChip,
-    IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,
-    TextField, DateInput,TimeInput,Checkbox,DataTable,DataTableRow,DataTableCells,DataTableBody,
-    LabeledText
+    IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
+    TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
+    LabeledText,FlexGridItemWidthSync,IconActionViewList,IconActionRestore,IconContentSave//,SelectField
 })
 
 const transforms = ({tp})
