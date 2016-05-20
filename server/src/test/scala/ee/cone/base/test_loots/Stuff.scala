@@ -958,7 +958,24 @@ class TestComponent(
     Nil
 }
 
+/*
+case class RegItem[R](index: Int)(create: ()⇒R){
+    var value: Option[R] = None
+    def apply() = {
+        if(value.isEmpty) value = Some(create())
+        value.get
+    }
+}
+class RegList {
+    val reg = scala.collection.mutable.ArrayBuffer[RegItem[_]]()
+    def value[R](create: ⇒R): RegItem[R] = {
+        val res = RegItem(reg.size)(()=>create)
+        reg += res
+        res
+    }
+}
 
+*/
 
 
 
