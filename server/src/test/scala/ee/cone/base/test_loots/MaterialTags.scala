@@ -367,6 +367,7 @@ class MaterialTags(
     child[OfDiv](key, Paper(), children.toList)
   def checkBox(key:VDomKey,checked:Boolean,check:Boolean=>Unit)=
     child[OfDiv](key,CheckBox(checked)(Some(v⇒check(v.nonEmpty))),Nil)
+  /*
   def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
     child[OfDiv](key, Table(),
       child("head",TableHeader(), head) ::
@@ -376,7 +377,7 @@ class MaterialTags(
     child[OfTable](key, TableRow(), children.toList)
   def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1, isUnderline: Boolean=false)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
     child[OfTableRow](key, TableColumn(isHead, isRight, colSpan, isUnderline)(action), children)
-
+*/
   private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
     child[OfDiv](key,
       IconButton(tooltip)(Some(action)),

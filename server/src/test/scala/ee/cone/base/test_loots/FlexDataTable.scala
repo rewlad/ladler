@@ -47,7 +47,7 @@ case object VerticalAlignBottom extends VerticalAlign with AttrOfTableElement
 case class MinWidth(value:Int) extends AttrOfTableElement
 case class Caption(value:String) extends AttrOfTableElement
 case class MaxVisibleLines(value:Int) extends AttrOfTableElement
-case class Toggled(value:Boolean)(val toggleHandle:Option[()=>Unit]) extends AttrOfTableElement{}
+case class Toggled(value:Boolean)(val toggleHandle:Option[()=>Unit]) extends AttrOfTableElement
 case class IsSelected(value:Boolean) extends AttrOfTableElement
 case object IsHeader extends AttrOfTableElement
 

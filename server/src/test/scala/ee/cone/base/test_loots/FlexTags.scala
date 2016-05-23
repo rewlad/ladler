@@ -225,9 +225,9 @@ class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialT
     child[OfDiv](key,DataTableRecordRow(selected)(handle),children)}
   def dataTableHeaderRow(key:VDomKey,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DataTableHeaderRow(),children)
-  def flexGridItemWidthSync(key:VDomKey,flexBasisWidth:Int,maxWidth:Option[Int],OnResize:Option[(String)=>Unit],children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,FlexGridShItem(flexBasisWidth,maxWidth),
-      child[OfDiv](key,FlexGridItemWidthSync()(OnResize),children)::Nil
+  def flexGridItemWidthSync(key:VDomKey,/*flexBasisWidth:Int,maxWidth:Option[Int],*/OnResize:String=>Unit,children:List[ChildPair[OfDiv]])=
+    child[OfDiv](key,FlexGridShItem(1000/*temp*/,None),
+      child[OfDiv](key,FlexGridItemWidthSync()(Some(OnResize)),children)::Nil
     )::Nil
 }
 

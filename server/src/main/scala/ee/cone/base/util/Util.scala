@@ -12,12 +12,8 @@ object UTF8String {
 }
 
 object Single {
-  def apply[C](l: Seq[C]): C = l match {
-    case el :: Nil => el
-    case _ => throw new Exception()
-  }
+  def apply[C](l: List[C]): C = if(l.tail.nonEmpty) Never() else l.head
   def option[C](l: List[C]): Option[C] = if(l.isEmpty) None else Option(apply(l))
-  def option[C](l: Seq[C]): Option[C] = if(l.isEmpty) None else Option(apply(l))
 }
 
 object Setup {

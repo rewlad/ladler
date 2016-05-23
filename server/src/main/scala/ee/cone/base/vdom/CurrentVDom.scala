@@ -35,10 +35,9 @@ class CurrentVDom(
       }
       def decoded = UTF8String(Base64.getDecoder.decode(message.value("X-r-vdom-value-base64")))
       (message.value.get("X-r-action"), ResolveValue(vDom, path)) match {
-        case (Some("click"), Some(v: OnClickReceiver)) => v.onClick.getOrElse(()=>{})()
+        case (Some("click"), Some(v: OnClickReceiver)) => v.onClick.get()
         case (Some("change"), Some(v: OnChangeReceiver)) => v.onChange.get(decoded)
         case (Some("resize"), Some(v: OnResizeReceiver)) => v.onResize.get(decoded)
-        case (Some("blur"), Some(v: OnBlurReceiver)) => v.onBlur.getOrElse(()=>())()
         case v => throw new Exception(s"$path ($v) can not receive $message")
       }
     }

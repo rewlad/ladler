@@ -27,10 +27,7 @@ export default function InputChanges(sender, vDom, DiffPrepare){
             diff.jump(vDom.ctxToArray(ctx,[]).slice(0,-1))
             diff.addIfChanged("at", {}) //fix if resets alien props
             diff.apply()
-        },
-	"blur": ctx => event =>{
-		sender.send(ctx,"blur","")
-	}
+        }
     }
 
     const transforms = {onChange,onBlur}
