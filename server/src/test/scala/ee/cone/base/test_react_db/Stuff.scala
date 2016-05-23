@@ -108,30 +108,23 @@ class TestComponent(
   private def failAction()() = throw new Exception("test fail")
   private def dumpAction()() = handlerLists.single(DumpKey, ()⇒Never())(mainTx)
 
-  private def saveAction()() = {
-    eventSource.addRequest()
-    currentVDom.invalidate()
+  private def saveAction()() = eventSource.addRequest()
+  private def removeTaskAction(obj: Obj)() = eventSource.addEvent{ ev =>
+    ev(alienAccessAttrs.targetObj) = obj
+    (at.taskRemoved, "task was removed")
   }
-  private def removeTaskAction(obj: Obj)() = {
-    eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetObj) = obj
-      (at.taskRemoved, "task was removed")
-    }
-    currentVDom.invalidate()
-  }
+
   private def taskRemoved(ev: Obj): Unit = {
     val task = ev(alienAccessAttrs.targetObj)
     task(at.asTestTask) = findNodes.noNode
     task(at.comments) = ""
     task(at.testState) = ""
   }
-  private def createTaskAction()() = {
-    eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
-      (at.taskCreated, "task was created")
-    }
-    currentVDom.invalidate()
+  private def createTaskAction()() = eventSource.addEvent{ ev =>
+    ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
+    (at.taskCreated, "task was created")
   }
+
   private def taskCreated(ev: Obj): Unit = {
     val task = ev(alienAccessAttrs.targetObj)
     task(at.asTestTask) = task
@@ -149,6 +142,8 @@ class TestComponent(
     CoHandler(ApplyEvent(at.taskCreated))(taskCreated) ::
     CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
     CoHandler(ViewPath(""))(emptyView) ::
-    CoHandler(ViewPath("/test"))(testView) :: Nil
+    CoHandler(ViewPath("/test"))(testView) ::
+    CoHandler(SessionInstantProbablyAdded)(currentVDom.invalidate) ::
+    Nil
 }
 

@@ -3,11 +3,12 @@ package ee.cone.base.db
 import java.util.UUID
 import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
-import ee.cone.base.util.{Never, Single}
+import ee.cone.base.util.{Setup, Never, Single}
 
 class SessionEventSourceOperationsImpl(
   ops: ForSessionEventSourceOperations,
   at: SessionEventSourceAttrs, nodeAttrs: NodeAttrs, sysAttrs: FindAttrs,
+  handlerLists: CoHandlerLists,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
   findNodes: FindNodes
 )(
@@ -53,17 +54,21 @@ class SessionEventSourceOperationsImpl(
     lastStatus = newStatus
     true
   }
-  def addUndo(event: Obj) = instantTxManager.rwTx { () ⇒
+  def addInstantTx[R](f: () ⇒ R): R =
+    Setup(instantTxManager.rwTx(f))(_⇒ handlerLists.list(SessionInstantProbablyAdded).foreach(_()))
+  def addUndo(event: Obj) = addInstantTx { () ⇒
     val instantSession = findSession().get
     val objId = event(nodeAttrs.objId)
-    mainTxManager.muxTx(recreate=true)(()=>
-      ops.unmergedEvents(instantSession).reverse.foreach{ ev =>
-        if(ev(nodeAttrs.objId) == objId) ops.undo(ev)
+    mainTxManager.muxTx(recreate=true) { () =>
+      var undo = true
+      ops.unmergedEvents(instantSession).reverse.foreach { ev =>
         if(ev(at.applyAttr) == at.requested) Never() // check
+        if(undo) ops.undo(ev)
+        if(ev(nodeAttrs.objId) == objId) undo = false
       }
-    )
+    }
   }
-  def addEvent(fill: Obj=>(ObjId,String)): Unit = instantTxManager.rwTx { () ⇒
+  def addEvent(fill: Obj=>(ObjId,String)): Unit = addInstantTx { () ⇒
     val instantSession = findSession().get
     val ev = ops.addInstant(instantSession, at.asEvent)
     val (handler, comment) = fill(ev)
@@ -76,7 +81,7 @@ class SessionEventSourceOperationsImpl(
     val uuidOpt = Option(uuid)
     if(sessionKeyOpt == uuidOpt){ return }
     sessionKeyOpt = uuidOpt
-    instantTxManager.rwTx{ () ⇒ findOrAddSession() }
+    addInstantTx{ () ⇒ findOrAddSession() }
   }
   def comment = at.comment
   def handlers =

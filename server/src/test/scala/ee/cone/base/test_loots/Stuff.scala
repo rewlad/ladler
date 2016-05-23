@@ -135,7 +135,7 @@ class DataTablesState(currentVDom: CurrentVDom){
     def value = widthOfTables.getOrElse(id,0.0f)
     def value_=(value: Float) = {
       widthOfTables(id) = value
-      currentVDom.invalidate() // todo: replace by throttled
+      currentVDom.until(System.currentTimeMillis+200)
     }
   }
   private val rowToggledOfTables = collection.mutable.Map[VDomKey,VDomKey]()
@@ -363,6 +363,7 @@ class TestComponent(
 
   private def wrapDBView[R](view: ()=>R): R =
     eventSource.incrementalApplyAndView { () ⇒
+      if(!loggedIn){ return loginView() }
       val startTime = System.currentTimeMillis
       val res = view()
       val endTime = System.currentTimeMillis
@@ -373,6 +374,7 @@ class TestComponent(
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
 
+
   private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
   private def mCell(key:VDomKey,minWidth: Int,priority: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
@@ -381,6 +383,12 @@ class TestComponent(
     cell(key,MinWidth(minWidth),TextAlignCenter,VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
   private def mcCell(key:VDomKey,minWidth: Int, priority:Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),Priority(priority),TextAlignCenter,VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
+
+  def loggedIn = true //todo
+  private def loginView() = {
+
+  }
+
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
@@ -708,10 +716,7 @@ class TestComponent(
     ))
   }
 
-  private def saveAction()() = {
-    eventSource.addRequest()
-    currentVDom.invalidate()
-  }
+  private def saveAction()() = eventSource.addRequest()
 
   private def toolbar(title:String): ChildPair[OfDiv] = {
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,
@@ -774,6 +779,7 @@ class TestComponent(
     onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
     onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
     onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn).map(attrFactory.attrId(_)), setEntryConfirmDate) :::
+    CoHandler(SessionInstantProbablyAdded)(currentVDom.invalidate) ::
     Nil
 }
 

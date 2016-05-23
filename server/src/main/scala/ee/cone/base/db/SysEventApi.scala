@@ -13,6 +13,8 @@ trait SessionState {
 
 case class ApplyEvent(attrId: ObjId) extends EventKey[Obj=>Unit]
 
+case object SessionInstantProbablyAdded extends EventKey[()=>Unit]
+
 /*
 trait Ref[Value] {
   def apply(): Value
