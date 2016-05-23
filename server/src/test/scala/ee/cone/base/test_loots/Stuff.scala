@@ -312,7 +312,7 @@ class TestComponent(
     else if(!showLabel)
       List(text("1",valueToText(obj(attr))))
     else
-      List(labeledText("1",valueToText(obj(attr)),label))
+      List(labeledText("1",label,valueToText(obj(attr))))
 
   private def strField(obj: Obj, attr: Attr[String], editable: Boolean, label: String, showLabel: Boolean): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) label else ""
@@ -342,7 +342,7 @@ class TestComponent(
         val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
         date.format(formatter)
       }.getOrElse("")
-      labeledText("1", label, dateStr) :: Nil
+      labeledText("1", visibleLabel, dateStr) :: Nil
     }
   }
 
@@ -373,6 +373,15 @@ class TestComponent(
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
 
+  private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
+    cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
+  private def mCell(key:VDomKey,minWidth: Int,priority: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
+    cell(key,MinWidth(minWidth),Priority(priority),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
+  private def mcCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
+    cell(key,MinWidth(minWidth),TextAlignCenter,VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
+  private def mcCell(key:VDomKey,minWidth: Int, priority:Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
+    cell(key,MinWidth(minWidth),Priority(priority),TextAlignCenter,VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
+
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj)
@@ -383,31 +392,15 @@ class TestComponent(
           controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", itemList.add)),
           row("row",MaxVisibleLines(2),IsHeader)(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter,Caption("x1")),
-            cell("1",MinWidth(50),VerticalAlignMiddle)((_)=>
-              selectAllCheckBox(itemList)
-            ),
+            mCell("1",50)((_)=> selectAllCheckBox(itemList)),
             group("2_grp",MinWidth(150),Priority(3),TextAlignCenter,Caption("x2")),
-            cell("2",MinWidth(100),VerticalAlignMiddle)((_)=>
-              withSideMargin("1",10,List(text("1","Boat")))::Nil
-            ),
-            cell("3",MinWidth(150),VerticalAlignMiddle)(_=>
-              withSideMargin("1",10,List(text("1","Date")))::Nil
-            ),
-            cell("4",MinWidth(180),VerticalAlignMiddle)((_)=>
-              withSideMargin("1",10,List(text("1","Total duration, hrs:min")))::Nil
-            ),
-            cell("5",MinWidth(100),VerticalAlignMiddle)((_)=>
-              withSideMargin("1",10,List(text("1","Confirmed")))::Nil
-            ),
-            cell("6",MinWidth(150),VerticalAlignMiddle)((_)=>
-              withSideMargin("1",10,List(text("1","Confirmed by")))::Nil
-            ),
-            cell("7",MinWidth(150),VerticalAlignMiddle)((_)=>
-              withSideMargin("1",10,List(text("1","Confirmed on")))::Nil
-            ),
-            cell("8",MinWidth(100),Priority(0),TextAlignCenter,VerticalAlignMiddle)((_)=>
-              withSideMargin("1",10,List(text("1","xx")))::Nil
-            )
+            mCell("2",100)((_)=>List(text("1","Boat"))),
+            mCell("3",150)(_=>List(text("1","Date"))),
+            mCell("4",180)((_)=>List(text("1","Total duration, hrs:min"))),
+            mCell("5",100)((_)=>List(text("1","Confirmed"))),
+            mCell("6",150)((_)=>List(text("1","Confirmed by"))),
+            mCell("7",150)((_)=>List(text("1","Confirmed on"))),
+            mcCell("8",100,0)((_)=>List(text("1","xx")))
           )
         ) :::
         itemList.list.map{ (entry:Obj)=>
@@ -418,39 +411,22 @@ class TestComponent(
             IsSelected(entry(filterAttrs.isSelected)),
             MaxVisibleLines(2))(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter, Caption("x1")),
-            cell("1", MinWidth(50),VerticalAlignMiddle)((_)=>
-              booleanField(entry, filterAttrs.isSelected, editable = true)
-            ),
+            mCell("1", 50)((_)=>booleanField(entry, filterAttrs.isSelected, editable = true)),
             group("2_grp", MinWidth(150),Priority(3), TextAlignCenter,Caption("x2")),
-            cell("2",MinWidth(100))((showLabel)=>
-              withSideMargin("1", 10, objField(entry, logAt.boat, editable = false,"Boat",showLabel)) :: Nil
-            ),
-            cell("3",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
-              withSideMargin("1",10,
-                dateField(entry, logAt.date, editable = false,"Date",showLabel)
-              )::Nil
-            ),
-            cell("4",MinWidth(180),VerticalAlignMiddle)((showLabel)=>
-              withSideMargin("1",10,
-                durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)
-              )::Nil
-            ),
-            cell("5",MinWidth(100),VerticalAlignMiddle)((_)=>
-              withSideMargin("1",10,{
+            mCell("2",100)((showLabel)=>objField(entry, logAt.boat, editable = false,"Boat",showLabel)),
+            mCell("3",150)((showLabel)=>dateField(entry, logAt.date, editable = false,"Date",showLabel)),
+            mCell("4",180)((showLabel)=>durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)),
+            mCell("5",100)((_)=>
+             {
                 val confirmed = entry(logAt.asConfirmed)
                 if(confirmed(nonEmpty))
                   List(materialChip("1","CONFIRMED"))
                 else Nil
-              })::Nil
+             }
             ),
-            cell("6",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
-              withSideMargin("1",10,objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel))::Nil
-            ),
-            cell("7",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
-              withSideMargin("1",10,dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel))::Nil
-            ),
-            cell("8",MinWidth(100),Priority(0),TextAlignCenter,VerticalAlignMiddle)((_)=>
-              btnCreate("btn2",go.get)::Nil
+            mCell("6",150)((showLabel)=>objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel)),
+            mCell("7",150)((showLabel)=>dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel)),
+            mcCell("8",100,0)((_)=>btnCreate("btn2",go.get)::Nil
             )
           )
         }
@@ -548,85 +524,85 @@ class TestComponent(
   def entryEditFuelScheduleView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
     paperTable("dtTableEdit1")(List(
       row("row",IsHeader)(
-        cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Time")))::Nil),
-        cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","ME Hours.Min")))::Nil),
-        cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Fuel rest/quantity")))::Nil),
-        cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Comment")))::Nil),
-        cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Engineer")))::Nil),
-        cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Master")))::Nil)
+        mCell("1",100,3)((_)=>List(text("1","Time"))),
+        mCell("2",150,1)((_)=>List(text("1","ME Hours.Min"))),
+        mCell("3",100,1)((_)=>List(text("1","Fuel rest/quantity"))),
+        mCell("4",250,3)((_)=>List(text("1","Comment"))),
+        mCell("5",150,2)((_)=>List(text("1","Engineer"))),
+        mCell("6",150,2)((_)=>List(text("1","Master")))
       ),
       row("row1",dtTablesState.toggledRow("dtTableEdit1","row1"))(
-        cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10,List(if(showLabel) labeledText("1","00:00","Time") else text("1","00:00")))::Nil
+        mCell("1",100,3)((showLabel)=>
+          List(if(showLabel) labeledText("1","00:00","Time") else text("1","00:00"))
         ),
-        cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, timeField(entry, logAt.log00Date, editable, "Date", showLabel))::Nil
+        mCell("2",150,1)((showLabel)=>
+          timeField(entry, logAt.log00Date, editable, "Date", showLabel)
         ),
-        cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log00Fuel, editable,"Fuel rest/quantity",showLabel))::Nil
+        mCell("3",100,1)((showLabel)=>
+          strField(entry, logAt.log00Fuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log00Comment, editable,"Comment",showLabel))::Nil
+        mCell("4",250,3)((showLabel)=>
+          strField(entry, logAt.log00Comment, editable,"Comment",showLabel)
         ),
-        cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log00Engineer, editable,"Engineer",showLabel))::Nil
+        mCell("5",150,2)((showLabel)=>
+          strField(entry, logAt.log00Engineer, editable,"Engineer",showLabel)
         ),
-        cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log00Master, editable,"Master",showLabel))::Nil
+        mCell("6",150,2)((showLabel)=>
+          strField(entry, logAt.log00Master, editable,"Master",showLabel)
         )
       ),
       row("row2",dtTablesState.toggledRow("dtTableEdit1","row2"))(
-        cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10,List(if(showLabel) labeledText("1","08:00","Time") else text("1","08:00")))::Nil
+        mCell("1",100,3)((showLabel)=>
+          List(if(showLabel) labeledText("1","08:00","Time") else text("1","08:00"))
         ),
-        cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, timeField(entry, logAt.log08Date, editable, "Date", showLabel))::Nil
+        mCell("2",150,1)((showLabel)=>
+          timeField(entry, logAt.log08Date, editable, "Date", showLabel)
         ),
-        cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log08Fuel, editable,"Fuel rest/quantity",showLabel))::Nil
+        mCell("3",100,1)((showLabel)=>
+          strField(entry, logAt.log08Fuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log08Comment, editable,"Comment",showLabel))::Nil
+        mCell("4",250,3)((showLabel)=>
+          strField(entry, logAt.log08Comment, editable,"Comment",showLabel)
         ),
-        cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log08Engineer, editable,"Engineer",showLabel))::Nil
+        mCell("5",150,2)((showLabel)=>
+          strField(entry, logAt.log08Engineer, editable,"Engineer",showLabel)
         ),
-        cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log08Master, editable,"Master",showLabel))::Nil
+        mCell("6",150,2)((showLabel)=>
+          strField(entry, logAt.log08Master, editable,"Master",showLabel)
         )
 
       ),
       row("row3",dtTablesState.toggledRow("dtTableEdit1","row3"))(
-        cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Passed")))::Nil),
-        cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Received Fuel")))::Nil),
-        cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10,strField(entry, logAt.logRFFuel, editable,"Fuel rest/quantity",showLabel))::Nil
+        mCell("1",100,3)((_)=>List(text("1","Passed"))),
+        mCell("2",150,1)((_)=>List(text("1","Received Fuel"))),
+        mCell("3",100,1)((showLabel)=>
+          strField(entry, logAt.logRFFuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10,strField(entry, logAt.logRFComment, editable,"Comment",showLabel))::Nil),
-        cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10,strField(entry, logAt.logRFEngineer, editable,"Engineer",showLabel))::Nil),
-        cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,Nil)::Nil)
+        mCell("4",250,3)((showLabel)=>
+          strField(entry, logAt.logRFComment, editable,"Comment",showLabel)),
+        mCell("5",150,2)((showLabel)=>
+         strField(entry, logAt.logRFEngineer, editable,"Engineer",showLabel)),
+        mCell("6",150,2)((_)=>Nil)
 
       ),
       row("row4", dtTablesState.toggledRow("dtTableEdit1","row4"))(
-        cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, List(if(showLabel) labeledText("1","24:00","Time") else text("1","24:00")))::Nil
+        mCell("1",100,3)((showLabel)=>
+          List(if(showLabel) labeledText("1","24:00","Time") else text("1","24:00"))
         ),
-        cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, timeField(entry, logAt.log24Date, editable, "Date", showLabel))::Nil
+        mCell("2",150,1)((showLabel)=>
+          timeField(entry, logAt.log24Date, editable, "Date", showLabel)
         ),
-        cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log24Fuel, editable,"Fuel rest/quantity",showLabel))::Nil
+        mCell("3",100,1)((showLabel)=>
+          strField(entry, logAt.log24Fuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        cell("4",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log24Comment, editable,"Comment",showLabel))::Nil
+        mCell("4",250,3)((showLabel)=>
+          strField(entry, logAt.log24Comment, editable,"Comment",showLabel)
         ),
-        cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log24Engineer, editable,"Engineer",showLabel))::Nil
+        mCell("5",150,2)((showLabel)=>
+          strField(entry, logAt.log24Engineer, editable,"Engineer",showLabel)
         ),
-        cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((showLabel)=>
-          withSideMargin("1",10, strField(entry, logAt.log24Master, editable,"Master",showLabel))::Nil
+        mCell("6",150,2)((showLabel)=>
+          strField(entry, logAt.log24Master, editable,"Master",showLabel)
         )
       )
     ))
@@ -641,12 +617,12 @@ class TestComponent(
         controlPanel("",btnDelete("1", workList.removeSelected),btnAdd("2", workList.add)),
         row("row",IsHeader)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-          cell("1",MinWidth(50),VerticalAlignMiddle)((_)=>selectAllCheckBox(workList)),
+          mCell("1",50)((_)=>selectAllCheckBox(workList)),
           group("2_group",MinWidth(150)),
-          cell("2",MinWidth(100),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Start")))::Nil),
-          cell("3",MinWidth(100),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Stop")))::Nil),
-          cell("4",MinWidth(150),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Duration, hrs:min")))::Nil),
-          cell("5",MinWidth(250),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Comment")))::Nil)
+          mCell("2",100)((_)=>List(text("1","Start"))),
+          mCell("3",100)((_)=>List(text("1","Stop"))),
+          mCell("4",150)((_)=>List(text("1","Duration, hrs:min"))),
+          mCell("5",250,3)((_)=>List(text("1","Comment")))
         )
       ) :::
       workList.list.map { (work: Obj) =>
@@ -656,21 +632,21 @@ class TestComponent(
           IsSelected(work(filterAttrs.isSelected))
         )(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-          cell("1",MinWidth(50),VerticalAlignMiddle)(_=>
+          mCell("1",50)(_=>
             booleanField(work, filterAttrs.isSelected, editable)
           ),
           group("2_group",MinWidth(150)),
-          cell("2",MinWidth(100),VerticalAlignMiddle)((showLabel)=>
-            withSideMargin("1",10,timeField(work, logAt.workStart, editable, "Start", showLabel))::Nil
+          mCell("2",100)((showLabel)=>
+            timeField(work, logAt.workStart, editable, "Start", showLabel)
           ),
-          cell("3",MinWidth(100),VerticalAlignMiddle)((showLabel)=>
-            withSideMargin("1",10,timeField(work, logAt.workStop, editable, "Stop", showLabel))::Nil
+          mCell("3",100)((showLabel)=>
+            timeField(work, logAt.workStop, editable, "Stop", showLabel)
           ),
-          cell("4",MinWidth(150),VerticalAlignMiddle)((showLabel)=>
-            withSideMargin("1",10,durationField(work, logAt.workDuration,"Duration, hrs:min",showLabel))::Nil
+          mCell("4",150)((showLabel)=>
+            durationField(work, logAt.workDuration,"Duration, hrs:min",showLabel)
           ),
-          cell("5",MinWidth(250),Priority(3),VerticalAlignMiddle)((showLabel)=>
-            withSideMargin("1",10,strField(entry, logAt.workComment, editable,"Comment",showLabel))::Nil
+          mCell("5",250,3)((showLabel)=>
+            strField(entry, logAt.workComment, editable,"Comment",showLabel)
           )
         )
       }
@@ -698,15 +674,15 @@ class TestComponent(
       btnAdd("2", userList.add),
       paperTable("table")(
         row("head",IsHeader)(
-          cell("0",MinWidth(250))(_⇒selectAllCheckBox(userList)),
-          cell("1",MinWidth(250))(_⇒List(text("text", "Full Name")))
+          mCell("0",250)(_⇒selectAllCheckBox(userList)),
+          mCell("1",250)(_⇒List(text("text", "Full Name")))
         ) ::
         userList.list.map{ obj ⇒
           val user = alien.wrap(obj)
           val srcId = user(alien.objIdStr)
           row(srcId)(
-            cell("0",MinWidth(250))(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
-            cell("1",MinWidth(250))(showLabel⇒strField(user, at.caption, editable = true, "User", showLabel))
+            mCell("0",250)(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
+            mCell("1",250)(showLabel⇒strField(user, at.caption, editable = true, "User", showLabel))
           )
         }
       )
@@ -718,14 +694,14 @@ class TestComponent(
       toolbar("Events"),
       paperTable("table")(
         row("head", IsHeader)(
-          cell("1",MinWidth(250))(_⇒List(text("text", "Event"))),
-          cell("2",MinWidth(250))(_⇒Nil)
+          mCell("1",250)(_⇒List(text("text", "Event"))),
+          mCell("2",250)(_⇒Nil)
         ) ::
         eventSource.unmergedEvents.map(alien.wrap).map { ev =>
           val srcId = ev(alien.objIdStr)
           row(srcId)(
-            cell("1",MinWidth(250))(_⇒List(text("text", ev(eventSource.comment)))),
-            cell("2",MinWidth(250))(_⇒List(btnRemove("btn", () => eventSource.addUndo(ev))))
+            mCell("1",250)(_⇒List(text("text", ev(eventSource.comment)))),
+            mCell("2",250)(_⇒List(btnRemove("btn", () => eventSource.addUndo(ev))))
           )
         }
       )
