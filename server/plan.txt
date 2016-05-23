@@ -112,3 +112,40 @@ later: non-existing object binding
 filtering, sorting, 
 later: pagging
 
+////////////////////////////////////////////////////////////////////////////////
+
+event-sourcing +
+react +
+
+is server-centric?
+is scala? type-safe modular dsl
+see macwire
+h2 isolation, locks? need SERIALIZABLE
+postgre/h2, kafka?
+
+is h2 optimizer good?
+how do tables map to mvstore?
+
+Rx:
+sql ==> many non-optimal reads
+depend on range ==> depend on prefix
+on change cascade del, on read calc undefined;
+on change recalc stop -- (-) dead expressions;
+just change, on read check valid -- (-) sum of all values;
+?merger will not calc view <-> only on merged
+
+goals:
+savepoints (eventsrc: undo, multiver world, bonus for scaling)
+(logic+data)-in-process: UI, DB
+100M facts
+fast graph traversing
+lazy-calc-with-implicit-deps
+offline? bonus
+modular (+static attrs)
+
+
+
+
+demo run in inet
+2 roles of developers
+

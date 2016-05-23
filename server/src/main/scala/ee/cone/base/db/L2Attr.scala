@@ -1,33 +1,34 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Obj, Attr}
-import ee.cone.base.util.{HexDebug, Hex, Never}
+import java.nio.ByteBuffer
+import java.util.UUID
+
+import ee.cone.base.connection_api.{CoHandlerLists, Attr}
+import ee.cone.base.util.Never
 
 class AttrFactoryImpl(
-  booleanConverter: RawValueConverter[Boolean], db: FactIndex
-)(val noAttr: NoAttr=NoAttr) extends AttrFactory {
-  def apply[Value](labelId: LabelId, propId: PropId, converter: RawValueConverter[Value]) = {
-    val booleanAttr = AttrImpl[Boolean](labelId, propId)(db, booleanConverter, identity)
-    AttrImpl(labelId, propId)(db, converter, _=>booleanAttr)
+  handlerLists: CoHandlerLists,
+  objIdFactory: ObjIdFactory
+) extends AttrFactory {
+  def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V] =
+    define(objIdFactory.toObjId(uuid), valueType)
+  def define[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V] =
+    new AttrImpl(attrId, valueType)
+
+  def derive[V](attrAId: ObjId, attrBId: ObjId, valueType: AttrValueType[V]) = {
+    val buffer = ByteBuffer.allocate(java.lang.Long.BYTES*4)
+    buffer.putLong(attrAId.hi).putLong(attrAId.lo)
+    buffer.putLong(attrBId.hi).putLong(attrBId.lo)
+    define(objIdFactory.toObjId(UUID.nameUUIDFromBytes(buffer.array())), valueType)
   }
-  def apply[V](propId: PropId, converter: RawValueConverter[V]) =
-    apply(new LabelId(0L), propId, converter)
+  def attrId[V](attr: Attr[V]): ObjId = attr.asInstanceOf[AttrImpl[V]].id
+  def valueType[V](attr: Attr[V]): AttrValueType[V] = attr.asInstanceOf[AttrImpl[V]].valueType
+  def toAttr[V](attrId: ObjId, valueType: AttrValueType[V]) =
+    handlerLists.single(ToAttr(attrId,valueType), ()⇒Never())
+  def converter[V](valueType: AttrValueType[V]): RawValueConverter[V] =
+    handlerLists.single(ToRawValueConverter(valueType), ()⇒Never())
 }
 
-trait NoAttr extends Attr[Boolean]
-case object NoAttr extends NoAttr {
-  def defined = this
-  def set(node: Obj, value: Boolean) = Never()
-  def get(node: Obj) = Never()
-}
-
-case class AttrImpl[Value](labelId: LabelId, propId: PropId)(
-  val factIndex: FactIndex, val converter: RawValueConverter[Value],
-  getNonEmpty: Attr[Value]=>Attr[Boolean]
-) extends Attr[Value] with RawAttr[Value] {
-  def get(node: Obj) = factIndex.get(node, this)
-  def set(node: Obj, value: Value) = factIndex.set(node, this, value)
-  def defined: Attr[Boolean] = getNonEmpty(this)
-  def rawAttr = this
-  override def toString = s"AttrImpl(${HexDebug(labelId.value)},${HexDebug(propId.value)})"
+class AttrImpl[Value](val id: ObjId, val valueType: AttrValueType[Value]) extends Attr[Value] {
+  override def toString = s"Attr(${id.toString})"
 }

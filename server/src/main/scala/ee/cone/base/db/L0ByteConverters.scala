@@ -6,53 +6,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import ee.cone.base.util._
 import ee.cone.base.db.Types._
 
-// converters //////////////////////////////////////////////////////////////////
-
-class RawFactConverterImpl extends RawFactConverter {
-  def head = 0L
-  def key(objId: ObjId, attrId: RawAttr[_]): RawKey =
-    key(objId, attrId.labelId, attrId.propId, hasObjId=true, hasAttrId=true)
-  def keyWithoutAttrId(objId: ObjId): RawKey =
-    key(objId, new LabelId(0L), new PropId(0L), hasObjId=true, hasAttrId=false)
-  def keyHeadOnly: RawKey =
-    key(new ObjId(0L), new LabelId(0L), new PropId(0L), hasObjId=false, hasAttrId=false)
-  private def key(objId: ObjId, labelId: LabelId, propId: PropId, hasObjId: Boolean, hasAttrId: Boolean): RawKey = {
-    val exHead = CompactBytes.toWrite(head).at(0)
-    exHead.write(head, if(!hasObjId) exHead.alloc(0) else {
-      val exObjId = CompactBytes.toWrite(objId.value).after(exHead)
-      exObjId.write(objId.value, if(!hasAttrId) exObjId.alloc(0) else {
-        val exLabelId = CompactBytes.toWrite(labelId.value).after(exObjId)
-        val exPropId = CompactBytes.toWrite(propId.value).after(exLabelId)
-        exLabelId.write(labelId.value, exPropId.write(propId.value, exPropId.alloc(0)))
-      })
-    })
-  }
-  def value[Value](attrId: RawAttr[Value], value: Value, valueSrcId: ObjId) =
-    OuterRawValueConverter.allocWrite[Value](0,attrId.converter,value,valueSrcId,hasIdAfter=true)
-  def valueFromBytes[Value](converter: RawValueConverter[Value], b: RawValue): Value = {
-    if(b.length==0) return converter.convertEmpty()
-    val exchangeA = CompactBytes.toReadAt(b,0)
-    val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
-    val exchangeC = CompactBytes.toReadAfter(b,exchangeB).checkIsLastIn(b)
-    if(exchangeA.head == CompactBytes.`strHead` && exchangeB.isSplitter)
-      converter.convert(exchangeA.readString(b))
-    else converter.convert(exchangeA.readLong(b), exchangeB.readLong(b))
-  }
-  def srcObjIdFromBytes(spaceBefore: Int, b: RawValue): ObjId = {
-    val exchangeA = CompactBytes.toReadAt(b,spaceBefore)
-    val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
-    val exchangeC = CompactBytes.toReadAfter(b,exchangeB).checkIsLastIn(b)
-    new ObjId(exchangeC.readLong(b))
-  }
-  /*
-  def keyFromBytes(key: RawKey): (Long,Long) = {
-    val exHead = CompactBytes.toReadAt(key, 0)
-    if(exHead.readLong(key) != head) Never()
-    val exObjId = CompactBytes.toReadAfter(key, exHead)
-    val exAttrId = CompactBytes.toReadAfter(key, exObjId).checkIsLastIn(key)
-    (exObjId.readLong(key), exAttrId.readLong(key))
-  }*/
-}
+import scala.annotation.tailrec
 
 object RawDumpImpl extends RawDump {
   def apply(b: Array[Byte]) = {
@@ -71,84 +25,65 @@ object RawDumpImpl extends RawDump {
   }
 }
 
-class RawSearchConverterImpl extends RawSearchConverter {
+// converters //////////////////////////////////////////////////////////////////
+
+class RawConverterImpl extends RawConverter {
   def head = 1L
-  def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId): RawKey =
-    key(attrId, value, objId, hasObjId=true)
-  def keyWithoutObjId[Value](attrId: RawAttr[Value], value: Value): RawKey =
-    key(attrId, value, new ObjId(0L), hasObjId=false)
-  private def key[Value](attrId: RawAttr[Value], value: Value, objId: ObjId, hasObjId: Boolean): RawKey = {
-    val labelId = attrId.labelId
-    val propId = attrId.propId
-    val exHead = CompactBytes.toWrite(head).at(0)
-    val exLabelId = CompactBytes.toWrite(labelId.value).after(exHead)
-    val exPropId = CompactBytes.toWrite(propId.value).after(exLabelId)
-    val valuePos = exPropId.nextPos
-    exHead.write(head, exLabelId.write(labelId.value, exPropId.write(propId.value,
-      OuterRawValueConverter.allocWrite(valuePos, attrId.converter, value, objId, hasObjId) //allowEmptyValue = false
-    )))
-  }
-  def value(on: Boolean): Array[Byte] = if(!on) Array[Byte]() else {
-    val value = 1L
-    val exchangeA = CompactBytes.toWrite(value).at(0)
-    val b = exchangeA.alloc(0)
-    exchangeA.write(value,b)
+  def toBytes(preId: ObjId, finId: ObjId) =
+    toBytesInner(preId, valIdHas = false,    0L,    0L, valueHas = false, ""   , finId)
+  def toBytes(preId: ObjId, valHi: Long, valLo: Long, finId: ObjId) =
+    toBytesInner(preId, valIdHas = true , valHi, valLo, valueHas = false, ""   , finId)
+  def toBytes(preId: ObjId, value: String, finId: ObjId) =
+    toBytesInner(preId, valIdHas = false,    0L,    0L, valueHas = true , value, finId)
+
+  private def toBytesInner(
+    preId: ObjId, valIdHas: Boolean, valIdHi: Long, valIdLo: Long, valueHas: Boolean, value: String, finId: ObjId
+  ): Array[Byte] = {
+    val preIdHas = preId.nonEmpty
+    val finIdHas = finId.nonEmpty
+
+    val    headEx =              CompactBytes.toWrite(head).at(0)
+    val preIdHiEx = if(preIdHas) CompactBytes.toWrite(preId.hi).after(   headEx) else    headEx
+    val preIdLoEx = if(preIdHas) CompactBytes.toWrite(preId.lo).after(preIdHiEx) else    headEx
+    val valIdHiEx = if(valIdHas) CompactBytes.toWrite(valIdHi ).after(preIdLoEx) else preIdLoEx
+    val valIdLoEx = if(valIdHas) CompactBytes.toWrite(valIdLo ).after(valIdHiEx) else preIdLoEx
+    val valueRaw  = if(valueHas) Bytes(value) else null
+    val valueHiEx = if(valueHas) CompactBytes.toWrite(valueRaw).after(valIdLoEx) else valIdLoEx
+    val valueLoEx = if(valueHas) CompactBytes.`splitter`       .after(valueHiEx) else valIdLoEx
+    val finIdHiEx = if(finIdHas) CompactBytes.toWrite(finId.hi).after(valueLoEx) else valueLoEx
+    val finIdLoEx = if(finIdHas) CompactBytes.toWrite(finId.lo).after(finIdHiEx) else valueLoEx
+
+    val b = finIdLoEx.alloc(0)
+    headEx.write(head, b)
+    if(preIdHas){ preIdHiEx.write(preId.hi, b); preIdLoEx.write(preId.lo, b) }
+    if(valIdHas){ valIdHiEx.write(valIdHi , b); valIdLoEx.write(valIdLo , b) }
+    if(valueHas){ valueHiEx.write(valueRaw, b); valueLoEx.writeHead(      b) }
+    if(finIdHas){ finIdHiEx.write(finId.hi, b); finIdLoEx.write(finId.lo, b) }
     b
   }
-}
-
-object OuterRawValueConverter {
-  def allocWrite[Value](
-    spaceBefore: Int, converter: RawValueConverter[Value], dbValue: Value,
-    idAfter: ObjId, hasIdAfter: Boolean
-  ): Array[Byte] = {
-    if(!converter.nonEmpty(dbValue)) return new Array[Byte](spaceBefore)
-    if(!hasIdAfter) return converter.allocWrite(spaceBefore, dbValue, 0)
-    val absEx = CompactBytes.toWrite(idAfter.value)
-    val res = converter.allocWrite(spaceBefore, dbValue, absEx.size)
-    absEx.atTheEndOf(res).write(idAfter.value, res)
-  }
-}
-
-object InnerRawValueConverterImpl extends InnerRawValueConverter {
-  def allocWrite(spaceBefore: Int, valueA: Long, valueB: Long, spaceAfter: Int) = {
-    val exchangeA = CompactBytes.toWrite(valueA).at(spaceBefore)
-    val exchangeB = CompactBytes.toWrite(valueB).after(exchangeA)
-    exchangeA.write(valueA, exchangeB.write(valueB, exchangeB.alloc(spaceAfter)))
-  }
-  def allocWrite(spaceBefore: Int, value: String, spaceAfter: Int) = {
-    val src = Bytes(value)
-    val exchangeA = CompactBytes.toWrite(src).at(spaceBefore)
-    val exchangeB = CompactBytes.`splitter`.after(exchangeA)
-    exchangeA.write(src, exchangeB.writeHead(exchangeB.alloc(spaceAfter)))
-  }
-}
-
-// matching ////////////////////////////////////////////////////////////////////
-
-object BytesSame {
-  def part(a: Array[Byte], b: Array[Byte]): Int = {
-    var i = 0
-    while (i < a.length && i < b.length && a(i) == b(i)) i += 1
-    i
-  }
-}
-
-class ObjIdExtractor(rawFactConverter: RawFactConverterImpl) extends RawKeyExtractor {
-  def apply(keyPrefix: RawKey, minSame: Int, key: RawKey, feed: Feed): Boolean = {
-    val same = BytesSame.part(keyPrefix, key)
-    same >= minSame &&
-      feed(keyPrefix.length - same, rawFactConverter.srcObjIdFromBytes(minSame, key).value)
-  }
-}
-
-class AttrIdExtractor extends RawKeyExtractor {
-  def apply(keyPrefix: RawKey, minSame: Int, key: RawKey, feed: Feed): Boolean = {
-    val same = BytesSame.part(keyPrefix, key)
-    if(same < minSame) return false
-    val exLabelId = CompactBytes.toReadAt(key, minSame)
-    val exPropId = CompactBytes.toReadAfter(key, exLabelId).checkIsLastIn(key)
-    feed(exLabelId.readLong(key), exPropId.readLong(key))
+  @tailrec private def skip(b: Array[Byte], ex: LongByteExchange, count: Int): LongByteExchange =
+    if(count > 0) skip(b, CompactBytes.toReadAfter(b,ex), count-1) else ex
+  def fromBytes[Value](b: Array[Byte], skipBefore: Int, converter: RawValueConverter[Value], skipAfter: Int): Value = {
+    if(b.length == 0){ return converter.convertEmpty() }
+    var skipEx = skip(b, CompactBytes.toReadAt(b,0), skipBefore*2)
+    val exchangeA = CompactBytes.toReadAfter(b,skipEx)
+    val exchangeB = CompactBytes.toReadAfter(b,exchangeA)
+    val lastEx = skip(b, exchangeB, skipAfter*2)
+/*
+    if(b.length != lastEx.nextPos) {
+      println(RawDumpImpl(b))
+      println(b.length)
+      println(skipBefore,skipAfter)
+      println(skipEx.size,skipEx.nextPos)
+      println(exchangeA.size,exchangeA.nextPos)
+      println(exchangeB.size,exchangeB.nextPos)
+      println(lastEx.size,lastEx.nextPos)
+    }
+*/
+    lastEx.checkIsLastIn(b)
+    if(exchangeA.head == CompactBytes.`strHead` && exchangeB.isSplitter)
+      converter.convert(exchangeA.readString(b))
+    else converter.convert(exchangeA.readLong(b), exchangeB.readLong(b))
   }
 }
 
@@ -202,7 +137,6 @@ class LongByteExchange private (val value: Long) extends AnyVal {
   final def nextPos = pos + size
   final def at(v: Int) = new LongByteExchange((value & ~posMask) | v)
   final def after(prev: LongByteExchange) = at(prev.nextPos)
-  final def atTheEndOf(b: Array[Byte]) = at(b.length - size)
 
   final def readLong(b: Array[Byte]): Long = {
     CompactBytes.checkLongInfo(head)

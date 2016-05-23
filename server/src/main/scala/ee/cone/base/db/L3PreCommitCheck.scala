@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Obj, BoundToTx, CoHandler, BaseCoHandler}
+import ee.cone.base.connection_api.Obj
 import ee.cone.base.util.Setup
 
 import scala.collection.mutable
@@ -22,11 +22,13 @@ class PreCommitCheckAllOfTx(
   def checkAll(): Seq[ValidationFailure] = checkList.flatMap(check=>check.checkAll())
 }
 
-class PreCommitCheckAllOfConnectionImpl extends PreCommitCheckAllOfConnection {
+class PreCommitCheckAllOfConnectionImpl(
+  txSelector: TxSelector
+) extends PreCommitCheckAllOfConnection {
   private var txs = mutable.Map[BoundToTx,PreCommitCheckAllOfTx]()
   def switchTx(tx: BoundToTx, on: Boolean) =
     if(on) txs(tx) = new PreCommitCheckAllOfTx(this) else txs.remove(tx)
   def checkTx(tx: BoundToTx) = txs(tx).checkAll()
   def create(later: Seq[Obj]=>Seq[ValidationFailure]): Obj=>Unit =
-    node => txs(node.tx).of(later).add(node)
+    node => txs(txSelector.txOf(node)).of(later).add(node)
 }

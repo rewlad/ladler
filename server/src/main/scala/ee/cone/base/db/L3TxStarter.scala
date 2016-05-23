@@ -1,7 +1,9 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{BoundToTx, LifeCycle}
+import ee.cone.base.connection_api._
 import ee.cone.base.util.{Setup, Never}
+
+class ProtectedBoundToTx[DBEnvKey](val rawIndex: RawIndex, var enabled: Boolean) extends BoundToTx // not case
 
 class CurrentTxImpl[DBEnvKey](env: DBEnv[DBEnvKey]) extends CurrentTx[DBEnvKey] {
   def dbId = env.dbId
@@ -10,6 +12,20 @@ class CurrentTxImpl[DBEnvKey](env: DBEnv[DBEnvKey]) extends CurrentTx[DBEnvKey] 
     if(value.isEmpty) throw new Exception(s"db #$dbId is out of tx")
     value.get
   }
+}
+
+class TxSelectorImpl(
+  nodeAttrs: NodeAttrs,
+  instantTx: CurrentTx[InstantEnvKey], mainTx: CurrentTx[MainEnvKey]
+) extends TxSelector with CoHandlerProvider {
+  def txOf(obj: Obj) = txOf(obj(nodeAttrs.objId))
+  private def txOf(objId: ObjId) = if(objId.hi==0) instantTx() else mainTx()
+  def rawIndex(tx: BoundToTx) = {
+    val pTx = tx.asInstanceOf[ProtectedBoundToTx[_]]
+    if(pTx.enabled) pTx.rawIndex else Never()
+  }
+  def rawIndex(objId: ObjId) = rawIndex(txOf(objId))
+  def handlers = List(CoHandler(TxSelectorKey)(this))
 }
 
 abstract class BaseTxManager[DBEnvKey] {
@@ -70,7 +86,6 @@ class SessionMainTxManagerImpl(
   private var mux: Option[Mux] = None
   def muxTx[R](recreate: Boolean)(f: ()⇒R) = withBusy{ () ⇒
     if(recreate)mux.foreach{ m ⇒
-      println("recreate")
       register(m.tx,on=false)
       mux = None
       m.lifeCycle.close()

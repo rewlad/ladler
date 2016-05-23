@@ -6,7 +6,7 @@ import ee.cone.base.connection_api._
 import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.{Never, Single}
 import ee.cone.base.vdom.Types.VDomKey
-import ee.cone.base.vdom.{Tags, AlienAttrFactory, CurrentVDom, ViewPath}
+import ee.cone.base.vdom.{Tags, CurrentVDom, ViewPath}
 import ee.cone.base.db._
 
 class FailOfConnection(
@@ -33,71 +33,62 @@ class DynEdit(
 */
 
 class TestAttrs(
+  objIdFactory: ObjIdFactory,
   attr: AttrFactory,
   label: LabelFactory,
-  searchIndex: SearchIndex,
-  definedValueConverter: RawValueConverter[Boolean],
-  nodeValueConverter: RawValueConverter[Obj],
-  uuidValueConverter: RawValueConverter[Option[UUID]],
-  stringValueConverter: RawValueConverter[String],
-  mandatory: Mandatory,
-  alienCanChange: AlienCanChange
+  asObj: AttrValueType[Obj],
+  asUUID: AttrValueType[Option[UUID]],
+  asString: AttrValueType[String]
 )(
-  val asTestTask: Attr[Obj] = label(0x6600),
-  val testState: Attr[String] = attr(new PropId(0x6601), stringValueConverter),
-  val comments: Attr[String] = attr(new PropId(0x6602), stringValueConverter),
-  val taskCreated: Attr[Boolean] = attr(new PropId(0x6603), definedValueConverter),
-  val taskRemoved: Attr[Boolean] = attr(new PropId(0x6604), definedValueConverter),
-  val targetStringValue: Attr[String] = attr(new PropId(0x6605), stringValueConverter)
-)(val handlers: List[BaseCoHandler] =
-  mandatory(asTestTask,testState, mutual = true) :::
-  mandatory(asTestTask,comments, mutual = true) :::
-  searchIndex.handlers(asTestTask.defined, testState) :::
-  alienCanChange.handlers(targetStringValue)(comments) ::: Nil
-) extends CoHandlerProvider
+  val asTestTask: Attr[Obj] = label("690cb4c2-55e8-4fca-bf23-394fbb2c65ba"),
+  val testState: Attr[String] = attr("6e60c1f1-a0b2-4a9a-84f7-c3627ac50727", asString),
+  val comments: Attr[String] = attr("c9ab1b7a-5339-4360-aa8d-b3c47d0099cf", asString),
+  val taskCreated: ObjId = objIdFactory.toObjId("8af608d3-7c5d-42dc-be26-c4aa1a073638"),
+  val taskRemoved: ObjId = objIdFactory.toObjId("9e86aae3-2094-4b38-a38b-41c1e285410d")
+)
 
 class TestComponent(
   at: TestAttrs,
   alienAccessAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
-  findNodes: FindNodes, uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey],
+  findNodes: FindNodes,
+  mainTx: CurrentTx[MainEnvKey],
   rTags: Tags,
   tags: TestTags,
-  alienAttr: AlienAttrFactory,
-  currentVDom: CurrentVDom
+  currentVDom: CurrentVDom,
+  searchIndex: SearchIndex,
+  mandatory: Mandatory,
+  alien: Alien,
+  factIndex: FactIndex
+)(
+  val testTaskByState: SearchByLabelProp[String] = searchIndex.create(at.asTestTask, at.testState)
 ) extends CoHandlerProvider {
   import rTags._
-  private def eventSource = handlerLists.single(SessionEventSource)
+  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   private def emptyView(pf: String) =
     root(List(text("text", "Loading...")))
   private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
       val startTime = System.currentTimeMillis
-      val changeComments: (UUID) => (String) => Unit = alienAttr(at.comments)
-      val tasks = findNodes.where(
-        mainTx(),
-        at.asTestTask.defined,
-        at.testState,
-        "A",
-        Nil
-      )
-      val taskLines = tasks.map { task =>
-        val srcId = task(uniqueNodes.srcId).get
+      val tasks = findNodes.where(mainTx(), testTaskByState, "A", Nil)
+      val taskLines = tasks.map { obj =>
+        val task = alien.wrap(obj)
+        val objIdStr = task(alien.objIdStr)
         tags.div(
-          srcId.toString,
-          tags.input("comments", task(at.comments), changeComments(srcId)) ::
-            tags.button("remove", "-", removeTaskAction(srcId)) ::
+          objIdStr,
+          tags.input("comments", task(at.comments), task(at.comments)=_) ::
+            tags.button("remove", "-", removeTaskAction(task)) ::
             //tags.text("dbg0",if(task(at.asTestTask.defined)) "D" else "d") ::
             //tags.text("dbg1",s"[${task(at.testState)}]") ::
             Nil
         )
       }
       val eventLines = eventSource.unmergedEvents.map { ev =>
-        val srcId = ev(uniqueNodes.srcId).get
+        val objIdStr = ev(alien.objIdStr)
         tags.div(
-          srcId.toString,
+          objIdStr,
           text("text", ev(eventSource.comment)) ::
-          tags.button("remove", "-", ()=>eventSource.addUndo(srcId)) ::
+          tags.button("remove", "-", ()=>eventSource.addUndo(ev)) ::
           Nil
         )
       }
@@ -115,45 +106,49 @@ class TestComponent(
     }
   }
   private def failAction()() = throw new Exception("test fail")
-  private def dumpAction()() = handlerLists.single(DumpKey)(mainTx)
+  private def dumpAction()() = handlerLists.single(DumpKey, ()⇒Never())(mainTx)
 
   private def saveAction()() = {
     eventSource.addRequest()
     currentVDom.invalidate()
   }
-  private def removeTaskAction(srcId: UUID)() = {
+  private def removeTaskAction(obj: Obj)() = {
     eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetSrcId) = Option(srcId)
+      ev(alienAccessAttrs.targetObj) = obj
       (at.taskRemoved, "task was removed")
     }
     currentVDom.invalidate()
   }
   private def taskRemoved(ev: Obj): Unit = {
-    val srcId = ev(alienAccessAttrs.targetSrcId).get
-    val task = uniqueNodes.whereSrcId(mainTx(), srcId)
-    task(at.asTestTask) = uniqueNodes.noNode
+    val task = ev(alienAccessAttrs.targetObj)
+    task(at.asTestTask) = findNodes.noNode
     task(at.comments) = ""
     task(at.testState) = ""
   }
   private def createTaskAction()() = {
     eventSource.addEvent{ ev =>
-      ev(alienAccessAttrs.targetSrcId) = Option(UUID.randomUUID)
+      ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
       (at.taskCreated, "task was created")
     }
     currentVDom.invalidate()
   }
   private def taskCreated(ev: Obj): Unit = {
-    val srcId = ev(alienAccessAttrs.targetSrcId).get
-    val task = uniqueNodes.create(mainTx(), at.asTestTask, srcId)
+    val task = ev(alienAccessAttrs.targetObj)
+    task(at.asTestTask) = task
     task(at.testState) = "A"
   }
 
-
   def handlers =
+    mandatory(at.asTestTask,at.testState, mutual = true) :::
+    mandatory(at.asTestTask,at.comments, mutual = true) :::
+    searchIndex.handlers(testTaskByState) :::
+    factIndex.handlers(at.testState) :::
+    List(at.comments).flatMap{ attr⇒
+      factIndex.handlers(attr) ::: alien.update(attr)
+    } :::
     CoHandler(ApplyEvent(at.taskCreated))(taskCreated) ::
     CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/test"))(testView) :: Nil
 }
-
 

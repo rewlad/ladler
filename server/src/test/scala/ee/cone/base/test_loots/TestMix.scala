@@ -1,12 +1,12 @@
 package ee.cone.base.test_loots
 
 import java.nio.file.Paths
+import java.time.{Duration, Instant}
 
-import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.connection_api.{WrapType, LifeCycle}
 import ee.cone.base.db._
-import ee.cone.base.lifecycle.{BaseConnectionMix,
-BaseAppMix}
-import ee.cone.base.lmdb.LightningDBEnv
+import ee.cone.base.lifecycle.{BaseConnectionMix,BaseAppMix}
+import ee.cone.base.lmdb.LightningDBAppMix
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
 import ee.cone.base.vdom.{InputAttributesImpl,VDomConnectionMix}
 
@@ -16,10 +16,9 @@ object TestApp extends App {
   println(s"SEE: http://127.0.0.1:${app.httpPort}/material-app.html#/entryList")
 }
 
-class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
+class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
   lazy val mainDB = new InMemoryEnv[MainEnvKey](1L)
-  //lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
-  lazy val instantDB = new LightningDBEnv[InstantEnvKey](0L,".",1L << 30, executionManager)
+  // lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
 
   lazy val httpPort = 5557
   lazy val staticRoot = Paths.get("../client/build/test")
@@ -32,25 +31,36 @@ class TestAppMix extends BaseAppMix with ServerAppMix with DBAppMix {
 }
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
-  lazy val instantValueConverter = new InstantValueConverter(InnerRawValueConverterImpl)
-  lazy val durationValueConverter = new DurationValueConverter(InnerRawValueConverterImpl)
+  lazy val asInstant = new AttrValueType[Option[Instant]]
+  lazy val asDuration = new AttrValueType[Option[Duration]]
 
-  lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, stringValueConverter)()
+  lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, asString)()
   lazy val logAttributes = new BoatLogEntryAttributes(
-    sysAttrs,attrFactory,labelFactory,searchIndex,
-    definedValueConverter,nodeValueConverter,stringValueConverter,uuidValueConverter,instantValueConverter,durationValueConverter,
-    alienCanChange
-  )()()
+    attrFactory,labelFactory,asDBObj,asString,asInstant,asDuration
+  )()
   lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl)
-
-  override def handlers =
-    //testAttributes.handlers,
-    logAttributes.handlers :::
-    new TestComponent(testAttributes, logAttributes, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx, alienAttrFactory, tags, materialTags, currentView).handlers :::
-    super.handlers
+  lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
+  lazy val dtTablesState=new DataTablesState(currentView)
+  lazy val asObjIdSet = new AttrValueType[Set[ObjId]]
+  lazy val listedWrapType = new ListedWrapType
+  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asDefined, asObjIdSet)()
+  lazy val filters = new Filters(filterAttrs,nodeAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex)()
+  //
+  lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
+  lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
+  lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes)
+  lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
+  lazy val testComponent = new TestComponent(
+    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes,
+    handlerLists,
+    attrFactory,
+    findNodes, mainTx, alienCanChange, onUpdate,
+    tags, materialTags, flexTags, currentView, dtTablesState,
+    searchIndex, factIndex, filters, htmlTableWithControl
+  )()
 }
 
-
+class ListedWrapType extends WrapType[InnerItemList]
 
 class TestSessionConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle
@@ -59,10 +69,7 @@ class TestSessionConnectionMix(
   lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
-  override def handlers =
-  //  new Dumper().handlers :::
-      new FailOfConnection(sender).handlers :::
-      super.handlers
+  lazy val failOfConnection = new FailOfConnection(sender)
 }
 
 class TestMergerConnectionMix(

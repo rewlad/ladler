@@ -56,6 +56,10 @@ trait OnChangeReceiver {
   def onChange: Option[String⇒Unit]
 }
 
+trait OnResizeReceiver{
+  def onResize: Option[String⇒Unit]
+}
+
 ////
 
 object Types {
@@ -72,10 +76,6 @@ trait ChildPair[C] extends VPair {
 
 trait InputAttributes {
   def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit
-}
-
-trait AlienAttrFactory {
-  def apply[Value](attr: Attr[Value]): UUID => Value => Unit
 }
 
 ////

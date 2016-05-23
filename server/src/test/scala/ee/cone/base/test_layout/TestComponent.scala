@@ -1,13 +1,13 @@
 package ee.cone.base.test_layout
 
-import ee.cone.base.connection_api.CoHandler
+import ee.cone.base.connection_api.{CoHandlerProvider, CoHandler}
 import ee.cone.base.vdom.{Tags, ViewPath}
 
 class TestComponent(
   tags: Tags,
   flexTags: FlexTags,
   materialTags: MaterialTags
-) {
+) extends CoHandlerProvider {
   import tags._
   import flexTags._
   import materialTags._

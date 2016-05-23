@@ -6,16 +6,6 @@ import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, UTF8String}
 import ee.cone.base.vdom.Types._
 
-class AlienAttrFactoryImpl(handlerLists: CoHandlerLists, currentVDom: CurrentVDom) extends AlienAttrFactory {
-  def apply[Value](attr: Attr[Value]): UUID => Value => Unit = { //when handlers are are available
-    val addEvent = handlerLists.single(AddChangeEvent(attr))
-    (srcId: UUID) => // when making input tag
-    newValue =>
-    addEvent(srcId,newValue)
-    currentVDom.invalidate()
-  }
-}
-
 object InputAttributesImpl extends InputAttributes {
   def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit = {
     builder.append("value").append(value)

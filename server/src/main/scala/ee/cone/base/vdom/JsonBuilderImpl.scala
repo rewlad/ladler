@@ -1,5 +1,7 @@
 package ee.cone.base.vdom
 
+import ee.cone.base.util.Never
+
 object JsonToStringImpl extends JsonToString {
   def apply(value: VDomValue): String = {
     val builder = new JsonBuilderImpl()
@@ -8,49 +10,48 @@ object JsonToStringImpl extends JsonToString {
   }
 }
 
-private object JsonBuilderImpl {
-  val oddElementCount = 0x1L
-  val nonEmpty        = 0x2L
-  val isObject        = 0x4L
-  val stateSize       = 3
-  val maxStateCount   = 21 // 21*3=63
-}
-
 class JsonBuilderImpl(val result: StringBuilder = new StringBuilder) extends JsonBuilder {
-  import JsonBuilderImpl._
-  private var stateStack: Long = 0L
-  private var stateCount = 1
-  private def is(flag: Long) = (stateStack & flag) != 0L
-  private def objectNeedsValue = is(isObject) && is(oddElementCount)
+  private var checkStack: Long = 1L
+  private var isOddStack: Long = 0L
+  private var nonEmptyStack: Long = 0L
+  private var isObjectStack: Long = 0L
 
-  private def push(flags: Long): Unit = {
-    stateCount += 1
-    if(stateCount > maxStateCount) new Exception("maxDepth")
-    stateStack = (stateStack << stateSize) | flags
+  private def is(stack: Long) = (stack & 1L) != 0L
+  private def objectNeedsValue = is(isObjectStack) && is(isOddStack)
+
+  private def push(isObjectFlag: Long): Unit = {
+    checkStack <<= 1
+    if(checkStack == 0) Never() //maxDepth
+    isOddStack <<= 1
+    nonEmptyStack <<= 1
+    isObjectStack = (isObjectStack << 1) | isObjectFlag
   }
   private def pop(): Unit = {
-    stateCount -= 1
-    if(stateCount < 0) new Exception("minDepth")
-    stateStack = stateStack >>> stateSize
+    checkStack >>>= 1
+    if(checkStack == 0) Never() //minDepth
+    isOddStack >>>= 1
+    nonEmptyStack >>>= 1
+    isObjectStack >>>= 1
   }
 
   private def startElement(): Unit =
-    if(is(nonEmpty)) result.append(if(objectNeedsValue) ':' else ',')
+    if(is(nonEmptyStack)) result.append(if(objectNeedsValue) ':' else ',')
   private def endElement(): Unit = {
-    stateStack = (stateStack | nonEmpty) ^ oddElementCount
+    nonEmptyStack |= 1L
+    isOddStack ^= 1L
   }
 
-  private def start(flags: Long, c: Char): JsonBuilder = {
+  private def start(isObjectFlag: Long, c: Char): JsonBuilder = {
     startElement()
-    push(flags)
+    push(isObjectFlag)
     result.append(c)
     this
   }
   def startArray() = start(0L, '[')
-  def startObject() = start(isObject, '{')
+  def startObject() = start(1L, '{')
   def end() = {
     if(objectNeedsValue) throw new Exception("objectNeedsValue")
-    result.append(if(is(isObject)) '}' else ']')
+    result.append(if(is(isObjectStack)) '}' else ']')
     pop()
     endElement()
     if(objectNeedsValue) throw new Exception("objectNeedsKey")

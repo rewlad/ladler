@@ -68,11 +68,12 @@ export default function GridWatcher(vDom, DiffPrepare){
     function layoutIteration(){
         const refs = Object.keys(ref_collection).map(key=>ref_collection[key])
         refs.forEach(refc=>{
+	    
             const drect = refc.element.getBoundingClientRect()
             refc.width = drect.width
             refc.height = drect.height
             refc.x = drect.left
-            refc.y = drect.top
+            refc.y = drect.top	    
         })
         var diff = DiffPrepare(vDom.localState)
         refs.forEach(refc=>{
@@ -97,6 +98,7 @@ export default function GridWatcher(vDom, DiffPrepare){
         parent_path.splice(-2,1)
         const parent_path_str = parent_path.join("/")
         return function register(isItem,element) {
+		
             if(element) ref_collection[path_str] = {path,parent_path_str,element,isItem} 
             else delete ref_collection[path_str]
         }

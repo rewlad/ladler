@@ -6,24 +6,26 @@ import ee.cone.base.db.Types._
 import ee.cone.base.util.{Never, Single}
 
 class SessionEventSourceOperationsImpl(
-  ops: ForSessionEventSourceOperations, at: SessionEventSourceAttrs, sysAttrs: SysAttrs,
+  ops: ForSessionEventSourceOperations,
+  at: SessionEventSourceAttrs, nodeAttrs: NodeAttrs, sysAttrs: FindAttrs,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
-  findNodes: FindNodes, uniqueNodes: UniqueNodes
+  findNodes: FindNodes
+)(
+    var lastStatus: Obj = findNodes.noNode
 ) extends SessionEventSourceOperations with CoHandlerProvider {
   private var sessionKeyOpt: Option[UUID] = None
+  def sessionKey = sessionKeyOpt.get
   private def findSession(): Option[Obj] = {
     val tx = instantTxManager.currentTx()
     Single.option(findNodes.where(
-      tx, at.asInstantSession.defined,
-      at.sessionKey, sessionKeyOpt,
-      Nil
+      tx, ops.findInstantSessionBySessionKey, sessionKeyOpt, Nil
     ))
   }
   private def findOrAddSession() = findSession().getOrElse{
     val tx = instantTxManager.currentTx()
-    val instantSession = ops.addInstant(uniqueNodes.noNode, at.asInstantSession)
+    val instantSession = ops.addInstant(findNodes.noNode, at.asInstantSession)
     instantSession(at.sessionKey) = sessionKeyOpt
-    instantSession(at.mainSessionSrcId) = Option(UUID.randomUUID)
+    instantSession(at.mainSession) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
     instantSession
   }
   def incrementalApplyAndView[R](view: () => R) = {
@@ -37,31 +39,31 @@ class SessionEventSourceOperationsImpl(
   }
   def unmergedEvents = ops.unmergedEvents(findSession().get)
   var decoupled: Boolean = false
-  private var lastStatusSrcId: Option[UUID] = None
   private def needRecreate(instantSession: Obj): Boolean = {
     val tx = instantTxManager.currentTx()
-    val options =
-      FindLastOnly :: lastStatusSrcId.map(uuid=>FindAfter(uniqueNodes.whereSrcId(tx, uuid))).toList
+    val findAfter = if(lastStatus(sysAttrs.nonEmpty)) List(FindAfter(lastStatus)) else Nil
+    val options = FindLastOnly :: findAfter
     val newStatuses = if(decoupled) findNodes.where(
-      tx, at.asCommit.defined, at.instantSession, instantSession, options
+      tx, ops.findCommitByInstantSession, instantSession, options
     ) else findNodes.where(
-      tx, at.asCommit.defined, sysAttrs.justIndexed, findNodes.justIndexed, options
+      tx, ops.findCommit, findNodes.justIndexed, options
     )
     if(newStatuses.isEmpty) return false
     val newStatus :: Nil = newStatuses
-    lastStatusSrcId = newStatus(uniqueNodes.srcId)
+    lastStatus = newStatus
     true
   }
-  def addUndo(uuid: UUID) = instantTxManager.rwTx { () ⇒
+  def addUndo(event: Obj) = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
+    val objId = event(nodeAttrs.objId)
     mainTxManager.muxTx(recreate=true)(()=>
       ops.unmergedEvents(instantSession).reverse.foreach{ ev =>
-        if(ev(uniqueNodes.srcId).get == uuid) ops.undo(ev)
+        if(ev(nodeAttrs.objId) == objId) ops.undo(ev)
         if(ev(at.applyAttr) == at.requested) Never() // check
       }
     )
   }
-  def addEvent(fill: Obj=>(Attr[Boolean],String)): Unit = instantTxManager.rwTx { () ⇒
+  def addEvent(fill: Obj=>(ObjId,String)): Unit = instantTxManager.rwTx { () ⇒
     val instantSession = findSession().get
     val ev = ops.addInstant(instantSession, at.asEvent)
     val (handler, comment) = fill(ev)

@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import java.util.UUID
 import java.util.concurrent.ExecutorService
 
 import ee.cone.base.connection_api._
@@ -8,9 +9,8 @@ trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv[MainEnvKey]
   def instantDB: DBEnv[InstantEnvKey]
   def createMergerConnection: LifeCycle=>CoMixBase
-  lazy val mergerCurrentRequest = new CurrentRequest(None)
   override def toStart =
-    mainDB :: instantDB :: new Merger(executionManager,createMergerConnection) :: super.toStart
+    new Merger(executionManager,createMergerConnection) :: super.toStart
 }
 
 trait InMemoryDBAppMix extends DBAppMix {
@@ -22,81 +22,84 @@ trait DBConnectionMix extends CoMixBase {
   def dbAppMix: DBAppMix
   def lifeCycle: LifeCycle
 
-  // L0
-  lazy val rawFactConverter = new RawFactConverterImpl
-  lazy val rawSearchConverter = new RawSearchConverterImpl
-  lazy val attrIdExtractor = new AttrIdExtractor
-  lazy val objIdExtractor = new ObjIdExtractor(rawFactConverter)
-  // L1
+  // L0/L1
+  lazy val rawConverter = new RawConverterImpl
   lazy val rawVisitor = new RawVisitorImpl
   // L2
-  lazy val nodeFactory = new NodeFactoryImpl()
+  lazy val noObj = new NoObjImpl(handlerLists)
+
+  lazy val asDefined = new AttrValueType[Boolean]
+  lazy val asDBObjId = new AttrValueType[ObjId]
+  lazy val dbWrapType = new DBWrapType
+
+  lazy val attrFactory = new AttrFactoryImpl(handlerLists,objIdFactory)
+  lazy val nodeAttrs = new NodeAttrsImpl(attrFactory, asDBObjId)()
+
+  lazy val objIdFactory = new ObjIdFactoryImpl
+  lazy val dbObjIdValueConverter = new DBObjIdValueConverter(asDBObjId,rawConverter,objIdFactory)
+
+  lazy val zeroNode = ObjIdImpl(0L,0L)
   lazy val factIndex =
-    new FactIndexImpl(rawFactConverter, attrIdExtractor, rawVisitor, handlerLists, nodeFactory)
-  lazy val definedValueConverter =
-    new DefinedValueConverter(InnerRawValueConverterImpl)
-  lazy val attrFactory =
-    new AttrFactoryImpl(definedValueConverter, factIndex)()
+    new FactIndexImpl(rawConverter, dbObjIdValueConverter, rawVisitor, handlerLists, nodeAttrs, attrFactory, dbWrapType, objIdFactory, zeroNode, asDefined)
+  lazy val onUpdate = new OnUpdateImpl(factIndex)
   lazy val searchIndex =
-    new SearchIndexImpl(rawSearchConverter, objIdExtractor, rawVisitor, attrFactory, nodeFactory)
+    new SearchIndexImpl(handlerLists, rawConverter, dbObjIdValueConverter, rawVisitor, attrFactory, nodeAttrs, objIdFactory, onUpdate)
 
   // L3
-  lazy val attrValueConverter =
-    new AttrValueConverter(InnerRawValueConverterImpl,attrFactory,definedValueConverter)
-  lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl
-  lazy val listByDBNode =
-    new ListByDBNodeImpl(factIndex,attrValueConverter)
-  lazy val findNodes = new FindNodesImpl(handlerLists, nodeFactory)
-
-  lazy val mandatory = new MandatoryImpl(preCommitCheckCheckAll, listByDBNode)
-  lazy val unique = new UniqueImpl(preCommitCheckCheckAll, searchIndex, findNodes)
-
   lazy val instantTx = new CurrentTxImpl[InstantEnvKey](dbAppMix.instantDB)
   lazy val mainTx = new CurrentTxImpl[MainEnvKey](dbAppMix.mainDB)
+  lazy val txSelector = new TxSelectorImpl(nodeAttrs, instantTx, mainTx)
 
-  lazy val nodeValueConverter = new MainNodeValueConverter(InnerRawValueConverterImpl,nodeFactory,mainTx,instantTx)
-  lazy val uuidValueConverter = new UUIDValueConverter(InnerRawValueConverterImpl)
-  lazy val stringValueConverter = new StringValueConverter(InnerRawValueConverterImpl)
+  lazy val asString = new AttrValueType[String]
+  lazy val findAttrs = new FindAttrsImpl(attrFactory,asDefined,asString)()
+  lazy val findNodes = new FindNodesImpl(findAttrs, handlerLists, nodeAttrs, noObj, attrFactory, factIndex, objIdFactory, dbObjIdValueConverter, dbWrapType)()
 
-  lazy val labelFactory = new LabelFactoryImpl(attrFactory,nodeValueConverter)
-  lazy val sysAttrs = new SysAttrsImpl(attrFactory,labelFactory,searchIndex,nodeValueConverter,uuidValueConverter,stringValueConverter,mandatory,unique)()()
+  lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl(txSelector)
+  lazy val mandatory = new MandatoryImpl(attrFactory, factIndex, preCommitCheckCheckAll)
+  lazy val unique = new UniqueImpl(attrFactory, factIndex, txSelector, preCommitCheckCheckAll, searchIndex, findNodes)
 
-  lazy val uniqueNodes = new UniqueNodesImpl(nodeValueConverter, nodeFactory, sysAttrs, findNodes)
-
+  lazy val asDBObj = new AttrValueType[Obj]
+  lazy val asUUID = new AttrValueType[Option[UUID]]
+  lazy val asBoolean = new AttrValueType[Boolean]
+  lazy val labelFactory = new LabelFactoryImpl(attrFactory,asDBObj)
 
   lazy val instantTxManager =
     new DefaultTxManagerImpl[InstantEnvKey](lifeCycle, dbAppMix.instantDB, instantTx, preCommitCheckCheckAll)
 
   // Sys
   lazy val eventSourceAttrs =
-    new EventSourceAttrsImpl(sysAttrs,attrFactory,labelFactory,searchIndex,definedValueConverter,nodeValueConverter,attrValueConverter,uuidValueConverter,stringValueConverter,mandatory)()()
+    new EventSourceAttrsImpl(objIdFactory,attrFactory,labelFactory,asDBObj,asDBObjId,asUUID,asString)()
   lazy val eventSourceOperations =
-    new EventSourceOperationsImpl(eventSourceAttrs,sysAttrs,factIndex,handlerLists,findNodes,uniqueNodes,instantTx,mainTx)
+    new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,findAttrs,factIndex,handlerLists,findNodes,instantTx,mainTx,searchIndex,mandatory)()
 
-  lazy val alienAccessAttrs = new AlienAccessAttrs(attrFactory, searchIndex, nodeValueConverter, uuidValueConverter, mandatory)()()
-  lazy val alienCanChange = new AlienCanChange(alienAccessAttrs,handlerLists,uniqueNodes,mainTx)
+  lazy val alienAccessAttrs = new AlienAccessAttrs(objIdFactory, attrFactory, asDBObj, asString)()
 
-  override def handlers = sysAttrs.handlers ::: eventSourceAttrs.handlers ::: super.handlers
+  lazy val alienWrapType = new AlienWrapType
+  lazy val demandedWrapType = new DemandedWrapType
+  lazy val alienCanChange = new Alien(alienAccessAttrs,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,objIdFactory)
+
+  lazy val definedValueConverter = new DefinedValueConverter(asDefined, rawConverter)
+  lazy val booleanValueConverter = new BooleanValueConverter(asBoolean, rawConverter)
+  lazy val dbObjValueConverter = new DBObjValueConverter(asDBObj,dbObjIdValueConverter,findNodes,nodeAttrs)
+  lazy val uuidValueConverter = new UUIDValueConverter(asUUID,rawConverter)
+  lazy val stringValueConverter = new StringValueConverter(asString,rawConverter)
 }
 
 trait MergerDBConnectionMix extends DBConnectionMix {
-  lazy val currentRequest = dbAppMix.mergerCurrentRequest
   lazy val mainTxManager =
     new DefaultTxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
-  override def handlers =
-    new MergerEventSourceOperationsImpl(eventSourceOperations, instantTxManager, mainTxManager, uniqueNodes, currentRequest).handlers :::
-    super.handlers
+  lazy val mergerEventSourceOperations =
+    new MergerEventSourceOperationsImpl(eventSourceOperations, findAttrs, instantTxManager, mainTxManager, findNodes)()
 }
 
 trait SessionDBConnectionMix extends DBConnectionMix {
   lazy val muxFactory = new MuxFactoryImpl
   lazy val mainTxManager =
     new SessionMainTxManagerImpl(lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll, muxFactory)
-  override def handlers =
+  lazy val sessionEventSourceOperations =
     new SessionEventSourceOperationsImpl(
-      eventSourceOperations, eventSourceAttrs, sysAttrs, instantTxManager, mainTxManager, findNodes, uniqueNodes
-    ).handlers :::
-    super.handlers
+      eventSourceOperations, eventSourceAttrs, nodeAttrs, findAttrs, instantTxManager, mainTxManager, findNodes
+    )()
 }
 
 /*

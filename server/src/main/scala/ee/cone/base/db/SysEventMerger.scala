@@ -1,40 +1,34 @@
 package ee.cone.base.db
 
-import java.util.UUID
 import java.util.concurrent.Future
 
 import ee.cone.base.connection_api._
 
-class CurrentRequest(var value: Option[UUID])
+class CurrentRequest(var value: Obj)
 
 class MergerEventSourceOperationsImpl(
-    ops: ForMergerEventSourceOperations,
+    ops: ForMergerEventSourceOperations, findAttrs: FindAttrs,
     instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: DefaultTxManager[MainEnvKey],
-    uniqueNodes: UniqueNodes, currentRequest: CurrentRequest
+  findNodes: FindNodes
+)(
+    var currentRequest: Obj = findNodes.noNode
 ) extends CoHandlerProvider {
-  private def toInstantNode(uuid: UUID) =
-    uniqueNodes.whereSrcId(instantTxManager.currentTx(),uuid)
-
   def handlers = CoHandler(ActivateReceiver){ ()=>
-    currentRequest.value.foreach { uuid ⇒
-      currentRequest.value = None
-      instantTxManager.rwTx{ ()⇒ ops.undo(toInstantNode(uuid)) }
+    if(currentRequest(findAttrs.nonEmpty)) {
+      val req = currentRequest
+      currentRequest = findNodes.noNode
+      instantTxManager.rwTx{ ()⇒ ops.undo(req) }
     }
     mainTxManager.rwTx { () ⇒
       instantTxManager.roTx { () ⇒
-        val req = ops.nextRequest()
-        if (req.nonEmpty) {
-          println("merger: req nonEmpty")
-          currentRequest.value = req(uniqueNodes.srcId)
-          ops.applyRequestedEvents(req)
-        }
+        currentRequest = ops.nextRequest()
+        if (currentRequest(findAttrs.nonEmpty))
+          ops.applyRequestedEvents(currentRequest)
       }
     }
-    if(currentRequest.value.nonEmpty) {
-      instantTxManager.rwTx { () ⇒
-        ops.addCommit (toInstantNode(currentRequest.value.get))
-      }
-      currentRequest.value = None
+    if(currentRequest(findAttrs.nonEmpty)) {
+      instantTxManager.rwTx { () ⇒ ops.addCommit(currentRequest) }
+      currentRequest = findNodes.noNode
     } else Thread.sleep(1000)
     //? then notify
   } :: Nil
@@ -44,7 +38,7 @@ class Merger(
   lifeCycleManager: ExecutionManager,
   createConnection: LifeCycle ⇒ CoMixBase
 ) extends CanStart {
-  def start() = lifeCycleManager.startServer { ()=>
+  def start() = lifeCycleManager.submit { ()=>
     var activity: Option[Future[_]] = None
     while(true){
       if(activity.forall(_.isDone))

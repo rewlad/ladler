@@ -1,40 +1,67 @@
 package ee.cone.base.db
 
+import java.util.UUID
+
 import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
 
-class ProtectedBoundToTx[DBEnvKey](val rawIndex: RawIndex, var enabled: Boolean) extends BoundToTx // not case
+trait BoundToTx
 
-trait NodeFactory {
-  def noNode: Obj
-  def toNode(tx: BoundToTx, objId: ObjId): Obj
+case object TxSelectorKey extends EventKey[TxSelector]
+trait TxSelector {
+  def txOf(obj: Obj): BoundToTx
+  def rawIndex(objId: ObjId): RawIndex
+  def rawIndex(tx: BoundToTx): RawIndex
+}
+
+trait NodeAttrs {
   def objId: Attr[ObjId]
-  def nextObjId: Attr[ObjId]
-  def rawIndex: Attr[RawIndex]
+}
+
+trait ObjIdFactory {
+  def noObjId: ObjId
+  def toObjId(hiObjId: Long, loObjId: Long): ObjId
+  def toObjId(uuid: UUID): ObjId
+  def toObjId(uuid: String): ObjId
 }
 
 trait AttrFactory {
-  def noAttr: Attr[Boolean]
-  def apply[V](labelId: LabelId, propId: PropId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
-  def apply[V](propId: PropId, converter: RawValueConverter[V]): Attr[V] with RawAttr[V]
+  def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V]
+  def define[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V]
+  def derive[V](attrAId: ObjId, attrBId: ObjId, valueType: AttrValueType[V]): Attr[V]
+  def attrId[V](attr: Attr[V]): ObjId
+  def valueType[V](attr: Attr[V]): AttrValueType[V]
+  def toAttr[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V]
+  def converter[V](valueType: AttrValueType[V]): RawValueConverter[V]
 }
+
+class AttrValueType[Value]
 
 trait FactIndex {
   def switchReason(node: Obj): Unit
-  def get[Value](node: Obj, attr: RawAttr[Value]): Value
-  def set[Value](node: Obj, attr: Attr[Value] with RawAttr[Value], value: Value): Unit
-  def execute(node: Obj, feed: Feed): Unit
+  def execute(obj: Obj)(feed: ObjId⇒Boolean): Unit
+  def handlers[Value](attr: Attr[Value]): List[BaseCoHandler]
+  def defined(attrId: ObjId): Attr[Boolean]
 }
 
 trait SearchIndex {
-  def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]): List[BaseCoHandler]
+  def create[Value](labelAttr: Attr[Obj], propAttr: Attr[Value]): SearchByLabelProp[Value]
+  def handlers[Value](by: SearchByLabelProp[Value]): List[BaseCoHandler]
 }
-case class SearchByLabelProp[Value](label: Attr[Boolean], prop: Attr[Boolean])
+case class SearchByLabelProp[Value](labelId: ObjId, labelType: AttrValueType[Obj], propId: ObjId, propType: AttrValueType[Value])
   extends EventKey[SearchRequest[Value]=>Unit]
 class SearchRequest[Value](
-  val tx: BoundToTx, val value: Value, val objId: Option[ObjId], val feed: Feed
+  val tx: BoundToTx,
+  val value: Value, val onlyThisValue: Boolean,
+  val objId: ObjId, val feed: ObjId⇒Boolean
 )
 
-case class BeforeUpdate(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
-case class AfterUpdate(attr: Attr[Boolean]) extends EventKey[Obj=>Unit]
-
+case class BeforeUpdate(attrId: ObjId) extends EventKey[Obj=>Unit]
+case class AfterUpdate(attrId: ObjId) extends EventKey[Obj=>Unit]
+trait OnUpdate {
+  //invoke will be called before and after update if all attrs are defined
+  def handlers(definedAttrs: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
+}
+case class ToAttr[Value](attrId: ObjId, valueType: AttrValueType[Value]) extends EventKey[Attr[Value]]
+case class ToRawValueConverter[Value](valueType: AttrValueType[Value])
+  extends EventKey[RawValueConverter[Value]]

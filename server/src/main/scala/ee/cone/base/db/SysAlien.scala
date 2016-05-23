@@ -3,34 +3,69 @@ package ee.cone.base.db
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.Single
+import ee.cone.base.util.{Never, Single}
 
 class AlienAccessAttrs(
+  objIdFactory: ObjIdFactory,
   attr: AttrFactory,
-  searchIndex: SearchIndex,
-  nodeValueConverter: RawValueConverter[Obj],
-  uuidValueConverter: RawValueConverter[Option[UUID]],
-  mandatory: Mandatory
+  asNode: AttrValueType[Obj],
+  asString: AttrValueType[String]
 )(
-  val targetSrcId: Attr[Option[UUID]] = attr(new PropId(0x0022), uuidValueConverter)
-)()
+  val target: ObjId = objIdFactory.toObjId("5a7300e9-a1d9-41a6-959f-cbd2f6791deb"),
+  val created: ObjId = objIdFactory.toObjId("7947ca07-d72f-438d-9e21-1ed8196689ae"),
+  val targetObj: Attr[Obj] = attr("0cd4abcb-c83f-4e15-aa9f-d217f2e36596", asNode),
+  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString)
+)
 
-class AlienCanChange(
-  at: AlienAccessAttrs, handlerLists: CoHandlerLists,
-  uniqueNodes: UniqueNodes, mainTx: CurrentTx[MainEnvKey]
-) {
-  private def eventSource = handlerLists.single(SessionEventSource)
-  def handlers[Value](targetAttr: Attr[Value])(attr: Attr[Value]) =
-      CoHandler(AddChangeEvent(attr)){ (srcId:UUID,newValue:Value) =>
+class DemandedNode(var objId: ObjId, val setup: Obj⇒Unit)
+
+class AlienWrapType extends WrapType[Unit]
+class DemandedWrapType extends WrapType[DemandedNode]
+
+class Alien(
+  at: AlienAccessAttrs, nodeAttrs: NodeAttrs, attrFactory: AttrFactory,
+  handlerLists: CoHandlerLists,
+  findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey], factIndex: FactIndex,
+  alienWrapType: WrapType[Unit], demandedWrapType: WrapType[DemandedNode],
+  objIdFactory: ObjIdFactory
+) extends CoHandlerProvider {
+  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
+  def update[Value](attr: Attr[Value]) = {
+    val attrId = attrFactory.attrId(attr)
+    val targetAttr = attrFactory.derive(at.target, attrId, attrFactory.valueType(attr))
+    factIndex.handlers(targetAttr) :::
+    CoHandler(SetValue(demandedWrapType, attr)){
+      (obj: Obj, innerObj : InnerObj[DemandedNode], value: Value)⇒
+      val demanded = innerObj.data
+      if(!demanded.objId.nonEmpty){
+        demanded.objId = findNodes.toObjId(UUID.randomUUID)
+        demanded.setup(obj)
+      }
+      innerObj.next.set(obj, attr, value)
+    } ::
+    CoHandler(SetValue(alienWrapType, attr)){
+      (obj: Obj, innerObj : InnerObj[Unit], newValue: Value)⇒
         eventSource.addEvent{ event =>
-          event(at.targetSrcId) = Option(srcId)
+          event(at.targetObj) = obj
           event(targetAttr) = newValue
-          (attr.defined, s"value of $attr was changed to $newValue")
+          (attrId, s"value of $attr was changed to $newValue")
         }
-      } ::
-      CoHandler(ApplyEvent(attr.defined)){ event =>
-        //println(event(at.targetSrcId).get)
-        val node = uniqueNodes.whereSrcId(mainTx(), event(at.targetSrcId).get)
-        node(attr) = event(targetAttr)
-      } :: Nil
+    } ::
+    CoHandler(ApplyEvent(attrId)){ event =>
+      event(at.targetObj)(attr) = event(targetAttr)
+    } :: Nil
+  }
+  def wrap(obj: Obj): Obj = obj.wrap(alienWrapType, ())
+  def demandedNode(setup: Obj⇒Unit): Obj = {
+    wrap(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
+  }
+  def objIdStr: Attr[String] = at.objIdStr
+  def handlers = List(
+    CoHandler(GetValue(demandedWrapType,nodeAttrs.objId)){ (obj,innerObj)⇒
+      innerObj.data.objId
+    },
+    CoHandler(GetValue(alienWrapType, objIdStr)){ (obj, innerObj)⇒
+      findNodes.toUUIDString(obj(nodeAttrs.objId))
+    }) :::
+    factIndex.handlers(at.targetObj)
 }

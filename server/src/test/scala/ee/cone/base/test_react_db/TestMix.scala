@@ -27,26 +27,18 @@ class TestAppMix extends BaseAppMix with ServerAppMix with InMemoryDBAppMix {
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
   lazy val testAttrs = new TestAttrs(
+    objIdFactory,
     attrFactory,
     labelFactory,
-    searchIndex,
-    definedValueConverter,
-    nodeValueConverter,
-    uuidValueConverter,
-    stringValueConverter,
-    mandatory,
-    alienCanChange
-  )()()
+    asDBObj,
+    asUUID,
+    asString
+  )()
   lazy val testTags = new TestTags(childPairFactory, InputAttributesImpl)
-
-  override def handlers =
-      testAttrs.handlers :::
-      new TestComponent(
-        testAttrs, alienAccessAttrs, handlerLists, findNodes, uniqueNodes, mainTx,
-        tags, testTags, alienAttrFactory, currentView
-      ).handlers :::
-      //new DynEdit(sessionEventSourceOperations).handlers :::
-      super.handlers
+  lazy val testComponent = new TestComponent(
+    testAttrs, alienAccessAttrs, handlerLists, findNodes, mainTx,
+    tags, testTags, currentView, searchIndex, mandatory, alienCanChange, factIndex
+  )()
 }
 
 class TestSessionConnectionMix(
@@ -56,10 +48,8 @@ class TestSessionConnectionMix(
   lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
-  override def handlers =
-    new Dumper().handlers :::
-    new FailOfConnection(sender).handlers :::
-    super.handlers
+  lazy val dumper = new Dumper()
+  lazy val failOfConnection = new FailOfConnection(sender)
 }
 
 class TestMergerConnectionMix(

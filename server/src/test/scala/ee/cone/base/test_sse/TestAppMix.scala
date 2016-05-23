@@ -27,8 +27,6 @@ class TestConnectionMix(
   lazy val serverAppMix = app
   lazy val allowOrigin = Some("*")
   lazy val framePeriod = 200L
-  override def handlers =
-    new TestConnection().handlers :::
-      super.handlers
+  lazy val testConnection = new TestConnection()
 }
 

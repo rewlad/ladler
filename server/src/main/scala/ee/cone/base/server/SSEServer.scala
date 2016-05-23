@@ -2,11 +2,10 @@
 package ee.cone.base.server
 
 import java.io.OutputStream
-import java.net.{Socket, ServerSocket}
-import java.util.concurrent.{Future, ExecutorService, Executor}
+import java.net.ServerSocket
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.{Single, ToRunnable, Bytes}
+import ee.cone.base.util.Bytes
 
 class SSESender(
   allowOriginOption: Option[String]
@@ -34,16 +33,18 @@ class RSSEServer(
   createConnection: LifeCycle ⇒ CoMixBase
 ) extends CanStart {
   private lazy val serverSocket = new ServerSocket(ssePort) //todo toClose
-  def start() = lifeCycleManager.startServer{ ()=>
-    val socket = serverSocket.accept()
-    lifeCycleManager.startConnection{ lifeCycle =>
-      lifeCycle.onClose(()=>socket.close())
-      val out = socket.getOutputStream
-      lifeCycle.onClose(()=>out.close())
+  def start() = lifeCycleManager.submit{ ()=>
+    while(true){
+      val socket = serverSocket.accept()
+      lifeCycleManager.startConnection{ lifeCycle =>
+        lifeCycle.onClose(()=>socket.close())
+        val out = socket.getOutputStream
+        lifeCycle.onClose(()=>out.close())
 
-      val connection = createConnection(lifeCycle)
-      connection.handlerLists.list(SetOutput).foreach(_(out))
-      connection
+        val connection = createConnection(lifeCycle)
+        connection.handlerLists.list(SetOutput).foreach(_(out))
+        connection
+      }
     }
   }
 }

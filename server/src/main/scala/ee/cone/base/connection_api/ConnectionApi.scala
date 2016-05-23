@@ -18,14 +18,17 @@ case class CoHandler[Item](on: EventKey[Item])(val handle: Item)
 
 trait CoHandlerLists {
   def list[Item](ev: EventKey[Item]): List[Item]
-  def single[Item](ev: EventKey[Item]): Item
+  def single[Item](ev: EventKey[Item], fail: ()⇒Item): Item
 }
+/*
+* include public lazy val with provider into connection mix,
+* then provider will be found (using reflection) and its handlers used
+* */
 trait CoHandlerProvider {
   def handlers: List[BaseCoHandler]
 }
-trait CoMixBase extends CoHandlerProvider {
+trait CoMixBase {
   def handlerLists: CoHandlerLists
-  def handlers: List[BaseCoHandler] = Nil
 }
 
 // Single shared app object of a project gathers all shared app-level components;
@@ -40,7 +43,7 @@ trait CanStart {
 }
 trait ExecutionManager {
   def pool: ExecutorService
-  def startServer(iteration: ()=>Unit): Unit
+  def submit(run: ()=>Unit): Future[_]
   def startConnection(setup: LifeCycle=>CoMixBase): Future[_]
 }
 trait AppMixBase extends CanStart {
@@ -50,18 +53,13 @@ trait AppMixBase extends CanStart {
 
 ////////////////////////////////
 
-trait BoundToTx
+class WrapType[WrapData]
 trait Obj {
-  def nonEmpty: Boolean
   def apply[Value](attr: Attr[Value]): Value
   def update[Value](attr: Attr[Value], value: Value): Unit
-  def tx: BoundToTx
+  def wrap[FWrapData](wrapType: WrapType[FWrapData], wrapData: FWrapData): Obj
 }
-trait Attr[Value] {
-  def defined: Attr[Boolean]
-  def get(node: Obj): Value
-  def set(node: Obj, value: Value): Unit
-}
+trait Attr[Value]
 
 ////////////////////////////////
 
@@ -76,5 +74,3 @@ case object SwitchSession extends EventKey[UUID=>Unit]
 case object FromAlienDictMessage extends EventKey[DictMessage=>Unit]
 case class DictMessage(value: Map[String,String])
 case object ShowToAlien extends EventKey[()=>List[(String,String)]]
-
-case class AddChangeEvent[Value](attr: Attr[Value]) extends EventKey[(UUID,Value)=>Unit]

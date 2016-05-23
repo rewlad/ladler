@@ -1,51 +1,73 @@
 
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
+import ee.cone.base.connection_api._
 import ee.cone.base.util.{Hex, HexDebug, Never}
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
 
 class SearchIndexImpl(
-  converter: RawSearchConverter,
-  rawKeyExtractor: RawKeyExtractor,
+  handlerLists: CoHandlerLists,
+  rawConverter: RawConverter,
+  nodeValueConverter: RawValueConverter[ObjId],
   rawVisitor: RawVisitor,
   attrFactory: AttrFactory,
-  nodeFactory: NodeFactory
+  nodeAttributes: NodeAttrs,
+  objIdFactory: ObjIdFactory,
+  onUpdate: OnUpdate
 ) extends SearchIndex {
-  private def execute[Value](attr: RawAttr[Value])(in: SearchRequest[Value]) = {
+  private type GetConverter[Value] = ()⇒(Value,ObjId)⇒Array[Byte]
+  private def txSelector = handlerLists.single(TxSelectorKey, ()⇒Never())
+  private def execute[Value](attrId: ObjId, getConverter: GetConverter[Value])(in: SearchRequest[Value]) = {
     //println("SS",attr)
-    val minKey = converter.keyWithoutObjId(attr, attr.converter.convertEmpty())
-    val whileKey = converter.keyWithoutObjId(attr, in.value) // not protected from empty
-    val fromKey = if(in.objId.isEmpty) whileKey
-      else converter.key(attr, in.value, in.objId.get)
-    val tx = in.tx.asInstanceOf[ProtectedBoundToTx[_]]
-    val rawIndex = if(tx.enabled) tx.rawIndex else throw new Exception("tx is disabled")
+    val valueConverter = getConverter()
+    val fromKey = valueConverter(in.value, in.objId)
+    val whileKey = if(!in.onlyThisValue) rawConverter.toBytes(attrId, objIdFactory.noObjId)
+      else if(in.objId.nonEmpty) valueConverter(in.value, objIdFactory.noObjId) else fromKey
+    val rawIndex = txSelector.rawIndex(in.tx)
     rawIndex.seek(fromKey)
-    rawVisitor.execute(rawIndex, rawKeyExtractor, whileKey, minKey.length, in.feed)
+    rawVisitor.execute(rawIndex, whileKey, b ⇒ in.feed(rawConverter.fromBytes(b,2,nodeValueConverter,0)))
   }
-  def handlers[Value](labelAttr: Attr[_], propAttr: Attr[Value]) = {
-    val labelRawAttr = labelAttr.asInstanceOf[RawAttr[_]]
-    val propRawAttr = propAttr.asInstanceOf[RawAttr[Value]]
-    if(labelRawAttr.propId.value != 0L)
-      throw new Exception(s"bad index on label: $labelAttr")
-    if(propRawAttr.labelId.value != 0L)
-      throw new Exception(s"bad index on prop: $propAttr")
-    val attr = attrFactory(labelRawAttr.labelId, propRawAttr.propId, propRawAttr.converter)
-    def setter(on: Boolean)(node: Obj) =
-      if (node(labelAttr.defined) && node(propAttr.defined)){
-        val key = converter.key(attr, node(propAttr), node(nodeFactory.objId))
-        val rawIndex = node(nodeFactory.rawIndex)
-        val value = converter.value(on)
-        rawIndex.set(key, value)
-        //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
-      }
-    val searchKey = SearchByLabelProp[Value](labelAttr.defined, propAttr.defined)
-    CoHandler(searchKey)(execute[Value](attr)) ::
-    (labelAttr :: propAttr :: Nil).flatMap{ a =>
-      CoHandler(BeforeUpdate(a.defined))(setter(on=false)) ::
-      CoHandler(AfterUpdate(a.defined))(setter(on=true)) :: Nil
+  def create[Value](labelAttr: Attr[Obj], propAttr: Attr[Value]): SearchByLabelProp[Value] = {
+    SearchByLabelProp(
+      attrFactory.attrId(labelAttr), attrFactory.valueType(labelAttr),
+      attrFactory.attrId(propAttr), attrFactory.valueType(propAttr)
+    )
+  }
+  def handlers[Value](by: SearchByLabelProp[Value]) = {
+    val labelAttrId = by.labelId
+    val propAttrId = by.propId
+    val attr = attrFactory.derive(by.labelId, by.propId, by.propType)
+    val attrId = attrFactory.attrId(attr)
+    val getConverter: GetConverter[Value] = { ()⇒
+      val converter = attrFactory.converter(by.propType)
+      (value, objId) ⇒
+        val key = converter.toBytes(attrId, value, objId)
+        if(key.length > 0) key else Never()
     }
+    def setter(on: Boolean, node: Obj) = {
+      val dbNode = node(nodeAttributes.objId)
+      val prop = attrFactory.toAttr(by.propId, by.propType)
+      val key = getConverter()(node(prop), dbNode)
+      val value = if(on)
+        rawConverter.toBytes(objIdFactory.noObjId,objIdFactory.noObjId)
+        else Array[Byte]()
+      txSelector.rawIndex(dbNode).set(key, value)
+      //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
+    }
+    CoHandler(by)(execute[Value](attrId,getConverter)) ::
+      onUpdate.handlers(by.labelId :: by.propId :: Nil, setter)
+  }
+}
+
+class OnUpdateImpl(factIndex: FactIndex) extends OnUpdate {
+  def handlers(attrIds: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit) = {
+    def setter(on: Boolean)(node: Obj) =
+      if (attrIds.forall(attrId⇒node(factIndex.defined(attrId)))) invoke(on, node)
+    attrIds.flatMap{ a => List(
+      CoHandler(BeforeUpdate(a))(setter(on=false)),
+      CoHandler(AfterUpdate(a))(setter(on=true))
+    )}
   }
 }
 
