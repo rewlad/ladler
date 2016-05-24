@@ -399,16 +399,16 @@ class TestComponent(
         List(
           controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", itemList.add)),
           row("row",MaxVisibleLines(2),IsHeader)(
-            group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter,Caption("x1")),
+            group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
             mCell("1",50)(_=> selectAllCheckBox(itemList)),
-            group("2_grp",MinWidth(150),Priority(3),TextAlignCenter,Caption("x2")),
+            group("2_grp",MinWidth(150),Priority(3),TextAlignCenter),
             mCell("2",100)(_=>List(text("1","Boat"))),
             mCell("3",150)(_=>List(text("1","Date"))),
             mCell("4",180)(_=>List(text("1","Total duration, hrs:min"))),
             mCell("5",100)(_=>List(text("1","Confirmed"))),
             mCell("6",150)(_=>List(text("1","Confirmed by"))),
             mCell("7",150)(_=>List(text("1","Confirmed on"))),
-            mcCell("8",100,0)(_=>List(text("1","xx")))
+            mcCell("8",100,0)(_=>Nil)
           )
         ) :::
         itemList.list.map{ (entry:Obj)=>
@@ -418,9 +418,9 @@ class TestComponent(
             dtTablesState.toggledRow("dtTableList2",entrySrcId),
             IsSelected(entry(filterAttrs.isSelected)),
             MaxVisibleLines(2))(
-            group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter, Caption("x1")),
+            group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter),
             mCell("1", 50)(_=>booleanField(entry, filterAttrs.isSelected, editable = true)),
-            group("2_grp", MinWidth(150),Priority(3), TextAlignCenter,Caption("x2")),
+            group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
             mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false,"Boat",showLabel)),
             mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false,"Date",showLabel)),
             mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)),
