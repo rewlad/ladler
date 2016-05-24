@@ -55,6 +55,7 @@ const DateInput = React.createClass({
             errorText: this.props.errorText,
             //container: 'inline',
             //locale: "ee",
+            //mode:"landscape",
             disabled:this.props.disabled,
             DateTimeFormat: global.Intl.DateTimeFormat,
             textFieldStyle: this.props.style,
@@ -217,7 +218,7 @@ class IconMenuButton extends React.Component{
     }
 
     render(){
-        return React.createElement(IconMenu,{key:this.props.key,iconButtonElement:
+        return React.createElement(IconMenu,{key:this.props.key,open:this.props.open,onTouchTap:this.props.onClick,iconButtonElement:
             React.createElement(IconButton,{key:"1",tooltip:"menu"},React.createElement(IconNavigationMenu,{key:"1"}))},
             this.props.children
             )

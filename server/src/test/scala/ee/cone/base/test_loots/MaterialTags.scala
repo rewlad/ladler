@@ -340,10 +340,12 @@ case class FieldPopupBox() extends VDomValue{
 
   }
 }
-case class IconMenu() extends VDomValue{
+case class IconMenu(opened:Boolean)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("IconMenuButton")
+    builder.append("open").append(opened)
+    builder.append("onClick").append("send")
     builder.end()
   }
 }
@@ -396,8 +398,8 @@ class MaterialTags(
   def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1, isUnderline: Boolean=false)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
     child[OfTableRow](key, TableColumn(isHead, isRight, colSpan, isUnderline)(action), children)
 */
-  def iconMenu(key: VDomKey,theChild:ChildPair[OfDiv]*)=
-    child[OfDiv](key,IconMenu(),theChild.toList)
+  def iconMenu(key: VDomKey,opened:Boolean)(action:()=>Unit,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,IconMenu(opened)(Some(action)),theChild.toList)
   def menuItem(key: VDomKey,text:String)(action:()=>Unit)=
     child[OfDiv](key,MenuItem(key,text)(Some(action)),Nil)
   private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =

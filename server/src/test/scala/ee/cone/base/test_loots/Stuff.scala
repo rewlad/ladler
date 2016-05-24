@@ -335,7 +335,7 @@ class TestComponent(
 
   private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, label:String, showLabel:Boolean): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) label else ""
-    if(editable) List(timeInput("1", visibleLabel, obj(attr), obj(attr) = _))
+    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _))
     else {
       val dateStr = obj(attr).map{ v ⇒
         val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
@@ -400,15 +400,15 @@ class TestComponent(
           controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", itemList.add)),
           row("row",MaxVisibleLines(2),IsHeader)(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter,Caption("x1")),
-            mCell("1",50)((_)=> selectAllCheckBox(itemList)),
+            mCell("1",50)(_=> selectAllCheckBox(itemList)),
             group("2_grp",MinWidth(150),Priority(3),TextAlignCenter,Caption("x2")),
-            mCell("2",100)((_)=>List(text("1","Boat"))),
+            mCell("2",100)(_=>List(text("1","Boat"))),
             mCell("3",150)(_=>List(text("1","Date"))),
-            mCell("4",180)((_)=>List(text("1","Total duration, hrs:min"))),
-            mCell("5",100)((_)=>List(text("1","Confirmed"))),
-            mCell("6",150)((_)=>List(text("1","Confirmed by"))),
-            mCell("7",150)((_)=>List(text("1","Confirmed on"))),
-            mcCell("8",100,0)((_)=>List(text("1","xx")))
+            mCell("4",180)(_=>List(text("1","Total duration, hrs:min"))),
+            mCell("5",100)(_=>List(text("1","Confirmed"))),
+            mCell("6",150)(_=>List(text("1","Confirmed by"))),
+            mCell("7",150)(_=>List(text("1","Confirmed on"))),
+            mcCell("8",100,0)(_=>List(text("1","xx")))
           )
         ) :::
         itemList.list.map{ (entry:Obj)=>
@@ -419,12 +419,12 @@ class TestComponent(
             IsSelected(entry(filterAttrs.isSelected)),
             MaxVisibleLines(2))(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter, Caption("x1")),
-            mCell("1", 50)((_)=>booleanField(entry, filterAttrs.isSelected, editable = true)),
+            mCell("1", 50)(_=>booleanField(entry, filterAttrs.isSelected, editable = true)),
             group("2_grp", MinWidth(150),Priority(3), TextAlignCenter,Caption("x2")),
-            mCell("2",100)((showLabel)=>objField(entry, logAt.boat, editable = false,"Boat",showLabel)),
-            mCell("3",150)((showLabel)=>dateField(entry, logAt.date, editable = false,"Date",showLabel)),
-            mCell("4",180)((showLabel)=>durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)),
-            mCell("5",100)((_)=>
+            mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false,"Boat",showLabel)),
+            mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false,"Date",showLabel)),
+            mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)),
+            mCell("5",100)(_=>
              {
                 val confirmed = entry(logAt.asConfirmed)
                 if(confirmed(nonEmpty))
@@ -432,9 +432,9 @@ class TestComponent(
                 else Nil
              }
             ),
-            mCell("6",150)((showLabel)=>objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel)),
-            mCell("7",150)((showLabel)=>dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel)),
-            mcCell("8",100,0)((_)=>btnCreate("btn2",go.get)::Nil
+            mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel)),
+            mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel)),
+            mcCell("8",100,0)(_=>btnCreate("btn2",go.get)::Nil
             )
           )
         }
@@ -532,84 +532,84 @@ class TestComponent(
   def entryEditFuelScheduleView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
     paperTable("dtTableEdit1")(List(
       row("row",IsHeader)(
-        mCell("1",100,3)((_)=>List(text("1","Time"))),
-        mCell("2",150,1)((_)=>List(text("1","ME Hours.Min"))),
-        mCell("3",100,1)((_)=>List(text("1","Fuel rest/quantity"))),
-        mCell("4",250,3)((_)=>List(text("1","Comment"))),
-        mCell("5",150,2)((_)=>List(text("1","Engineer"))),
-        mCell("6",150,2)((_)=>List(text("1","Master")))
+        mCell("1",100,3)(_=>List(text("1","Time"))),
+        mCell("2",150,1)(_=>List(text("1","ME Hours.Min"))),
+        mCell("3",100,1)(_=>List(text("1","Fuel rest/quantity"))),
+        mCell("4",250,3)(_=>List(text("1","Comment"))),
+        mCell("5",150,2)(_=>List(text("1","Engineer"))),
+        mCell("6",150,2)(_=>List(text("1","Master")))
       ),
       row("row1",dtTablesState.toggledRow("dtTableEdit1","row1"))(
-        mCell("1",100,3)((showLabel)=>
-          List(if(showLabel) labeledText("1","00:00","Time") else text("1","00:00"))
+        mCell("1",100,3)(showLabel=>
+          List(if(showLabel) labeledText("1","Time","00:00") else text("1","00:00"))
         ),
-        mCell("2",150,1)((showLabel)=>
+        mCell("2",150,1)(showLabel=>
           timeField(entry, logAt.log00Date, editable, "Date", showLabel)
         ),
-        mCell("3",100,1)((showLabel)=>
+        mCell("3",100,1)(showLabel=>
           strField(entry, logAt.log00Fuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        mCell("4",250,3)((showLabel)=>
+        mCell("4",250,3)(showLabel=>
           strField(entry, logAt.log00Comment, editable,"Comment",showLabel)
         ),
-        mCell("5",150,2)((showLabel)=>
+        mCell("5",150,2)(showLabel=>
           strField(entry, logAt.log00Engineer, editable,"Engineer",showLabel)
         ),
-        mCell("6",150,2)((showLabel)=>
+        mCell("6",150,2)(showLabel=>
           strField(entry, logAt.log00Master, editable,"Master",showLabel)
         )
       ),
       row("row2",dtTablesState.toggledRow("dtTableEdit1","row2"))(
-        mCell("1",100,3)((showLabel)=>
-          List(if(showLabel) labeledText("1","08:00","Time") else text("1","08:00"))
+        mCell("1",100,3)(showLabel=>
+          List(if(showLabel) labeledText("1","Time","08:00") else text("1","08:00"))
         ),
-        mCell("2",150,1)((showLabel)=>
+        mCell("2",150,1)(showLabel=>
           timeField(entry, logAt.log08Date, editable, "Date", showLabel)
         ),
-        mCell("3",100,1)((showLabel)=>
+        mCell("3",100,1)(showLabel=>
           strField(entry, logAt.log08Fuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        mCell("4",250,3)((showLabel)=>
+        mCell("4",250,3)(showLabel=>
           strField(entry, logAt.log08Comment, editable,"Comment",showLabel)
         ),
-        mCell("5",150,2)((showLabel)=>
+        mCell("5",150,2)(showLabel=>
           strField(entry, logAt.log08Engineer, editable,"Engineer",showLabel)
         ),
-        mCell("6",150,2)((showLabel)=>
+        mCell("6",150,2)(showLabel=>
           strField(entry, logAt.log08Master, editable,"Master",showLabel)
         )
 
       ),
       row("row3",dtTablesState.toggledRow("dtTableEdit1","row3"))(
-        mCell("1",100,3)((_)=>List(text("1","Passed"))),
-        mCell("2",150,1)((_)=>List(text("1","Received Fuel"))),
-        mCell("3",100,1)((showLabel)=>
+        mCell("1",100,3)(_=>List(text("1","Passed"))),
+        mCell("2",150,1)(_=>List(text("1","Received Fuel"))),
+        mCell("3",100,1)(showLabel=>
           strField(entry, logAt.logRFFuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        mCell("4",250,3)((showLabel)=>
+        mCell("4",250,3)(showLabel=>
           strField(entry, logAt.logRFComment, editable,"Comment",showLabel)),
-        mCell("5",150,2)((showLabel)=>
+        mCell("5",150,2)(showLabel=>
          strField(entry, logAt.logRFEngineer, editable,"Engineer",showLabel)),
-        mCell("6",150,2)((_)=>Nil)
+        mCell("6",150,2)(_=>Nil)
 
       ),
       row("row4", dtTablesState.toggledRow("dtTableEdit1","row4"))(
-        mCell("1",100,3)((showLabel)=>
-          List(if(showLabel) labeledText("1","24:00","Time") else text("1","24:00"))
+        mCell("1",100,3)(showLabel=>
+          List(if(showLabel) labeledText("1","Time","24:00") else text("1","24:00"))
         ),
-        mCell("2",150,1)((showLabel)=>
+        mCell("2",150,1)(showLabel=>
           timeField(entry, logAt.log24Date, editable, "Date", showLabel)
         ),
-        mCell("3",100,1)((showLabel)=>
+        mCell("3",100,1)(showLabel=>
           strField(entry, logAt.log24Fuel, editable,"Fuel rest/quantity",showLabel)
         ),
-        mCell("4",250,3)((showLabel)=>
+        mCell("4",250,3)(showLabel=>
           strField(entry, logAt.log24Comment, editable,"Comment",showLabel)
         ),
-        mCell("5",150,2)((showLabel)=>
+        mCell("5",150,2)(showLabel=>
           strField(entry, logAt.log24Engineer, editable,"Engineer",showLabel)
         ),
-        mCell("6",150,2)((showLabel)=>
+        mCell("6",150,2)(showLabel=>
           strField(entry, logAt.log24Master, editable,"Master",showLabel)
         )
       )
@@ -625,12 +625,12 @@ class TestComponent(
         controlPanel("",btnDelete("1", workList.removeSelected),btnAdd("2", workList.add)),
         row("row",IsHeader)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-          mCell("1",50)((_)=>selectAllCheckBox(workList)),
+          mCell("1",50)(_=>selectAllCheckBox(workList)),
           group("2_group",MinWidth(150)),
-          mCell("2",100)((_)=>List(text("1","Start"))),
-          mCell("3",100)((_)=>List(text("1","Stop"))),
-          mCell("4",150)((_)=>List(text("1","Duration, hrs:min"))),
-          mCell("5",250,3)((_)=>List(text("1","Comment")))
+          mCell("2",100)(_=>List(text("1","Start"))),
+          mCell("3",100)(_=>List(text("1","Stop"))),
+          mCell("4",150)(_=>List(text("1","Duration, hrs:min"))),
+          mCell("5",250,3)(_=>List(text("1","Comment")))
         )
       ) :::
       workList.list.map { (work: Obj) =>
@@ -644,24 +644,22 @@ class TestComponent(
             booleanField(work, filterAttrs.isSelected, editable)
           ),
           group("2_group",MinWidth(150)),
-          mCell("2",100)((showLabel)=>
+          mCell("2",100)(showLabel=>
             timeField(work, logAt.workStart, editable, "Start", showLabel)
           ),
-          mCell("3",100)((showLabel)=>
+          mCell("3",100)(showLabel=>
             timeField(work, logAt.workStop, editable, "Stop", showLabel)
           ),
-          mCell("4",150)((showLabel)=>
+          mCell("4",150)(showLabel=>
             durationField(work, logAt.workDuration,"Duration, hrs:min",showLabel)
           ),
-          mCell("5",250,3)((showLabel)=>
-            strField(entry, logAt.workComment, editable,"Comment",showLabel)
+          mCell("5",250,3)(showLabel=>
+            strField(work, logAt.workComment, editable,"Comment",showLabel)
           )
         )
       }
     )
-
   }
-
 
   def selectAllCheckBox(itemList: ItemList) = List(
     checkBox("1",
@@ -715,6 +713,8 @@ class TestComponent(
       )
     ))
   }
+  var navMenuOpened=false
+  private def toggleNavMenu()= navMenuOpened = !navMenuOpened
 
   private def saveAction()() = eventSource.addRequest()
 
@@ -724,9 +724,9 @@ class TestComponent(
         divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
       )::
       divWrapper("2",None,None,None,None,Some("right"),None,
-        iconMenu("menu",
-          menuItem("users","Users")(()⇒currentVDom.relocate("/userList")),
-          menuItem("entries","Entries")(()=>currentVDom.relocate("/entryList"))
+        iconMenu("menu",navMenuOpened)(toggleNavMenu,
+          menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");toggleNavMenu()}),
+          menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");toggleNavMenu()})
         )::
         {
           if (eventSource.unmergedEvents.isEmpty) Nil
