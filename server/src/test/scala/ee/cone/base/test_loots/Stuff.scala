@@ -1,13 +1,15 @@
 package ee.cone.base.test_loots
 
+import java.nio.ByteBuffer
 import java.time.format.DateTimeFormatter
 import java.time._
 import java.util.UUID
 
+import ee.cone.base.util.Single
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
-import ee.cone.base.util.Never
+import ee.cone.base.util.{Bytes, Never}
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
@@ -119,7 +121,6 @@ class BoatLogEntryAttributes(
   val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
   val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
 
-  val asUser: Attr[Obj] = label("f8c8d6da-0942-40aa-9005-261e63498973"),
   val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2")
 )
 
@@ -138,148 +139,14 @@ class DataTablesState(currentVDom: CurrentVDom){
       currentVDom.until(System.currentTimeMillis+200)
     }
   }
-  private val rowToggledOfTables = collection.mutable.Map[VDomKey,VDomKey]()
-  def toggledRow(tableId:VDomKey, rowId:VDomKey) =
-    Toggled(rowToggledOfTables.get(tableId).exists(_==rowId))(Some{()=>
-      rowToggledOfTables(tableId) = rowId
-      currentVDom.invalidate()
-    })
 }
-
-
 
 ///////
-
-class FilterAttrs(
-  attr: AttrFactory,
-  label: LabelFactory,
-  asString: AttrValueType[String],
-  asBoolean: AttrValueType[Boolean],
-  asObjIdSet: AttrValueType[Set[ObjId]]
-)(
-  val asFilter: Attr[Obj] = label("eee2d171-b5f2-4f8f-a6d9-e9f3362ff9ed"),
-  val filterFullKey: Attr[String] = attr("2879097b-1fd6-45b1-a8b4-1de807ce9572",asString),
-  val isSelected: Attr[Boolean] = attr("a5045617-279f-48b8-95a9-a42dc721d67b",asBoolean),
-  val isListed: Attr[Boolean] = attr("bd68ccbc-b63c-45ce-88f2-7c6058b11338",asBoolean),
-  val selectedItems: Attr[Set[ObjId]] = attr("32a62c43-e837-4855-985a-d79f5dc03db0",asObjIdSet)
-)
-
-trait InnerItemList {
-  def isSelected(obj: Obj): Boolean
-  def setSelected(obj: Obj): Unit
-  def resetSelected(obj: Obj): Unit
-  def isListed(obj: Obj): Boolean
-  def setListed(obj: Obj): Unit
-  def resetListed(obj: Obj): Unit
-}
-
-trait ItemList {
-  def filter: Obj
-  def add(): Unit
-  def list: List[Obj]
-  def selectAllListed(): Unit
-  def removeSelected(): Unit
-}
-
-class ObjIdSetValueConverter(
-  val valueType: AttrValueType[Set[ObjId]], inner: RawConverter, findNodes: FindNodes
-) extends RawValueConverterImpl[Set[ObjId]] {
-  private def splitter = " "
-  def convertEmpty() = Set()
-  def convert(valueA: Long, valueB: Long) = Never()
-  def convert(value: String) =
-    value.split(splitter).map(s⇒findNodes.toObjId(UUID.fromString(s))).toSet
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value.nonEmpty) inner.toBytes(preId, value.toSeq.map(findNodes.toUUIDString).sorted.mkString(splitter), finId) else Array()
-}
-
-
-class Filters(
-  at: FilterAttrs,
-  nodeAttrs: NodeAttrs,
-  handlerLists: CoHandlerLists,
-  attrFactory: AttrFactory,
-  findNodes: FindNodes,
-  mainTx: CurrentTx[MainEnvKey],
-  alien: Alien,
-  listedWrapType: WrapType[InnerItemList],
-  factIndex: FactIndex,
-  searchIndex: SearchIndex
-)(
-  val filterByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFilter,at.filterFullKey)
-) extends CoHandlerProvider {
-  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-  private def lazyLinkingObj[Value](index: SearchByLabelProp[Value], key: Value): Obj =
-    findNodes.where(mainTx(), index, key, Nil) match {
-      case Nil ⇒ alien.demandedNode { obj ⇒
-        obj(attrFactory.toAttr(index.labelId, index.labelType)) = obj
-        obj(attrFactory.toAttr(index.propId, index.propType)) = key
-      }
-      case o :: Nil ⇒ alien.wrap(o)
-      case _ ⇒ Never()
-    }
-  def filterObj(key: String): Obj =
-    lazyLinkingObj(filterByFullKey, s"${eventSource.sessionKey}$key")
-  def itemList[Value](
-    index: SearchByLabelProp[Value],
-    parentValue: Value,
-    filterObj: Obj
-  ): ItemList = {
-    val selectedSet = filterObj(at.selectedItems)
-    val parentAttr = attrFactory.toAttr(index.propId, index.propType)
-    val asType = attrFactory.toAttr(index.labelId, index.labelType)
-
-    val inner = new InnerItemList {
-      def isSelected(obj: Obj) = selectedSet contains obj(nodeAttrs.objId)
-      def setSelected(obj: Obj) =
-        filterObj(at.selectedItems) = selectedSet + obj(nodeAttrs.objId)
-      def resetSelected(obj: Obj) =
-        filterObj(at.selectedItems) = selectedSet - obj(nodeAttrs.objId)
-      def isListed(obj: Obj) = obj(parentAttr) == parentValue
-      def setListed(obj: Obj) = obj(parentAttr) = parentValue
-      def resetListed(obj: Obj) = obj(factIndex.defined(attrFactory.attrId(parentAttr))) = false
-    }
-    val items = findNodes.where(mainTx(), index, parentValue, Nil)
-      .map(obj⇒
-        alien.wrap(obj).wrap(listedWrapType,inner)
-      )
-    val newItem = alien.demandedNode{ obj ⇒ obj(asType) = obj }.wrap(listedWrapType,inner)
-    new ItemList {
-      def filter = filterObj
-      def list = items
-      def add() = newItem(at.isListed) = true
-      def removeSelected() = {
-        selectedSet.foreach(findNodes.whereObjId(_)(at.isListed)=false)
-        filter(at.selectedItems) = Set[ObjId]()
-      }
-      def selectAllListed() =
-        filter(at.selectedItems) = selectedSet ++ items.map(_(nodeAttrs.objId))
-    }
-  }
-
-
-  def handlers = List(
-    CoHandler(GetValue(listedWrapType,at.isSelected)){ (obj,innerObj)⇒
-      innerObj.data.isSelected(obj)
-    },
-    CoHandler(SetValue(listedWrapType,at.isSelected)){ (obj,innerObj,value)⇒
-      if(value) innerObj.data.setSelected(obj) else innerObj.data.resetSelected(obj)
-    },
-    CoHandler(GetValue(listedWrapType,at.isListed)){ (obj,innerObj)⇒
-      innerObj.data.isListed(obj)
-    },
-    CoHandler(SetValue(listedWrapType,at.isListed)){ (obj,innerObj,value)⇒
-      if(value) innerObj.data.setListed(obj) else innerObj.data.resetListed(obj)
-    }
-  ) ::: List(at.asFilter,at.filterFullKey,at.selectedItems).flatMap{ attr⇒
-    factIndex.handlers(attr) ::: alien.update(attr)
-  } :::
-  searchIndex.handlers(filterByFullKey)
-}
 
 class TestComponent(
   nodeAttrs: NodeAttrs, findAttrs: FindAttrs,
   filterAttrs: FilterAttrs, at: TestAttributes, logAt: BoatLogEntryAttributes,
+  userAttrs: UserAttrs,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
@@ -294,9 +161,9 @@ class TestComponent(
   searchIndex: SearchIndex,
   factIndex: FactIndex,
   filters: Filters,
-  htmlTableWithControl: HtmlTableWithControl
+  htmlTableWithControl: HtmlTableWithControl,
+  users: Users
 )(
-  val findUser: SearchByLabelProp[String] = searchIndex.create(logAt.asUser, findAttrs.justIndexed),
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork)
 ) extends CoHandlerProvider {
@@ -361,23 +228,48 @@ class TestComponent(
   private def emptyView(pf: String) =
     tags.root(List(tags.text("text", "Loading...")))
 
-  private def wrapDBView[R](view: ()=>R): R =
+  private def wrapDBView(view: ()=>VDomValue): VDomValue =
     eventSource.incrementalApplyAndView { () ⇒
-      if(!loggedIn){ return loginView() }
-      val startTime = System.currentTimeMillis
-      val res = view()
-      val endTime = System.currentTimeMillis
-      currentVDom.until(endTime+(endTime-startTime)*10)
-      res
+      val user = eventSource.mainSession(userAttrs.authenticatedUser)
+      if(user(nonEmpty)) {
+        val startTime = System.currentTimeMillis
+        val res = view()
+        val endTime = System.currentTimeMillis
+        currentVDom.until(endTime + (endTime - startTime) * 10)
+        res
+      } else loginView()
     }
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
 
-  def loggedIn = true //todo
-  private def loginView() = {
+  def toggledRow(item: Obj) =
+    Toggled(item(filterAttrs.isExpanded))(Some(()=>item(filterAttrs.isExpanded)=true))
+  def toggledRow(filterObj: Obj, key: String) =
+    Toggled(filterObj(filterAttrs.expandedItem)==key)(Some(()=>filterObj(filterAttrs.expandedItem)=key))
 
+
+  def paperTable(key: VDomKey)(tableElements: List[TableElement with ChildOfTable]): ChildPair[OfDiv] = {
+    val tableWidth = dtTablesState.widthOfTable(key)
+    paperWithMargin(key,
+      flexGrid("flexGrid",
+        flexGridItemWidthSync("widthSync",w⇒tableWidth.value=w.toFloat,
+          table("1",Width(tableWidth.value))(tableElements:_*)
+        )
+      )
+    )
   }
+
+  def selectAllCheckBox(itemList: ItemList) = List(
+    checkBox("1",
+      itemList.filter(filterAttrs.selectedItems).nonEmpty,
+      on ⇒
+        if(on) itemList.selectAllListed()
+        else itemList.filter(filterAttrs.selectedItems)=Set[ObjId]()
+    )
+  )
+
+
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
@@ -420,7 +312,7 @@ class TestComponent(
           val entrySrcId = entry(alien.objIdStr)
           val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
           row(entrySrcId,
-            dtTablesState.toggledRow("dtTableList2",entrySrcId),
+            toggledRow(entry),
             IsSelected(entry(filterAttrs.isSelected)),
             MaxVisibleLines(2))(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter, Caption("x1")),
@@ -539,19 +431,8 @@ class TestComponent(
     ))
   }
 
-  def paperTable(key: VDomKey)(tableElements: List[TableElement with ChildOfTable]): ChildPair[OfDiv] = {
-    val tableWidth = dtTablesState.widthOfTable(key)
-    paperWithMargin(key,
-      flexGrid("flexGrid",
-        flexGridItemWidthSync("widthSync",w⇒tableWidth.value=w.toFloat,
-          table("1",Width(tableWidth.value))(tableElements:_*)
-        )
-      )
-    )
-  }
-
-
   def entryEditFuelScheduleView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
+    val filterObj = filters.filterObj(s"/entry/${entry(alien.objIdStr)}")
     paperTable("dtTableEdit1")(List(
       row("row",IsHeader)(
         cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Time")))::Nil),
@@ -561,7 +442,7 @@ class TestComponent(
         cell("5",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Engineer")))::Nil),
         cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Master")))::Nil)
       ),
-      row("row1",dtTablesState.toggledRow("dtTableEdit1","row1"))(
+      row("row1",toggledRow(filterObj,"row1"))(
         cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
           withSideMargin("1",10,List(if(showLabel) labeledText("1","00:00","Time") else text("1","00:00")))::Nil
         ),
@@ -581,7 +462,7 @@ class TestComponent(
           withSideMargin("1",10, strField(entry, logAt.log00Master, editable,"Master",showLabel))::Nil
         )
       ),
-      row("row2",dtTablesState.toggledRow("dtTableEdit1","row2"))(
+      row("row2",toggledRow(filterObj,"row2"))(
         cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
           withSideMargin("1",10,List(if(showLabel) labeledText("1","08:00","Time") else text("1","08:00")))::Nil
         ),
@@ -602,7 +483,7 @@ class TestComponent(
         )
 
       ),
-      row("row3",dtTablesState.toggledRow("dtTableEdit1","row3"))(
+      row("row3",toggledRow(filterObj,"row3"))(
         cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Passed")))::Nil),
         cell("2",MinWidth(150),Priority(1),VerticalAlignMiddle)((_)=>withSideMargin("1",10,List(text("1","Received Fuel")))::Nil),
         cell("3",MinWidth(100),Priority(1),VerticalAlignMiddle)((showLabel)=>
@@ -615,7 +496,7 @@ class TestComponent(
         cell("6",MinWidth(150),Priority(2),VerticalAlignMiddle)((_)=>withSideMargin("1",10,Nil)::Nil)
 
       ),
-      row("row4", dtTablesState.toggledRow("dtTableEdit1","row4"))(
+      row("row4", toggledRow(filterObj,"row4"))(
         cell("1",MinWidth(100),Priority(3),VerticalAlignMiddle)((showLabel)=>
           withSideMargin("1",10, List(if(showLabel) labeledText("1","24:00","Time") else text("1","24:00")))::Nil
         ),
@@ -658,7 +539,7 @@ class TestComponent(
       workList.list.map { (work: Obj) =>
         val workSrcId = work(alien.objIdStr)
         row(workSrcId,
-          dtTablesState.toggledRow("dtTableEdit2",workSrcId),
+          toggledRow(work),
           IsSelected(work(filterAttrs.isSelected))
         )(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
@@ -685,40 +566,56 @@ class TestComponent(
   }
 
 
-  def selectAllCheckBox(itemList: ItemList) = List(
-    checkBox("1",
-      itemList.filter(filterAttrs.selectedItems).nonEmpty,
-      on ⇒
-        if(on) itemList.selectAllListed()
-        else itemList.filter(filterAttrs.selectedItems)=Set[ObjId]()
-    )
-  )
+  //// users
+  private def loginView() = {
+    val editable = true
+    val showLabel = true
+    val dialog = filters.filterObj("/login")
+    root(List(paperTable("login")(List(row("1", Nil)(List(
+      cell("1",MinWidth(250))(_⇒strField(dialog, userAttrs.username, editable, "Username", showLabel)),
+      cell("2",MinWidth(250))(_⇒strField(dialog, userAttrs.unEncryptedPassword, editable, "Password", showLabel)),
+      cell("3",MinWidth(250))(_⇒
+        users.loginAction(dialog).map(
+          btnRaised("doChange","Change Password")(_)
+        ).toList
+      )
+    ))))))
+  }
 
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj("/userList")
-    val userList = filters.itemList(findUser, findNodes.justIndexed, filterObj)
-
-
+    val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj)
+    val editable = true //todo
     root(List(
       toolbar("Users"),
       btnAdd("2", userList.add),
       paperTable("table")(
+        controlPanel("",btnDelete("1", userList.removeSelected),btnAdd("2", userList.add)) ::
         row("head",IsHeader)(
           cell("0",MinWidth(250))(_⇒selectAllCheckBox(userList)),
-          cell("1",MinWidth(250))(_⇒List(text("text", "Full Name")))
+          cell("1",MinWidth(250))(_⇒List(text("text", "Full Name"))),
+          cell("2",MinWidth(250))(_⇒Nil)
         ) ::
         userList.list.map{ obj ⇒
           val user = alien.wrap(obj)
           val srcId = user(alien.objIdStr)
           row(srcId)(
             cell("0",MinWidth(250))(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
-            cell("1",MinWidth(250))(showLabel⇒strField(user, at.caption, editable = true, "User", showLabel))
+            cell("1",MinWidth(250))(showLabel⇒strField(user, at.caption, editable = true, "User", showLabel)),
+            cell("2",MinWidth(250))(showLabel⇒
+              if(showLabel)
+                strField(user, userAttrs.unEncryptedPassword, editable, "New Password", showLabel) :::
+                strField(user, userAttrs.unEncryptedPasswordAgain, editable, "Repeat Password", showLabel) :::
+                List(btnRaised("doChange","Change Password")(users.changePasswordAction(user)))
+              else Nil
+            )
           )
         }
       )
     ))
   }
 
+  //// events
   private def eventListView(pf: String) = wrapDBView { () =>
     root(List(
       toolbar("Events"),
@@ -737,28 +634,14 @@ class TestComponent(
       )
     ))
   }
+  private def eventToolbarButtons() = if (eventSource.unmergedEvents.isEmpty) Nil
+    else List(
+      btnRestore("events", () ⇒ currentVDom.relocate("/eventList")),
+      btnSave("save", ()⇒eventSource.addRequest())
+    )
+  private def eventListHandlers = CoHandler(ViewPath("/eventList"))(eventListView) :: Nil
 
-  private def saveAction()() = eventSource.addRequest()
-
-  private def toolbar(title:String): ChildPair[OfDiv] = {
-    paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,
-      divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
-        divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
-      )::
-      divWrapper("2",None,None,None,None,Some("right"),None,
-        btnRaised("users","Users")(()⇒currentVDom.relocate("/userList")) ::
-        btnViewList("entries",()=>currentVDom.relocate("/entryList")) ::
-        {
-          if (eventSource.unmergedEvents.isEmpty) Nil
-          else List(
-            btnRestore("events", () ⇒ currentVDom.relocate("/eventList")),
-            btnSave("save", saveAction())
-          )
-        }
-      )::Nil
-    ))
-  }
-
+  //// calculations
   private def calcWorkDuration(on: Boolean, work: Obj): Unit = {
     work(logAt.workDuration) = if(!on) None else
       Option(Duration.between(work(logAt.workStart).get, work(logAt.workStop).get))
@@ -770,18 +653,36 @@ class TestComponent(
     entry(logAt.durationTotal) =
       Option(if(on) was.plus(delta) else was.minus(delta))
   }
-  private def setEntryConfirmDate(on: Boolean, entry: Obj): Unit =
+  private def calcConfirmed(on: Boolean, entry: Obj): Unit =
     entry(logAt.asConfirmed) = if(on) entry else findNodes.noNode
+  private def calcHandlers() =
+    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
+      onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
+      onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn).map(attrFactory.attrId(_)), calcConfirmed)
 
+  ////
+
+  private def toolbar(title:String): ChildPair[OfDiv] = {
+    paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,
+      divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
+        divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
+      )::
+      divWrapper("2",None,None,None,None,Some("right"),None,
+        btnRaised("users","Users")(()⇒currentVDom.relocate("/userList")) ::
+        btnViewList("entries",()=>currentVDom.relocate("/entryList")) ::
+        eventToolbarButtons()
+      )::Nil
+    ))
+  }
 
   def handlers =
-    List(findUser,findEntry,findWorkByEntry).flatMap(searchIndex.handlers(_)) :::
+    List(findEntry,findWorkByEntry).flatMap(searchIndex.handlers(_)) :::
     List(
       logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
     ).flatMap(factIndex.handlers(_)) :::
     List(
       at.caption,
-      logAt.asEntry, logAt.asWork, logAt.asUser, logAt.asBoat, // <-create
+      logAt.asEntry, logAt.asWork, logAt.asBoat, // <-create
       logAt.boat, logAt.confirmedOn, logAt.entryOfWork,
       logAt.date, logAt.workStart, logAt.workStop, logAt.workComment,
       logAt.log00Date,logAt.log00Fuel,logAt.log00Comment,logAt.log00Engineer,logAt.log00Master,
@@ -793,17 +694,81 @@ class TestComponent(
     } :::
     alien.update(findAttrs.justIndexed) :::
     CoHandler(ViewPath(""))(emptyView) ::
-    CoHandler(ViewPath("/eventList"))(eventListView) ::
     CoHandler(ViewPath("/userList"))(userListView) ::
     //CoHandler(ViewPath("/boatList"))(boatListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
     CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
-    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
-    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
-    onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn).map(attrFactory.attrId(_)), setEntryConfirmDate) :::
-    CoHandler(SessionInstantProbablyAdded)(currentVDom.invalidate) ::
+    eventListHandlers :::
+    calcHandlers :::
+    CoHandler(SessionInstantAdded)(currentVDom.invalidate) ::
+    CoHandler(TransientChanged)(currentVDom.invalidate) ::
     Nil
 }
+
+
+class UserAttrs(
+  attr: AttrFactory,
+  label: LabelFactory,
+  asDBObj: AttrValueType[Obj],
+  asString: AttrValueType[String],
+  asUUID: AttrValueType[Option[UUID]]
+)(
+  val asUser: Attr[Obj] = label("f8c8d6da-0942-40aa-9005-261e63498973"),
+  val username: Attr[String] = attr("4f0d01f8-a1a3-4551-9d07-4324d4d0e633",asString),
+  val encryptedPassword: Attr[Option[UUID]] = attr("3a345f93-18ab-4137-bdde-f0df77161b5f",asUUID),
+  val unEncryptedPassword: Attr[String] = attr("7d12edd9-a162-4305-8a0c-31ef3f2e3300",asString),
+  val unEncryptedPasswordAgain: Attr[String] = attr("24517821-c606-4f6c-8e93-4f01c2490747",asString),
+  val authenticatedUser: Attr[Obj] = attr("47ee2460-b170-4213-9d56-a8fe0f7bc1f5",asDBObj)
+)
+
+class Users(
+  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs,
+  handlerLists: CoHandlerLists,
+  factIndex: FactIndex, searchIndex: SearchIndex,
+  findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
+  alien: Alien, transient: Transient
+)(
+  val findAll: SearchByLabelProp[String] = searchIndex.create(at.asUser, findAttrs.justIndexed),
+  val findByName: SearchByLabelProp[String] = searchIndex.create(at.asUser, at.username)
+) extends CoHandlerProvider {
+  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
+  private def encryptPassword(user: Obj, pw: String): UUID = {
+    val buffer = ByteBuffer.allocate(256)
+    val objId = user(nodeAttrs.objId)
+    val username = user(at.username)
+    buffer.putLong(objId.hi).putLong(objId.lo).put(Bytes(username)).put(Bytes(pw))
+    UUID.nameUUIDFromBytes(buffer.array())
+  }
+  def changePasswordAction(user: Obj)(): Unit = {
+    val pw = user(at.unEncryptedPassword)
+    if(pw != user(at.unEncryptedPasswordAgain))
+      throw new Exception("Passwords do not match")
+    user(at.encryptedPassword) = Some(encryptPassword(user,pw))
+  }
+  def loginAction(dialog: Obj): Option[()⇒Unit] = {
+    val username = dialog(at.username)
+    if(username.isEmpty){ return None }
+    val user = findNodes.single(findNodes.where(mainTx(), findByName, dialog(at.username), Nil))
+    val mainSession = eventSource.mainSession
+    Some {
+      () ⇒
+        val pw = dialog(at.unEncryptedPassword)
+        if(user(findAttrs.nonEmpty) &&
+          encryptPassword(user, pw) == user(at.encryptedPassword).get)
+          mainSession(at.authenticatedUser) = user
+        else throw new Exception("Bad username or password")
+    }
+  }
+  def handlers =
+    List(findAll,findByName).flatMap(searchIndex.handlers) :::
+    List(at.unEncryptedPassword, at.unEncryptedPasswordAgain).flatMap(transient.update) :::
+    List(at.asUser,at.username,at.encryptedPassword,at.authenticatedUser).flatMap{ attr⇒
+      factIndex.handlers(attr) ::: alien.update(attr)
+    }
+}
+
+
+
 
 /*
 case class RegItem[R](index: Int)(create: ()⇒R){

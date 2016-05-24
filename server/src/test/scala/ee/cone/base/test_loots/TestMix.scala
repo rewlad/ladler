@@ -43,20 +43,24 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val dtTablesState=new DataTablesState(currentView)
   lazy val asObjIdSet = new AttrValueType[Set[ObjId]]
   lazy val listedWrapType = new ListedWrapType
+  lazy val transient = new Transient(handlerLists, attrFactory, dbWrapType)
   lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asDefined, asObjIdSet)()
-  lazy val filters = new Filters(filterAttrs,nodeAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex)()
+  lazy val filters = new Filters(filterAttrs,nodeAttrs,findAttrs,alienAccessAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex,transient)()
+  lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
+  lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, asDBObj, asString, asUUID)()
+
+  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, handlerLists, factIndex, searchIndex, findNodes, mainTx, alienCanChange, transient)()
   //
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes)
-  lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
   lazy val testComponent = new TestComponent(
-    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes,
+    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes, userAttrs,
     handlerLists,
     attrFactory,
     findNodes, mainTx, alienCanChange, onUpdate,
     tags, materialTags, flexTags, currentView, dtTablesState,
-    searchIndex, factIndex, filters, htmlTableWithControl
+    searchIndex, factIndex, filters, htmlTableWithControl, users
   )()
 }
 

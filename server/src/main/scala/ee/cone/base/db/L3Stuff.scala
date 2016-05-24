@@ -3,7 +3,7 @@ package ee.cone.base.db
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.util.Never
+import ee.cone.base.util.{Never,Single}
 
 class FindAttrsImpl(
   attr: AttrFactory,
@@ -30,6 +30,7 @@ class FindNodesImpl(
     if(node.hi!=0L || node.lo == Long.MaxValue) Never()
     whereObjId(dBObjValueConverter.convert(node.hi, node.lo + 1L))
   }
+  def single(l: List[Obj]): Obj = Single.option(l).getOrElse(noNode)
   def where[Value](
     tx: BoundToTx, searchKey: SearchByLabelProp[Value], value: Value, options: List[SearchOption]
   ) = {
@@ -39,15 +40,15 @@ class FindNodesImpl(
     var lastOnly = false
     var needSameValue = true
     options.foreach {
-      case FindFirstOnly if limit == Long.MaxValue => limit = 1L
-      case FindLastOnly => lastOnly = true
-      case FindFrom(node) if !from.nonEmpty =>
+      case FindFirstOnly if limit == Long.MaxValue => limit = 1L //s
+      case FindLastOnly => lastOnly = true //s
+      case FindFrom(node) if !from.nonEmpty => //n
         from = node(nodeAttrs.objId)
-      case FindAfter(node) if !from.nonEmpty =>
+      case FindAfter(node) if !from.nonEmpty => //sm
         from = nextNode(node)(nodeAttrs.objId)
-      case FindUpTo(node) if !upTo.nonEmpty =>
+      case FindUpTo(node) if !upTo.nonEmpty => //m
         upTo = node(nodeAttrs.objId)
-      case FindNextValues ⇒ needSameValue = false
+      case FindNextValues ⇒ needSameValue = false //n
     }
     //println(s"searchKey: $searchKey")
     val handler = handlerLists.single(searchKey, ()⇒throw new Exception(s"$searchKey not indexed"))
@@ -63,6 +64,18 @@ class FindNodesImpl(
     handler(request)
     if(lastOnly) result.headOption.toList else result.reverse
   }
+  /*
+var tx, s+m
+ins, s
+ins, s, 1st, aft
+ins, s
+ins, m, upto, (aft)
+ins, s, 1st, (aft)
+main, s
+main, m
+main, s
+main, m
+   */
   def justIndexed = "Y"
   def toObjId(uuid: UUID): ObjId = objIdFactory.toObjId(uuid)
   def toUUIDString(objId: ObjId) = new UUID(objId.hi,objId.lo).toString

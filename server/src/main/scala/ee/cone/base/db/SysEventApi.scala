@@ -13,7 +13,7 @@ trait SessionState {
 
 case class ApplyEvent(attrId: ObjId) extends EventKey[Obj=>Unit]
 
-case object SessionInstantProbablyAdded extends EventKey[()=>Unit]
+case object SessionInstantAdded extends EventKey[()=>Unit]
 
 /*
 trait Ref[Value] {
@@ -49,7 +49,7 @@ trait SessionEventSourceOperations {
   def addEvent(setup: Obj=>(ObjId,String)): Unit
   def addRequest(): Unit
   def addUndo(event: Obj): Unit
-  def sessionKey: UUID
+  def mainSession: Obj
   def comment: Attr[String]
 }
 

@@ -124,11 +124,10 @@ class EventSourceOperationsImpl(
     val mainSeq = findNodes.whereObjId(mainSeqObjId)
     val lastNode = mainSeq(at.lastMergedRequest)
     val from = if(lastNode(nonEmpty)) FindAfter(lastNode) :: Nil else Nil
-    val result = findNodes.where(
+    val event = findNodes.single(findNodes.where(
       instantTx(), findEventByApplyAttr, at.requested, FindFirstOnly :: from
-    )
-    if(result.isEmpty){ return findNodes.noNode }
-    val event :: Nil = result
+    ))
+    if(!event(nonEmpty)){ return event }
     mainSeq(at.lastMergedRequest) = event
     if(isUndone(event)) nextRequest() else event
   }
