@@ -98,7 +98,7 @@ trait SessionDBConnectionMix extends DBConnectionMix {
     new SessionMainTxManagerImpl(lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll, muxFactory)
   lazy val sessionEventSourceOperations =
     new SessionEventSourceOperationsImpl(
-      eventSourceOperations, eventSourceAttrs, nodeAttrs, findAttrs, instantTxManager, mainTxManager, findNodes
+      eventSourceOperations, eventSourceAttrs, nodeAttrs, findAttrs,handlerLists, instantTxManager, mainTxManager, findNodes
     )()
 }
 

@@ -363,7 +363,7 @@ class TestComponent(
 
   private def wrapDBView[R](view: ()=>R): R =
     eventSource.incrementalApplyAndView { () ⇒
-      if(!loggedIn){ return loginView() }
+      if(!loggedIn){ /*return loginView() */???}
       val startTime = System.currentTimeMillis
       val res = view()
       val endTime = System.currentTimeMillis
@@ -724,8 +724,10 @@ class TestComponent(
         divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
       )::
       divWrapper("2",None,None,None,None,Some("right"),None,
-        btnRaised("users","Users")(()⇒currentVDom.relocate("/userList")) ::
-        btnViewList("entries",()=>currentVDom.relocate("/entryList")) ::
+        iconMenu("menu",
+          menuItem("users","Users")(()⇒currentVDom.relocate("/userList")),
+          menuItem("entries","Entries")(()=>currentVDom.relocate("/entryList"))
+        )::
         {
           if (eventSource.unmergedEvents.isEmpty) Nil
           else List(

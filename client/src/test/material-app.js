@@ -23,9 +23,12 @@ import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
 import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
 import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
 import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
-import IconActionViewList from 'material-ui/lib/svg-icons/action/view-list'
+//import IconActionViewList from 'material-ui/lib/svg-icons/action/view-list'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
+import IconMenu          from 'material-ui/lib/menus/icon-menu'
+import MenuItem          from 'material-ui/lib/menus/menu-item'
+import IconNavigationMenu from 'material-ui/lib/svg-icons/navigation/menu'
 import TextField         from 'material-ui/lib/TextField/TextField'
 import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 import Checkbox          from 'material-ui/lib/checkbox'
@@ -207,6 +210,19 @@ class LabeledText extends React.Component{
         ]))
     }
 }
+
+class IconMenuButton extends React.Component{
+    constructor(props){
+        super(props)
+    }
+
+    render(){
+        return React.createElement(IconMenu,{key:this.props.key,iconButtonElement:
+            React.createElement(IconButton,{key:"1",tooltip:"menu"},React.createElement(IconNavigationMenu,{key:"1"}))},
+            this.props.children
+            )
+    }
+}
 const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
@@ -214,7 +230,9 @@ const tp = ({
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
-    LabeledText,FlexGridItemWidthSync,IconActionViewList,IconActionRestore,IconContentSave//,SelectField
+    LabeledText,FlexGridItemWidthSync,//IconActionViewList,
+    IconActionRestore,IconContentSave,//,SelectField
+    IconMenuButton,MenuItem
 })
 
 const transforms = ({tp})

@@ -340,6 +340,24 @@ case class FieldPopupBox() extends VDomValue{
 
   }
 }
+case class IconMenu() extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("IconMenuButton")
+    builder.end()
+  }
+}
+case class MenuItem(key:VDomKey,text:String)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("MenuItem")
+    builder.append("primaryText").append(text)
+    builder.append("value").append(key.toString)
+    builder.append("onClick").append("send")
+    builder.end()
+  }
+
+}
 
   /*
 //todo: DateField, SelectField
@@ -378,13 +396,17 @@ class MaterialTags(
   def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1, isUnderline: Boolean=false)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
     child[OfTableRow](key, TableColumn(isHead, isRight, colSpan, isUnderline)(action), children)
 */
+  def iconMenu(key: VDomKey,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,IconMenu(),theChild.toList)
+  def menuItem(key: VDomKey,text:String)(action:()=>Unit)=
+    child[OfDiv](key,MenuItem(key,text)(Some(action)),Nil)
   private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
     child[OfDiv](key,
       IconButton(tooltip)(Some(action)),
       child("icon", SVGIcon(picture), Nil) :: Nil
     )
-  def btnViewList(key:VDomKey, action: ()=>Unit) =
-    iconButton(key,"view list","IconActionViewList",action)
+  //def btnViewList(key:VDomKey, action: ()=>Unit) =
+  //  iconButton(key,"view list","IconActionViewList",action)
   def btnSave(key:VDomKey, action: ()=>Unit) =
     iconButton(key,"save","IconContentSave",action)
   def btnRestore(key:VDomKey, action: ()=>Unit) =
