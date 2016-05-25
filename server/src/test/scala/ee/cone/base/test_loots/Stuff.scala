@@ -181,9 +181,9 @@ class TestComponent(
     else
       List(labeledText("1",label,valueToText(obj(attr))))
 
-  private def strField(obj: Obj, attr: Attr[String], editable: Boolean, label: String, showLabel: Boolean): List[ChildPair[OfDiv]] = {
+  private def strField(obj: Obj, attr: Attr[String], editable: Boolean, label: String, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) label else ""
-    if(editable) List(textInput("1", visibleLabel, obj(attr), obj(attr) = _))
+    if(editable) List(textInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
     else List(labeledText("1", obj(attr), visibleLabel))
   }
 
@@ -230,21 +230,22 @@ class TestComponent(
 
   private def wrapDBView(view: ()=>VDomValue): VDomValue =
     eventSource.incrementalApplyAndView { () ⇒
-      val user = eventSource.mainSession(userAttrs.authenticatedUser)
-      if(user(nonEmpty)) {
+      if(users.needToLogIn) loginView() else {
         val startTime = System.currentTimeMillis
         val res = view()
         val endTime = System.currentTimeMillis
         currentVDom.until(endTime + (endTime - startTime) * 10)
         res
-      } else loginView()
+      }
     }
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
     withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
 
-  def toggledRow(item: Obj) =
-    Toggled(item(filterAttrs.isExpanded))(Some(()=>item(filterAttrs.isExpanded)=true))
+  def toggledSelectedRow(item: Obj) = List(
+    Toggled(item(filterAttrs.isExpanded))(Some(()=>item(filterAttrs.isExpanded)=true)),
+    IsSelected(item(filterAttrs.isSelected))
+  )
   def toggledRow(filterObj: Obj, key: String) =
     Toggled(filterObj(filterAttrs.expandedItem)==key)(Some(()=>filterObj(filterAttrs.expandedItem)=key))
 
@@ -301,10 +302,7 @@ class TestComponent(
         itemList.list.map{ (entry:Obj)=>
           val entrySrcId = entry(alien.objIdStr)
           val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-          row(entrySrcId,
-            toggledRow(entry),
-            IsSelected(entry(filterAttrs.isSelected)),
-            MaxVisibleLines(2))(
+          row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry))(List(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter),
             mCell("1", 50)(_=>booleanField(entry, filterAttrs.isSelected, editable = true)),
             group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
@@ -323,7 +321,7 @@ class TestComponent(
             mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel)),
             mcCell("8",100,0)(_=>btnCreate("btn2",go.get)::Nil
             )
-          )
+          ))
         }
       )))
     ))
@@ -511,10 +509,7 @@ class TestComponent(
       ) :::
       workList.list.map { (work: Obj) =>
         val workSrcId = work(alien.objIdStr)
-        row(workSrcId,
-          toggledRow(work),
-          IsSelected(work(filterAttrs.isSelected))
-        )(
+        row(workSrcId, toggledSelectedRow(work):_*)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
           mCell("1",50)(_=>
             booleanField(work, filterAttrs.isSelected, editable)
@@ -544,10 +539,10 @@ class TestComponent(
     val dialog = filters.filterObj("/login")
     root(List(paperTable("login")(List(row("1", Nil)(List(
       cell("1",MinWidth(250))(_⇒strField(dialog, userAttrs.username, editable, "Username", showLabel)),
-      cell("2",MinWidth(250))(_⇒strField(dialog, userAttrs.unEncryptedPassword, editable, "Password", showLabel)),
+      cell("2",MinWidth(250))(_⇒strField(dialog, userAttrs.unEncryptedPassword, editable, "Password", showLabel, deferSend = false)),
       cell("3",MinWidth(250))(_⇒
         users.loginAction(dialog).map(
-          btnRaised("doChange","Change Password")(_)
+          btnRaised("login","LOGIN")(_)
         ).toList
       )
     ))))))
@@ -563,23 +558,33 @@ class TestComponent(
       paperTable("table")(
         controlPanel("",btnDelete("1", userList.removeSelected),btnAdd("2", userList.add)) ::
         row("head",IsHeader)(
-          mCell("0",250)(_⇒selectAllCheckBox(userList)),
+          mCell("0",50)(_⇒selectAllCheckBox(userList)),
           mCell("1",250)(_⇒List(text("text", "Full Name"))),
-          mCell("2",250)(_⇒Nil)
+          mCell("2",250)(_⇒List(text("text", "Username")))
         ) ::
         userList.list.map{ obj ⇒
           val user = alien.wrap(obj)
           val srcId = user(alien.objIdStr)
-          row(srcId)(
-            mCell("0",250)(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
-            mCell("1",250)(showLabel⇒strField(user, at.caption, editable = true, "User", showLabel)),
-            mCell("2",250)(showLabel⇒if(showLabel)
-              strField(user, userAttrs.unEncryptedPassword, editable, "New Password", showLabel) :::
-                strField(user, userAttrs.unEncryptedPasswordAgain, editable, "Repeat Password", showLabel) :::
-                List(btnRaised("doChange","Change Password")(users.changePasswordAction(user)))
-              else Nil
+          row(srcId,toggledSelectedRow(user))(List(
+            mCell("0",50)(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
+            mCell("1",250)(showLabel⇒strField(user, at.caption, editable = true, label = "User", showLabel = showLabel)),
+            mCell("2",250)(showLabel⇒
+              (if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil) :::
+                List(divSimpleWrapper("4", strField(user, userAttrs.username, editable, "Username", showLabel=true):_*)) :::
+              (if(user(filterAttrs.isExpanded)) List(
+                divSimpleWrapper("1", strField(user, userAttrs.unEncryptedPassword, editable, "New Password", showLabel=true):_*),
+                divSimpleWrapper("2", strField(user, userAttrs.unEncryptedPasswordAgain, editable, "Repeat Password", showLabel=true, deferSend = false):_*),
+                divSimpleWrapper("3",
+                  users.changePasswordAction(user).map(action⇒
+                    btnRaised("doChange","Change Password"){()⇒
+                      action()
+                      user(filterAttrs.isExpanded) = false
+                    }
+                  ).toList:_*
+                )
+              ) else Nil)
             )
-          )
+          ))
         }
       )
     ))
@@ -695,53 +700,71 @@ class UserAttrs(
   val encryptedPassword: Attr[Option[UUID]] = attr("3a345f93-18ab-4137-bdde-f0df77161b5f",asUUID),
   val unEncryptedPassword: Attr[String] = attr("7d12edd9-a162-4305-8a0c-31ef3f2e3300",asString),
   val unEncryptedPasswordAgain: Attr[String] = attr("24517821-c606-4f6c-8e93-4f01c2490747",asString),
-  val authenticatedUser: Attr[Obj] = attr("47ee2460-b170-4213-9d56-a8fe0f7bc1f5",asDBObj)
+  val asActiveUser: Attr[Obj] = label("eac3b82c-5bf0-4278-8e0a-e1e0e3a95ffc"),
+  val authenticatedUser: Attr[Obj] = attr("47ee2460-b170-4213-9d56-a8fe0f7bc1f5",asDBObj) //of session
 )
 
 class Users(
-  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs,
-  handlerLists: CoHandlerLists,
+  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, cat: TestAttributes,
+  handlerLists: CoHandlerLists, attrFactory: AttrFactory,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
-  alien: Alien, transient: Transient
+  alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique, onUpdate: OnUpdate
 )(
   val findAll: SearchByLabelProp[String] = searchIndex.create(at.asUser, findAttrs.justIndexed),
-  val findByName: SearchByLabelProp[String] = searchIndex.create(at.asUser, at.username)
+  val findAllActive: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, findAttrs.justIndexed),
+  val findActiveByName: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, at.username)
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-  private def encryptPassword(user: Obj, pw: String): UUID = {
+  private def encryptPassword(objId: ObjId, username: String, pw: String): UUID = {
     val buffer = ByteBuffer.allocate(256)
-    val objId = user(nodeAttrs.objId)
-    val username = user(at.username)
     buffer.putLong(objId.hi).putLong(objId.lo).put(Bytes(username)).put(Bytes(pw))
     UUID.nameUUIDFromBytes(buffer.array())
   }
-  def changePasswordAction(user: Obj)(): Unit = {
+  def changePasswordAction(user: Obj): Option[()⇒Unit] = {
+    val userId = user(nodeAttrs.objId)
+    val username = user(at.username)
     val pw = user(at.unEncryptedPassword)
-    if(pw != user(at.unEncryptedPasswordAgain))
-      throw new Exception("Passwords do not match")
-    user(at.encryptedPassword) = Some(encryptPassword(user,pw))
+    if(pw.nonEmpty && pw == user(at.unEncryptedPasswordAgain)) Some{()⇒
+      user(at.encryptedPassword) = Some(encryptPassword(userId,username,pw))
+      user(at.unEncryptedPassword) = ""
+      user(at.unEncryptedPasswordAgain) = ""
+    }
+    else None
   }
   def loginAction(dialog: Obj): Option[()⇒Unit] = {
     val username = dialog(at.username)
-    if(username.isEmpty){ return None }
-    val user = findNodes.single(findNodes.where(mainTx(), findByName, dialog(at.username), Nil))
-    val mainSession = eventSource.mainSession
-    Some {
-      () ⇒
-        val pw = dialog(at.unEncryptedPassword)
-        if(user(findAttrs.nonEmpty) &&
-          encryptPassword(user, pw) == user(at.encryptedPassword).get)
+    val pw = dialog(at.unEncryptedPassword)
+    if(username.isEmpty || pw.isEmpty) None else {
+      val user = findNodes.single(findNodes.where(mainTx(), findActiveByName, dialog(at.username), Nil))
+      val userId = user(nodeAttrs.objId)
+      val mainSession = alien.wrap(eventSource.mainSession)
+      val encryptedPassword = if(userId.nonEmpty) user(at.encryptedPassword) else None
+      Some{ () ⇒
+        if(encryptedPassword.exists(_==encryptPassword(userId,username,pw)))
           mainSession(at.authenticatedUser) = user
         else throw new Exception("Bad username or password")
+      }
     }
   }
+  def needToLogIn: Boolean =
+    !eventSource.mainSession(at.authenticatedUser)(at.asUser)(findAttrs.nonEmpty) &&
+      findNodes.where(mainTx(), findAllActive, findNodes.justIndexed, FindFirstOnly::Nil).nonEmpty
+  private def calcCanLogin(on: Boolean, user: Obj) =
+    user(at.asActiveUser) = if(on) user else findNodes.noNode
+
   def handlers =
-    List(findAll,findByName).flatMap(searchIndex.handlers) :::
+    List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers) :::
     List(at.unEncryptedPassword, at.unEncryptedPasswordAgain).flatMap(transient.update) :::
     List(at.asUser,at.username,at.encryptedPassword,at.authenticatedUser).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
-    }
+    } :::
+    List(at.asActiveUser).flatMap(factIndex.handlers) :::
+    mandatory(at.asUser, at.username, mutual = false) :::
+    mandatory(at.asUser, cat.caption, mutual = false) :::
+    unique(at.asUser, at.username) :::
+    unique(at.asUser, cat.caption) :::
+    onUpdate.handlers(List(at.asUser, findAttrs.justIndexed, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin)
 }
 
 

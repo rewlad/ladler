@@ -9,6 +9,7 @@ trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv[MainEnvKey]
   def instantDB: DBEnv[InstantEnvKey]
   def createMergerConnection: LifeCycle=>CoMixBase
+  lazy val mergerCurrentRequest = new CurrentRequest(NoObjId)
   override def toStart =
     new Merger(executionManager,createMergerConnection) :: super.toStart
 }
@@ -86,10 +87,11 @@ trait DBConnectionMix extends CoMixBase {
 }
 
 trait MergerDBConnectionMix extends DBConnectionMix {
+  lazy val currentRequest = dbAppMix.mergerCurrentRequest
   lazy val mainTxManager =
     new DefaultTxManagerImpl[MainEnvKey](lifeCycle, dbAppMix.mainDB, mainTx, preCommitCheckCheckAll)
   lazy val mergerEventSourceOperations =
-    new MergerEventSourceOperationsImpl(eventSourceOperations, findAttrs, instantTxManager, mainTxManager, findNodes)()
+    new MergerEventSourceOperationsImpl(eventSourceOperations, objIdFactory, nodeAttrs, instantTxManager, mainTxManager, findNodes, currentRequest)
 }
 
 trait SessionDBConnectionMix extends DBConnectionMix {
