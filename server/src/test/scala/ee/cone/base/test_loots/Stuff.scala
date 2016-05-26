@@ -186,6 +186,11 @@ class TestComponent(
     if(editable) List(textInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
     else List(labeledText("1", obj(attr), visibleLabel))
   }
+  private def strPassField(obj: Obj, attr: Attr[String], editable: Boolean, label: String, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) label else ""
+    if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
+    else List(labeledText("1", "******", visibleLabel))
+  }
 
   private def booleanField(obj: Obj, attr: Attr[Boolean], editable: Boolean): List[ChildPair[OfDiv]] = {
     if(!editable) ???
@@ -239,8 +244,8 @@ class TestComponent(
       }
     }
 
-  private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
-    withMargin(key, 10, paper("paper", withPadding(key, 10, child)))
+  private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]*) =
+    withMargin(key, 10, paper("paper", withPadding(key, 10, child:_*)))
 
   def toggledSelectedRow(item: Obj) = List(
     Toggled(item(filterAttrs.isExpanded))(Some(()=>item(filterAttrs.isExpanded)=true)),
@@ -537,15 +542,11 @@ class TestComponent(
     val editable = true
     val showLabel = true
     val dialog = filters.filterObj("/login")
-    root(List(paperTable("login")(List(row("1", Nil)(List(
-      cell("1",MinWidth(250))(_⇒strField(dialog, userAttrs.username, editable, "Username", showLabel)),
-      cell("2",MinWidth(250))(_⇒strField(dialog, userAttrs.unEncryptedPassword, editable, "Password", showLabel, deferSend = false)),
-      cell("3",MinWidth(250))(_⇒
-        users.loginAction(dialog).map(
-          btnRaised("login","LOGIN")(_)
-        ).toList
-      )
-    ))))))
+    root(List(withMaxWidth("1",400,paperWithMargin("login",
+      divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, editable, "Username", showLabel):_*)),
+      divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, editable, "Password", showLabel, deferSend = false):_*)),
+      divSimpleWrapper("3", divAlignWrapper("1","right","top",users.loginAction(dialog).map(btnRaised("login","LOGIN")(_)).toList))
+    )::Nil)))
   }
 
   private def userListView(pf: String) = wrapDBView { () =>
@@ -557,31 +558,44 @@ class TestComponent(
       paperTable("table")(
         controlPanel("",btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add())) ::
         row("head",IsHeader)(
+          group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
           mCell("0",50)(_⇒selectAllCheckBox(userList)),
+          group("2_grp", MinWidth(150)),
           mCell("1",250)(_⇒List(text("text", "Full Name"))),
-          mCell("2",250)(_⇒List(text("text", "Username")))
+          mCell("2",250)(_⇒List(text("text", "Username"))),
+          mCell("3",250)(_⇒List(text("text", "Active"))),
+          group("3_grp",MinWidth(300)),
+          mCell("4",250)(_⇒List(text("text", "New Password"))),
+          mCell("5",250)(_⇒List(text("text", "Repeat Password"))),
+          mCell("6",250)(_⇒Nil)
         ) ::
         userList.list.map{ obj ⇒
           val user = alien.wrap(obj)
           val srcId = user(alien.objIdStr)
           row(srcId,toggledSelectedRow(user))(List(
+            group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
             mCell("0",50)(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
+            group("2_grp", MinWidth(150)),
             mCell("1",250)(showLabel⇒strField(user, at.caption, editable = true, label = "User", showLabel = showLabel)),
-            mCell("2",250)(showLabel⇒
-              (if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil) :::
-                List(divSimpleWrapper("4", strField(user, userAttrs.username, editable, "Username", showLabel=true):_*)) :::
-              (if(user(filterAttrs.isExpanded)) List(
-                divSimpleWrapper("1", strField(user, userAttrs.unEncryptedPassword, editable, "New Password", showLabel=true):_*),
-                divSimpleWrapper("2", strField(user, userAttrs.unEncryptedPasswordAgain, editable, "Repeat Password", showLabel=true, deferSend = false):_*),
-                divSimpleWrapper("3",
-                  users.changePasswordAction(user).map(action⇒
-                    btnRaised("doChange","Change Password"){()⇒
-                      action()
-                      user(filterAttrs.isExpanded) = false
-                    }
-                  ).toList:_*
-                )
-              ) else Nil)
+            mCell("2",250)(showLabel=>
+              strField(user, userAttrs.username, editable, "Username", showLabel)),
+            mCell("3",250)(showLabel⇒
+              if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil),
+            group("3_grp",MinWidth(300)),
+            mCell("4",250)(showLabel=>if(user(filterAttrs.isExpanded))
+                strPassField(user, userAttrs.unEncryptedPassword, editable, "New Password", showLabel)
+              else Nil),
+            mCell("5",250)(showLabel=>if(user(filterAttrs.isExpanded))
+                strPassField(user, userAttrs.unEncryptedPasswordAgain, editable, "Repeat Password", showLabel, deferSend = false)
+              else Nil),
+            mCell("6",250)(_=>if(user(filterAttrs.isExpanded))
+                users.changePasswordAction(user).map(action⇒
+                  btnRaised("doChange","Change Password"){()⇒
+                    action()
+                    user(filterAttrs.isExpanded) = false
+                  }
+                ).toList
+            else Nil
             )
           ))
         }

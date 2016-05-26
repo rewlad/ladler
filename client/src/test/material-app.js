@@ -23,9 +23,10 @@ import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
 import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
 import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
 import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
-//import IconActionViewList from 'material-ui/lib/svg-icons/action/view-list'
+import IconActionLock from 'material-ui/lib/svg-icons/action/lock'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
+import IconSocialPerson  from 'material-ui/lib/svg-icons/social/person'
 import IconMenu          from 'material-ui/lib/menus/icon-menu'
 import MenuItem          from 'material-ui/lib/menus/menu-item'
 import IconNavigationMenu from 'material-ui/lib/svg-icons/navigation/menu'
@@ -231,7 +232,7 @@ const tp = ({
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
-    LabeledText,FlexGridItemWidthSync,//IconActionViewList,
+    LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
     IconActionRestore,IconContentSave,//,SelectField
     IconMenuButton,MenuItem
 })
