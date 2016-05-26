@@ -311,12 +311,14 @@ class TestComponent(
             mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false,"Boat",showLabel)),
             mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false,"Date",showLabel)),
             mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)),
-            mCell("5",100)(_=>{
-              val confirmed = entry(logAt.asConfirmed)
-              if(confirmed(nonEmpty))
-                List(materialChip("1","CONFIRMED"))
-              else Nil
-            }),
+            mCell("5",100)(_=>
+             {
+                val confirmed = entry(logAt.asConfirmed)
+                if(confirmed(nonEmpty))
+                  List(materialChip("1","CONFIRMED"))
+                else Nil
+             }
+            ),
             mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel)),
             mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel)),
             mcCell("8",100,0)(_=>btnCreate("btn2",go.get)::Nil
@@ -362,7 +364,13 @@ class TestComponent(
                 )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
               ),
               flexGridItem("boat1",100,None,
-                iconInput("1","IconSocialPerson")(textInput("1","Password","",(x)=>{}))::Nil
+                fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
+                  divNoWrap("1",text("1","aaa"))::
+                    divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
+                    (0 to 20).map(x=>{
+                    divNoWrap("3"+x,text("1","aaa"))}).toList
+
+                )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
               ),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable,"Date",showLabel = true)),
 
@@ -383,6 +391,7 @@ class TestComponent(
                       List(btnRaised("reopen","Reopen")(()⇒entry(logAt.confirmedOn)=None))
                     else
                       List(btnRaised("confirm","Confirm")(()⇒entry(logAt.confirmedOn)=Option(Instant.now())))
+
                   ))
               ))
             ))

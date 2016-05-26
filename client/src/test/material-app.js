@@ -23,10 +23,9 @@ import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
 import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
 import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
 import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
-import IconActionLock from 'material-ui/lib/svg-icons/action/lock'
+//import IconActionViewList from 'material-ui/lib/svg-icons/action/view-list'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
-import IconSocialPerson  from 'material-ui/lib/svg-icons/social/person'
 import IconMenu          from 'material-ui/lib/menus/icon-menu'
 import MenuItem          from 'material-ui/lib/menus/menu-item'
 import IconNavigationMenu from 'material-ui/lib/svg-icons/navigation/menu'
@@ -35,6 +34,7 @@ import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 import Checkbox          from 'material-ui/lib/checkbox'
 import TimePicker        from 'material-ui/lib/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
+//import SelectField       from '../test/select-field'
 import injectTapEventPlugin from "react-tap-event-plugin"
 injectTapEventPlugin()
 function fixOnScrollBug(){
@@ -50,13 +50,12 @@ SSEConnection("http://localhost:5556/sse", receivers, 5)
 
 const DateInput = React.createClass({
     render(){
-
         const at = {
             floatingLabelText: this.props.floatingLabelText,
             errorText: this.props.errorText,
             //container: 'inline',
             //locale: "ee",
-            //mode:window.innerHeight<window.innerWidth?"landscape":"portrait" ,
+            //mode:"landscape",
             disabled:this.props.disabled,
             DateTimeFormat: global.Intl.DateTimeFormat,
             textFieldStyle: this.props.style,
@@ -225,32 +224,6 @@ class IconMenuButton extends React.Component{
             )
     }
 }
-/*
-class IconTextField extends React.Component{
-    constructor(props){
-        super(props)
-        this.handleFocus=this.handleFocus.bind(this)
-        this.handleBlur=this.handleBlur.bind(this)
-    }
-    handleFocus(){
-
-    }
-    handleBlur(){
-
-        if(this.props.handleBlur) this.props.handleBlur()
-    }
-    render(){
-        const cStyle={
-            width:"100%"
-        }
-        return React.createElement("div",{key:this.props.key,style:cStyle},[
-            React.createElement("div",{key:"1"},"icon"),
-            React.createElement(TextField,{key:"2",onChange.this.props.onChange,onBlur:this.handleBlur,onFocus:this.handleFocus})
-            ]
-        )
-    }
-}
-*/
 const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
@@ -258,7 +231,7 @@ const tp = ({
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
-    LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
+    LabeledText,FlexGridItemWidthSync,//IconActionViewList,
     IconActionRestore,IconContentSave,//,SelectField
     IconMenuButton,MenuItem
 })

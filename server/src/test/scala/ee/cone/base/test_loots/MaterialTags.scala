@@ -186,10 +186,9 @@ case class DivNoTextWrap() extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("div")
-      builder.append("style").startObject()
-        builder.append("whiteSpace").append("nowrap")
-        builder.append("overflow").append("hidden")
-      builder.end()
+    builder.append("style").startObject()
+    builder.append("whiteSpace").append("nowrap")
+    builder.end()
     builder.end()
 
   }
@@ -361,22 +360,6 @@ case class MenuItem(key:VDomKey,text:String)(val onClick:Option[()=>Unit]) exten
   }
 
 }
-case class DivPositionWrapper(display:Option[String],
-                              width:Option[Int],
-                              position:Option[String],
-                              top:Option[Int]) extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-    builder.append("tp").append("div")
-    builder.append("style").startObject()
-    display.foreach(x=>builder.append("display").append(x))
-    position.foreach(x=>builder.append("position").append(x))
-    top.foreach(x=>builder.append("top").append(s"${x}px"))
-    width.foreach(x=>builder.append("width").append(s"${x}px"))
-    builder.end()
-    builder.end()
-  }
-}
 
   /*
 //todo: DateField, SelectField
@@ -415,16 +398,6 @@ class MaterialTags(
   def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1, isUnderline: Boolean=false)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
     child[OfTableRow](key, TableColumn(isHead, isRight, colSpan, isUnderline)(action), children)
 */
-  def iconInput(key: VDomKey,picture:String)(theChild:ChildPair[OfDiv]*)=
-    divNoWrap(key,
-      Seq(
-        child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some[])
-          child[OfDiv]("icon",SVGIcon(picture),Nil)
-        )
-      )
-        ++theChild:_*
-    )
-
   def iconMenu(key: VDomKey,opened:Boolean)(action:()=>Unit,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,IconMenu(opened)(Some(action)),theChild.toList)
   def menuItem(key: VDomKey,text:String)(action:()=>Unit)=
