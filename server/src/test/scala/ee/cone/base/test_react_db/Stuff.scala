@@ -143,7 +143,7 @@ class TestComponent(
     CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/test"))(testView) ::
-    CoHandler(SessionInstantProbablyAdded)(currentVDom.invalidate) ::
+    CoHandler(SessionInstantAdded)(currentVDom.invalidate) ::
     Nil
 }
 

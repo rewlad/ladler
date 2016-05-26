@@ -11,9 +11,9 @@ trait SearchOption
 case class FindAfter(node: Obj) extends SearchOption
 case class FindFrom(node: Obj) extends SearchOption
 case class FindUpTo(node: Obj) extends SearchOption
+case object FindNextValues extends SearchOption
 case object FindFirstOnly extends SearchOption
 case object FindLastOnly extends SearchOption
-case object FindNextValues extends SearchOption
 
 trait FindAttrs {
   def justIndexed: Attr[String]
@@ -24,6 +24,7 @@ trait FindNodes {
   def noNode: Obj
   def zeroNode: Obj
   def nextNode(obj: Obj): Obj
+  def single(l: List[Obj]): Obj
   def where[Value](tx: BoundToTx, index: SearchByLabelProp[Value], value: Value, options: List[SearchOption]): List[Obj]
   def justIndexed: String
   def whereObjId(objId: ObjId): Obj

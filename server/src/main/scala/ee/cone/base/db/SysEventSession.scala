@@ -16,64 +16,67 @@ class SessionEventSourceOperationsImpl(
 ) extends SessionEventSourceOperations with CoHandlerProvider {
   private var sessionKeyOpt: Option[UUID] = None
   def sessionKey = sessionKeyOpt.get
-  private def findSession(): Option[Obj] = {
+  def findSession(): Obj = {
     val tx = instantTxManager.currentTx()
-    Single.option(findNodes.where(
-      tx, ops.findInstantSessionBySessionKey, sessionKeyOpt, Nil
-    ))
+    findNodes.single(findNodes.where(tx, ops.findInstantSessionBySessionKey, sessionKeyOpt, Nil))
   }
-  private def findOrAddSession() = findSession().getOrElse{
+  def mainSession = findSession()(at.mainSession)
+  private def addSession() = {
     val tx = instantTxManager.currentTx()
     val instantSession = ops.addInstant(findNodes.noNode, at.asInstantSession)
     instantSession(at.sessionKey) = sessionKeyOpt
     instantSession(at.mainSession) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
-    instantSession
   }
   def incrementalApplyAndView[R](view: () => R) = {
     instantTxManager.roTx { () ⇒
-      val instantSession = findSession().get
+      val instantSession = findSession()
       mainTxManager.muxTx(needRecreate(instantSession)){ () ⇒
         ops.applyEvents(instantSession)
         view()
       }
     }
   }
-  def unmergedEvents = ops.unmergedEvents(findSession().get)
+  def unmergedEvents = ops.unmergedEvents(findSession())
   var decoupled: Boolean = false
   private def needRecreate(instantSession: Obj): Boolean = {
     val tx = instantTxManager.currentTx()
     val findAfter = if(lastStatus(sysAttrs.nonEmpty)) List(FindAfter(lastStatus)) else Nil
     val options = FindLastOnly :: findAfter
-    val newStatuses = if(decoupled) findNodes.where(
+    val newStatus = findNodes.single(if(decoupled) findNodes.where(
       tx, ops.findCommitByInstantSession, instantSession, options
     ) else findNodes.where(
       tx, ops.findCommit, findNodes.justIndexed, options
-    )
-    if(newStatuses.isEmpty) return false
-    val newStatus :: Nil = newStatuses
+    ))
+    if(!newStatus(sysAttrs.nonEmpty)) return false
     lastStatus = newStatus
     true
   }
-  def addInstantTx[R](f: () ⇒ R): R =
-    Setup(instantTxManager.rwTx(f))(_⇒ handlerLists.list(SessionInstantProbablyAdded).foreach(_()))
+  def addInstantTx(f: () ⇒ Boolean): Unit = if(instantTxManager.rwTx(f))
+    handlerLists.list(SessionInstantAdded).foreach(_())
   def addUndo(event: Obj) = addInstantTx { () ⇒
-    val instantSession = findSession().get
+    val instantSession = findSession()
     val objId = event(nodeAttrs.objId)
     mainTxManager.muxTx(recreate=true) { () =>
       var undo = true
+      var added = false
       ops.unmergedEvents(instantSession).reverse.foreach { ev =>
         if(ev(at.applyAttr) == at.requested) Never() // check
-        if(undo) ops.undo(ev)
+        if(undo){
+          ops.undo(ev)
+          added = true
+        }
         if(ev(nodeAttrs.objId) == objId) undo = false
       }
+      added
     }
   }
   def addEvent(fill: Obj=>(ObjId,String)): Unit = addInstantTx { () ⇒
-    val instantSession = findSession().get
+    val instantSession = findSession()
     val ev = ops.addInstant(instantSession, at.asEvent)
     val (handler, comment) = fill(ev)
     ev(at.applyAttr) = handler
     ev(at.comment) = comment
+    true
   }
 
   def addRequest() = addEvent{ req ⇒ (at.requested, "requested") }
@@ -81,7 +84,9 @@ class SessionEventSourceOperationsImpl(
     val uuidOpt = Option(uuid)
     if(sessionKeyOpt == uuidOpt){ return }
     sessionKeyOpt = uuidOpt
-    addInstantTx{ () ⇒ findOrAddSession() }
+    addInstantTx{ () ⇒
+      if(findSession()(sysAttrs.nonEmpty)) false else { addSession(); true }
+    }
   }
   def comment = at.comment
   def handlers =

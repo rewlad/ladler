@@ -19,7 +19,7 @@ class CoHandlerListsImpl(getMix: ()=>Object) extends CoHandlerLists {
   }
   def single[Item](ev: EventKey[Item], fail: ()⇒Item) = list(ev) match {
     case Nil ⇒
-      //println(s"single failed $ev")
+      println(s"single failed $ev")
       fail()
     case h :: Nil =>
       //println(s"single found  $ev")
