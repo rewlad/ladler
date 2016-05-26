@@ -175,11 +175,11 @@ class TestComponent(
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
   private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String, label: String, showLabel: Boolean): List[ChildPair[OfDiv]] =
-    if(!obj(nonEmpty)) Nil
-    else if(!showLabel)
-      List(text("1",valueToText(obj(attr))))
-    else
-      List(labeledText("1",label,valueToText(obj(attr))))
+    if(!obj(nonEmpty)) Nil else {
+      val visibleLabel = if(showLabel) label else ""
+      List(labeledText("1",visibleLabel,valueToText(obj(attr))))
+    }
+
 
   private def strField(obj: Obj, attr: Attr[String], editable: Boolean, label: String, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) label else ""
@@ -228,15 +228,15 @@ class TestComponent(
   private def emptyView(pf: String) =
     tags.root(List(tags.text("text", "Loading...")))
 
-  private def wrapDBView(view: ()=>VDomValue): VDomValue =
+  private def wrapDBView(view: ()=>List[ChildPair[OfDiv]]): VDomValue =
     eventSource.incrementalApplyAndView { () ⇒
-      if(users.needToLogIn) loginView() else {
+      root(if(users.needToLogIn) loginView() else {
         val startTime = System.currentTimeMillis
         val res = view()
         val endTime = System.currentTimeMillis
         currentVDom.until(endTime + (endTime - startTime) * 10)
         res
-      }
+      })
     }
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]) =
@@ -281,7 +281,7 @@ class TestComponent(
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj)
-    root(List( //class LootsBoatLogList
+    List( //class LootsBoatLogList
       toolbar("Entry List"),
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
         List(
@@ -324,27 +324,22 @@ class TestComponent(
           ))
         }
       )))
-    ))
+    )
   }}
   // currentVDom.invalidate() ?
-
-  private def entryEditView(pf: String) = wrapDBView { () =>
-    //println(pf)
-    val obj = findNodes.whereObjId(findNodes.toObjId(UUID.fromString(pf.tail)))
-    editViewInner(alien.wrap(obj(logAt.asEntry)))
-  }
 
   var selectDropShow=false
   var selectDropShow1=false
   private def selectDropShowHandle()= selectDropShow = !selectDropShow
   private def selectDropShowHandle1() = selectDropShow1 = !selectDropShow1
 
-  private def editViewInner(entry: Obj): VDomValue = {
+  private def entryEditView(pf: String) = wrapDBView { () =>
+    val entry = alien.wrap(findNodes.whereObjId(findNodes.toObjId(UUID.fromString(pf.tail)))(logAt.asEntry))
     val editable = true /*todo rw rule*/
 
     val entryIdStr = entry(alien.objIdStr)
 
-    root(List(
+    List(
       toolbar("Boat Edit"),
       withMaxWidth("1",1200,List(
       paperWithMargin(s"$entryIdStr-1",
@@ -399,11 +394,58 @@ class TestComponent(
 
       withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, editable))),
       withMaxWidth("3",1200,List(entryEditWorkListView(entry, editable)))
-    ))
+    )
   }
 
+  /*
+  val fuelingByFullKey: SearchByLabelProp[String] = searchIndex.create(logAt.asFueling,filterAttrs.filterFullKey)
+    CoHandler(AttrCaption(logAt.boat))("Boat") ::
+    CoHandler(AttrCaption(logAt.date))("Date") ::
+    CoHandler(AttrCaption(logAt.durationTotal))("Total duration, hrs:min") ::
+    CoHandler(AttrCaption(logAt.asConfirmed))("Confirmed") ::
+    CoHandler(AttrCaption(logAt.confirmedBy))("Confirmed by") ::
+    CoHandler(AttrCaption(logAt.confirmedOn))("Confirmed on") ::
+    CoHandler(AttrCaption(logAt.logDate))("Date") ::
+    CoHandler(AttrCaption(logAt.logFuel))("Fuel rest/quantity") ::
+    CoHandler(AttrCaption(logAt.logComment))("Comment") ::
+    CoHandler(AttrCaption(logAt.logEngineer))("Engineer") ::
+    CoHandler(AttrCaption(logAt.logMaster))("Master") ::
+    CoHandler(AttrCaption())() ::
+
+  searchIndex.handlers(fuelingByFullKey)
+  */
+
+
+
+
   def entryEditFuelScheduleView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
+    val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(s"/entry/${entry(alien.objIdStr)}")
+/*
+    def fuelingRowView(entry: Obj, time: String) = {
+      val fueling = filters.lazyLinkingObj(fuelingByFullKey,s"$entryIdStr/$time")
+      row(time,toggledRow(filterObj,time))(
+        mCell("1",100,3)(showLabel=>
+          List(labeledText("1",if(showLabel) "Time" else "",time))
+        ),
+        mCell("2",150,1)(showLabel=>
+          timeField(entry, logAt.logDate, editable, "Date", showLabel)
+        ),
+        mCell("3",100,1)(showLabel=>
+          strField(entry, logAt.logFuel, editable,"Fuel rest/quantity",showLabel)
+        ),
+        mCell("4",250,3)(showLabel=>
+          strField(entry, logAt.logComment, editable,"Comment",showLabel)
+        ),
+        mCell("5",150,2)(showLabel=>
+          strField(entry, logAt.logEngineer, editable,"Engineer",showLabel)
+        ),
+        mCell("6",150,2)(showLabel=>
+          strField(entry, logAt.logMaster, editable,"Master",showLabel)
+        )
+      )
+    }
+    */
     paperTable("dtTableEdit1")(List(
       row("row",IsHeader)(
         mCell("1",100,3)(_=>List(text("1","Time"))),
@@ -537,7 +579,7 @@ class TestComponent(
     val editable = true
     val showLabel = true
     val dialog = filters.filterObj("/login")
-    root(List(paperTable("login")(List(row("1", Nil)(List(
+    List(paperTable("login")(List(row("1", Nil)(List(
       cell("1",MinWidth(250))(_⇒strField(dialog, userAttrs.username, editable, "Username", showLabel)),
       cell("2",MinWidth(250))(_⇒strField(dialog, userAttrs.unEncryptedPassword, editable, "Password", showLabel, deferSend = false)),
       cell("3",MinWidth(250))(_⇒
@@ -545,14 +587,14 @@ class TestComponent(
           btnRaised("login","LOGIN")(_)
         ).toList
       )
-    ))))))
+    )))))
   }
 
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj("/userList")
     val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj)
     val editable = true //todo
-    root(List(
+    List(
       toolbar("Users"),
       paperTable("table")(
         controlPanel("",btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add())) ::
@@ -586,12 +628,12 @@ class TestComponent(
           ))
         }
       )
-    ))
+    )
   }
 
   //// events
   private def eventListView(pf: String) = wrapDBView { () =>
-    root(List(
+    List(
       toolbar("Events"),
       paperTable("table")(
         row("head", IsHeader)(
@@ -606,7 +648,7 @@ class TestComponent(
           )
         }
       )
-    ))
+    )
   }
 
   private def eventToolbarButtons() = if (eventSource.unmergedEvents.isEmpty) Nil
@@ -686,6 +728,7 @@ class TestComponent(
     Nil
 }
 
+case class AttrCaption(attr: Attr[_]) extends EventKey[String]
 
 class UserAttrs(
   attr: AttrFactory,
