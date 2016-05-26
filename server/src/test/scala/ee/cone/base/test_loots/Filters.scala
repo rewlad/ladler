@@ -4,7 +4,7 @@ import java.util.UUID
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
-import ee.cone.base.util.Never
+import ee.cone.base.util.{Setup, Never}
 
 class FilterAttrs(
   attr: AttrFactory,
@@ -29,7 +29,7 @@ trait InnerItemList {
 
 trait ItemList {
   def filter: Obj
-  def add(): Unit
+  def add(): Obj
   def list: List[Obj]
   def selectAllListed(): Unit
   def removeSelected(): Unit
@@ -92,7 +92,7 @@ class Filters(
     val setElement = Map[(Attr[Boolean],Boolean),Obj⇒Unit](
       (at.isSelected→false) → { obj ⇒ filterObj(at.selectedItems) = selectedSet - obj(nodeAttrs.objId) },
       (at.isSelected→true)  → { obj ⇒ filterObj(at.selectedItems) = selectedSet + obj(nodeAttrs.objId) },
-      (at.isListed→false)   → { obj ⇒ obj(factIndex.defined(attrFactory.attrId(parentAttr))) = false },
+      (at.isListed→false)   → { obj ⇒ obj(parentAttr) = attrFactory.converter(attrFactory.valueType(parentAttr)).convertEmpty() },
       (at.isListed→true)    → { obj ⇒ obj(parentAttr) = parentValue },
       (at.isExpanded→false) → { obj ⇒ filterObj(at.expandedItem) = "" },
       (at.isExpanded→true)  → { obj ⇒ filterObj(at.expandedItem) = obj(alienAttrs.objIdStr) }
@@ -110,9 +110,11 @@ class Filters(
     new ItemList {
       def filter = filterObj
       def list = items
-      def add() = newItem(at.isListed) = true
+      def add() = Setup(newItem)(_(at.isListed) = true)
       def removeSelected() = {
-        selectedSet.foreach(findNodes.whereObjId(_)(at.isListed)=false)
+        selectedSet.foreach(objId⇒
+          alien.wrap(findNodes.whereObjId(objId)).wrap(listedWrapType,inner)(at.isListed)=false
+        )
         filter(at.selectedItems) = Set[ObjId]()
       }
       def selectAllListed() =

@@ -79,10 +79,15 @@ main, m
   def justIndexed = "Y"
   def toObjId(uuid: UUID): ObjId = objIdFactory.toObjId(uuid)
   def toUUIDString(objId: ObjId) = new UUID(objId.hi,objId.lo).toString
-  def handlers =
-    CoHandler(GetValue(dbWrapType, at.nonEmpty))((obj,innerObj)⇒innerObj.data.nonEmpty) ::
-    CoHandler(GetValue(dbWrapType, nodeAttrs.objId))((obj,innerObj)⇒innerObj.data) ::
+  def handlers = {
+    CoHandler(GetValue(dbWrapType, at.nonEmpty))(
+      (obj, innerObj) ⇒ innerObj.data.nonEmpty
+    ) ::
+    CoHandler(GetValue(dbWrapType, nodeAttrs.objId))(
+      (obj, innerObj) ⇒ innerObj.data
+    ) ::
     factIndex.handlers(at.justIndexed)
+  }
 }
 
 /*

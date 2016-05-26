@@ -197,7 +197,7 @@ case class DivClickable()(val onClick:Option[()=>Unit]) extends VDomValue with O
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("div")
-    builder.append("onClick").append("send")
+    onClick.foreach(_⇒ builder.append("onClick").append("send"))
     builder.end()
 
   }
@@ -345,7 +345,7 @@ case class IconMenu(opened:Boolean)(val onClick:Option[()=>Unit]) extends VDomVa
     builder.startObject()
     builder.append("tp").append("IconMenuButton")
     builder.append("open").append(opened)
-    builder.append("onClick").append("send")
+    onClick.foreach(_⇒ builder.append("onClick").append("send"))
     builder.end()
   }
 }
@@ -355,7 +355,7 @@ case class MenuItem(key:VDomKey,text:String)(val onClick:Option[()=>Unit]) exten
     builder.append("tp").append("MenuItem")
     builder.append("primaryText").append(text)
     builder.append("value").append(key.toString)
-    builder.append("onClick").append("send")
+    onClick.foreach(_⇒ builder.append("onClick").append("send"))
     builder.end()
   }
 
@@ -454,8 +454,8 @@ class MaterialTags(
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
 
-  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit) =
-    child[OfDiv](key, InputField("TextField",value, label, deferSend = true)
+  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean) =
+    child[OfDiv](key, InputField("TextField",value, label, deferSend)
       (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
   private def instantToString(value: Option[Instant]): String =

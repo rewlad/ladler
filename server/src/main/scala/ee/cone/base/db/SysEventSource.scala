@@ -119,7 +119,6 @@ class EventSourceOperationsImpl(
     }
     events.needMainSession()
   }
-
   def nextRequest(): Obj = {
     val mainSeq = findNodes.whereObjId(mainSeqObjId)
     val lastNode = mainSeq(at.lastMergedRequest)
@@ -140,27 +139,39 @@ class EventSourceOperationsImpl(
     res(at.instantSession) = instantSession
     res
   }
-  def handlers: List[BaseCoHandler] =
+  def handlers: List[BaseCoHandler] = {
     List(
       seq,
-      asInstantSession,sessionKey,asMainSession,instantSession,lastMergedEvent,
-      asEvent,lastAppliedEvent,statesAbout,asUndo,asCommit,lastMergedRequest,
-      applyAttr,mainSession,comment
+      asInstantSession,
+      sessionKey,
+      asMainSession,
+      instantSession,
+      lastMergedEvent,
+      asEvent,
+      lastAppliedEvent,
+      statesAbout,
+      asUndo,
+      asCommit,
+      lastMergedRequest,
+      applyAttr,
+      mainSession,
+      comment
     ).flatMap(factIndex.handlers(_)) :::
-      mandatory(asInstantSession,sessionKey,mutual = true) :::
-      mandatory(asInstantSession,mainSession,mutual = true) :::
+      mandatory(asInstantSession, sessionKey, mutual = true) :::
+      mandatory(asInstantSession, mainSession, mutual = true) :::
       //mandatory(asMainSession,instantSession,mutual = false) :::
-      mandatory(asMainSession,lastMergedEvent,mutual = true) :::
-      mandatory(asEvent,instantSession,mutual = false) :::
-      mandatory(asEvent,applyAttr,mutual = true) :::
-      mandatory(asCommit,instantSession,mutual = false) :::
+      mandatory(asMainSession, lastMergedEvent, mutual = true) :::
+      mandatory(asEvent, instantSession, mutual = false) :::
+      mandatory(asEvent, applyAttr, mutual = true) :::
+      mandatory(asCommit, instantSession, mutual = false) :::
       mandatory(asUndo, statesAbout, mutual = false) :::
       mandatory(asCommit, statesAbout, mutual = false) :::
-    List(
-      findInstantSessionBySessionKey, findEventByInstantSession,
-      findUndoByStatesAbout, findCommitByStatesAbout, findCommit,
-      findEventByApplyAttr, findCommitByInstantSession
-    ).flatMap(searchIndex.handlers(_)) :::
-      CoHandler(ApplyEvent(requested))(_=>()) ::
+      List(
+        findInstantSessionBySessionKey, findEventByInstantSession,
+        findUndoByStatesAbout, findCommitByStatesAbout, findCommit,
+        findEventByApplyAttr, findCommitByInstantSession
+      ).flatMap(searchIndex.handlers(_)) :::
+      CoHandler(ApplyEvent(requested))(_ => ()) ::
       Nil
+  }
 }

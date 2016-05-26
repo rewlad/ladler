@@ -66,7 +66,7 @@ case class DataTableRecordRow(selected:Boolean)(val onClick:Option[()=>Unit]) ex
     builder.startObject()
       builder.append("tp").append("DataTableRow")
       builder.append("selected").append(selected)
-      builder.append("onClick").append("sendThen")
+      onClick.foreach(_⇒ builder.append("onClick").append("sendThen"))
     builder.end()
   }
 }
