@@ -554,9 +554,8 @@ class TestComponent(
     val editable = true //todo
     root(List(
       toolbar("Users"),
-      btnAdd("2", userList.add),
       paperTable("table")(
-        controlPanel("",btnDelete("1", userList.removeSelected),btnAdd("2", userList.add)) ::
+        controlPanel("",btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add())) ::
         row("head",IsHeader)(
           mCell("0",50)(_⇒selectAllCheckBox(userList)),
           mCell("1",250)(_⇒List(text("text", "Full Name"))),
