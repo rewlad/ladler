@@ -285,7 +285,7 @@ class TestComponent(
       toolbar("Entry List"),
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
         List(
-          controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", itemList.add)),
+          controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add())),
           row("row",MaxVisibleLines(2),IsHeader)(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
             mCell("1",50)(_=> selectAllCheckBox(itemList)),
@@ -496,7 +496,7 @@ class TestComponent(
     val workList = filters.itemList(findWorkByEntry,entry,filterObj)
     paperTable("dtTableEdit2")(
       List(
-        controlPanel("",btnDelete("1", workList.removeSelected),btnAdd("2", workList.add)),
+        controlPanel("",btnDelete("1", workList.removeSelected),btnAdd("2", ()⇒workList.add())),
         row("row",IsHeader)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
           mCell("1",50)(_=>selectAllCheckBox(workList)),

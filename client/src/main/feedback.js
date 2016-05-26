@@ -1,5 +1,5 @@
 
-var loadKeyState, connectionKeyState, locationHash;
+var loadKeyState, connectionState;
 
 function never(){ throw new Exception() }
 function pong(){
@@ -14,10 +14,12 @@ function pong(){
 function sessionKey(orDo){ return sessionStorage.getItem("sessionKey") || orDo() }
 function getLoadKey(orDo){ return loadKeyState || orDo() }
 function loadKeyForSession(){ return "loadKeyForSession-" + sessionKey(never) }
-function getConnectionKey(orDo){ return connectionKeyState || orDo() }
+function getConnectionState(orDo){ return connectionState || orDo() }
+function getConnectionKey(orDo){ return getConnectionState(orDo).key || orDo() }
 function connect(data) {
     console.log("conn: "+data)
-    connectionKeyState = data
+    var nextMessageIndex = 0
+    connectionState = { key: data, nextMessageIndex: ()=>nextMessageIndex++ }
     sessionKey(() => sessionStorage.setItem("sessionKey", getConnectionKey(never)))
     getLoadKey(() => { loadKeyState = getConnectionKey(never) })
     localStorage.setItem(loadKeyForSession(), getLoadKey(never))
@@ -33,7 +35,10 @@ function ping(data) {
 }
 function send(headers){
     headers["X-r-connection"] = getConnectionKey(never)
+    headers["X-r-index"] = getConnectionState(never).nextMessageIndex()
+    //todo: contron message delivery at server
     fetch("/connection",{method:"post",headers})
+    return headers
 }
 function relocateHash(data) { 
     document.location.href = "#"+data 
