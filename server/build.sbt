@@ -3,7 +3,7 @@ fork in test := true
 
 // libraryDependencies += "org.deephacks.lmdbjni" % "lmdbjni-linux64" % "0.4.6" % Test
 
-libraryDependencies += "org.deephacks.lmdbjni" % "lmdbjni-linux64" % "0.4.1" % Test
+libraryDependencies += "org.deephacks.lmdbjni" % "lmdbjni-win64" % "0.4.6" % Test
 
 val runL = TaskKey[Unit]("runL")
 
