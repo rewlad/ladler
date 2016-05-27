@@ -22,6 +22,8 @@ class DemandedNode(var objId: ObjId, val setup: Obj⇒Unit)
 class AlienWrapType extends WrapType[Unit]
 class DemandedWrapType extends WrapType[DemandedNode]
 
+case class AttrCaption(attr: Attr[_]) extends EventKey[String]
+
 class Alien(
   at: AlienAccessAttrs, nodeAttrs: NodeAttrs, attrFactory: AttrFactory,
   handlerLists: CoHandlerLists,
@@ -30,6 +32,8 @@ class Alien(
   objIdFactory: ObjIdFactory
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
+  def caption(attr: Attr[_]) =
+    handlerLists.single(AttrCaption(attr), ()⇒attrFactory.attrId(attr).toString)
   def update[Value](attr: Attr[Value]) = {
     val attrId = attrFactory.attrId(attr)
     val targetAttr = attrFactory.derive(at.target, attrId, attrFactory.valueType(attr))
@@ -48,7 +52,7 @@ class Alien(
         eventSource.addEvent{ event =>
           event(at.targetObj) = obj
           event(targetAttr) = newValue
-          (attrId, s"value of $attr was changed to $newValue")
+          (attrId, s"'${caption(attr)}' of ... was changed to '$newValue'")
         }
     } ::
     CoHandler(ApplyEvent(attrId)){ event =>
