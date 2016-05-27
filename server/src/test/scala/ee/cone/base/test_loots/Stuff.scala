@@ -483,22 +483,27 @@ class TestComponent(
     val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj)
     List(
       toolbar("Boats"),
+      withMaxWidth("maxWidth",600,
       paperTable("table")(
         List(
           controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add())),
           row("head",IsHeader)(
+            group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
             mCell("0",50)(_⇒selectAllCheckBox(itemList)),
+            group("2_group",MinWidth(50)),
             mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
           )
         ) :::
         itemList.list.map{boat ⇒
           val srcId = boat(alien.objIdStr)
           row(srcId,toggledSelectedRow(boat))(List(
+            group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
             mCell("0",50)(_⇒booleanField(boat,filterAttrs.isSelected, editable = true)),
+            group("2_group",MinWidth(50)),
             mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable = true, showLabel = showLabel))
           ))
         }
-      )
+      )::Nil)
     )
   }
 
