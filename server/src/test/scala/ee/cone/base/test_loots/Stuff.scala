@@ -95,25 +95,6 @@ class BoatLogEntryAttributes(
   val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", asObj),
   val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", asInstant), //0x6709
 
-  val log00Date: Attr[Option[Instant]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asInstant),
-  val log00Fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asString),
-  val log00Comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
-  val log00Engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
-  val log00Master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString),
-  val log08Date: Attr[Option[Instant]] = attr("6e5f46e6-0aca-4863-b010-52ec04979b84", asInstant),
-  val log08Fuel: Attr[String] = attr("8740c331-3080-4080-b09e-02d2a4d6b93e", asString),
-  val log08Comment: Attr[String] = attr("32222649-c14d-4a50-b420-f748df40f1d5", asString),
-  val log08Engineer: Attr[String] = attr("06230e9b-ba76-42a6-be0f-a221dea7924c", asString),
-  val log08Master: Attr[String] = attr("6f45d7aa-1c92-416f-93d0-45b035997b86", asString),
-  val logRFFuel: Attr[String] = attr("2954c1c8-6335-4654-8367-22bae26a19f3", asString),
-  val logRFComment: Attr[String] = attr("eae6e221-fde1-4d1f-aa64-7e0cf56e128a", asString),
-  val logRFEngineer: Attr[String] = attr("1c4dc625-1bbd-4d67-b54a-8562d240c2fc", asString), // 0x670A,0x670E,0x670F
-  val log24Date: Attr[Option[Instant]] = attr("69b1b080-1094-4780-9898-4fb15f634c27", asInstant),
-  val log24Fuel: Attr[String] = attr("76053737-d75d-4b7b-b0a5-f2cadae61f6f", asString),
-  val log24Comment: Attr[String] = attr("6ec9cda4-78d9-4964-8be2-9b596e355525", asString),
-  val log24Engineer: Attr[String] = attr("735a1265-81e0-4ade-83a3-99bf86702925", asString),
-  val log24Master: Attr[String] = attr("5930f78d-285d-499e-a665-387792f49807", asString), // 0x671F
-
   val asWork: Attr[Obj] = label("5cce1cf2-1793-4e54-8523-c810f7e5637a"),
   val workStart: Attr[Option[Instant]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", asInstant),
   val workStop: Attr[Option[Instant]] = attr("5259ef2d-f4de-47b7-bc61-0cfe33cb58d3", asInstant),
@@ -147,6 +128,7 @@ class TestComponent(
   nodeAttrs: NodeAttrs, findAttrs: FindAttrs,
   filterAttrs: FilterAttrs, at: TestAttributes, logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
+  fuelingAttrs: FuelingAttrs,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
@@ -162,7 +144,8 @@ class TestComponent(
   factIndex: FactIndex,
   filters: Filters,
   htmlTableWithControl: HtmlTableWithControl,
-  users: Users
+  users: Users,
+  fuelingItems: FuelingItems
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork)
@@ -172,22 +155,22 @@ class TestComponent(
   import flexTags._
   import htmlTableWithControl._
   import findAttrs.nonEmpty
+  import alien.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-  private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String, label: String, showLabel: Boolean): List[ChildPair[OfDiv]] =
+  private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String, showLabel: Boolean): List[ChildPair[OfDiv]] =
     if(!obj(nonEmpty)) Nil else {
-      val visibleLabel = if(showLabel) label else ""
+      val visibleLabel = if(showLabel) caption(attr) else ""
       List(labeledText("1",visibleLabel,valueToText(obj(attr))))
     }
 
-
-  private def strField(obj: Obj, attr: Attr[String], editable: Boolean, label: String, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
-    val visibleLabel = if(showLabel) label else ""
+  private def strField(obj: Obj, attr: Attr[String], editable: Boolean, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(textInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
     else List(labeledText("1", obj(attr), visibleLabel))
   }
-  private def strPassField(obj: Obj, attr: Attr[String], editable: Boolean, label: String, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
-    val visibleLabel = if(showLabel) label else ""
+  private def strPassField(obj: Obj, attr: Attr[String], editable: Boolean, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
     else List(labeledText("1", "******", visibleLabel))
   }
@@ -197,16 +180,16 @@ class TestComponent(
     else List(checkBox("1", obj(attr), obj(attr)=_))
   }
 
-  private def durationField(obj: Obj, attr: Attr[Option[Duration]], label:String, showLabel:Boolean): List[ChildPair[OfDiv]] = {
+  private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel:Boolean): List[ChildPair[OfDiv]] = {
     toAlienText[Option[Duration]](
       obj, attr,
       v ⇒ v.map(x => x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse(""),
-      label, showLabel
+      showLabel
     )
   }
 
-  private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, label:String, showLabel:Boolean): List[ChildPair[OfDiv]] = {
-    val visibleLabel = if(showLabel) label else ""
+  private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _))
     else {
       val dateStr = obj(attr).map{ v ⇒
@@ -218,14 +201,14 @@ class TestComponent(
     }
   }
 
-  private def timeField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, label:String, showLabel:Boolean): List[ChildPair[OfDiv]] = {
-    val visibleLabel = if(showLabel) label else ""
+  private def timeField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(timeInput("1",visibleLabel,obj(attr),obj(attr)=_))
     else ???
   }
 
-  private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean,label:String,showLabel:Boolean): List[ChildPair[OfDiv]] ={
-    toAlienText[Obj](obj,attr,v⇒if(v(nonEmpty)) v(at.caption) else "",label,showLabel)
+  private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] ={
+    toAlienText[Obj](obj,attr,v⇒if(v(nonEmpty)) v(at.caption) else "",showLabel)
   }
 
   ////
@@ -283,6 +266,19 @@ class TestComponent(
     )
   )
 
+  def sortingHeader(itemList: ItemList, attr: Attr[_]) = {
+    val (action,reversed) = itemList.orderByAction(attr)
+    val txt = text("1",caption(attr))
+    val icon = reversed match {
+      case None ⇒ "."
+      case Some(false) ⇒ "↓"
+      case Some(true) ⇒ "↑"
+    }
+    if(action.isEmpty) List(txt)
+    else List(divClickable("1",action,text("2", icon),txt))
+  }
+
+
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj)
@@ -295,12 +291,12 @@ class TestComponent(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
             mCell("1",50)(_=> selectAllCheckBox(itemList)),
             group("2_grp",MinWidth(150),Priority(3),TextAlignCenter),
-            mCell("2",100)(_=>List(text("1","Boat"))),
-            mCell("3",150)(_=>List(text("1","Date"))),
-            mCell("4",180)(_=>List(text("1","Total duration, hrs:min"))),
-            mCell("5",100)(_=>List(text("1","Confirmed"))),
-            mCell("6",150)(_=>List(text("1","Confirmed by"))),
-            mCell("7",150)(_=>List(text("1","Confirmed on"))),
+            mCell("2",100)(_=>sortingHeader(itemList,logAt.boat)),
+            mCell("3",150)(_=>sortingHeader(itemList,logAt.date)),
+            mCell("4",180)(_=>sortingHeader(itemList,logAt.durationTotal)),
+            mCell("5",100)(_=>sortingHeader(itemList,logAt.asConfirmed)),
+            mCell("6",150)(_=>sortingHeader(itemList,logAt.confirmedBy)),
+            mCell("7",150)(_=>sortingHeader(itemList,logAt.confirmedOn)),
             mcCell("8",100,0)(_=>Nil)
           )
         ) :::
@@ -311,9 +307,9 @@ class TestComponent(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter),
             mCell("1", 50)(_=>booleanField(entry, filterAttrs.isSelected, editable = true)),
             group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
-            mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false,"Boat",showLabel)),
-            mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false,"Date",showLabel)),
-            mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal,"Total duration, hrs:min",showLabel)),
+            mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false, showLabel)),
+            mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false, showLabel)),
+            mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, showLabel)),
             mCell("5",100)(_=>
              {
                 val confirmed = entry(logAt.asConfirmed)
@@ -322,8 +318,8 @@ class TestComponent(
                 else Nil
              }
             ),
-            mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false,"Confirmed by",showLabel)),
-            mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel)),
+            mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false, showLabel)),
+            mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false, showLabel)),
             mcCell("8",100,0)(_=>btnCreate("btn2",go.get)::Nil
             )
           ))
@@ -370,16 +366,16 @@ class TestComponent(
 
                 )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
               ),
-              flexGridItem("date",150,None,dateField(entry, logAt.date, editable,"Date",showLabel = true)),
+              flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
 
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
-                durationField(entry,logAt.durationTotal,"Total duration, hrs:min",showLabel = true))))
+                durationField(entry,logAt.durationTotal, showLabel = true))))
             ))
           )),
           flexGridItem("2",500,None,List(
             flexGrid("flexGridEdit12",List(
-              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,editable = false,"Confirmed by",showLabel = true)),
-              flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, editable = false,"Confirmed on",showLabel = true)),
+              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,editable = false, showLabel = true)),
+              flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, editable = false, showLabel = true)),
               flexGridItem("conf_do",150,None,List(
                 divHeightWrapper("1",72,
                   divAlignWrapper("1","right","bottom",
@@ -402,138 +398,49 @@ class TestComponent(
     )
   }
 
-  /*
-  val fuelingByFullKey: SearchByLabelProp[String] = searchIndex.create(logAt.asFueling,filterAttrs.filterFullKey)
-    CoHandler(AttrCaption(logAt.boat))("Boat") ::
-    CoHandler(AttrCaption(logAt.date))("Date") ::
-    CoHandler(AttrCaption(logAt.durationTotal))("Total duration, hrs:min") ::
-    CoHandler(AttrCaption(logAt.asConfirmed))("Confirmed") ::
-    CoHandler(AttrCaption(logAt.confirmedBy))("Confirmed by") ::
-    CoHandler(AttrCaption(logAt.confirmedOn))("Confirmed on") ::
-    CoHandler(AttrCaption(logAt.logDate))("Date") ::
-    CoHandler(AttrCaption(logAt.logFuel))("Fuel rest/quantity") ::
-    CoHandler(AttrCaption(logAt.logComment))("Comment") ::
-    CoHandler(AttrCaption(logAt.logEngineer))("Engineer") ::
-    CoHandler(AttrCaption(logAt.logMaster))("Master") ::
-    CoHandler(AttrCaption())() ::
-
-  searchIndex.handlers(fuelingByFullKey)
-  */
-
-
-
 
   def entryEditFuelScheduleView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
-    val filterObj = filters.filterObj(s"/entry/${entry(alien.objIdStr)}")
-/*
-    def fuelingRowView(entry: Obj, time: String) = {
-      val fueling = filters.lazyLinkingObj(fuelingByFullKey,s"$entryIdStr/$time")
+    val filterObj = filters.filterObj(s"/entry/$entryIdStr")
+    def fuelingRowView(time: String, isRF: Boolean) = {
+      val fueling = fuelingItems.fueling(entry, time)
       row(time,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
-          List(labeledText("1",if(showLabel) "Time" else "",time))
+          if(isRF) List(text("1","Passed"))
+          else List(labeledText("1",if(showLabel) "Time" else "",time))
         ),
         mCell("2",150,1)(showLabel=>
-          timeField(entry, logAt.logDate, editable, "Date", showLabel)
+          if(isRF) List(text("1","Received Fuel"))
+          else timeField(fueling, fuelingAttrs.date, editable, showLabel)
         ),
         mCell("3",100,1)(showLabel=>
-          strField(entry, logAt.logFuel, editable,"Fuel rest/quantity",showLabel)
+          strField(fueling, fuelingAttrs.fuel, editable, showLabel)
         ),
         mCell("4",250,3)(showLabel=>
-          strField(entry, logAt.logComment, editable,"Comment",showLabel)
+          strField(fueling, fuelingAttrs.comment, editable, showLabel)
         ),
         mCell("5",150,2)(showLabel=>
-          strField(entry, logAt.logEngineer, editable,"Engineer",showLabel)
+          strField(fueling, fuelingAttrs.engineer, editable, showLabel)
         ),
         mCell("6",150,2)(showLabel=>
-          strField(entry, logAt.logMaster, editable,"Master",showLabel)
+          if(isRF) Nil
+          else strField(fueling, fuelingAttrs.master, editable, showLabel)
         )
       )
     }
-    */
     paperTable("dtTableEdit1")(List(
       row("row",IsHeader)(
         mCell("1",100,3)(_=>List(text("1","Time"))),
-        mCell("2",150,1)(_=>List(text("1","ME Hours.Min"))),
-        mCell("3",100,1)(_=>List(text("1","Fuel rest/quantity"))),
-        mCell("4",250,3)(_=>List(text("1","Comment"))),
-        mCell("5",150,2)(_=>List(text("1","Engineer"))),
-        mCell("6",150,2)(_=>List(text("1","Master")))
+        mCell("2",150,1)(_=>List(text("1",caption(fuelingAttrs.date)))),
+        mCell("3",100,1)(_=>List(text("1",caption(fuelingAttrs.fuel)))),
+        mCell("4",250,3)(_=>List(text("1",caption(fuelingAttrs.comment)))),
+        mCell("5",150,2)(_=>List(text("1",caption(fuelingAttrs.engineer)))),
+        mCell("6",150,2)(_=>List(text("1",caption(fuelingAttrs.master))))
       ),
-      row("row1",toggledRow(filterObj,"row1"))(
-        mCell("1",100,3)(showLabel=>
-          List(if(showLabel) labeledText("1","Time","00:00") else text("1","00:00"))
-        ),
-        mCell("2",150,1)(showLabel=>
-          timeField(entry, logAt.log00Date, editable, "Date", showLabel)
-        ),
-        mCell("3",100,1)(showLabel=>
-          strField(entry, logAt.log00Fuel, editable,"Fuel rest/quantity",showLabel)
-        ),
-        mCell("4",250,3)(showLabel=>
-          strField(entry, logAt.log00Comment, editable,"Comment",showLabel)
-        ),
-        mCell("5",150,2)(showLabel=>
-          strField(entry, logAt.log00Engineer, editable,"Engineer",showLabel)
-        ),
-        mCell("6",150,2)(showLabel=>
-          strField(entry, logAt.log00Master, editable,"Master",showLabel)
-        )
-      ),
-      row("row2",toggledRow(filterObj,"row2"))(
-        mCell("1",100,3)(showLabel=>
-          List(if(showLabel) labeledText("1","Time","08:00") else text("1","08:00"))
-        ),
-        mCell("2",150,1)(showLabel=>
-          timeField(entry, logAt.log08Date, editable, "Date", showLabel)
-        ),
-        mCell("3",100,1)(showLabel=>
-          strField(entry, logAt.log08Fuel, editable,"Fuel rest/quantity",showLabel)
-        ),
-        mCell("4",250,3)(showLabel=>
-          strField(entry, logAt.log08Comment, editable,"Comment",showLabel)
-        ),
-        mCell("5",150,2)(showLabel=>
-          strField(entry, logAt.log08Engineer, editable,"Engineer",showLabel)
-        ),
-        mCell("6",150,2)(showLabel=>
-          strField(entry, logAt.log08Master, editable,"Master",showLabel)
-        )
-
-      ),
-      row("row3",toggledRow(filterObj,"row3"))(
-        mCell("1",100,3)(_=>List(text("1","Passed"))),
-        mCell("2",150,1)(_=>List(text("1","Received Fuel"))),
-        mCell("3",100,1)(showLabel=>
-          strField(entry, logAt.logRFFuel, editable,"Fuel rest/quantity",showLabel)
-        ),
-        mCell("4",250,3)(showLabel=>
-          strField(entry, logAt.logRFComment, editable,"Comment",showLabel)),
-        mCell("5",150,2)(showLabel=>
-         strField(entry, logAt.logRFEngineer, editable,"Engineer",showLabel)),
-        mCell("6",150,2)(_=>Nil)
-
-      ),
-      row("row4", toggledRow(filterObj,"row4"))(
-        mCell("1",100,3)(showLabel=>
-          List(if(showLabel) labeledText("1","Time","24:00") else text("1","24:00"))
-        ),
-        mCell("2",150,1)(showLabel=>
-          timeField(entry, logAt.log24Date, editable, "Date", showLabel)
-        ),
-        mCell("3",100,1)(showLabel=>
-          strField(entry, logAt.log24Fuel, editable,"Fuel rest/quantity",showLabel)
-        ),
-        mCell("4",250,3)(showLabel=>
-          strField(entry, logAt.log24Comment, editable,"Comment",showLabel)
-        ),
-        mCell("5",150,2)(showLabel=>
-          strField(entry, logAt.log24Engineer, editable,"Engineer",showLabel)
-        ),
-        mCell("6",150,2)(showLabel=>
-          strField(entry, logAt.log24Master, editable,"Master",showLabel)
-        )
-      )
+      fuelingRowView("00:00",isRF = false),
+      fuelingRowView("08:00",isRF = false),
+      fuelingRowView("RF",isRF = true),
+      fuelingRowView("24:00",isRF = false)
     ))
   }
 
@@ -548,10 +455,10 @@ class TestComponent(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
           mCell("1",50)(_=>selectAllCheckBox(workList)),
           group("2_group",MinWidth(150)),
-          mCell("2",100)(_=>List(text("1","Start"))),
-          mCell("3",100)(_=>List(text("1","Stop"))),
-          mCell("4",150)(_=>List(text("1","Duration, hrs:min"))),
-          mCell("5",250,3)(_=>List(text("1","Comment")))
+          mCell("2",100)(_=>sortingHeader(workList,logAt.workStart)),
+          mCell("3",100)(_=>sortingHeader(workList,logAt.workStop)),
+          mCell("4",150)(_=>sortingHeader(workList,logAt.workDuration)),
+          mCell("5",250,3)(_=>sortingHeader(workList,logAt.workComment))
         )
       ) :::
       workList.list.map { (work: Obj) =>
@@ -563,30 +470,42 @@ class TestComponent(
           ),
           group("2_group",MinWidth(150)),
           mCell("2",100)(showLabel=>
-            timeField(work, logAt.workStart, editable, "Start", showLabel)
+            timeField(work, logAt.workStart, editable, showLabel)
           ),
           mCell("3",100)(showLabel=>
-            timeField(work, logAt.workStop, editable, "Stop", showLabel)
+            timeField(work, logAt.workStop, editable, showLabel)
           ),
           mCell("4",150)(showLabel=>
-            durationField(work, logAt.workDuration,"Duration, hrs:min",showLabel)
+            durationField(work, logAt.workDuration, showLabel)
           ),
           mCell("5",250,3)(showLabel=>
-            strField(work, logAt.workComment, editable,"Comment",showLabel)
+            strField(work, logAt.workComment, editable, showLabel)
           )
         )
       }
     )
   }
 
+  /*
+
+
+
+
+
+
+  CoHandler(AttrCaption())() ::
+  CoHandler(AttrCaption())() ::
+
+
+*/
   //// users
   private def loginView() = {
     val editable = true
     val showLabel = true
     val dialog = filters.filterObj("/login")
     List(withMaxWidth("1",400,paperWithMargin("login",
-      divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, editable, "Username", showLabel):_*)),
-      divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, editable, "Password", showLabel, deferSend = false):_*)),
+      divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, editable, showLabel):_*)),
+      divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, editable, showLabel, deferSend = false):_*)),
       divSimpleWrapper("3", divAlignWrapper("1","right","top",users.loginAction(dialog).map(btnRaised("login","LOGIN")(_)).toList))
     )::Nil))
   }
@@ -603,12 +522,12 @@ class TestComponent(
           group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
           mCell("0",50)(_⇒selectAllCheckBox(userList)),
           group("2_grp", MinWidth(150)),
-          mCell("1",250)(_⇒List(text("text", "Full Name"))),
-          mCell("2",250)(_⇒List(text("text", "Username"))),
-          mCell("3",250)(_⇒List(text("text", "Active"))),
+          mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
+          mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
+          mCell("3",250)(_⇒List(text("text", caption(userAttrs.asActiveUser)))),
           group("3_grp",MinWidth(300)),
-          mCell("4",250)(_⇒List(text("text", "New Password"))),
-          mCell("5",250)(_⇒List(text("text", "Repeat Password"))),
+          mCell("4",250)(_⇒List(text("text", caption(userAttrs.unEncryptedPassword)))),
+          mCell("5",250)(_⇒List(text("text", caption(userAttrs.unEncryptedPasswordAgain)))),
           mCell("6",250)(_⇒Nil)
         ) ::
         userList.list.map{ obj ⇒
@@ -618,17 +537,17 @@ class TestComponent(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
             mCell("0",50)(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
             group("2_grp", MinWidth(150)),
-            mCell("1",250)(showLabel⇒strField(user, at.caption, editable = true, label = "User", showLabel = showLabel)),
+            mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, editable = true, showLabel = showLabel)),
             mCell("2",250)(showLabel=>
-              strField(user, userAttrs.username, editable, "Username", showLabel)),
+              strField(user, userAttrs.username, editable, showLabel)),
             mCell("3",250)(showLabel⇒
               if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil),
             group("3_grp",MinWidth(300)),
             mCell("4",250)(showLabel=>if(user(filterAttrs.isExpanded))
-                strPassField(user, userAttrs.unEncryptedPassword, editable, "New Password", showLabel)
+                strPassField(user, userAttrs.unEncryptedPassword, editable, showLabel)
               else Nil),
             mCell("5",250)(showLabel=>if(user(filterAttrs.isExpanded))
-                strPassField(user, userAttrs.unEncryptedPasswordAgain, editable, "Repeat Password", showLabel, deferSend = false)
+                strPassField(user, userAttrs.unEncryptedPasswordAgain, editable, showLabel, deferSend = false)
               else Nil),
             mCell("6",250)(_=>if(user(filterAttrs.isExpanded))
                 users.changePasswordAction(user).map(action⇒
@@ -718,18 +637,24 @@ class TestComponent(
       logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
     ).flatMap(factIndex.handlers(_)) :::
     List(
-      at.caption,
       logAt.asEntry, logAt.asWork, logAt.asBoat, // <-create
       logAt.boat, logAt.confirmedOn, logAt.entryOfWork,
-      logAt.date, logAt.workStart, logAt.workStop, logAt.workComment,
-      logAt.log00Date,logAt.log00Fuel,logAt.log00Comment,logAt.log00Engineer,logAt.log00Master,
-      logAt.log08Date,logAt.log08Fuel,logAt.log08Comment,logAt.log08Engineer,logAt.log08Master,
-      logAt.logRFFuel,logAt.logRFComment,logAt.logRFEngineer,
-      logAt.log24Date,logAt.log24Fuel,logAt.log24Comment,logAt.log24Engineer,logAt.log24Master
+      logAt.date, logAt.workStart, logAt.workStop, logAt.workComment
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
+    factIndex.handlers(at.caption) :::
     alien.update(findAttrs.justIndexed) :::
+    CoHandler(AttrCaption(logAt.boat))("Boat") ::
+    CoHandler(AttrCaption(logAt.date))("Date") ::
+    CoHandler(AttrCaption(logAt.durationTotal))("Total duration, hrs:min") ::
+    CoHandler(AttrCaption(logAt.asConfirmed))("Confirmed") ::
+    CoHandler(AttrCaption(logAt.confirmedBy))("Confirmed by") ::
+    CoHandler(AttrCaption(logAt.confirmedOn))("Confirmed on") ::
+    CoHandler(AttrCaption(logAt.workStart))("Start") ::
+    CoHandler(AttrCaption(logAt.workStop))("Stop") ::
+    CoHandler(AttrCaption(logAt.workDuration))("Duration, hrs:min") ::
+    CoHandler(AttrCaption(logAt.workComment))("Comment") ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/userList"))(userListView) ::
     //CoHandler(ViewPath("/boatList"))(boatListView) ::
@@ -742,7 +667,48 @@ class TestComponent(
     Nil
 }
 
-case class AttrCaption(attr: Attr[_]) extends EventKey[String]
+class FuelingAttrs(
+  attr: AttrFactory,
+  label: LabelFactory,
+  asInstant: AttrValueType[Option[Instant]],
+  asString: AttrValueType[String]
+)(
+  // 00 08 RF 24
+  val asFueling: Attr[Obj] = label("8fc310bc-0ae7-4ad7-90f1-2dacdc6811ad"),
+  val date: Attr[Option[Instant]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asInstant),
+  val fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asString),
+  val comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
+  val engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
+  val master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString)
+)
+
+class FuelingItems(
+  at: FuelingAttrs,
+  alienAttrs: AlienAccessAttrs,
+  filterAttrs: FilterAttrs,
+  factIndex: FactIndex,
+  searchIndex: SearchIndex,
+  alien: Alien,
+  filters: Filters
+)(
+  val fuelingByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey)
+) extends CoHandlerProvider {
+  def handlers =
+    CoHandler(AttrCaption(at.date))("ME Hours.Min") ::
+    CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::
+    CoHandler(AttrCaption(at.comment))("Comment") ::
+    CoHandler(AttrCaption(at.engineer))("Engineer") ::
+    CoHandler(AttrCaption(at.master))("Master") ::
+    searchIndex.handlers(fuelingByFullKey) :::
+    List(
+      at.asFueling, at.date, at.fuel, at.comment, at.engineer, at.master
+    ).flatMap{ attr⇒
+      factIndex.handlers(attr) ::: alien.update(attr)
+    }
+  def fueling(entry: Obj, time: String) =
+    filters.lazyLinkingObj(fuelingByFullKey,s"${entry(alienAttrs.objIdStr)}/$time")
+}
+
 
 class UserAttrs(
   attr: AttrFactory,
@@ -752,6 +718,7 @@ class UserAttrs(
   asUUID: AttrValueType[Option[UUID]]
 )(
   val asUser: Attr[Obj] = label("f8c8d6da-0942-40aa-9005-261e63498973"),
+  val fullName: Attr[String] = attr("a4260856-0904-40c4-a18a-6d925abe5044",asString),
   val username: Attr[String] = attr("4f0d01f8-a1a3-4551-9d07-4324d4d0e633",asString),
   val encryptedPassword: Attr[Option[UUID]] = attr("3a345f93-18ab-4137-bdde-f0df77161b5f",asUUID),
   val unEncryptedPassword: Attr[String] = attr("7d12edd9-a162-4305-8a0c-31ef3f2e3300",asString),
@@ -765,7 +732,7 @@ class Users(
   handlerLists: CoHandlerLists, attrFactory: AttrFactory,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
-  alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique, onUpdate: OnUpdate
+  alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique, onUpdate: OnUpdate, filters: Filters
 )(
   val findAll: SearchByLabelProp[String] = searchIndex.create(at.asUser, findAttrs.justIndexed),
   val findAllActive: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, findAttrs.justIndexed),
@@ -810,17 +777,24 @@ class Users(
     user(at.asActiveUser) = if(on) user else findNodes.noNode
 
   def handlers =
+    CoHandler(AttrCaption(at.asUser))("As User") ::
+    CoHandler(AttrCaption(at.fullName))("Full Name") ::
+    CoHandler(AttrCaption(at.username))("Username") ::
+    CoHandler(AttrCaption(at.unEncryptedPassword))("Password") ::
+    CoHandler(AttrCaption(at.unEncryptedPasswordAgain))("Repeat Password") ::
     List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers) :::
     List(at.unEncryptedPassword, at.unEncryptedPasswordAgain).flatMap(transient.update) :::
-    List(at.asUser,at.username,at.encryptedPassword,at.authenticatedUser).flatMap{ attr⇒
+    List(at.asUser,at.fullName,at.username,at.encryptedPassword,at.authenticatedUser).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
     List(at.asActiveUser).flatMap(factIndex.handlers) :::
     mandatory(at.asUser, at.username, mutual = false) :::
-    mandatory(at.asUser, cat.caption, mutual = false) :::
+    mandatory(at.asUser, at.fullName, mutual = false) :::
     unique(at.asUser, at.username) :::
-    unique(at.asUser, cat.caption) :::
-    onUpdate.handlers(List(at.asUser, findAttrs.justIndexed, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin)
+    unique(at.asUser, at.fullName) :::
+    onUpdate.handlers(List(at.asUser, findAttrs.justIndexed, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
+    filters.orderBy(at.fullName) :::
+    filters.orderBy(at.username)
 }
 
 

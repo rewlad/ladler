@@ -24,7 +24,7 @@ class AttrFactoryImpl(
   def attrId[V](attr: Attr[V]): ObjId = attr.asInstanceOf[AttrImpl[V]].id
   def valueType[V](attr: Attr[V]): AttrValueType[V] = attr.asInstanceOf[AttrImpl[V]].valueType
   def toAttr[V](attrId: ObjId, valueType: AttrValueType[V]) =
-    handlerLists.single(ToAttr(attrId,valueType), ()⇒Never())
+    handlerLists.single(ToAttr(attrId,valueType), ()⇒throw new Exception(s"lost $attrId"))
   def converter[V](valueType: AttrValueType[V]): RawValueConverter[V] =
     handlerLists.single(ToRawValueConverter(valueType), ()⇒Never())
 }

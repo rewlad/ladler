@@ -6,11 +6,14 @@ import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.util.{Setup, Never}
 
+import scala.math.Ordering
+
 class FilterAttrs(
   attr: AttrFactory,
   label: LabelFactory,
   asString: AttrValueType[String],
   asBoolean: AttrValueType[Boolean],
+  asObjId: AttrValueType[ObjId],
   asObjIdSet: AttrValueType[Set[ObjId]]
 )(
   val asFilter: Attr[Obj] = label("eee2d171-b5f2-4f8f-a6d9-e9f3362ff9ed"),
@@ -19,7 +22,9 @@ class FilterAttrs(
   val isListed: Attr[Boolean] = attr("bd68ccbc-b63c-45ce-88f2-7c6058b11338",asBoolean),
   val isExpanded: Attr[Boolean] = attr("2dd74df5-0ca7-4734-bc49-f420515fd663",asBoolean),
   val selectedItems: Attr[Set[ObjId]] = attr("32a62c43-e837-4855-985a-d79f5dc03db0",asObjIdSet),
-  val expandedItem: Attr[String] = attr("d0b7b274-74ac-40b0-8e51-a1e1751578af", asString)
+  val expandedItem: Attr[String] = attr("d0b7b274-74ac-40b0-8e51-a1e1751578af", asString),
+  val orderByAttrId: Attr[ObjId] = attr("064f4dfd-d3df-4748-ae5b-cc03ef42a1cb", asObjId),
+  val orderDirection: Attr[Boolean] = attr("ae1bee8e-828d-42d6-a3ca-36f146549c6a",asBoolean)
 )
 
 trait InnerItemList {
@@ -33,6 +38,7 @@ trait ItemList {
   def list: List[Obj]
   def selectAllListed(): Unit
   def removeSelected(): Unit
+  def orderByAction(attr: Attr[_]): (Option[()⇒Unit],Option[Boolean])
 }
 
 class ObjIdSetValueConverter(
@@ -102,10 +108,15 @@ class Filters(
       def set(obj: Obj, attr: Attr[Boolean], value: Boolean) = setElement((attr,value))(obj)
     }
 
-    val items = findNodes.where(mainTx(), index, parentValue, Nil)
-      .map(obj⇒
-        alien.wrap(obj).wrap(listedWrapType,inner)
-      )
+    val sortByAttrId = filterObj(at.orderByAttrId)
+    val sortDirection = filterObj(at.orderDirection)
+    val sortBy = orderBy(sortByAttrId).getOrElse((l:List[Obj])⇒l)
+    val sortReverse: List[Obj]⇒List[Obj] = if(sortDirection) _.reverse else identity
+
+    val items = sortReverse(sortBy(findNodes.where(mainTx(), index, parentValue, Nil).map(obj⇒
+      alien.wrap(obj).wrap(listedWrapType,inner)
+    )))
+
     val newItem = alien.demandedNode{ obj ⇒ obj(asType) = obj }.wrap(listedWrapType,inner)
     new ItemList {
       def filter = filterObj
@@ -119,6 +130,16 @@ class Filters(
       }
       def selectAllListed() =
         filter(at.selectedItems) = selectedSet ++ items.map(_(nodeAttrs.objId))
+      def orderByAction(attr: Attr[_]) = {
+        val attrId = attrFactory.attrId(attr)
+        val isCurrentAttr = attrId == sortByAttrId
+        val act = if(orderBy(attrId).isEmpty) None else Some{ ()⇒
+          if(!isCurrentAttr) filterObj(at.orderByAttrId) = attrId
+          val newDir = if(isCurrentAttr) !sortDirection else false
+          if(sortDirection != newDir) filterObj(at.orderDirection) = newDir
+        }
+        (act, if(isCurrentAttr) Some(sortDirection) else None)
+      }
     }
   }
 
@@ -131,12 +152,22 @@ class Filters(
         innerObj.data.set(obj,attr,value)
       }
     )} :::
-    List(at.asFilter, at.filterFullKey, at.selectedItems).flatMap{ attr⇒
+    List(
+      at.asFilter, at.filterFullKey, at.selectedItems,
+      at.orderByAttrId, at.orderDirection
+    ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
     List(at.expandedItem).flatMap{ attr ⇒ transient.update(attr) } :::
     searchIndex.handlers(filterByFullKey)
+
+  def orderBy(attrId: ObjId): Option[List[Obj]⇒List[Obj]] =
+    handlerLists.single(OrderByAttr(attrId), ()⇒None)
+  def orderBy[T](attr: Attr[T])(implicit ord: Ordering[T]): List[BaseCoHandler] =
+    List(CoHandler(OrderByAttr(attrFactory.attrId(attr)))(Some(_.sortBy(obj⇒obj(attr)))))
 }
+
+case class OrderByAttr(attrId: ObjId) extends EventKey[Option[List[Obj]⇒List[Obj]]]
 
 case object TransientChanged extends EventKey[()=>Unit]
 class Transient(handlerLists: CoHandlerLists, attrFactory: AttrFactory, wrapType: WrapType[ObjId]) {
