@@ -183,11 +183,9 @@ class TestComponent(
   }
 
   private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel:Boolean): List[ChildPair[OfDiv]] = {
-    toAlienText[Option[Duration]](
-      obj, attr,
-      v ⇒ v.map(x => x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse(""),
-      showLabel
-    )
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    val value = obj(attr).map(x => x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse("")
+    List(labeledText("1",visibleLabel,value))
   }
 
   private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
@@ -199,7 +197,7 @@ class TestComponent(
         val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
         date.format(formatter)
       }.getOrElse("")
-      labeledText("1", visibleLabel, dateStr) :: Nil
+      List(labeledText("1", visibleLabel, dateStr))
     }
   }
 
@@ -209,9 +207,32 @@ class TestComponent(
     else ???
   }
 
-  private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] ={
-    toAlienText[Obj](obj,attr,v⇒if(v(nonEmpty)) v(at.caption) else "",showLabel)
+  private var popupOpened = ""
+  private def popupToggle(key: String)() =
+    popupOpened = if(popupOpened == key) "" else key
+
+  private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean, showLabel:Boolean)(items: ()⇒List[Obj]): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    val vObj = obj(attr)
+    val value = if(vObj(nonEmpty)) vObj(at.caption) else ""
+    val txt = List(labeledText("1",visibleLabel,value))
+    if(!editable) txt else {
+      val key = ""
+      val clickable = List(divClickable("1",Some(popupToggle(key)),txt:_*))
+      val rows = if(popupOpened != key) Nil
+        else items().map(item⇒divNoWrap(item(alien.objIdStr),text("1",item(at.caption))))
+      List(fieldPopupBox("1",clickable,rows))
+    }
   }
+/*
+  fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
+    divNoWrap("1",text("1","aaa"))::
+      divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
+      (0 to 20).map(x=>{
+        divNoWrap("3"+x,text("1","aaa"))}).toList
+
+  )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
+  */
 
   ////
 
@@ -616,17 +637,13 @@ class TestComponent(
 
   ////
 
-  private var popupOpened = ""
-  private def navMenuOpened = popupOpened == "navMenu"
-  private def toggleNavMenu() = popupOpened = if(navMenuOpened) "" else "navMenu"
-
   private def toolbar(title:String): ChildPair[OfDiv] = {
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
         divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
-        iconMenu("menu",navMenuOpened)(toggleNavMenu,
+        iconMenu("menu",popupOpened=="navMenu")(popupToggle("navMenu"),
           menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
           menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
           menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
