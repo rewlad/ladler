@@ -273,8 +273,8 @@ class TestComponent(
     val txt = text("1",caption(attr))
     val icon = reversed match {
       case None ⇒ "."
-      case Some(false) ⇒ "↓"
-      case Some(true) ⇒ "↑"
+      case Some(false) ⇒ "⏶"
+      case Some(true) ⇒ "⏷"
     }
     if(action.isEmpty) List(txt)
     else List(divClickable("1",action,text("2", icon),txt))
@@ -359,17 +359,7 @@ class TestComponent(
 
                 )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
               ),
-              flexGridItem("boat1",100,None,
-                fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
-                  divNoWrap("1",text("1","aaa"))::
-                    divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
-                    (0 to 20).map(x=>{
-                    divNoWrap("3"+x,text("1","aaa"))}).toList
-
-                )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
-              ),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
-
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 durationField(entry,logAt.durationTotal, showLabel = true))))
             ))
