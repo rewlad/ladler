@@ -110,12 +110,11 @@ class Filters(
 
     val sortByAttrId = filterObj(at.orderByAttrId)
     val sortDirection = filterObj(at.orderDirection)
-    val sortBy = orderBy(sortByAttrId).getOrElse((l:List[Obj])⇒l)
-    val sortReverse: List[Obj]⇒List[Obj] = if(sortDirection) _.reverse else identity
+    val sortBy = orderBy(sortByAttrId).getOrElse((l:List[Obj],_:Boolean)⇒l)
 
-    val items = sortReverse(sortBy(findNodes.where(mainTx(), index, parentValue, Nil).map(obj⇒
+    val items = sortBy(findNodes.where(mainTx(), index, parentValue, Nil).map(obj⇒
       alien.wrap(obj).wrap(listedWrapType,inner)
-    )))
+    ), sortDirection)
 
     val newItem = alien.demandedNode{ obj ⇒ obj(asType) = obj }.wrap(listedWrapType,inner)
     new ItemList {
@@ -161,13 +160,15 @@ class Filters(
     List(at.expandedItem).flatMap{ attr ⇒ transient.update(attr) } :::
     searchIndex.handlers(filterByFullKey)
 
-  def orderBy(attrId: ObjId): Option[List[Obj]⇒List[Obj]] =
+  def orderBy(attrId: ObjId): Option[(List[Obj],Boolean)⇒List[Obj]] =
     handlerLists.single(OrderByAttr(attrId), ()⇒None)
   def orderBy[T](attr: Attr[T])(implicit ord: Ordering[T]): List[BaseCoHandler] =
-    List(CoHandler(OrderByAttr(attrFactory.attrId(attr)))(Some(_.sortBy(obj⇒obj(attr)))))
+    List(CoHandler(OrderByAttr(attrFactory.attrId(attr)))(Some(
+      (l:List[Obj],reverse:Boolean)⇒l.sortBy(obj⇒obj(attr))(if(reverse)ord.reverse else ord)
+    )))
 }
 
-case class OrderByAttr(attrId: ObjId) extends EventKey[Option[List[Obj]⇒List[Obj]]]
+case class OrderByAttr(attrId: ObjId) extends EventKey[Option[(List[Obj],Boolean)⇒List[Obj]]]
 
 case object TransientChanged extends EventKey[()=>Unit]
 class Transient(handlerLists: CoHandlerLists, attrFactory: AttrFactory, wrapType: WrapType[ObjId]) {
