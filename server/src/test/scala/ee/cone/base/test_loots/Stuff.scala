@@ -102,7 +102,8 @@ class BoatLogEntryAttributes(
   val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
   val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
 
-  val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2")
+  val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
+  val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", asString)
 )
 
 
@@ -148,7 +149,8 @@ class TestComponent(
   fuelingItems: FuelingItems
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
-  val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork)
+  val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
+  val findBoat: SearchByLabelProp[String] = searchIndex.create(logAt.asBoat, findAttrs.justIndexed)
 ) extends CoHandlerProvider {
   import tags._
   import materialTags._
@@ -349,14 +351,12 @@ class TestComponent(
         flexGrid("flexGridEdit1",List(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
-
-              flexGridItem("boat",150,None,
-                fieldPopupBox("1",selectDropShow,divClickable("1",Some(selectDropShowHandle),labeledText("1","aaa","a2"))::Nil,
+              flexGridItem("boat1",100,None,
+                fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
                   divNoWrap("1",text("1","aaa"))::
-                    divNoWrap("2",text("1","aaa sdfsdfs sds fs df sfs fsfsf sfs dfsfs fdf fs fsfgs f sd"))::
-                    (0 to 4).map(x=>{
+                    divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
+                    (0 to 20).map(x=>{
                     divNoWrap("3"+x,text("1","aaa"))}).toList
-
                 )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
               ),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
@@ -478,18 +478,30 @@ class TestComponent(
     )
   }
 
-  /*
+  private def boatListView(pf: String) = wrapDBView { () =>
+    val filterObj = filters.filterObj("/boatList")
+    val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj)
+    List(
+      toolbar("Boats"),
+      paperTable("table")(
+        List(
+          controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add())),
+          row("head",IsHeader)(
+            mCell("0",50)(_⇒selectAllCheckBox(itemList)),
+            mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
+          )
+        ) :::
+        itemList.list.map{boat ⇒
+          val srcId = boat(alien.objIdStr)
+          row(srcId,toggledSelectedRow(boat))(List(
+            mCell("0",50)(_⇒booleanField(boat,filterAttrs.isSelected, editable = true)),
+            mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable = true, showLabel = showLabel))
+          ))
+        }
+      )
+    )
+  }
 
-
-
-
-
-
-  CoHandler(AttrCaption())() ::
-  CoHandler(AttrCaption())() ::
-
-
-*/
   //// users
   private def loginView() = {
     val editable = true
@@ -518,14 +530,13 @@ class TestComponent(
           group("2_grp", MinWidth(150)),
           mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
           mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
-          mCell("3",250)(_⇒List(text("text", caption(userAttrs.asActiveUser)))),
+          mCell("3",250)(_⇒sortingHeader(userList,userAttrs.asActiveUser)),
           group("3_grp",MinWidth(300)),
-          mCell("4",250)(_⇒List(text("text", caption(userAttrs.unEncryptedPassword)))),
-          mCell("5",250)(_⇒List(text("text", caption(userAttrs.unEncryptedPasswordAgain)))),
+          mCell("4",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
+          mCell("5",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
           mCell("6",250)(_⇒Nil)
         ) ::
-        userList.list.map{ obj ⇒
-          val user = alien.wrap(obj)
+        userList.list.map{ user ⇒
           val srcId = user(alien.objIdStr)
           row(srcId,toggledSelectedRow(user))(List(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
@@ -607,8 +618,9 @@ class TestComponent(
 
   ////
 
-  var navMenuOpened=false
-  private def toggleNavMenu()= navMenuOpened = !navMenuOpened
+  private var popupOpened = ""
+  private def navMenuOpened = popupOpened == "navMenu"
+  private def toggleNavMenu() = popupOpened = if(navMenuOpened) "" else "navMenu"
 
   private def toolbar(title:String): ChildPair[OfDiv] = {
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
@@ -617,8 +629,9 @@ class TestComponent(
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
         iconMenu("menu",navMenuOpened)(toggleNavMenu,
-          menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");toggleNavMenu()}),
-          menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");toggleNavMenu()})
+          menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
+          menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
+          menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
         )::
         eventToolbarButtons()
       )
@@ -626,14 +639,15 @@ class TestComponent(
   }
 
   def handlers =
-    List(findEntry,findWorkByEntry).flatMap(searchIndex.handlers(_)) :::
+    List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
     List(
       logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
     ).flatMap(factIndex.handlers(_)) :::
     List(
-      logAt.asEntry, logAt.asWork, logAt.asBoat, // <-create
+      logAt.asEntry, logAt.asWork,
       logAt.boat, logAt.confirmedOn, logAt.entryOfWork,
-      logAt.date, logAt.workStart, logAt.workStop, logAt.workComment
+      logAt.date, logAt.workStart, logAt.workStop, logAt.workComment,
+      logAt.asBoat, logAt.boatName
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
@@ -649,9 +663,10 @@ class TestComponent(
     CoHandler(AttrCaption(logAt.workStop))("Stop") ::
     CoHandler(AttrCaption(logAt.workDuration))("Duration, hrs:min") ::
     CoHandler(AttrCaption(logAt.workComment))("Comment") ::
+    CoHandler(AttrCaption(logAt.boatName))("Name") ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/userList"))(userListView) ::
-    //CoHandler(ViewPath("/boatList"))(boatListView) ::
+    CoHandler(ViewPath("/boatList"))(boatListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
     CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
     eventListHandlers :::
@@ -702,96 +717,6 @@ class FuelingItems(
   def fueling(entry: Obj, time: String) =
     filters.lazyLinkingObj(fuelingByFullKey,s"${entry(alienAttrs.objIdStr)}/$time")
 }
-
-
-class UserAttrs(
-  attr: AttrFactory,
-  label: LabelFactory,
-  asDBObj: AttrValueType[Obj],
-  asString: AttrValueType[String],
-  asUUID: AttrValueType[Option[UUID]]
-)(
-  val asUser: Attr[Obj] = label("f8c8d6da-0942-40aa-9005-261e63498973"),
-  val fullName: Attr[String] = attr("a4260856-0904-40c4-a18a-6d925abe5044",asString),
-  val username: Attr[String] = attr("4f0d01f8-a1a3-4551-9d07-4324d4d0e633",asString),
-  val encryptedPassword: Attr[Option[UUID]] = attr("3a345f93-18ab-4137-bdde-f0df77161b5f",asUUID),
-  val unEncryptedPassword: Attr[String] = attr("7d12edd9-a162-4305-8a0c-31ef3f2e3300",asString),
-  val unEncryptedPasswordAgain: Attr[String] = attr("24517821-c606-4f6c-8e93-4f01c2490747",asString),
-  val asActiveUser: Attr[Obj] = label("eac3b82c-5bf0-4278-8e0a-e1e0e3a95ffc"),
-  val authenticatedUser: Attr[Obj] = attr("47ee2460-b170-4213-9d56-a8fe0f7bc1f5",asDBObj) //of session
-)
-
-class Users(
-  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, cat: TestAttributes,
-  handlerLists: CoHandlerLists, attrFactory: AttrFactory,
-  factIndex: FactIndex, searchIndex: SearchIndex,
-  findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
-  alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique, onUpdate: OnUpdate, filters: Filters
-)(
-  val findAll: SearchByLabelProp[String] = searchIndex.create(at.asUser, findAttrs.justIndexed),
-  val findAllActive: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, findAttrs.justIndexed),
-  val findActiveByName: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, at.username)
-) extends CoHandlerProvider {
-  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-  private def encryptPassword(objId: ObjId, username: String, pw: String): UUID = {
-    val buffer = ByteBuffer.allocate(256)
-    buffer.putLong(objId.hi).putLong(objId.lo).put(Bytes(username)).put(Bytes(pw))
-    UUID.nameUUIDFromBytes(buffer.array())
-  }
-  def changePasswordAction(user: Obj): Option[()⇒Unit] = {
-    val userId = user(nodeAttrs.objId)
-    val username = user(at.username)
-    val pw = user(at.unEncryptedPassword)
-    if(pw.nonEmpty && pw == user(at.unEncryptedPasswordAgain)) Some{()⇒
-      user(at.encryptedPassword) = Some(encryptPassword(userId,username,pw))
-      user(at.unEncryptedPassword) = ""
-      user(at.unEncryptedPasswordAgain) = ""
-    }
-    else None
-  }
-  def loginAction(dialog: Obj): Option[()⇒Unit] = {
-    val username = dialog(at.username)
-    val pw = dialog(at.unEncryptedPassword)
-    if(username.isEmpty || pw.isEmpty) None else {
-      val user = findNodes.single(findNodes.where(mainTx(), findActiveByName, dialog(at.username), Nil))
-      val userId = user(nodeAttrs.objId)
-      val mainSession = alien.wrap(eventSource.mainSession)
-      val encryptedPassword = if(userId.nonEmpty) user(at.encryptedPassword) else None
-      Some{ () ⇒
-        if(encryptedPassword.exists(_==encryptPassword(userId,username,pw)))
-          mainSession(at.authenticatedUser) = user
-        else throw new Exception("Bad username or password")
-      }
-    }
-  }
-  def needToLogIn: Boolean =
-    !eventSource.mainSession(at.authenticatedUser)(at.asUser)(findAttrs.nonEmpty) &&
-      findNodes.where(mainTx(), findAllActive, findNodes.justIndexed, FindFirstOnly::Nil).nonEmpty
-  private def calcCanLogin(on: Boolean, user: Obj) =
-    user(at.asActiveUser) = if(on) user else findNodes.noNode
-
-  def handlers =
-    CoHandler(AttrCaption(at.asUser))("As User") ::
-    CoHandler(AttrCaption(at.fullName))("Full Name") ::
-    CoHandler(AttrCaption(at.username))("Username") ::
-    CoHandler(AttrCaption(at.unEncryptedPassword))("Password") ::
-    CoHandler(AttrCaption(at.unEncryptedPasswordAgain))("Repeat Password") ::
-    List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers) :::
-    List(at.unEncryptedPassword, at.unEncryptedPasswordAgain).flatMap(transient.update) :::
-    List(at.asUser,at.fullName,at.username,at.encryptedPassword,at.authenticatedUser).flatMap{ attr⇒
-      factIndex.handlers(attr) ::: alien.update(attr)
-    } :::
-    List(at.asActiveUser).flatMap(factIndex.handlers) :::
-    mandatory(at.asUser, at.username, mutual = false) :::
-    mandatory(at.asUser, at.fullName, mutual = false) :::
-    unique(at.asUser, at.username) :::
-    unique(at.asUser, at.fullName) :::
-    onUpdate.handlers(List(at.asUser, findAttrs.justIndexed, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
-    filters.orderBy(at.fullName) :::
-    filters.orderBy(at.username)
-}
-
-
 
 
 /*
