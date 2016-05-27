@@ -256,6 +256,8 @@ class TestComponent(
 
   private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
+  private def mmCell(key:VDomKey,minWidth: Int,maxWidth:Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
+    cell(key,MinWidth(minWidth),MaxWidth(maxWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
   private def mCell(key:VDomKey,minWidth: Int,priority: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),Priority(priority),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
   private def mcCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
@@ -607,7 +609,7 @@ class TestComponent(
           group("2_grp", MinWidth(150)),
           mCell("1",250)(_⇒List(text("text", "Full Name"))),
           mCell("2",250)(_⇒List(text("text", "Username"))),
-          mCell("3",250)(_⇒List(text("text", "Active"))),
+          mmCell("3",100,150)(_⇒List(text("text", "Active"))),
           group("3_grp",MinWidth(300)),
           mCell("4",250)(_⇒List(text("text", "New Password"))),
           mCell("5",250)(_⇒List(text("text", "Repeat Password"))),
@@ -623,7 +625,7 @@ class TestComponent(
             mCell("1",250)(showLabel⇒strField(user, at.caption, editable = true, label = "User", showLabel = showLabel)),
             mCell("2",250)(showLabel=>
               strField(user, userAttrs.username, editable, "Username", showLabel)),
-            mCell("3",250)(showLabel⇒
+            mmCell("3",100,150)(showLabel⇒
               if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil),
             group("3_grp",MinWidth(300)),
             mCell("4",250)(showLabel=>if(user(filterAttrs.isExpanded))
