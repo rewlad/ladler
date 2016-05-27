@@ -131,22 +131,7 @@ case class DivWrapper(display:Option[String],
   }
 }
 
-case class DivPositionWrapper(display:Option[String],
-                              position:Option[String],
-                              top:Option[String],
-                              transform:Option[String]) extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        display.foreach(x=>builder.append("display").append(x))
-        position.foreach(x=>builder.append("position").append(x))
-        top.foreach(x=>builder.append("top").append(x))
-        transform.foreach(x=>builder.append("transform").append(x))
-      builder.end()
-    builder.end()
-  }
-}
+
 
 case class DivTableCell(width:String,align:String,verticalAlign:String) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
@@ -205,13 +190,14 @@ class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialT
                  position:Option[String],
                  children: List[ChildPair[OfDiv]])=
     child[OfDiv](key,DivWrapper(display,minWidth,maxWidth,height,float,position),children)
+  /*
   def divPositionWrapper(key:VDomKey,
                          display:Option[String],
                          position:Option[String],
                          top:Option[String],
                          transform:Option[String],
                          children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivPositionWrapper(display,position,top,transform),children)
+    child[OfDiv](key,DivPositionWrapper(display,position,top,transform),children)*/
   def flexGrid(key: VDomKey, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key,FlexGrid(),children)
   def flexGridItem(key: VDomKey, flexBasisWidth: Int, maxWidth: Option[Int], children: List[ChildPair[OfDiv]]) =

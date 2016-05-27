@@ -97,10 +97,15 @@ case class IconButton(tooltip: String)(
   }
 }
 
-case class SVGIcon(tp: String) extends VDomValue {
+case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp) //color str
+    if(color.nonEmpty) {
+      builder.append("style").startObject()
+        builder.append("fill").append(color.get)
+      builder.end()
+    }
     builder.end()
   }
 }
@@ -188,6 +193,7 @@ case class DivNoTextWrap() extends VDomValue{
     builder.append("tp").append("div")
     builder.append("style").startObject()
     builder.append("whiteSpace").append("nowrap")
+    builder.append("overflow").append("hidden")
     builder.end()
     builder.end()
 
@@ -202,6 +208,7 @@ case class DivClickable()(val onClick:Option[()=>Unit]) extends VDomValue with O
 
   }
 }
+
 case class DivHeightWrapper(height:Int) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -219,7 +226,7 @@ case class DivEmpty() extends VDomValue{
     builder.end()
   }
 }
-case class InputField[Value](tp: String, value: Value, label: String,deferSend: Boolean)(
+case class InputField[Value](tp: String, value: Value, label: String,deferSend: Boolean,isPassword:Boolean=false)(
   input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
 ) extends VDomValue with OnChangeReceiver {
   def appendJson(builder: JsonBuilder) = {
@@ -230,6 +237,7 @@ case class InputField[Value](tp: String, value: Value, label: String,deferSend: 
     builder.append("underlineStyle").startObject()
       builder.append("borderColor").append("rgba(0,0,0,0.24)")
     builder.end()
+    if(isPassword) builder.append("type").append("password")
     input.appendJson(builder, convertToString(value), deferSend)
     builder.append("style"); {
       builder.startObject()
@@ -361,6 +369,24 @@ case class MenuItem(key:VDomKey,text:String)(val onClick:Option[()=>Unit]) exten
 
 }
 
+case class DivPositionWrapper(display:Option[String],
+                              width:Option[Int],
+                              position:Option[String],
+                              top:Option[Int]) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+    display.foreach(x=>builder.append("display").append(x))
+    position.foreach(x=>builder.append("position").append(x))
+    top.foreach(x=>builder.append("top").append(s"${x}px"))
+    if(width.nonEmpty) builder.append("width").append(s"${width.get}px")
+    else builder.append("width").append("100%")
+    builder.end()
+    builder.end()
+  }
+}
+
   /*
 //todo: DateField, SelectField
 //todo: Helmet, tap-event, StickyToolbars
@@ -387,6 +413,19 @@ class MaterialTags(
     child[OfDiv](key, Paper(), children.toList)
   def checkBox(key:VDomKey,checked:Boolean,check:Boolean=>Unit)=
     child[OfDiv](key,CheckBox(checked)(Some(v⇒check(v.nonEmpty))),Nil)
+
+  def iconInput(key: VDomKey,picture:String,focused:Boolean=false)(theChild:ChildPair[OfDiv]*)=
+
+      divNoWrap("1",
+        Seq(
+          child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some(36),Some("relative"),Some(6)),
+            child[OfDiv]("icon",SVGIcon(picture,if(focused) Some("rgb(0,188,212)") else None),Nil)::Nil
+          ),
+          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),None,None,None),theChild.toList)
+        ):_*
+      )
+
+
   /*
   def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
     child[OfDiv](key, Table(),
@@ -433,8 +472,8 @@ class MaterialTags(
     child[OfDiv](key,MarginSideWrapper(value),theChild::Nil)
   def withSideMargin(key:VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,MarginSideWrapper(value),children)
-  def withPadding(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
-    child[OfDiv](key, PaddingWrapper(value), theChild :: Nil)
+  def withPadding(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]*) =
+    child[OfDiv](key, PaddingWrapper(value), theChild.toList)
   def withSidePadding(key: VDomKey,value:Int,theChild:ChildPair[OfDiv])=
     child[OfDiv](key,PaddingSideWrapper(value),theChild::Nil)
   def withSidePadding(key: VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
@@ -449,6 +488,7 @@ class MaterialTags(
     child[OfDiv](key,DivNoTextWrap(),theChild.toList)
   def divClickable(key:VDomKey,action:Option[()=>Unit],theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivClickable()(action),theChild.toList)
+
   def withMaxWidth(key:VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DivMaxWidth(value),children)
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
@@ -457,6 +497,10 @@ class MaterialTags(
   def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean) =
     child[OfDiv](key, InputField("TextField",value, label, deferSend)
       (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
+
+  def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean) =
+    child[OfDiv](key, InputField("TextField",value, label, deferSend,isPassword = true)
+    (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
   private def instantToString(value: Option[Instant]): String =
     value.map(_.toEpochMilli.toString).getOrElse("")
