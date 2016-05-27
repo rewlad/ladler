@@ -7,5 +7,5 @@ trait VDomConnectionMix extends CoMixBase {
   lazy val childPairFactory = new ChildPairFactoryImpl(MapVDomValueImpl)
   lazy val currentView =
     new CurrentVDom(handlerLists,diff,JsonToStringImpl,WasNoValueImpl)
-  lazy val tags = new TagsImpl(childPairFactory)
+  lazy val tags = new TagsImpl(currentView,childPairFactory)
 }

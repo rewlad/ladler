@@ -32,7 +32,8 @@ export default function VDom(parentElement){
     function setupIncomingDiff(ctx) {
         Object.keys(ctx.value).forEach(key => {
             const value = ctx.value[key]
-            const handler = activeTransforms[key] && activeTransforms[key][value]
+            const trans = activeTransforms[key]
+            const handler = trans && value && (trans[value] || trans[value[0]])
             if(handler) {
                 ctx.value[key] = key==="tp" ? handler : handler({ value, parent: ctx })
             }

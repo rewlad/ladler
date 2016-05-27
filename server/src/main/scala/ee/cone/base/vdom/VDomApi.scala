@@ -46,6 +46,7 @@ trait CurrentView {
   def invalidate(): Unit
   def until(value: Long): Unit
   def relocate(value: String): Unit
+  def rootAttributes: List[(String,List[String])]
 }
 
 trait OnClickReceiver {

@@ -55,11 +55,17 @@ class CurrentVDom(
     }
   }
   def handlers =
+    CoHandler(FromAlienDictMessage)(setLastMessage) ::
     CoHandler(FromAlienDictMessage)(switchSession) ::
     CoHandler(FromAlienDictMessage)(relocate) ::
     CoHandler(FromAlienDictMessage)(dispatch) ::    //dispatches incoming message // can close / set refresh time
     CoHandler(ShowToAlien)(showToAlien) ::
     Nil
+
+  var rootAttributes: List[(String,List[String])] = Nil
+  private def setLastMessage(message: DictMessage) = rootAttributes =
+    List("ackMessage"→List("ackMessage",message.value("X-r-connection"),message.value("X-r-index")))
+
   private lazy val PathSplit = """(.*)(/[^/]*)""".r
   private def view(pathPrefix: String, pathPostfix: String): VDomValue =
     Single.option(handlerLists.list(ViewPath(pathPrefix))).map(_(pathPostfix))
