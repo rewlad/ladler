@@ -227,7 +227,9 @@ class TestComponent(
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
       items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
-    List(fieldPopupBox("1",collapsed,rows))
+    List(fieldPopupBox("1",showUnderscore = true,collapsed,
+      if(rows.isEmpty) Nil else withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,rows:_*)))::Nil
+    ))
   }
 /*
   fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
@@ -546,7 +548,7 @@ class TestComponent(
     )
   }
   private def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
-    divOverflowHidden("tableControl",
+    divSimpleWrapper("tableControl",
 
         divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,List()),
         divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1),
@@ -673,7 +675,7 @@ class TestComponent(
     divNoWrap(key, divClickable(caption, Some{ ()⇒
       activate()
       popupOpened = ""
-    }, divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("1",caption)))))
+    }, withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
 
   private def toolbar(title:String): ChildPair[OfDiv] =
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(

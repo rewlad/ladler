@@ -7,7 +7,19 @@ const FieldPopupBox= React.createClass({
           width:"100%"
       }
       const ref = el => this.props.popupReg(false,el)
-      return React.createElement("div",{key:this.props.key,style,ref},this.props.children)
+      const hrStyle={
+        width:"100%",
+        position:"absolute",
+        bottom:"8px",
+        borderWidth:"medium medium 1px",
+        borderStyle:"none none solid",
+        borderColor:"rgb(224,224,224)",
+        boxSizing:"content-box",
+        margin:"0px",
+
+        display:this.props.showUnderscore?"":"none"
+      }
+      return React.createElement("div",{key:this.props.key,style,ref},[this.props.children,React.createElement("hr",{key:"underscore",style:hrStyle})])
    }
 })
 

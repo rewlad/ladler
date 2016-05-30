@@ -148,6 +148,16 @@ case class DivMaxWidth(value:Int) extends VDomValue{
     builder.end()
   }
 }
+case class DivMinWidth(value:Int) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+    builder.append("minWidth").append(s"${value}px")
+    builder.end()
+    builder.end()
+  }
+}
 case class PaddingWrapper(value: Int) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
@@ -358,11 +368,12 @@ case class FieldPopupDrop(opened:Boolean,maxHeight:Option[Int]=None) extends VDo
 
   }
 }
-case class FieldPopupBox() extends VDomValue{
+case class FieldPopupBox(showUnderscore:Boolean) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("FieldPopupBox")
     builder.append("popupReg").append("def")
+    builder.append("showUnderscore").append(showUnderscore)
     builder.end()
 
   }
@@ -439,7 +450,12 @@ class MaterialTags(
     child[OfDiv](key,MaterialChip(text),Nil)
   def fieldPopupBox(key: VDomKey, chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
     child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
-      child[OfDiv](key+"box", FieldPopupBox(), chl1),
+      child[OfDiv](key+"box", FieldPopupBox(showUnderscore = false), chl1),
+      child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
+    ))
+  def fieldPopupBox(key: VDomKey, showUnderscore:Boolean,chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
+    child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
+      child[OfDiv](key+"box", FieldPopupBox(showUnderscore), chl1),
       child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
     ))
   def divider(key:VDomKey)=
@@ -532,6 +548,8 @@ class MaterialTags(
 
   def withMaxWidth(key:VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DivMaxWidth(value),children)
+  def withMinWidth(key:VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
+    child[OfDiv](key,DivMinWidth(value),children)
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
 
