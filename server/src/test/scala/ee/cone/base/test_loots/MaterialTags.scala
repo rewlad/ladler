@@ -424,11 +424,11 @@ class MaterialTags(
 ) {
   def materialChip(key:VDomKey,text:String)=
     child[OfDiv](key,MaterialChip(text),Nil)
-  def fieldPopupBox(key: VDomKey,opened:Boolean,chl1:List[ChildPair[OfDiv]],chl2:List[ChildPair[OfDiv]])=
+  def fieldPopupBox(key: VDomKey, chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
     child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
-      child[OfDiv](key+"box",FieldPopupBox(),chl1),
-      child[OfDiv](key+"popup",FieldPopupDrop(opened),chl2))
-    )
+      child[OfDiv](key+"box", FieldPopupBox(), chl1),
+      child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
+    ))
   def divider(key:VDomKey)=
     child[OfDiv](key,Divider(),Nil)
   def paper(key: VDomKey, children: ChildPair[OfDiv]*) =

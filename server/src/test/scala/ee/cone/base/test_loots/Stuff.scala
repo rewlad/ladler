@@ -160,12 +160,6 @@ class TestComponent(
   import alien.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-  private def toAlienText[Value](obj: Obj, attr: Attr[Value], valueToText: Value⇒String, showLabel: Boolean): List[ChildPair[OfDiv]] =
-    if(!obj(nonEmpty)) Nil else {
-      val visibleLabel = if(showLabel) caption(attr) else ""
-      List(labeledText("1",visibleLabel,valueToText(obj(attr))))
-    }
-
   private def strField(obj: Obj, attr: Attr[String], editable: Boolean, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(textInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
@@ -183,11 +177,9 @@ class TestComponent(
   }
 
   private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel:Boolean): List[ChildPair[OfDiv]] = {
-    toAlienText[Option[Duration]](
-      obj, attr,
-      v ⇒ v.map(x => x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse(""),
-      showLabel
-    )
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    val value = obj(attr).map(x => x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse("")
+    List(labeledText("1",visibleLabel,value))
   }
 
   private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
@@ -199,7 +191,7 @@ class TestComponent(
         val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
         date.format(formatter)
       }.getOrElse("")
-      labeledText("1", visibleLabel, dateStr) :: Nil
+      List(labeledText("1", visibleLabel, dateStr))
     }
   }
 
@@ -209,9 +201,37 @@ class TestComponent(
     else ???
   }
 
-  private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] ={
-    toAlienText[Obj](obj,attr,v⇒if(v(nonEmpty)) v(at.caption) else "",showLabel)
+  private var popupOpened = ""
+  private def popupToggle(key: String)() =
+    popupOpened = if(popupOpened == key) "" else key
+
+  private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean, showLabel:Boolean)(items: ()⇒List[Obj]=()⇒Nil): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    val vObj = obj(attr)
+    val notSelected = "(not selected)"
+    val value = if(vObj(nonEmpty)) vObj(at.caption) else notSelected
+    val txt = List(labeledText("1",visibleLabel,value))
+    if(!editable){ return  txt }
+    def option(item: Obj, key: VDomKey, caption: String) = divClickable(key,Some{ ()⇒
+      obj(attr) = item
+      popupOpened = ""
+    },divNoWrap("1",text("1",caption)))
+    val key = s"${obj(alien.objIdStr)}-${findNodes.toUUIDString(attrFactory.attrId(attr))}"
+    val collapsed = List(divClickable("1",Some(popupToggle(key)),txt:_*))
+    val rows = if(popupOpened != key) Nil
+      else option(findNodes.noNode, "not_selected", notSelected) ::
+      items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
+    List(fieldPopupBox("1",collapsed,rows))
   }
+/*
+  fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
+    divNoWrap("1",text("1","aaa"))::
+      divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
+      (0 to 20).map(x=>{
+        divNoWrap("3"+x,text("1","aaa"))}).toList
+
+  )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
+  */
 
   ////
 
@@ -311,7 +331,7 @@ class TestComponent(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter),
             mCell("1", 50)(_=>booleanField(entry, filterAttrs.isSelected, editable = true)),
             group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
-            mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false, showLabel)),
+            mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false, showLabel)()),
             mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false, showLabel)),
             mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, showLabel)),
             mCell("5",100)(_=>
@@ -322,7 +342,7 @@ class TestComponent(
                 else Nil
              }
             ),
-            mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false, showLabel)),
+            mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false, showLabel)()),
             mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false, showLabel)),
             mcCell("8",100,0)(_=>btnCreate("btn2",go.get)::Nil
             )
@@ -352,12 +372,9 @@ class TestComponent(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
               flexGridItem("boat1",100,None,
-                fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
-                  divNoWrap("1",text("1","aaa"))::
-                    divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
-                    (0 to 20).map(x=>{
-                    divNoWrap("3"+x,text("1","aaa"))}).toList
-                )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
+                objField(entry,logAt.boat,editable = true,showLabel = true)(()⇒
+                  filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode).list
+                )
               ),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
@@ -366,7 +383,7 @@ class TestComponent(
           )),
           flexGridItem("2",500,None,List(
             flexGrid("flexGridEdit12",List(
-              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,editable = false, showLabel = true)),
+              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,editable = false, showLabel = true)()),
               flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, editable = false, showLabel = true)),
               flexGridItem("conf_do",150,None,List(
                 divHeightWrapper("1",72,
@@ -623,29 +640,30 @@ class TestComponent(
 
   ////
 
-  private var popupOpened = ""
-  private def navMenuOpened = popupOpened == "navMenu"
-  private def toggleNavMenu() = popupOpened = if(navMenuOpened) "" else "navMenu"
+  private def menuItem(key: VDomKey, caption: String)(activate: ()⇒Unit) =
+    divNoWrap(key, divClickable(caption, Some{ ()⇒
+      activate()
+      popupOpened = ""
+    }, divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("1",caption)))))
 
-  private def toolbar(title:String): ChildPair[OfDiv] = {
-
+  private def toolbar(title:String): ChildPair[OfDiv] =
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
         divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
-        fieldPopupBox("menu",navMenuOpened,List(btnMenu("menu",toggleNavMenu)),List(
-          divNoWrap("users",divClickable("users",Some(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
-            divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("users","Users"))))),
-          divNoWrap("boats",divClickable("boats",Some(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
-            divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("boats","Boats"))))),
-          divNoWrap("entries",divClickable("entries",Some(()=>{currentVDom.relocate("/entryList");popupOpened = ""}),
-            divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("entries","Entries")))))
-        ))::
+        fieldPopupBox("menu",
+          List(btnMenu("menu",popupToggle("navMenu"))),
+          if(popupOpened!="navMenu") Nil else List(
+            menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
+            menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
+            menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
+          )
+        ) ::
         eventToolbarButtons()
       )
     )))
-  }
+
 
   def handlers =
     List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
@@ -661,6 +679,7 @@ class TestComponent(
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
     factIndex.handlers(at.caption) :::
+    onUpdate.handlers(List(logAt.asBoat, logAt.boatName).map(attrFactory.attrId(_)),(on,obj)⇒obj(at.caption)=if(on)obj(logAt.boatName)else "") :::
     alien.update(findAttrs.justIndexed) :::
     CoHandler(AttrCaption(logAt.boat))("Boat") ::
     CoHandler(AttrCaption(logAt.date))("Date") ::

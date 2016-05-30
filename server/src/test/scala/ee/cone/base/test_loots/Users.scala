@@ -91,6 +91,7 @@ class Users(
       unique(at.asUser, at.username) :::
       unique(at.asUser, at.fullName) :::
       onUpdate.handlers(List(at.asUser, findAttrs.justIndexed, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
+      onUpdate.handlers(List(at.asUser, at.fullName).map(attrFactory.attrId(_)),(on,obj)⇒obj(cat.caption)=if(on)obj(at.fullName)else "") :::
       filters.orderBy(at.fullName) :::
       filters.orderBy(at.username)
 }
