@@ -628,16 +628,20 @@ class TestComponent(
   private def toggleNavMenu() = popupOpened = if(navMenuOpened) "" else "navMenu"
 
   private def toolbar(title:String): ChildPair[OfDiv] = {
+
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
         divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
-        iconMenu("menu",navMenuOpened)(toggleNavMenu,
-          menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
-          menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
-          menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
-        )::
+        fieldPopupBox("menu",navMenuOpened,List(btnMenu("menu",toggleNavMenu)),List(
+          divNoWrap("users",divClickable("users",Some(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
+            divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("users","Users"))))),
+          divNoWrap("boats",divClickable("boats",Some(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
+            divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("boats","Boats"))))),
+          divNoWrap("entries",divClickable("entries",Some(()=>{currentVDom.relocate("/entryList");popupOpened = ""}),
+            divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("entries","Entries")))))
+        ))::
         eventToolbarButtons()
       )
     )))
