@@ -305,7 +305,15 @@ class TestComponent(
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
-    val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj)
+    val filterList = {
+      val value = filterObj(logAt.boat)
+      if(value(nonEmpty)) List((obj:Obj) ⇒ obj(logAt.boat)==value) else Nil
+    } ::: {
+      val value = filterObj(logAt.boat)
+    }
+
+
+    val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList)
     List( //class LootsBoatLogList
       toolbar("Entry List"),
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
@@ -373,7 +381,7 @@ class TestComponent(
             flexGrid("FlexGridEdit11",List(
               flexGridItem("boat1",100,None,
                 objField(entry,logAt.boat,editable = true,showLabel = true)(()⇒
-                  filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode).list
+                  filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil).list
                 )
               ),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
@@ -456,7 +464,7 @@ class TestComponent(
   def entryEditWorkListView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(s"/entryEditWorkList/$entryIdStr")
-    val workList = filters.itemList(findWorkByEntry,entry,filterObj)
+    val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil)
     paperTable("dtTableEdit2")(
       List(
         controlPanel("",btnDelete("1", workList.removeSelected),btnAdd("2", ()⇒workList.add())),
@@ -497,7 +505,7 @@ class TestComponent(
 
   private def boatListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj("/boatList")
-    val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj)
+    val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj, Nil)
     List(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
@@ -540,7 +548,7 @@ class TestComponent(
 
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj("/userList")
-    val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj)
+    val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj, Nil)
     val editable = true //todo
     List(
       toolbar("Users"),

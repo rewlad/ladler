@@ -84,7 +84,8 @@ class Filters(
   def itemList[Value](
     index: SearchByLabelProp[Value],
     parentValue: Value,
-    filterObj: Obj
+    filterObj: Obj,
+    filters: List[Obj⇒Boolean]
   ): ItemList = {
     val selectedSet = filterObj(at.selectedItems)
     val parentAttr = attrFactory.toAttr(index.propId, index.propType)
@@ -112,9 +113,12 @@ class Filters(
     val sortDirection = filterObj(at.orderDirection)
     val sortBy = orderBy(sortByAttrId).getOrElse((l:List[Obj],_:Boolean)⇒l)
 
-    val items = sortBy(findNodes.where(mainTx(), index, parentValue, Nil).map(obj⇒
-      alien.wrap(obj).wrap(listedWrapType,inner)
-    ), sortDirection)
+    val items = sortBy(
+      findNodes.where(mainTx(), index, parentValue, Nil)
+      .filter(obj⇒filters.forall(_(obj)))
+      .map(obj⇒ alien.wrap(obj).wrap(listedWrapType,inner)),
+      sortDirection
+    )
 
     val newItem = alien.demandedNode{ obj ⇒ obj(asType) = obj }.wrap(listedWrapType,inner)
     new ItemList {
