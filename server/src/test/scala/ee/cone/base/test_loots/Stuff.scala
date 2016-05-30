@@ -144,7 +144,7 @@ class TestComponent(
   searchIndex: SearchIndex,
   factIndex: FactIndex,
   filters: Filters,
-  htmlTableWithControl: HtmlTableWithControl,
+  htmlTable: HtmlTable,
   users: Users,
   fuelingItems: FuelingItems
 )(
@@ -155,7 +155,7 @@ class TestComponent(
   import tags._
   import materialTags._
   import flexTags._
-  import htmlTableWithControl._
+  import htmlTable._
   import findAttrs.nonEmpty
   import alien.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
@@ -270,11 +270,12 @@ class TestComponent(
   private def mcCell(key:VDomKey,minWidth: Int, priority:Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),Priority(priority),TextAlignCenter,VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
 
-  def paperTable(key: VDomKey)(tableElements: List[TableElement with ChildOfTable]): ChildPair[OfDiv] = {
+  def paperTable(key: VDomKey)(controls:List[ChildPair[OfDiv]],tableElements: List[TableElement with ChildOfTable]): ChildPair[OfDiv] = {
     val tableWidth = dtTablesState.widthOfTable(key)
     paperWithMargin(key,
       flexGrid("flexGrid",
         flexGridItemWidthSync("widthSync",w⇒tableWidth.value=w.toFloat,
+          controls:::
           table("1",Width(tableWidth.value))(tableElements:_*)
         )
       )
@@ -308,14 +309,15 @@ class TestComponent(
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj)
     List( //class LootsBoatLogList
       toolbar("Entry List"),
-      withMaxWidth("1",1200,List(paperTable("dtTableList2")(
+      withMaxWidth("1",1200,List(paperTable("dtTableList2")(controlPanel(List(
+        flexGrid("controlGrid1",List(
+          flexGridItem("1a",150,Some(200), textInput("1a","","aaa",(String)=>{},false)::Nil),
+          flexGridItem("2a",150,Some(200), textInput("1a","","aaa",(String)=>{},false)::Nil),
+          flexGridItem("3a",150,Some(200), textInput("1a","","aaa",(String)=>{},false)::Nil),
+          flexGridItem("4a",150,Some(200), textInput("1a","","aaa",(String)=>{},false)::Nil)
+        ))),
+        List(btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
         List(
-          controlPanel("",List(
-            textInput("1a","","aaa",(String)=>{},false),
-            textInput("2a","","aaa",(String)=>{},false),
-            textInput("3a","","aaa",(String)=>{},false),
-            textInput("4a","","aaa",(String)=>{},false)),List(
-            btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
           row("row",MaxVisibleLines(2),IsHeader)(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
             mCell("1",50)(_=> selectAllCheckBox(itemList)),
@@ -442,7 +444,7 @@ class TestComponent(
         )
       )
     }
-    paperTable("dtTableEdit1")(List(
+    paperTable("dtTableEdit1")(Nil,List(
       row("row",IsHeader)(
         mCell("1",100,3)(_=>List(text("1","Time"))),
         mCell("2",150,1)(_=>List(text("1",caption(fuelingAttrs.date)))),
@@ -462,9 +464,8 @@ class TestComponent(
     val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(s"/entryEditWorkList/$entryIdStr")
     val workList = filters.itemList(findWorkByEntry,entry,filterObj)
-    paperTable("dtTableEdit2")(
+    paperTable("dtTableEdit2")( controlPanel(Nil,List(btnDelete("1", workList.removeSelected),btnAdd("2", ()⇒workList.add()))),
       List(
-        controlPanel("",Nil,List(btnDelete("1", workList.removeSelected),btnAdd("2", ()⇒workList.add()))),
         row("row",IsHeader)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
           mCell("1",50)(_=>selectAllCheckBox(workList)),
@@ -506,9 +507,8 @@ class TestComponent(
     List(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
-      paperTable("table")(
+      paperTable("table")(controlPanel(Nil,List(btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
         List(
-          controlPanel("",Nil,List(btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
           row("head",IsHeader)(
             group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
             mCell("0",50)(_⇒selectAllCheckBox(itemList)),
@@ -528,7 +528,15 @@ class TestComponent(
       )::Nil)
     )
   }
+  private def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
+    divOverflowHidden("tableControl",
 
+        divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,List()),
+        divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1),
+        divWrapper("3",None,None,None,None,Some("right"),None,chld2)
+    )::Nil
+
+  }
   //// users
   private def loginView() = {
     val editable = true
@@ -549,8 +557,7 @@ class TestComponent(
     val editable = true //todo
     List(
       toolbar("Users"),
-      paperTable("table")(
-        controlPanel("",Nil,List(btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add()))) ::
+      paperTable("table")(controlPanel(Nil,List(btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add()))),
         row("head",IsHeader)(
           group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
           mCell("0",50)(_⇒selectAllCheckBox(userList)),
@@ -600,7 +607,7 @@ class TestComponent(
   private def eventListView(pf: String) = wrapDBView { () =>
     List(
       toolbar("Events"),
-      paperTable("table")(
+      paperTable("table")(Nil,
         row("head", IsHeader)(
           mCell("1",250)(_⇒List(text("text", "Event"))),
           mCell("2",250)(_⇒Nil)

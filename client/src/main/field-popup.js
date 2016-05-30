@@ -21,7 +21,7 @@ const FieldPopupDrop = React.createClass({
             display:"inline-block",
             position:"absolute",
             overflow:"hidden",
-            overflowY:"auto",
+            //overflowY:"auto",
             padding:"0px 2px 0px 2px",
             top:dropBoxTop===0?"":dropBoxTop+"px",
             transition:"max-height 200ms,top 50ms",

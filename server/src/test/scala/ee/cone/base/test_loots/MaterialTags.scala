@@ -190,6 +190,19 @@ case class DivSimpleWrapper() extends VDomValue{
     builder.end()
   }
 }
+
+case class DivOverflowHidden() extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+    builder.append("overflow").append("hidden")
+    builder.end()
+    builder.end()
+
+  }
+}
+
 case class DivNoTextWrap() extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -512,6 +525,8 @@ class MaterialTags(
     child[OfDiv](key,DivSimpleWrapper(),theChild.toList)
   def divNoWrap(key:VDomKey,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivNoTextWrap(),theChild.toList)
+  def divOverflowHidden(key:VDomKey,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,DivOverflowHidden(),theChild.toList)
   def divClickable(key:VDomKey,action:Option[()=>Unit],theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivClickable()(action),theChild.toList)
 

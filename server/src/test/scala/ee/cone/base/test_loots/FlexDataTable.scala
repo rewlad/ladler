@@ -14,10 +14,6 @@ trait AttrOfTableElement
 trait ChildOfTable
 trait ChildOfTableRow
 
-trait TableControlPanel{
-  type TableElement
-  def controlPanel(key:VDomKey,chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]]):TableElement with ChildOfTable
-}
 trait SimpleHtmlTable{
   type TableElement
   type CellContentVariant = Boolean
@@ -30,7 +26,7 @@ trait SimpleHtmlTable{
   def cell(key:VDomKey, attr:AttrOfTableElement*)(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
   def cell(key:VDomKey, attr:List[AttrOfTableElement])(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
 }
-trait HtmlTableWithControl extends SimpleHtmlTable with TableControlPanel
+trait HtmlTable extends SimpleHtmlTable
 
 case class Width(value:Float) extends AttrOfTableElement
 case class MaxWidth(value:Int) extends AttrOfTableElement
@@ -50,7 +46,7 @@ case class Toggled(value:Boolean)(val toggleHandle:Option[()=>Unit]) extends Att
 case class IsSelected(value:Boolean) extends AttrOfTableElement
 case object IsHeader extends AttrOfTableElement
 
-class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTableWithControl{
+class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
   type TableElement=FlexDataTableElement
   def table(key: VDomKey,attr: AttrOfTableElement*)(tableElement: (TableElement with ChildOfTable)*)={
     table(key,attr.toList)(tableElement.toList)
@@ -103,8 +99,6 @@ class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTableWithControl{
     val priority = Single.option[Int](attr.collect{case Priority(x)=>x})
     FlexDataTableCell(key,basisWidth,maxWidth,textAlign,verticalAlign,priority.getOrElse(1),flexTags,children)
   }
-  def controlPanel(key:VDomKey,chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])=
-    FlexDataTableControlPanel(flexTags,chld1,chld2)
 }
 
 trait FlexDataTableElement{
@@ -339,28 +333,11 @@ case class FlexDataTableCell(key:VDomKey, override val basisWidth:Int, override 
     showLabel=x.getOrElse("showLabel",0)>0
   }
 }
-case class FlexDataTableControlPanel(flexTags: FlexTags,chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]]) extends FlexDataTableElement with ChildOfTable{
-
-  _flexDataTableElements=Nil
-  def genView()={
-
-    flexTags.divWrapper("tableControl",None,None,None,None,None,None,
-      List(
-        flexTags.divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),Some(s"${defaultRowHeight}px"),None,None,List()),
-        flexTags.divWrapper("2",Some("inline-block"),None,None,Some(s"${defaultRowHeight}px"),None,None,chld1),
-        flexTags.divWrapper("3",None,None,None,None,Some("right"),None,chld2))
-    )::Nil
-  }
-}
 
 case class FlexDataTable(tableWidth:Option[Float], flexTags: FlexTags,flexDataTableElements: Seq[FlexDataTableElement]) extends FlexDataTableElement{
   _flexDataTableElements=flexDataTableElements
   defaultRowHeight=48
-  private def controlPanel={
-    val cPanel=_flexDataTableElements.filter(_.isInstanceOf[FlexDataTableControlPanel])
-    if(cPanel.nonEmpty){ cPanel.head.genView()}
-    else Nil
-  }
+
   private def header= {
     val headerRow=_flexDataTableElements.filter(x => x.isInstanceOf[FlexDataTableRow] && x.inHeader)
     val flexDataTableHeaderRow=FlexDataTableHeader(flexTags,headerRow)
@@ -372,7 +349,7 @@ case class FlexDataTable(tableWidth:Option[Float], flexTags: FlexTags,flexDataTa
     flexDataTableBodyRow.genView()
   }
   def genView()= {
-    controlPanel:::header:::body
+    header:::body
   }
   elementWidth=tableWidth.getOrElse(0.0f)
 
