@@ -216,15 +216,48 @@ class LabeledText extends React.Component{
 class IconMenuButton extends React.Component{
     constructor(props){
         super(props)
+        this.handleRequestChange=this.handleRequestChange.bind(this)
+    }
+    handleRequestChange(open,reason){
+        if(open===false)
+            this.props.onClick()
+        //console.log("aaa",open)
+
     }
 
     render(){
-        return React.createElement(IconMenu,{key:this.props.key,open:this.props.open,onTouchTap:this.props.onClick,iconButtonElement:
-            React.createElement(IconButton,{key:"1",tooltip:"menu"},React.createElement(IconNavigationMenu,{key:"1"}))},
+        return React.createElement(IconMenu,{key:this.props.key,onRequestChange:this.handleRequestChange,
+            open:this.props.open,onTouchTap:this.props.onClick,
+            iconButtonElement: React.createElement(IconButton,{key:"1",tooltip:"menu"}, React.createElement(IconNavigationMenu,{key:"1"}))},
             this.props.children
             )
     }
 }
+
+class CursorOver extends React.Component{
+    constructor(props){
+        super(props)
+        this.state={mouseOver:false}
+        this.handleMouseEnter=this.handleMouseEnter.bind(this)
+        this.handleMouseLeave=this.handleMouseLeave.bind(this)
+    }
+    handleMouseEnter(){
+        this.setState({mouseOver:true})
+    }
+    handleMouseLeave(){
+        this.setState({mouseOver:false})
+    }
+
+    render(){
+        const pStyle={
+            backgroundColor:this.state.mouseOver?this.props.hoverColor:"transparent"
+        }
+
+        return React.createElement("div",{key:this.props.key,style:pStyle,onMouseEnter:this.handleMouseEnter,
+                        onMouseLeave:this.handleMouseLeave},this.props.children)
+    }
+}
+
 const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
@@ -234,7 +267,7 @@ const tp = ({
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
     IconActionRestore,IconContentSave,//,SelectField
-    IconMenuButton,MenuItem
+    IconMenuButton,MenuItem,IconNavigationMenu,CursorOver
 })
 
 const transforms = ({tp})

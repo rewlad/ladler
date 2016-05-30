@@ -110,10 +110,13 @@ case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
   }
 }
 
-case class MarginWrapper(value: Int) extends VDomValue {
+case class MarginWrapper(value: Int,inline:Boolean=true) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-    builder.append("tp").append("span")
+    if(inline)
+      builder.append("tp").append("span")
+    else
+      builder.append("tp").append("div")
     builder.append("style"); {
       builder.startObject()
       builder.append("margin").append(s"${value}px")
@@ -204,6 +207,9 @@ case class DivClickable()(val onClick:Option[()=>Unit]) extends VDomValue with O
     builder.startObject()
     builder.append("tp").append("div")
     onClick.foreach(_⇒ builder.append("onClick").append("send"))
+    builder.append("style").startObject()
+      builder.append("cursor").append("pointer")
+    builder.end()
     builder.end()
 
   }
@@ -353,6 +359,7 @@ case class IconMenu(opened:Boolean)(val onClick:Option[()=>Unit]) extends VDomVa
     builder.startObject()
     builder.append("tp").append("IconMenuButton")
     builder.append("open").append(opened)
+    builder.append("onRequestChange").append("reqChange")
     onClick.foreach(_⇒ builder.append("onClick").append("send"))
     builder.end()
   }
@@ -370,7 +377,7 @@ case class MenuItem(key:VDomKey,text:String)(val onClick:Option[()=>Unit]) exten
 }
 
 case class DivPositionWrapper(display:Option[String],
-                              width:Option[Int],
+                              width:Option[String],
                               position:Option[String],
                               top:Option[Int]) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
@@ -380,11 +387,26 @@ case class DivPositionWrapper(display:Option[String],
     display.foreach(x=>builder.append("display").append(x))
     position.foreach(x=>builder.append("position").append(x))
     top.foreach(x=>builder.append("top").append(s"${x}px"))
-    if(width.nonEmpty) builder.append("width").append(s"${width.get}px")
-    else builder.append("width").append("100%")
+    if(width.nonEmpty) builder.append("width").append(width.get)
     builder.end()
     builder.end()
   }
+}
+case class DivBgColorHover(color:Color) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("CursorOver")
+    builder.append("hoverColor").append(color.color)
+    builder.end()
+  }
+
+}
+trait Color{
+  def color:String
+}
+case object MenuItemHoverColor extends Color{
+  def color="rgba(0,0,0,0.1)"
+
 }
 
   /*
@@ -402,11 +424,11 @@ class MaterialTags(
 ) {
   def materialChip(key:VDomKey,text:String)=
     child[OfDiv](key,MaterialChip(text),Nil)
-  def fieldPopupBox(key: VDomKey, chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]])=
-    divSimpleWrapper(key,
-      child[OfDiv](key+"box",FieldPopupBox(),chl1),
-      child[OfDiv](key+"popup",FieldPopupDrop(chl2.nonEmpty),chl2)
-    )
+  def fieldPopupBox(key: VDomKey, chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
+    child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
+      child[OfDiv](key+"box", FieldPopupBox(), chl1),
+      child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
+    ))
   def divider(key:VDomKey)=
     child[OfDiv](key,Divider(),Nil)
   def paper(key: VDomKey, children: ChildPair[OfDiv]*) =
@@ -418,10 +440,10 @@ class MaterialTags(
 
       divNoWrap("1",
         Seq(
-          child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some(36),Some("relative"),Some(6)),
+          child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("36px"),Some("relative"),Some(6)),
             child[OfDiv]("icon",SVGIcon(picture,if(focused) Some("rgb(0,188,212)") else None),Nil)::Nil
           ),
-          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),None,None,None),theChild.toList)
+          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("100%"),None,None),theChild.toList)
         ):_*
       )
 
@@ -464,10 +486,14 @@ class MaterialTags(
     iconButton(key,"","IconContentCreate",action)
   def btnDelete(key:VDomKey,action:()=>Unit)=
     iconButton(key,"","IconActionDelete",action)
+  def btnMenu(key:VDomKey,action:()=>Unit)=
+    iconButton(key,"menu","IconNavigationMenu",action)
   def withMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
     child[OfDiv](key, MarginWrapper(value), theChild :: Nil)
   def withMargin(key: VDomKey, value: Int, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key, MarginWrapper(value), children)
+  def withDivMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]*) =
+    child[OfDiv](key, MarginWrapper(value,inline = false), theChild.toList)
   def withSideMargin(key:VDomKey,value:Int,theChild:ChildPair[OfDiv])=
     child[OfDiv](key,MarginSideWrapper(value),theChild::Nil)
   def withSideMargin(key:VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
@@ -523,5 +549,7 @@ class MaterialTags(
     child[OfDiv](key,DivHeightWrapper(height),theChild::Nil)
   def divEmpty(key:VDomKey)=
     child[OfDiv](key,DivEmpty(),Nil)
+  def divBgColorHover(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,DivBgColorHover(color),theChild.toList)
 }
 

@@ -261,6 +261,8 @@ class TestComponent(
 
   private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
+  private def mmCell(key:VDomKey,minWidth: Int,maxWidth:Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
+    cell(key,MinWidth(minWidth),MaxWidth(maxWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
   private def mCell(key:VDomKey,minWidth: Int,priority: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),Priority(priority),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
   private def mcCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
@@ -293,8 +295,8 @@ class TestComponent(
     val txt = text("1",caption(attr))
     val icon = reversed match {
       case None ⇒ "."
-      case Some(false) ⇒ "↓"
-      case Some(true) ⇒ "↑"
+      case Some(false) ⇒ "⏶"
+      case Some(true) ⇒ "⏷"
     }
     if(action.isEmpty) List(txt)
     else List(divClickable("1",action,text("2", icon),txt))
@@ -370,20 +372,11 @@ class TestComponent(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
               flexGridItem("boat1",100,None,
-                /*fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
-                  divNoWrap("1",text("1","aaa"))::
-                    divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
-                    (0 to 20).map(x=>{
-                    divNoWrap("3"+x,text("1","aaa"))}).toList
-
-                )::Nil*/ //
-
                 objField(entry,logAt.boat,editable = true,showLabel = true)(()⇒
                   filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode).list
                 )
               ),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
-
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 durationField(entry,logAt.durationTotal, showLabel = true))))
             ))
@@ -507,22 +500,27 @@ class TestComponent(
     val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj)
     List(
       toolbar("Boats"),
+      withMaxWidth("maxWidth",600,
       paperTable("table")(
         List(
           controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add())),
           row("head",IsHeader)(
+            group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
             mCell("0",50)(_⇒selectAllCheckBox(itemList)),
+            group("2_group",MinWidth(50)),
             mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
           )
         ) :::
         itemList.list.map{boat ⇒
           val srcId = boat(alien.objIdStr)
           row(srcId,toggledSelectedRow(boat))(List(
+            group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
             mCell("0",50)(_⇒booleanField(boat,filterAttrs.isSelected, editable = true)),
+            group("2_group",MinWidth(50)),
             mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable = true, showLabel = showLabel))
           ))
         }
-      )
+      )::Nil)
     )
   }
 
@@ -531,11 +529,13 @@ class TestComponent(
     val editable = true
     val showLabel = true
     val dialog = filters.filterObj("/login")
+
     List(withMaxWidth("1",400,paperWithMargin("login",
       divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, editable, showLabel):_*)),
       divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, editable, showLabel, deferSend = false):_*)),
       divSimpleWrapper("3", divAlignWrapper("1","right","top",users.loginAction(dialog).map(btnRaised("login","LOGIN")(_)).toList))
     )::Nil))
+
   }
 
   private def userListView(pf: String) = wrapDBView { () =>
@@ -567,7 +567,7 @@ class TestComponent(
             mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, editable = true, showLabel = showLabel)),
             mCell("2",250)(showLabel=>
               strField(user, userAttrs.username, editable, showLabel)),
-            mCell("3",250)(showLabel⇒
+            mmCell("3",100,150)(showLabel⇒
               if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil),
             group("3_grp",MinWidth(300)),
             mCell("4",250)(showLabel=>if(user(filterAttrs.isExpanded))
@@ -640,21 +640,30 @@ class TestComponent(
 
   ////
 
-  private def toolbar(title:String): ChildPair[OfDiv] = {
+  private def menuItem(key: VDomKey, caption: String)(activate: ()⇒Unit) =
+    divNoWrap(key, divClickable(caption, Some{ ()⇒
+      activate()
+      popupOpened = ""
+    }, divBgColorHover("1",MenuItemHoverColor,withDivMargin("1",10,text("1",caption)))))
+
+  private def toolbar(title:String): ChildPair[OfDiv] =
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
         divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
-        iconMenu("menu",popupOpened=="navMenu")(popupToggle("navMenu"),
-          menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
-          menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
-          menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
-        )::
+        fieldPopupBox("menu",
+          List(btnMenu("menu",popupToggle("navMenu"))),
+          if(popupOpened!="navMenu") Nil else List(
+            menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
+            menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
+            menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
+          )
+        ) ::
         eventToolbarButtons()
       )
     )))
-  }
+
 
   def handlers =
     List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
