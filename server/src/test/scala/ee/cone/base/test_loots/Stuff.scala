@@ -318,7 +318,12 @@ class TestComponent(
       toolbar("Entry List"),
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
         List(
-          controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add())),
+          controlPanel("",List(
+            textInput("1a","","aaa",(String)=>{},false),
+            textInput("2a","","aaa",(String)=>{},false),
+            textInput("3a","","aaa",(String)=>{},false),
+            textInput("4a","","aaa",(String)=>{},false)),List(
+            btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
           row("row",MaxVisibleLines(2),IsHeader)(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
             mCell("1",50)(_=> selectAllCheckBox(itemList)),
@@ -467,7 +472,7 @@ class TestComponent(
     val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil)
     paperTable("dtTableEdit2")(
       List(
-        controlPanel("",btnDelete("1", workList.removeSelected),btnAdd("2", ()⇒workList.add())),
+        controlPanel("",Nil,List(btnDelete("1", workList.removeSelected),btnAdd("2", ()⇒workList.add()))),
         row("row",IsHeader)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
           mCell("1",50)(_=>selectAllCheckBox(workList)),
@@ -511,7 +516,7 @@ class TestComponent(
       withMaxWidth("maxWidth",600,
       paperTable("table")(
         List(
-          controlPanel("",btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add())),
+          controlPanel("",Nil,List(btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
           row("head",IsHeader)(
             group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
             mCell("0",50)(_⇒selectAllCheckBox(itemList)),
@@ -553,7 +558,7 @@ class TestComponent(
     List(
       toolbar("Users"),
       paperTable("table")(
-        controlPanel("",btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add())) ::
+        controlPanel("",Nil,List(btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add()))) ::
         row("head",IsHeader)(
           group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
           mCell("0",50)(_⇒selectAllCheckBox(userList)),

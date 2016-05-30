@@ -16,8 +16,7 @@ trait ChildOfTableRow
 
 trait TableControlPanel{
   type TableElement
-  def controlPanel(key:VDomKey,children:ChildPair[OfDiv]*):TableElement with ChildOfTable
-  def controlPanel(key:VDomKey,children:List[ChildPair[OfDiv]]):TableElement with ChildOfTable
+  def controlPanel(key:VDomKey,chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]]):TableElement with ChildOfTable
 }
 trait SimpleHtmlTable{
   type TableElement
@@ -104,9 +103,8 @@ class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTableWithControl{
     val priority = Single.option[Int](attr.collect{case Priority(x)=>x})
     FlexDataTableCell(key,basisWidth,maxWidth,textAlign,verticalAlign,priority.getOrElse(1),flexTags,children)
   }
-  def controlPanel(key:VDomKey,children:ChildPair[OfDiv]*)=controlPanel(key,children.toList)
-  def controlPanel(key:VDomKey,children:List[ChildPair[OfDiv]])=
-    FlexDataTableControlPanel(flexTags,children)
+  def controlPanel(key:VDomKey,chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])=
+    FlexDataTableControlPanel(flexTags,chld1,chld2)
 }
 
 trait FlexDataTableElement{
@@ -341,7 +339,7 @@ case class FlexDataTableCell(key:VDomKey, override val basisWidth:Int, override 
     showLabel=x.getOrElse("showLabel",0)>0
   }
 }
-case class FlexDataTableControlPanel(flexTags: FlexTags,children:List[ChildPair[OfDiv]]) extends FlexDataTableElement with ChildOfTable{
+case class FlexDataTableControlPanel(flexTags: FlexTags,chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]]) extends FlexDataTableElement with ChildOfTable{
 
   _flexDataTableElements=Nil
   def genView()={
@@ -349,7 +347,8 @@ case class FlexDataTableControlPanel(flexTags: FlexTags,children:List[ChildPair[
     flexTags.divWrapper("tableControl",None,None,None,None,None,None,
       List(
         flexTags.divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),Some(s"${defaultRowHeight}px"),None,None,List()),
-        flexTags.divWrapper("2",None,None,None,None,Some("right"),None,children.toList))
+        flexTags.divWrapper("2",Some("inline-block"),None,None,Some(s"${defaultRowHeight}px"),None,None,chld1),
+        flexTags.divWrapper("3",None,None,None,None,Some("right"),None,chld2))
     )::Nil
   }
 }
