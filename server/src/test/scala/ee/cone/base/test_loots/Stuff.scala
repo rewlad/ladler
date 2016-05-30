@@ -85,7 +85,8 @@ class BoatLogEntryAttributes(
   asObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   asInstant: AttrValueType[Option[Instant]],
-  asDuration: AttrValueType[Option[Duration]]
+  asDuration: AttrValueType[Option[Duration]],
+  asBoolean: AttrValueType[Boolean]
 )(
   val asEntry: Attr[Obj] = label("21f5378d-ee29-4603-bc12-eb5040287a0d"),
   val boat: Attr[Obj] = attr("b65d201b-8b83-41cb-85a1-c0cb2b3f8b18", asObj),
@@ -94,6 +95,10 @@ class BoatLogEntryAttributes(
   val asConfirmed: Attr[Obj] = label("c54e4fd2-0989-4555-a8a5-be57589ff79d"),
   val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", asObj),
   val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", asInstant), //0x6709
+
+  val dateFrom: Attr[Option[Instant]] = attr("6e260496-9534-4ca1-97f6-6b234ef93a55", asInstant),
+  val dateTo: Attr[Option[Instant]] = attr("7bd7e2cb-d7fd-4b0f-b88b-b1e70dd609a1", asInstant),
+  val hideConfirmed: Attr[Boolean] = attr("d49d29e0-d797-413e-afc6-2f62b06840ca", asBoolean),
 
   val asWork: Attr[Obj] = label("5cce1cf2-1793-4e54-8523-c810f7e5637a"),
   val workStart: Attr[Option[Instant]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", asInstant),
@@ -216,7 +221,8 @@ class TestComponent(
       obj(attr) = item
       popupOpened = ""
     },divNoWrap("1",text("1",caption)))
-    val key = s"${obj(alien.objIdStr)}-${findNodes.toUUIDString(attrFactory.attrId(attr))}"
+    val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
+    val key = s"$objIdStr-${findNodes.toUUIDString(attrFactory.attrId(attr))}"
     val collapsed = List(divClickable("1",Some(popupToggle(key)),txt:_*))
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
@@ -305,25 +311,37 @@ class TestComponent(
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val filterObj = filters.filterObj("/entryList")
-    val filterList = {
-      val value = filterObj(logAt.boat)
-      if(value(nonEmpty)) List((obj:Obj) ⇒ obj(logAt.boat)==value) else Nil
+    val filterList: List[Obj⇒Boolean] = {
+      val value = filterObj(logAt.boat)(nodeAttrs.objId)
+      if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.boat)(nodeAttrs.objId)==value) else Nil
     } ::: {
-      val value = filterObj(logAt.boat)
+      val value = filterObj(logAt.dateFrom)
+      if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.date).forall((v:Instant) ⇒ v.isAfter(value.get))) else Nil
+    } ::: {
+      val value = filterObj(logAt.dateTo)
+      if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.date).forall((v:Instant) ⇒ v.isBefore(value.get))) else Nil
+    } ::: {
+      val value = filterObj(logAt.hideConfirmed)
+      if(value) List((obj:Obj) ⇒ !obj(logAt.asConfirmed)(nonEmpty) ) else Nil
     }
-
+//logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList)
     List( //class LootsBoatLogList
       toolbar("Entry List"),
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
         List(
-          controlPanel("",List(
-            textInput("1a","","aaa",(String)=>{},false),
-            textInput("2a","","aaa",(String)=>{},false),
-            textInput("3a","","aaa",(String)=>{},false),
-            textInput("4a","","aaa",(String)=>{},false)),List(
-            btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
+          controlPanel("",
+            List(
+              divSimpleWrapper("f1",boatSelectView(filterObj):_*),
+              divSimpleWrapper("f2",dateField(filterObj, logAt.dateFrom, editable = true, showLabel = true):_*),
+              divSimpleWrapper("f3",dateField(filterObj, logAt.dateTo, editable = true, showLabel = true):_*),
+              divSimpleWrapper("f4",booleanField(filterObj, logAt.hideConfirmed, editable = true):_*)
+            ),
+            List(
+              btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add())
+            )
+          ),
           row("row",MaxVisibleLines(2),IsHeader)(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
             mCell("1",50)(_=> selectAllCheckBox(itemList)),
@@ -366,10 +384,10 @@ class TestComponent(
   }}
   // currentVDom.invalidate() ?
 
-  var selectDropShow=false
-  var selectDropShow1=false
-  private def selectDropShowHandle()= selectDropShow = !selectDropShow
-  private def selectDropShowHandle1() = selectDropShow1 = !selectDropShow1
+  private def boatSelectView(obj: Obj) =
+    objField(obj,logAt.boat,editable = true,showLabel = true)(()⇒
+      filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil).list
+    )
 
   private def entryEditView(pf: String) = wrapDBView { () =>
     val entry = alien.wrap(findNodes.whereObjId(findNodes.toObjId(UUID.fromString(pf.tail)))(logAt.asEntry))
@@ -384,11 +402,7 @@ class TestComponent(
         flexGrid("flexGridEdit1",List(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
-              flexGridItem("boat1",100,None,
-                objField(entry,logAt.boat,editable = true,showLabel = true)(()⇒
-                  filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil).list
-                )
-              ),
+              flexGridItem("boat1",100,None,boatSelectView(entry)),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 durationField(entry,logAt.durationTotal, showLabel = true))))
@@ -684,9 +698,10 @@ class TestComponent(
       logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
     ).flatMap(factIndex.handlers(_)) :::
     List(
-      logAt.asEntry, logAt.asWork,
-      logAt.boat, logAt.confirmedOn, logAt.entryOfWork,
-      logAt.date, logAt.workStart, logAt.workStop, logAt.workComment,
+      logAt.asEntry, logAt.boat, logAt.confirmedOn, logAt.date,
+      logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
+      logAt.asWork, logAt.entryOfWork,
+      logAt.workStart, logAt.workStop, logAt.workComment,
       logAt.asBoat, logAt.boatName
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
@@ -705,6 +720,9 @@ class TestComponent(
     CoHandler(AttrCaption(logAt.workDuration))("Duration, hrs:min") ::
     CoHandler(AttrCaption(logAt.workComment))("Comment") ::
     CoHandler(AttrCaption(logAt.boatName))("Name") ::
+    CoHandler(AttrCaption(logAt.dateFrom))("Date From") ::
+    CoHandler(AttrCaption(logAt.dateTo))("Date To") ::
+    CoHandler(AttrCaption(logAt.hideConfirmed))("Hide Confirmed") ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/userList"))(userListView) ::
     CoHandler(ViewPath("/boatList"))(boatListView) ::
