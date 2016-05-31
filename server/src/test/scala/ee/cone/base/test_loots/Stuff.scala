@@ -176,10 +176,8 @@ class TestComponent(
     else List(labeledText("1", "******", visibleLabel))
   }
 
-  private def booleanField(obj: Obj, attr: Attr[Boolean], editable: Boolean): List[ChildPair[OfDiv]] = {
-    if(!editable) ???
-    else List(checkBox("1", obj(attr), obj(attr)=_))
-  }
+  private def booleanField(obj: Obj, attr: Attr[Boolean], editable: Boolean): List[ChildPair[OfDiv]] =
+    List(checkBox("1", obj(attr), if(editable) obj(attr)=_ else _⇒()))
 
   private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel:Boolean): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) caption(attr) else ""
@@ -203,7 +201,14 @@ class TestComponent(
   private def timeField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(timeInput("1",visibleLabel,obj(attr),obj(attr)=_))
-    else ???
+    else {
+      val dateStr = obj(attr).map{ v ⇒
+        val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
+        val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+        date.format(formatter)
+      }.getOrElse("")
+      List(labeledText("1", visibleLabel, dateStr))
+    }
   }
 
   private var popupOpened = ""
@@ -311,8 +316,12 @@ class TestComponent(
     else List(divClickable("1",action,text("2", icon),txt))
   }
 
+  private def addRemoveControlView(itemList: ItemList, editable: Boolean) =
+    if(editable) List(btnDelete("btnDelete", itemList.removeSelected),btnAdd("btnAdd", ()⇒itemList.add()))
+    else Nil
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
+    val editable = true //todo roles
     val filterObj = filters.filterObj("/entryList")
     val filterList: List[Obj⇒Boolean] = {
       val value = filterObj(logAt.boat)(nodeAttrs.objId)
@@ -332,14 +341,16 @@ class TestComponent(
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList)
     List( //class LootsBoatLogList
       toolbar("Entry List"),
-      withMaxWidth("1",1200,List(paperTable("dtTableList2")(controlPanel(List(
-        flexGrid("controlGrid1",List(
-          flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
-          flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, editable = true, showLabel = true)),
-          flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, editable = true, showLabel = true)),
-          flexGridItem("4a",150,Some(200), booleanField(filterObj, logAt.hideConfirmed, editable = true))
-        ))),
-        List(btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
+      withMaxWidth("1",1200,List(paperTable("dtTableList2")(
+        controlPanel(
+          List(flexGrid("controlGrid1",List(
+            flexGridItem("1a",150,Some(200), boatSelectView(filterObj, editable = true)),
+            flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, editable = true, showLabel = true)),
+            flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, editable = true, showLabel = true)),
+            flexGridItem("4a",150,Some(200), booleanField(filterObj, logAt.hideConfirmed, editable = true))
+          ))),
+          addRemoveControlView(itemList, editable)
+        ),
         List(
           row("row",MaxVisibleLines(2),IsHeader)(
             group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
@@ -383,14 +394,15 @@ class TestComponent(
   }}
   // currentVDom.invalidate() ?
 
-  private def boatSelectView(obj: Obj) =
-    objField(obj,logAt.boat,editable = true,showLabel = true)(()⇒
+  private def boatSelectView(obj: Obj, editable: Boolean) =
+    objField(obj,logAt.boat,editable,showLabel = true)(()⇒
       filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil).list
     )
 
   private def entryEditView(pf: String) = wrapDBView { () =>
     val entry = alien.wrap(findNodes.whereObjId(findNodes.toObjId(UUID.fromString(pf.tail)))(logAt.asEntry))
-    val editable = true /*todo rw rule*/
+    val isConfirmed = entry(logAt.asConfirmed)(nonEmpty)
+    val editable = !isConfirmed /*todo roles*/
 
     val entryIdStr = entry(alien.objIdStr)
 
@@ -401,29 +413,31 @@ class TestComponent(
         flexGrid("flexGridEdit1",List(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
-              flexGridItem("boat1",100,None,boatSelectView(entry)),
+              flexGridItem("boat1",100,None,boatSelectView(entry, editable)),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 durationField(entry,logAt.durationTotal, showLabel = true))))
             ))
           )),
           flexGridItem("2",500,None,List(
-            flexGrid("flexGridEdit12",List(
-              flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,editable = false, showLabel = true)()),
-              flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, editable = false, showLabel = true)),
-              flexGridItem("conf_do",150,None,List(
-                divHeightWrapper("1",72,
-                  divAlignWrapper("1","right","bottom",
+            flexGrid("flexGridEdit12",
+              (if(!isConfirmed) Nil else List(
+                flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,editable = false, showLabel = true)()),
+                flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, editable = false, showLabel = true))
+              )) :::
+              List(
+                flexGridItem("conf_do",150,None,List(
+                  divHeightWrapper("1",72,
+                    divAlignWrapper("1","right","bottom",
+                      if(isConfirmed)
+                        List(btnRaised("reopen","Reopen")(()⇒entry(logAt.confirmedOn)=None))
+                      else
+                        List(btnRaised("confirm","Confirm")(()⇒entry(logAt.confirmedOn)=Option(Instant.now())))
 
-                    if(!entry(nonEmpty)) Nil
-                    else if(entry(logAt.asConfirmed)(nonEmpty))
-                      List(btnRaised("reopen","Reopen")(()⇒entry(logAt.confirmedOn)=None))
-                    else
-                      List(btnRaised("confirm","Confirm")(()⇒entry(logAt.confirmedOn)=Option(Instant.now())))
-
-                  ))
-              ))
-            ))
+                    ))
+                ))
+              )
+            )
           )))
         )
       ))),
@@ -483,7 +497,8 @@ class TestComponent(
     val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(s"/entryEditWorkList/$entryIdStr")
     val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil)
-    paperTable("dtTableEdit2")( controlPanel(Nil,List(btnDelete("1", workList.removeSelected),btnAdd("2", ()⇒workList.add()))),
+    paperTable("dtTableEdit2")(
+      controlPanel(Nil,addRemoveControlView(workList, editable)),
       List(
         row("row",IsHeader)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
@@ -500,7 +515,7 @@ class TestComponent(
         row(workSrcId, toggledSelectedRow(work):_*)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
           mCell("1",50)(_=>
-            booleanField(work, filterAttrs.isSelected, editable)
+            booleanField(work, filterAttrs.isSelected, editable = true)
           ),
           group("2_group",MinWidth(150)),
           mCell("2",100)(showLabel=>
@@ -521,12 +536,14 @@ class TestComponent(
   }
 
   private def boatListView(pf: String) = wrapDBView { () =>
+    val editable = true //todo roles
     val filterObj = filters.filterObj("/boatList")
     val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj, Nil)
     List(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
-      paperTable("table")(controlPanel(Nil,List(btnDelete("1", itemList.removeSelected),btnAdd("2", ()⇒itemList.add()))),
+      paperTable("table")(
+        controlPanel(Nil, addRemoveControlView(itemList, editable)),
         List(
           row("head",IsHeader)(
             group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
@@ -539,9 +556,9 @@ class TestComponent(
           val srcId = boat(alien.objIdStr)
           row(srcId,toggledSelectedRow(boat))(List(
             group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-            mCell("0",50)(_⇒booleanField(boat,filterAttrs.isSelected, editable = true)),
+            mCell("0",50)(_⇒booleanField(boat,filterAttrs.isSelected, editable)),
             group("2_group",MinWidth(50)),
-            mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable = true, showLabel = showLabel))
+            mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable, showLabel = showLabel))
           ))
         }
       )::Nil)
@@ -573,10 +590,11 @@ class TestComponent(
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj("/userList")
     val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj, Nil)
-    val editable = true //todo
+    val editable = true //todo roles
     List(
       toolbar("Users"),
-      paperTable("table")(controlPanel(Nil,List(btnDelete("1", userList.removeSelected),btnAdd("2", ()⇒userList.add()))),
+      paperTable("table")(
+        controlPanel(Nil, addRemoveControlView(userList, editable)),
         row("head",IsHeader)(
           group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
           mCell("0",50)(_⇒selectAllCheckBox(userList)),
@@ -595,7 +613,7 @@ class TestComponent(
             group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
             mCell("0",50)(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
             group("2_grp", MinWidth(150)),
-            mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, editable = true, showLabel = showLabel)),
+            mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, editable, showLabel = showLabel)),
             mCell("2",250)(showLabel=>
               strField(user, userAttrs.username, editable, showLabel)),
             mmCell("3",100,150)(showLabel⇒
@@ -662,8 +680,12 @@ class TestComponent(
     entry(logAt.durationTotal) =
       Option(if(on) was.plus(delta) else was.minus(delta))
   }
-  private def calcConfirmed(on: Boolean, entry: Obj): Unit =
+  private def calcConfirmed(on: Boolean, entry: Obj): Unit = {
     entry(logAt.asConfirmed) = if(on) entry else findNodes.noNode
+    entry(logAt.confirmedBy) =
+      if(on) alien.wrap(eventSource.mainSession)(userAttrs.authenticatedUser)
+      else findNodes.noNode
+  }
   private def calcHandlers() =
     onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
       onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
