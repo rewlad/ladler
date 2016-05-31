@@ -16,7 +16,6 @@ const FieldPopupBox= React.createClass({
         borderColor:"rgb(224,224,224)",
         boxSizing:"content-box",
         margin:"0px",
-
         display:this.props.showUnderscore?"":"none"
       }
       return React.createElement("div",{key:this.props.key,style,ref},[this.props.children,React.createElement("hr",{key:"underscore",style:hrStyle})])
@@ -33,6 +32,7 @@ const FieldPopupDrop = React.createClass({
             display:"inline-block",
             position:"absolute",
             overflow:"hidden",
+            minWidth:"100%",
             //overflowY:"auto",
             padding:"0px 2px 0px 2px",
             top:dropBoxTop===0?"":dropBoxTop+"px",

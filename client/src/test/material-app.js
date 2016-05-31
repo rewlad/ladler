@@ -71,16 +71,37 @@ const DateInput = React.createClass({
 })
 const TimeInput = React.createClass({
     render(){
-        const value=this.props.value? new Date(parseInt(this.props.value,10)):null
+        //const value=this.props.value? new Date(parseInt(this.props.value,10)):null
+        var value=new Date()
+        if(this.props.value){
 
+            const hm=this.props.value.split(":")
+            const h=parseInt(hm[0])
+            const m=parseInt(hm[1])
+            value.setHours(h)
+            value.setMinutes(m)
+        }
+        else value=null
         const onChange=(dummy,value)=>{
-
-            this.props.onChange({target:{value: value.getTime().toString()}})
+            const h=value.getHours()<10?"0"+value.getHours().toString():value.getHours().toString()
+            const m=value.getMinutes()<10?"0"+value.getMinutes().toString():value.getMinutes().toString()
+            this.props.onChange({target:{value: h+":"+m}})
         }
         return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText, errorText: this.props.errorText,
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
 })
+/*
+class DurationInput extends React.Component{
+    constructor(props){
+        super(props)
+    }
+    render(){
+        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText, errorText: this.props.errorText,
+                    format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
+    }
+}
+*/
 class FlexGridItemWidthSync extends React.Component{
     constructor(props){
         super(props)
