@@ -73,7 +73,10 @@ class InstantValueConverter(
 class LocalTimeValueConverter(
   val valueType: AttrValueType[Option[LocalTime]], inner: RawConverter) extends RawValueConverterImpl[Option[LocalTime]] {
   def convertEmpty()=None
-  def convert(valueA: Long, valueB: Long) = Option(LocalTime.ofSecondOfDay(valueA))
+  def convert(valueA: Long, valueB: Long) = {
+    if(valueB != 0L) Never()
+    Option(LocalTime.ofSecondOfDay(valueA))
+  }
   def convert(value: String) = Never()
   def toBytes(preId: ObjId, value: Value, finId: ObjId) =
     if(value.nonEmpty) inner.toBytes(preId, value.get.toSecondOfDay,0L,finId) else Array()
@@ -234,15 +237,15 @@ class TestComponent(
     val vObj = obj(attr)
     val notSelected = "(not selected)"
     val value = if(vObj(nonEmpty)) vObj(at.caption) else ""
-    val txt = textInput("1",visibleLabel,value,_=>{},false)::Nil//List(labeledText("1",visibleLabel,value))
-    if(!editable){ return  txt }
+    if(!editable){ return  List(labeledText("1",visibleLabel,value)) }
     def option(item: Obj, key: VDomKey, caption: String) = divClickable(key,Some{ ()⇒
       obj(attr) = item
       popupOpened = ""
     },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
     val key = s"$objIdStr-${findNodes.toUUIDString(attrFactory.attrId(attr))}"
-    val collapsed = List(divClickable("1",Some(popupToggle(key)),txt:_*))
+    val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false)
+    val collapsed = List(divClickable("1",Some(popupToggle(key)), input))
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
       items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
@@ -462,7 +465,8 @@ class TestComponent(
                       }
                       else {
                         val user = eventSource.mainSession(userAttrs.authenticatedUser)
-                        List(btnRaised("confirm","Confirm"){()⇒
+                        if(!user(nonEmpty)) List(text("1",s"User required"))
+                        else List(btnRaised("confirm","Confirm"){()⇒
                           entry(logAt.confirmedOn) = Option(Instant.now())
                           entry(logAt.confirmedBy) = user
                         })
