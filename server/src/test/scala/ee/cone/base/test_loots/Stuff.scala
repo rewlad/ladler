@@ -179,7 +179,7 @@ class TestComponent(
   private def booleanField(obj: Obj, attr: Attr[Boolean], editable: Boolean): List[ChildPair[OfDiv]] =
     List(checkBox("1", obj(attr), if(editable) obj(attr)=_ else _⇒()))
 
-  private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel:Boolean): List[ChildPair[OfDiv]] = {
+  private def durationField(obj: Obj, attr: Attr[Option[Duration]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr).map(x => x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse("")
     List(labeledText("1",visibleLabel,value))
@@ -374,7 +374,7 @@ class TestComponent(
             group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
             mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false, showLabel)()),
             mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false, showLabel)),
-            mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, showLabel)),
+            mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, editable = false, showLabel)),
             mCell("5",100)(_=>
              {
                 val confirmed = entry(logAt.asConfirmed)
@@ -406,8 +406,13 @@ class TestComponent(
 
     val entryIdStr = entry(alien.objIdStr)
 
+    val fillMore = if(isConfirmed) 0 else
+      (if(!entry(logAt.boat)(nonEmpty)) 1 else 0) +
+      (if(entry(logAt.date).isEmpty) 1 else 0) +
+      fuelingItems.notFilled(entry)
+
     List(
-      toolbar("Boat Edit"),
+      toolbar("Entry Edit"),
       withMaxWidth("1",1200,List(
       paperWithMargin(s"$entryIdStr-1",
         flexGrid("flexGridEdit1",List(
@@ -416,7 +421,7 @@ class TestComponent(
               flexGridItem("boat1",100,None,boatSelectView(entry, editable)),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
-                durationField(entry,logAt.durationTotal, showLabel = true))))
+                durationField(entry,logAt.durationTotal, editable = false, showLabel = true))))
             ))
           )),
           flexGridItem("2",500,None,List(
@@ -430,10 +435,23 @@ class TestComponent(
                   divHeightWrapper("1",72,
                     divAlignWrapper("1","right","bottom",
                       if(isConfirmed)
-                        List(btnRaised("reopen","Reopen")(()⇒entry(logAt.confirmedOn)=None))
-                      else
-                        List(btnRaised("confirm","Confirm")(()⇒entry(logAt.confirmedOn)=Option(Instant.now())))
-
+                        List(btnRaised("reopen","Reopen"){()⇒
+                          entry(logAt.confirmedOn) = None
+                          entry(logAt.confirmedBy) = findNodes.noNode
+                        })
+                      else if(fillMore > 0){
+                        List(text("1",s"Fill $fillMore more to confirm"))
+                      }
+                      else if(!fuelingItems.meHoursIsInc(entry)){
+                        List(text("1",s"ME times shold increase"))
+                      }
+                      else {
+                        val user = eventSource.mainSession(userAttrs.authenticatedUser)
+                        List(btnRaised("confirm","Confirm"){()⇒
+                          entry(logAt.confirmedOn) = Option(Instant.now())
+                          entry(logAt.confirmedBy) = user
+                        })
+                      }
                     ))
                 ))
               )
@@ -442,17 +460,18 @@ class TestComponent(
         )
       ))),
 
-      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, editable))),
+      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, editable, fillMore))),
       withMaxWidth("3",1200,List(entryEditWorkListView(entry, editable)))
     )
   }
 
 
-  def entryEditFuelScheduleView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
+  def entryEditFuelScheduleView(entry: Obj, editable: Boolean, fillMore: Int): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(s"/entry/$entryIdStr")
+    val deferSend = if(fillMore==1) false else true
     def fuelingRowView(time: String, isRF: Boolean) = {
-      val fueling = fuelingItems.fueling(entry, time)
+      val fueling = if(isRF) entry else fuelingItems.fueling(entry, time, wrap=true)
       row(time,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
@@ -460,27 +479,28 @@ class TestComponent(
         ),
         mCell("2",150,1)(showLabel=>
           if(isRF) List(text("1","Received Fuel"))
-          else timeField(fueling, fuelingAttrs.date, editable, showLabel)
+          else text("c",if(fueling(fuelingAttrs.meHours).nonEmpty) "+" else "-" ) ::
+            strField(fueling, fuelingAttrs.meHoursStr, editable, showLabel, deferSend = false)
         ),
         mCell("3",100,1)(showLabel=>
-          strField(fueling, fuelingAttrs.fuel, editable, showLabel)
+          strField(fueling, fuelingAttrs.fuel, editable, showLabel, deferSend)
         ),
         mCell("4",250,3)(showLabel=>
-          strField(fueling, fuelingAttrs.comment, editable, showLabel)
+          strField(fueling, fuelingAttrs.comment, editable, showLabel, deferSend)
         ),
         mCell("5",150,2)(showLabel=>
-          strField(fueling, fuelingAttrs.engineer, editable, showLabel)
+          strField(fueling, fuelingAttrs.engineer, editable, showLabel, deferSend)
         ),
         mCell("6",150,2)(showLabel=>
           if(isRF) Nil
-          else strField(fueling, fuelingAttrs.master, editable, showLabel)
+          else strField(fueling, fuelingAttrs.master, editable, showLabel, deferSend)
         )
       )
     }
     paperTable("dtTableEdit1")(Nil,List(
       row("row",IsHeader)(
         mCell("1",100,3)(_=>List(text("1","Time"))),
-        mCell("2",150,1)(_=>List(text("1",caption(fuelingAttrs.date)))),
+        mCell("2",150,1)(_=>List(text("1",caption(fuelingAttrs.meHours)))),
         mCell("3",100,1)(_=>List(text("1",caption(fuelingAttrs.fuel)))),
         mCell("4",250,3)(_=>List(text("1",caption(fuelingAttrs.comment)))),
         mCell("5",150,2)(_=>List(text("1",caption(fuelingAttrs.engineer)))),
@@ -525,7 +545,7 @@ class TestComponent(
             timeField(work, logAt.workStop, editable, showLabel)
           ),
           mCell("4",150)(showLabel=>
-            durationField(work, logAt.workDuration, showLabel)
+            durationField(work, logAt.workDuration, editable = false, showLabel)
           ),
           mCell("5",250,3)(showLabel=>
             strField(work, logAt.workComment, editable, showLabel)
@@ -682,14 +702,11 @@ class TestComponent(
   }
   private def calcConfirmed(on: Boolean, entry: Obj): Unit = {
     entry(logAt.asConfirmed) = if(on) entry else findNodes.noNode
-    entry(logAt.confirmedBy) =
-      if(on) alien.wrap(eventSource.mainSession)(userAttrs.authenticatedUser)
-      else findNodes.noNode
   }
   private def calcHandlers() =
     onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
-      onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
-      onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn).map(attrFactory.attrId(_)), calcConfirmed)
+    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
+    onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn,logAt.confirmedBy).map(attrFactory.attrId(_)), calcConfirmed)
 
   ////
 
@@ -721,10 +738,10 @@ class TestComponent(
   def handlers =
     List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
     List(
-      logAt.durationTotal, logAt.asConfirmed, logAt.confirmedBy, logAt.workDuration
+      logAt.durationTotal, logAt.asConfirmed, logAt.workDuration
     ).flatMap(factIndex.handlers(_)) :::
     List(
-      logAt.asEntry, logAt.boat, logAt.confirmedOn, logAt.date,
+      logAt.asEntry, logAt.boat, logAt.confirmedOn, logAt.date, logAt.confirmedBy,
       logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
       logAt.asWork, logAt.entryOfWork,
       logAt.workStart, logAt.workStop, logAt.workComment,
@@ -765,11 +782,13 @@ class FuelingAttrs(
   attr: AttrFactory,
   label: LabelFactory,
   asInstant: AttrValueType[Option[Instant]],
-  asString: AttrValueType[String]
+  asString: AttrValueType[String],
+  asDuration: AttrValueType[Option[Duration]]
 )(
   // 00 08 RF 24
   val asFueling: Attr[Obj] = label("8fc310bc-0ae7-4ad7-90f1-2dacdc6811ad"),
-  val date: Attr[Option[Instant]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asInstant),
+  val meHoursStr: Attr[String] = attr("5415aa5e-efec-4f05-95fa-4954fee2dd2e", asString),
+  val meHours: Attr[Option[Duration]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asDuration),
   val fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asString),
   val comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
   val engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
@@ -778,30 +797,59 @@ class FuelingAttrs(
 
 class FuelingItems(
   at: FuelingAttrs,
+  findAttrs: FindAttrs,
   alienAttrs: AlienAccessAttrs,
   filterAttrs: FilterAttrs,
   factIndex: FactIndex,
   searchIndex: SearchIndex,
   alien: Alien,
-  filters: Filters
+  filters: Filters,
+  onUpdate: OnUpdate,
+  attrFactory: AttrFactory
 )(
-  val fuelingByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey)
+  val fuelingByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
+  val times: List[String] = List("00:00","08:00","24:00")
 ) extends CoHandlerProvider {
   def handlers =
-    CoHandler(AttrCaption(at.date))("ME Hours.Min") ::
+    CoHandler(AttrCaption(at.meHours))("ME Hours.Min") ::
     CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::
     CoHandler(AttrCaption(at.comment))("Comment") ::
     CoHandler(AttrCaption(at.engineer))("Engineer") ::
     CoHandler(AttrCaption(at.master))("Master") ::
     searchIndex.handlers(fuelingByFullKey) :::
+    List(at.meHours).flatMap{ attr ⇒ factIndex.handlers(attr) } :::
     List(
-      at.asFueling, at.date, at.fuel, at.comment, at.engineer, at.master
-    ).flatMap{ attr⇒
+      at.asFueling, at.meHoursStr, at.fuel, at.comment, at.engineer, at.master
+    ).flatMap{ attr ⇒
       factIndex.handlers(attr) ::: alien.update(attr)
-    }
-  def fueling(entry: Obj, time: String) =
-    filters.lazyLinkingObj(fuelingByFullKey,s"${entry(alienAttrs.objIdStr)}/$time")
+    } :::
+    onUpdate.handlers(List(at.asFueling,at.meHoursStr).map(attrFactory.attrId(_)), {
+      (on: Boolean, fueling: Obj)⇒
+      fueling(at.meHours) = if(!on) None else {
+        val Time = """(\d+)\:(\d+)""".r
+        fueling(at.meHoursStr) match {
+          case Time(h,m) ⇒ Some(Duration.ofMinutes(Integer.parseUnsignedInt(h)*60+Integer.parseUnsignedInt(m)))
+          case _ ⇒ None
+        }
+      }
+    })
+  def fueling(entry: Obj, time: String, wrap: Boolean) =
+    filters.lazyLinkingObj(fuelingByFullKey,entry,time,wrap)
+  def notFilled(entry: Obj): Int = times.map { time ⇒
+    val obj = fueling(entry, time, wrap = false)
+    (if(obj(at.meHours).isEmpty) 1 else 0) +
+    (if(obj(at.fuel).isEmpty) 1 else 0) +
+    (if(obj(at.engineer).isEmpty) 1 else 0) +
+    (if(obj(at.master).isEmpty) 1 else 0)
+  }.sum
+  def meHoursIsInc(entry: Obj) = {
+    val meHours: List[Duration] =
+      times.flatMap(time ⇒ fueling(entry, time, wrap = false)(at.meHours))
+    meHours.size == times.size && meHours.sliding(2).forall{ case a :: b :: Nil ⇒ a.compareTo(b) <= 0 }
+  }
 }
+
+
 
 
 /*

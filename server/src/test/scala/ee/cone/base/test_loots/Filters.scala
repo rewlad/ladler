@@ -72,15 +72,18 @@ class Filters(
   val filterByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFilter,at.filterFullKey)
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-  def lazyLinkingObj[Value](index: SearchByLabelProp[Value], key: Value): Obj = {
+  def lazyLinkingObj(index: SearchByLabelProp[String], keyObj: Obj, keyStr: String, wrap: Boolean): Obj = {
+    val key = s"${findNodes.toUUIDString(keyObj(nodeAttrs.objId))}$keyStr"
     val obj = findNodes.single(findNodes.where(mainTx(), index, key, Nil))
-    if(obj(findAttrs.nonEmpty)) alien.wrap(obj) else alien.demandedNode { obj ⇒
+    if(!wrap) obj
+    else if(obj(findAttrs.nonEmpty)) alien.wrap(obj)
+    else alien.demandedNode { obj ⇒
       obj(attrFactory.toAttr(index.labelId, index.labelType)) = obj
       obj(attrFactory.toAttr(index.propId, index.propType)) = key
     }
   }
   def filterObj(key: String): Obj =
-    lazyLinkingObj(filterByFullKey, s"${alien.wrap(eventSource.mainSession)(alienAttrs.objIdStr)}$key")
+    lazyLinkingObj(filterByFullKey, alien.wrap(eventSource.mainSession), key, wrap = true)
   def itemList[Value](
     index: SearchByLabelProp[Value],
     parentValue: Value,
