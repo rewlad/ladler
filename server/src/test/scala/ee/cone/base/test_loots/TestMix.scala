@@ -1,7 +1,7 @@
 package ee.cone.base.test_loots
 
 import java.nio.file.Paths
-import java.time.{Duration, Instant}
+import java.time.{LocalTime, Duration, Instant}
 
 import ee.cone.base.connection_api.{WrapType, LifeCycle}
 import ee.cone.base.db._
@@ -33,10 +33,11 @@ class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
   lazy val asInstant = new AttrValueType[Option[Instant]]
   lazy val asDuration = new AttrValueType[Option[Duration]]
+  lazy val asLocalTime = new AttrValueType[Option[LocalTime]]
 
   lazy val testAttributes = new TestAttributes(attrFactory, labelFactory, asString)()
   lazy val logAttributes = new BoatLogEntryAttributes(
-    attrFactory,labelFactory,asDBObj,asString,asInstant,asDuration,asBoolean
+    attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()
   lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl)
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
@@ -49,11 +50,12 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, testAttributes, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alienCanChange, transient, mandatory, unique, onUpdate, filters)()
-  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, asInstant, asString, asDuration)()
+  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, asString, asDuration)()
   lazy val fuelingItems = new FuelingItems(fuelingAttrs, findAttrs, alienAccessAttrs, filterAttrs, factIndex, searchIndex, alienCanChange, filters, onUpdate, attrFactory)()
   //
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
+  lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes)
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes, userAttrs, fuelingAttrs,

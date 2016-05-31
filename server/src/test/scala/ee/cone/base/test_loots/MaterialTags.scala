@@ -1,6 +1,6 @@
 package ee.cone.base.test_loots
 
-import java.time.{ZoneOffset, LocalDateTime, LocalTime, Instant}
+import java.time._
 
 import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.vdom._
@@ -158,6 +158,16 @@ case class DivMinWidth(value:Int) extends VDomValue{
     builder.end()
   }
 }
+case class DivMinHeight(value:Int) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+    builder.append("minHeight").append(s"${value}px")
+    builder.end()
+    builder.end()
+  }
+}
 case class PaddingWrapper(value: Int) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
@@ -305,7 +315,7 @@ case class Divider() extends VDomValue{
     builder.end()
   }
 }
-case class CheckBox(checked:Boolean)(
+case class CheckBox(checked:Boolean,label:String)(
     val onChange: Option[String=>Unit]
 ) extends VDomValue with OnChangeReceiver {
   def appendJson(builder: JsonBuilder)={
@@ -314,6 +324,11 @@ case class CheckBox(checked:Boolean)(
       builder.append("labelPosition").append("left")
       builder.append("onCheck").append("send")
       builder.append("checked").append(checked)
+      builder.append("label").append(label)
+      builder.append("labelStyle").startObject()
+      builder.append("fontSize").append("12")
+      builder.append("color").append("rgba(0,0,0,0.3)")
+      builder.end()
     builder.end()
   }
 }
@@ -454,7 +469,7 @@ class MaterialTags(
       child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
     ))
   def fieldPopupBox(key: VDomKey, showUnderscore:Boolean,chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
-    child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
+    child[OfDiv](key,DivPositionWrapper(Option("inline-block"),Some("100%"),Some("relative"),None),List(
       child[OfDiv](key+"box", FieldPopupBox(showUnderscore), chl1),
       child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
     ))
@@ -462,8 +477,8 @@ class MaterialTags(
     child[OfDiv](key,Divider(),Nil)
   def paper(key: VDomKey, children: ChildPair[OfDiv]*) =
     child[OfDiv](key, Paper(), children.toList)
-  def checkBox(key:VDomKey,checked:Boolean,check:Boolean=>Unit)=
-    child[OfDiv](key,CheckBox(checked)(Some(v⇒check(v.nonEmpty))),Nil)
+  def checkBox(key:VDomKey,label:String,checked:Boolean,check:Boolean=>Unit)=
+    child[OfDiv](key,CheckBox(checked,label)(Some(v⇒check(v.nonEmpty))),Nil)
 
   def iconInput(key: VDomKey,picture:String,focused:Boolean=false)(theChild:ChildPair[OfDiv]*)=
 
@@ -550,6 +565,8 @@ class MaterialTags(
     child[OfDiv](key,DivMaxWidth(value),children)
   def withMinWidth(key:VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,DivMinWidth(value),children)
+  def withMinHeight(key:VDomKey,value:Int,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,DivMinHeight(value),theChild.toList)
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
 
@@ -567,19 +584,39 @@ class MaterialTags(
   private def stringToInstant(value: String): Option[Instant] =
     if(value.nonEmpty) Some(Instant.ofEpochMilli(java.lang.Long.valueOf(value))) else None
 
+  private def localTimeToString(value: Option[LocalTime]):String=
+    value.map(x=>x.getHour().toString+":"+x.getMinute().toString).getOrElse("")
+
+  private def stringToLocalTime(value:String): Option[LocalTime]=
+    if(value.nonEmpty) Some(LocalTime.parse(value)) else None
+
+  private def durationToString(value: Option[Duration]):String=
+
+    value.map(x=>{
+
+      val h=if(x.abs.toHours<10) "0"+x.abs.toHours else x.abs.toHours
+      val m=if(x.abs.minusHours(x.abs.toHours).toMinutes<10) "0"+x.abs.minusHours(x.abs.toHours).toMinutes else x.abs.minusHours(x.abs.toHours).toMinutes
+      h+":"+m
+    }).getOrElse("")
+
+  private def stringToDuration(value:String):Option[Duration]=
+    if(value.nonEmpty) Some(Duration.ofMinutes(java.lang.Long.valueOf(value))) else None
+
   def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit) =
     child[OfDiv](key, InputField("DateInput",value,label, deferSend = false)(inputAttributes,
       instantToString, Some(newValue ⇒ change(stringToInstant(newValue)))), Nil)
-  def timeInput(key:VDomKey, label:String, value:Option[Instant], change:Option[Instant]=>Unit)=
+  def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit)=
     child[OfDiv](key,InputField("TimeInput",value,label, deferSend=false)(inputAttributes,
-      instantToString,Some(newValue=>change(stringToInstant(newValue)))),Nil)
-
+      localTimeToString,Some(newValue=>change(stringToLocalTime(newValue)))),Nil)
+  def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit)=
+    child[OfDiv](key,InputField("TimeInput",value,label,deferSend=false)(inputAttributes,
+      durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)
   def labeledText(key:VDomKey, label:String, content:String) =
     if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)
     else child[OfDiv](key, TextContentElement(content), Nil)
 
-  def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv])=
-    child[OfDiv](key,DivHeightWrapper(height),theChild::Nil)
+  def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,DivHeightWrapper(height),theChild.toList)
   def divEmpty(key:VDomKey)=
     child[OfDiv](key,DivEmpty(),Nil)
   def divBgColorHover(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=

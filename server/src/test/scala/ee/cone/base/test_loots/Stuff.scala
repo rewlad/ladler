@@ -70,6 +70,15 @@ class InstantValueConverter(
     if(value.nonEmpty) inner.toBytes(preId, value.get.getEpochSecond, value.get.getNano, finId) else Array()
 }
 
+class LocalTimeValueConverter(
+  val valueType: AttrValueType[Option[LocalTime]], inner: RawConverter) extends RawValueConverterImpl[Option[LocalTime]] {
+  def convertEmpty()=None
+  def convert(valueA: Long, valueB: Long) = Option(LocalTime.ofSecondOfDay(valueA))
+  def convert(value: String) = Never()
+  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
+    if(value.nonEmpty) inner.toBytes(preId, value.get.toSecondOfDay,0L,finId) else Array()
+}
+
 class TestAttributes(
   attr: AttrFactory,
   label: LabelFactory,
@@ -85,6 +94,7 @@ class BoatLogEntryAttributes(
   asObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   asInstant: AttrValueType[Option[Instant]],
+  asLocalTime: AttrValueType[Option[LocalTime]],
   asDuration: AttrValueType[Option[Duration]],
   asBoolean: AttrValueType[Boolean]
 )(
@@ -101,8 +111,8 @@ class BoatLogEntryAttributes(
   val hideConfirmed: Attr[Boolean] = attr("d49d29e0-d797-413e-afc6-2f62b06840ca", asBoolean),
 
   val asWork: Attr[Obj] = label("5cce1cf2-1793-4e54-8523-c810f7e5637a"),
-  val workStart: Attr[Option[Instant]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", asInstant),
-  val workStop: Attr[Option[Instant]] = attr("5259ef2d-f4de-47b7-bc61-0cfe33cb58d3", asInstant),
+  val workStart: Attr[Option[LocalTime]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", asLocalTime),
+  val workStop: Attr[Option[LocalTime]] = attr("5259ef2d-f4de-47b7-bc61-0cfe33cb58d3", asLocalTime),
   val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", asDuration),
   val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
   val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
@@ -176,13 +186,21 @@ class TestComponent(
     else List(labeledText("1", "******", visibleLabel))
   }
 
-  private def booleanField(obj: Obj, attr: Attr[Boolean], editable: Boolean): List[ChildPair[OfDiv]] =
-    List(checkBox("1", obj(attr), if(editable) obj(attr)=_ else _⇒()))
+  private def booleanField(obj: Obj, attr: Attr[Boolean], editable: Boolean, showLabel:Boolean = false): List[ChildPair[OfDiv]] = {
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
+  }
 
   private def durationField(obj: Obj, attr: Attr[Option[Duration]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val value = obj(attr).map(x => x.abs.toHours+"h:"+x.abs.minusHours(x.abs.toHours).toMinutes.toString+"m").getOrElse("")
-    List(labeledText("1",visibleLabel,value))
+
+    val value = obj(attr).map(x => {
+      val h=if(x.abs.toHours<10) "0"+x.abs.toHours else x.abs.toHours
+      val m=if(x.abs.minusHours(x.abs.toHours).toMinutes<10) "0"+x.abs.minusHours(x.abs.toHours).toMinutes else x.abs.minusHours(x.abs.toHours).toMinutes
+      h+":"+m
+    }).getOrElse("")
+    if(!editable) List(labeledText("1",visibleLabel,value))
+    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_))
   }
 
   private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
@@ -198,16 +216,12 @@ class TestComponent(
     }
   }
 
-  private def timeField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
+  private def timeField(obj: Obj, attr: Attr[Option[LocalTime]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(timeInput("1",visibleLabel,obj(attr),obj(attr)=_))
+    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_))
     else {
-      val dateStr = obj(attr).map{ v ⇒
-        val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
-        val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
-        date.format(formatter)
-      }.getOrElse("")
-      List(labeledText("1", visibleLabel, dateStr))
+      val value = obj(attr).map(v ⇒ s"${v.getHour}:${v.getMinute}").getOrElse("")
+      List(labeledText("1", visibleLabel, value))
     }
   }
 
@@ -219,21 +233,20 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val vObj = obj(attr)
     val notSelected = "(not selected)"
-    val value = if(vObj(nonEmpty)) vObj(at.caption) else notSelected
-    val txt = List(labeledText("1",visibleLabel,value))
+    val value = if(vObj(nonEmpty)) vObj(at.caption) else ""
+    val txt = textInput("1",visibleLabel,value,_=>{},false)::Nil//List(labeledText("1",visibleLabel,value))
     if(!editable){ return  txt }
     def option(item: Obj, key: VDomKey, caption: String) = divClickable(key,Some{ ()⇒
       obj(attr) = item
       popupOpened = ""
-    },divNoWrap("1",text("1",caption)))
+    },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
     val key = s"$objIdStr-${findNodes.toUUIDString(attrFactory.attrId(attr))}"
     val collapsed = List(divClickable("1",Some(popupToggle(key)),txt:_*))
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
       items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
-    List(fieldPopupBox("1",showUnderscore = true,collapsed,
-      if(rows.isEmpty) Nil else withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,rows:_*)))::Nil
+    List(fieldPopupBox("1",showUnderscore = true,collapsed,rows
     ))
   }
 /*
@@ -296,7 +309,7 @@ class TestComponent(
   }
 
   def selectAllCheckBox(itemList: ItemList) = List(
-    checkBox("1",
+    checkBox("1","",
       itemList.filter(filterAttrs.selectedItems).nonEmpty,
       on ⇒
         if(on) itemList.selectAllListed()
@@ -347,7 +360,9 @@ class TestComponent(
             flexGridItem("1a",150,Some(200), boatSelectView(filterObj, editable = true)),
             flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, editable = true, showLabel = true)),
             flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, editable = true, showLabel = true)),
-            flexGridItem("4a",150,Some(200), booleanField(filterObj, logAt.hideConfirmed, editable = true))
+            flexGridItem("4a",150,Some(200), divHeightWrapper("1",72,
+              divAlignWrapper("1","","bottom",withMargin("1",10,booleanField(filterObj, logAt.hideConfirmed, editable = true,showLabel = true))::Nil)
+            )::Nil)
           ))),
           addRemoveControlView(itemList, editable)
         ),
@@ -421,7 +436,7 @@ class TestComponent(
               flexGridItem("boat1",100,None,boatSelectView(entry, editable)),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
-                durationField(entry,logAt.durationTotal, editable = false, showLabel = true))))
+              durationField(entry,logAt.durationTotal, editable = false, showLabel = true))))
             ))
           )),
           flexGridItem("2",500,None,List(
@@ -587,7 +602,7 @@ class TestComponent(
   private def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
     divSimpleWrapper("tableControl",
 
-        divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,List()),
+        divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,withMinHeight("1",48,List():_*)::Nil),
         divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1),
         divWrapper("3",None,None,None,None,Some("right"),None,chld2)
     )::Nil
@@ -781,7 +796,6 @@ class TestComponent(
 class FuelingAttrs(
   attr: AttrFactory,
   label: LabelFactory,
-  asInstant: AttrValueType[Option[Instant]],
   asString: AttrValueType[String],
   asDuration: AttrValueType[Option[Duration]]
 )(
