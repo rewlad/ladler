@@ -265,7 +265,7 @@ case class DivEmpty() extends VDomValue{
     builder.end()
   }
 }
-case class InputField[Value](tp: String, value: Value, label: String,deferSend: Boolean,isPassword:Boolean=false)(
+case class InputField[Value](tp: String, value: Value, alignRight:Boolean,label: String,deferSend: Boolean,isPassword:Boolean=false)(
   input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
 ) extends VDomValue with OnChangeReceiver {
   def appendJson(builder: JsonBuilder) = {
@@ -281,6 +281,11 @@ case class InputField[Value](tp: String, value: Value, label: String,deferSend: 
     builder.append("style"); {
       builder.startObject()
       builder.append("width").append("100%")
+      builder.end()
+    }
+    if(alignRight) {
+      builder.append("inputStyle").startObject()
+        builder.append("textAlign").append("right")
       builder.end()
     }
     builder.end()
@@ -438,14 +443,25 @@ case class DivBgColorHover(color:Color) extends VDomValue{
     builder.append("hoverColor").append(color.color)
     builder.end()
   }
-
+}
+case class DivBgColor(color:Color) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+    builder.append("backgroundColor").append(color.color)
+    builder.end()
+    builder.end()
+  }
 }
 trait Color{
   def color:String
 }
 case object MenuItemHoverColor extends Color{
   def color="rgba(0,0,0,0.1)"
-
+}
+case object ControlPanelColor extends Color{
+  def color="rgba(0,0,0,0.1)"
 }
 
   /*
@@ -571,11 +587,11 @@ class MaterialTags(
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
 
   def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean) =
-    child[OfDiv](key, InputField("TextField",value, label, deferSend)
+    child[OfDiv](key, InputField("TextField",value, alignRight = true,label, deferSend,isPassword = false)
       (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
   def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean) =
-    child[OfDiv](key, InputField("TextField",value, label, deferSend,isPassword = true)
+    child[OfDiv](key, InputField("TextField",value, alignRight = false,label, deferSend,isPassword = true)
     (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
   private def instantToString(value: Option[Instant]): String =
@@ -600,16 +616,23 @@ class MaterialTags(
     }).getOrElse("")
 
   private def stringToDuration(value:String):Option[Duration]=
-    if(value.nonEmpty) Some(Duration.ofMinutes(java.lang.Long.valueOf(value))) else None
+    if(value.nonEmpty) {
+      val hm=value.split(":")
+      val h=hm(0)
+      val m=hm(1)
+
+      Some(Duration.ofMinutes(h.toLong*60+m.toLong))
+
+    } else None
 
   def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit) =
-    child[OfDiv](key, InputField("DateInput",value,label, deferSend = false)(inputAttributes,
+    child[OfDiv](key, InputField("DateInput",value,alignRight = false,label, deferSend = false,isPassword = false)(inputAttributes,
       instantToString, Some(newValue ⇒ change(stringToInstant(newValue)))), Nil)
   def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit)=
-    child[OfDiv](key,InputField("TimeInput",value,label, deferSend=false)(inputAttributes,
+    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,isPassword = false)(inputAttributes,
       localTimeToString,Some(newValue=>change(stringToLocalTime(newValue)))),Nil)
   def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit)=
-    child[OfDiv](key,InputField("TimeInput",value,label,deferSend=false)(inputAttributes,
+    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,isPassword = false)(inputAttributes,
       durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)
   def labeledText(key:VDomKey, label:String, content:String) =
     if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)
@@ -621,5 +644,7 @@ class MaterialTags(
     child[OfDiv](key,DivEmpty(),Nil)
   def divBgColorHover(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivBgColorHover(color),theChild.toList)
+  def withBgColor(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,DivBgColor(color),theChild.toList)
 }
 

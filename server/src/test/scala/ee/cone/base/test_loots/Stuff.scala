@@ -350,7 +350,7 @@ class TestComponent(
       toolbar("Entry List"),
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(controlPanel(List(
         flexGrid("controlGrid1",List(
-          flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
+          flexGridItem("1a",150,Some(200), boatSelectView(filterObj,editable =true )),
           flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, editable = true, showLabel = true)),
           flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, editable = true, showLabel = true)),
           flexGridItem("4a",150,Some(200), divHeightWrapper("1",72,
@@ -400,8 +400,8 @@ class TestComponent(
   }}
   // currentVDom.invalidate() ?
 
-  private def boatSelectView(obj: Obj) =
-    objField(obj,logAt.boat,editable = true,showLabel = true)(()⇒
+  private def boatSelectView(obj: Obj,editable:Boolean) =
+    objField(obj,logAt.boat,editable,showLabel = true)(()⇒
       filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil).list
     )
 
@@ -418,7 +418,7 @@ class TestComponent(
         flexGrid("flexGridEdit1",List(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
-              flexGridItem("boat1",100,None,boatSelectView(entry)),
+              flexGridItem("boat1",100,None,boatSelectView(entry,editable)),
               flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 durationField(entry,logAt.durationTotal,editable=false, showLabel = true))))
@@ -565,13 +565,12 @@ class TestComponent(
     )
   }
   private def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
-    divSimpleWrapper("tableControl",
+    divSimpleWrapper("tableControl",paper("1",
 
         divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,withMinHeight("1",48,List():_*)::Nil),
         divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1),
         divWrapper("3",None,None,None,None,Some("right"),None,chld2)
-    )::Nil
-
+    ))::Nil
   }
   //// users
   private def loginView() = {
