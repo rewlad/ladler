@@ -39,6 +39,8 @@ trait ItemList {
   def selectAllListed(): Unit
   def removeSelected(): Unit
   def orderByAction(attr: Attr[_]): (Option[()⇒Unit],Option[Boolean])
+  def isEditing(item: Obj): Boolean
+  def startEditing(item: Obj): Unit
 }
 
 class ObjIdSetValueConverter(
@@ -69,7 +71,8 @@ class Filters(
   searchIndex: SearchIndex,
   transient: Transient
 )(
-  val filterByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFilter,at.filterFullKey)
+  val filterByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFilter,at.filterFullKey),
+  var editing: Obj = findNodes.noNode
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   def lazyLinkingObj(index: SearchByLabelProp[String], keyObj: Obj, keyStr: String, wrap: Boolean): Obj = {
@@ -88,7 +91,8 @@ class Filters(
     index: SearchByLabelProp[Value],
     parentValue: Value,
     filterObj: Obj,
-    filters: List[Obj⇒Boolean]
+    filters: List[Obj⇒Boolean],
+    editable: Boolean
   ): ItemList = {
     val selectedSet = filterObj(at.selectedItems)
     val parentAttr = attrFactory.toAttr(index.propId, index.propType)
@@ -145,6 +149,12 @@ class Filters(
           if(sortDirection != newDir) filterObj(at.orderDirection) = newDir
         }
         (act, if(isCurrentAttr) Some(sortDirection) else None)
+      }
+      def isEditing(item: Obj) =
+        editable && item(nodeAttrs.objId) == editing(nodeAttrs.objId)
+      def startEditing(item: Obj) = {
+        editing = item
+        item(at.isExpanded) = true
       }
     }
   }

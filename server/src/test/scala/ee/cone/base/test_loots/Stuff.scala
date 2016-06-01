@@ -332,9 +332,23 @@ class TestComponent(
     else List(divClickable("1",action,text("2", icon),txt))
   }
 
-  private def addRemoveControlView(itemList: ItemList, editable: Boolean) =
+  private def addRemoveControlView(itemList: ItemList, editable: Boolean)(add: ()⇒Unit) =
     if(editable) List(btnDelete("btnDelete", itemList.removeSelected),btnAdd("btnAdd", ()⇒itemList.add()))
     else Nil
+
+
+  private def iconCellGroup(key: VDomKey)(content: Boolean⇒List[ChildPair[OfDiv]]) = List(
+    group(s"${key}_grp", MinWidth(50), MaxWidth(50), Priority(1), TextAlignCenter),
+    mCell(key, 50)(content)
+  )
+
+  private def selectAllGroup(itemList: ItemList) =
+    iconCellGroup("selected")(_⇒selectAllCheckBox(itemList))
+  private def selectRowGroup(item: Obj) =
+    iconCellGroup("selected")(_⇒booleanField(item, filterAttrs.isSelected, editable = true))
+  private def editAllGroup() = iconCellGroup("edit")(_⇒Nil)
+  private def editRowGroup(on: Boolean)(action: ()⇒Unit) =
+    iconCellGroup("edit")(_⇒if(on) List(btnCreate("btnCreate",action)) else Nil)
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
@@ -355,6 +369,7 @@ class TestComponent(
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList)
+    val go = (entry: Obj) ⇒ currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
     List( //class LootsBoatLogList
       toolbar("Entry List"),
 
@@ -368,45 +383,45 @@ class TestComponent(
               divAlignWrapper("1","","bottom",withMargin("1",10,booleanField(filterObj, logAt.hideConfirmed, editable = true,showLabel = true))::Nil)
             )::Nil)
           ))),
-          addRemoveControlView(itemList, editable)
+          addRemoveControlView(itemList, editable)(() ⇒ go(itemList.add()))
         ),
         List(
-          row("row",MaxVisibleLines(2),IsHeader)(
-            group("1_grp",MinWidth(50),MaxWidth(50),Priority(0),TextAlignCenter),
-            mCell("1",50)(_=> selectAllCheckBox(itemList)),
-            group("2_grp",MinWidth(150),Priority(3),TextAlignCenter),
-            mCell("2",100)(_=>sortingHeader(itemList,logAt.boat)),
-            mCell("3",150)(_=>sortingHeader(itemList,logAt.date)),
-            mCell("4",180)(_=>sortingHeader(itemList,logAt.durationTotal)),
-            mCell("5",100)(_=>sortingHeader(itemList,logAt.asConfirmed)),
-            mCell("6",150)(_=>sortingHeader(itemList,logAt.confirmedBy)),
-            mCell("7",150)(_=>sortingHeader(itemList,logAt.confirmedOn)),
-            mcCell("8",100,0)(_=>Nil)
+          row("row",List(MaxVisibleLines(2),IsHeader))(
+            selectAllGroup(itemList) :::
+            List(
+              group("2_grp",MinWidth(150),Priority(3),TextAlignCenter),
+              mCell("2",100)(_=>sortingHeader(itemList,logAt.boat)),
+              mCell("3",150)(_=>sortingHeader(itemList,logAt.date)),
+              mCell("4",180)(_=>sortingHeader(itemList,logAt.durationTotal)),
+              mCell("5",100)(_=>sortingHeader(itemList,logAt.asConfirmed)),
+              mCell("6",150)(_=>sortingHeader(itemList,logAt.confirmedBy)),
+              mCell("7",150)(_=>sortingHeader(itemList,logAt.confirmedOn))
+            ) :::
+            editAllGroup()
           )
         ) :::
         itemList.list.map{ (entry:Obj)=>
           val entrySrcId = entry(alien.objIdStr)
-          val go = Some(()⇒ currentVDom.relocate(s"/entryEdit/$entrySrcId"))
-          row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry))(List(
-            group("1_grp", MinWidth(50),MaxWidth(50), Priority(1),TextAlignCenter),
-            mCell("1", 50)(_=>booleanField(entry, filterAttrs.isSelected, editable = true)),
-            group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
-            mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false, showLabel)()),
-            mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false, showLabel)),
-            mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, editable = false, showLabel)),
-            mCell("5",100)(_=>
-             {
-                val confirmed = entry(logAt.asConfirmed)
-                if(confirmed(nonEmpty))
-                  List(materialChip("1","CONFIRMED"))
-                else Nil
-             }
-            ),
-            mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false, showLabel)()),
-            mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false, showLabel)),
-            mcCell("8",100,0)(_=>btnCreate("btn2",go.get)::Nil
-            )
-          ))
+          row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry))(
+            selectRowGroup(entry) :::
+            List(
+              group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
+              mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false, showLabel)()),
+              mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false, showLabel)),
+              mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, editable = false, showLabel)),
+              mCell("5",100)(_=>
+               {
+                  val confirmed = entry(logAt.asConfirmed)
+                  if(confirmed(nonEmpty))
+                    List(materialChip("1","CONFIRMED"))
+                  else Nil
+               }
+              ),
+              mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false, showLabel)()),
+              mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false, showLabel))
+            ) :::
+            editRowGroup(on=true)(()⇒go(entry))
+          )
         }
       )))
     )
@@ -538,37 +553,37 @@ class TestComponent(
     val filterObj = filters.filterObj(s"/entryEditWorkList/$entryIdStr")
     val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil)
     paperTable("dtTableEdit2")(
-      controlPanel(Nil,addRemoveControlView(workList, editable)),
+      controlPanel(Nil,addRemoveControlView(workList, editable)(()⇒workList.add())),
       List(
-        row("row",IsHeader)(
-          group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-          mCell("1",50)(_=>selectAllCheckBox(workList)),
-          group("2_group",MinWidth(150)),
-          mCell("2",100)(_=>sortingHeader(workList,logAt.workStart)),
-          mCell("3",100)(_=>sortingHeader(workList,logAt.workStop)),
-          mCell("4",150)(_=>sortingHeader(workList,logAt.workDuration)),
-          mCell("5",250,3)(_=>sortingHeader(workList,logAt.workComment))
+        row("row",List(IsHeader))(
+          selectAllGroup(workList) :::
+          List(
+            group("2_group",MinWidth(150)),
+            mCell("2",100)(_=>sortingHeader(workList,logAt.workStart)),
+            mCell("3",100)(_=>sortingHeader(workList,logAt.workStop)),
+            mCell("4",150)(_=>sortingHeader(workList,logAt.workDuration)),
+            mCell("5",250,3)(_=>sortingHeader(workList,logAt.workComment))
+          )
         )
       ) :::
       workList.list.map { (work: Obj) =>
         val workSrcId = work(alien.objIdStr)
-        row(workSrcId, toggledSelectedRow(work):_*)(
-          group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-          mCell("1",50)(_=>
-            booleanField(work, filterAttrs.isSelected, editable = true)
-          ),
-          group("2_group",MinWidth(150)),
-          mCell("2",100)(showLabel=>
-            timeField(work, logAt.workStart, editable, showLabel)
-          ),
-          mCell("3",100)(showLabel=>
-            timeField(work, logAt.workStop, editable, showLabel)
-          ),
-          mCell("4",150)(showLabel=>
-            durationField(work, logAt.workDuration, editable = false, showLabel)
-          ),
-          mCell("5",250,3)(showLabel=>
-            strField(work, logAt.workComment, editable, showLabel)
+        row(workSrcId, toggledSelectedRow(work))(
+          selectRowGroup(work) :::
+          List(
+            group("2_group",MinWidth(150)),
+            mCell("2",100)(showLabel=>
+              timeField(work, logAt.workStart, editable, showLabel)
+            ),
+            mCell("3",100)(showLabel=>
+              timeField(work, logAt.workStop, editable, showLabel)
+            ),
+            mCell("4",150)(showLabel=>
+              durationField(work, logAt.workDuration, editable = false, showLabel)
+            ),
+            mCell("5",250,3)(showLabel=>
+              strField(work, logAt.workComment, editable, showLabel)
+            )
           )
         )
       }
@@ -583,23 +598,25 @@ class TestComponent(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
       paperTable("table")(
-        controlPanel(Nil, addRemoveControlView(itemList, editable)),
+        controlPanel(Nil, addRemoveControlView(itemList, editable)(()⇒itemList.add())),
         List(
-          row("head",IsHeader)(
-            group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-            mCell("0",50)(_⇒selectAllCheckBox(itemList)),
-            group("2_group",MinWidth(50)),
-            mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
+          row("head",List(IsHeader))(
+            selectAllGroup(itemList) :::
+            List(
+              group("2_group",MinWidth(50)),
+              mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
+            )
           )
         ) :::
         itemList.list.map{boat ⇒
           val srcId = boat(alien.objIdStr)
-          row(srcId,toggledSelectedRow(boat))(List(
-            group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
-            mCell("0",50)(_⇒booleanField(boat,filterAttrs.isSelected, editable)),
-            group("2_group",MinWidth(50)),
-            mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable, showLabel = showLabel))
-          ))
+          row(srcId,toggledSelectedRow(boat))(
+            selectRowGroup(boat) :::
+            List(
+              group("2_group",MinWidth(50)),
+              mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable, showLabel = showLabel))
+            )
+          )
         }
       )::Nil)
     )
@@ -626,58 +643,76 @@ class TestComponent(
 
   }
 
+
+
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj("/userList")
     val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj, Nil)
-    val editable = true //todo roles
+    val editableList = true //todo roles
+    val showPasswordCols = filters.editing(userAttrs.asUser)(nonEmpty)
     List(
       toolbar("Users"),
       paperTable("table")(
-        controlPanel(Nil, addRemoveControlView(userList, editable)),
-        row("head",IsHeader)(
-          group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
-          mCell("0",50)(_⇒selectAllCheckBox(userList)),
-          group("2_grp", MinWidth(150)),
-          mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
-          mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
-          mCell("3",250)(_⇒sortingHeader(userList,userAttrs.asActiveUser)),
-          group("3_grp",MinWidth(300)),
-          mCell("4",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
-          mCell("5",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
-          mCell("6",250)(_⇒Nil)
+        controlPanel(Nil, addRemoveControlView(userList, editableList)(()⇒userList.add())),
+        row("head",List(IsHeader))(
+          selectAllGroup(userList) :::
+          List(
+            group("2_grp", MinWidth(300)),
+            mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
+            mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
+            mCell("3",250)(_⇒sortingHeader(userList,userAttrs.asActiveUser))
+          ) :::
+          (if(showPasswordCols) List(
+            group("3_grp",MinWidth(150)),
+            mCell("4",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
+            mCell("5",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
+            mCell("6",250)(_⇒Nil)
+          ) else Nil) :::
+          editAllGroup()
         ) ::
         userList.list.map{ user ⇒
           val srcId = user(alien.objIdStr)
-          row(srcId,toggledSelectedRow(user))(List(
-            group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
-            mCell("0",50)(_⇒booleanField(user,filterAttrs.isSelected, editable = true)),
-            group("2_grp", MinWidth(150)),
-            mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, editable, showLabel = showLabel)),
-            mCell("2",250)(showLabel=>
-              strField(user, userAttrs.username, editable, showLabel)),
-            mmCell("3",100,150)(showLabel⇒
-              if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil),
-            group("3_grp",MinWidth(300)),
-            mCell("4",250)(showLabel=>if(user(filterAttrs.isExpanded))
-                strPassField(user, userAttrs.unEncryptedPassword, editable, showLabel)
-              else Nil),
-            mCell("5",250)(showLabel=>if(user(filterAttrs.isExpanded))
-                strPassField(user, userAttrs.unEncryptedPasswordAgain, editable, showLabel, deferSend = false)
-              else Nil),
-            mCell("6",250)(_=>if(user(filterAttrs.isExpanded))
-                users.changePasswordAction(user).map(action⇒
-                  btnRaised("doChange","Change Password"){()⇒
-                    action()
-                    user(filterAttrs.isExpanded) = false
-                  }
+          val editable = userList.isEditing(user)
+          row(srcId,toggledSelectedRow(user))(
+            selectRowGroup(user) :::
+            List(
+              group("2_grp", MinWidth(300)),
+              mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, editable, showLabel = showLabel)),
+              mCell("2",250)(showLabel=>
+                strField(user, userAttrs.username, editable, showLabel)),
+              mmCell("3",100,150)(showLabel⇒
+                if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil
+              )
+            ) :::
+            (if(showPasswordCols) List(
+              group("3_grp",MinWidth(150)),
+              mCell("4",150)(showLabel=>
+                  strPassField(user, userAttrs.unEncryptedPassword, editable, showLabel)
+              ),
+              mCell("5",150)(showLabel=>
+                  strPassField(user, userAttrs.unEncryptedPasswordAgain, editable, showLabel, deferSend = false)
+              ),
+              mCell("6",150) { _ =>
+                users.changePasswordAction(user).map(
+                  action ⇒
+                    btnRaised("doChange", "Change Password") { () ⇒
+                      action()
+                      editing = findNodes.noNode
+                    }
                 ).toList
-            else Nil
-            )
-          ))
+              }
+            ) else Nil) :::
+            editRowGroup(editableList && !editable){ () ⇒
+              editing = user
+              user(filterAttrs.isExpanded) = true
+            }
+          )
         }
       )
     )
   }
+
+
 
   //// events
   private def eventListView(pf: String) = wrapDBView { () =>
