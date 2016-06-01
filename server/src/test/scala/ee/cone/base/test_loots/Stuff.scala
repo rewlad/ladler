@@ -10,7 +10,7 @@ import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.{Bytes, Never}
-import ee.cone.base.vdom.Types.VDomKey
+import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom._
 
 import scala.collection.mutable
@@ -279,7 +279,7 @@ class TestComponent(
     }
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]*) =
-    withMargin(key, 10, paper("paper", withPadding(key, 10, child:_*)))
+    withMargin(key, 10, paper("paper")( withPadding(key, 10, child:_*)))
 
   def toggledSelectedRow(item: Obj) = List(
     Toggled(item(filterAttrs.isExpanded))(Some(()=>item(filterAttrs.isExpanded)=true)),
@@ -320,16 +320,16 @@ class TestComponent(
     )
   )
 
-  def sortingHeader(itemList: ItemList, attr: Attr[_]) = {
+  def sortingHeader(itemList: ItemList, attr: Attr[_]):List[ChildPair[OfDiv]] = {
     val (action,reversed) = itemList.orderByAction(attr)
-    val txt = text("1",caption(attr))
+    val txt = text("1",caption(attr))::Nil
     val icon = reversed match {
-      case None ⇒ "."
-      case Some(false) ⇒ "⏶"
-      case Some(true) ⇒ "⏷"
+      case None ⇒ List()
+      case Some(false) ⇒ iconArrowDown()::Nil
+      case Some(true) ⇒ iconArrowUp()::Nil
     }
-    if(action.isEmpty) List(txt)
-    else List(divClickable("1",action,text("2", icon),txt))
+    if(action.isEmpty) List(txt:_*)
+    else List(divClickable("1",action,icon:::txt:_*))
   }
 
   private def addRemoveControlView(itemList: ItemList, editable: Boolean) =
@@ -359,7 +359,7 @@ class TestComponent(
       toolbar("Entry List"),
 
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
-        controlPanel(
+        controlPanel(inset = true)(
           List(flexGrid("controlGrid1",List(
             flexGridItem("1a",150,Some(200), boatSelectView(filterObj, editable = true)),
             flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, editable = true, showLabel = true)),
@@ -538,7 +538,7 @@ class TestComponent(
     val filterObj = filters.filterObj(s"/entryEditWorkList/$entryIdStr")
     val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil)
     paperTable("dtTableEdit2")(
-      controlPanel(Nil,addRemoveControlView(workList, editable)),
+      controlPanel(inset = false)(Nil,addRemoveControlView(workList, editable)),
       List(
         row("row",IsHeader)(
           group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
@@ -583,7 +583,7 @@ class TestComponent(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
       paperTable("table")(
-        controlPanel(Nil, addRemoveControlView(itemList, editable)),
+        controlPanel(inset = false)(Nil, addRemoveControlView(itemList, editable)),
         List(
           row("head",IsHeader)(
             group("1_group",MinWidth(50),MaxWidth(50),Priority(0)),
@@ -604,13 +604,14 @@ class TestComponent(
       )::Nil)
     )
   }
-  private def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
-    divSimpleWrapper("tableControl",paper("1",
-
-        divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,withMinHeight("1",48,List():_*)::Nil),
-        divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1),
-        divWrapper("3",None,None,None,None,Some("right"),None,chld2)
-    ))::Nil
+  private def controlPanel(inset:Boolean)(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
+    val _content=withPadding("1",5,withSidePadding("1",8,
+      divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,withMinHeight("1",48,List():_*)::Nil)::
+        divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1)::
+        divWrapper("3",None,None,None,None,Some("right"),None,chld2)::Nil
+    ))
+    if(inset) divSimpleWrapper("tableControl",paper("1",inset)(_content))::Nil
+    else divSimpleWrapper("tableControl",_content)::Nil
   }
   //// users
   private def loginView() = {
@@ -633,7 +634,7 @@ class TestComponent(
     List(
       toolbar("Users"),
       paperTable("table")(
-        controlPanel(Nil, addRemoveControlView(userList, editable)),
+        controlPanel(inset = false)(Nil, addRemoveControlView(userList, editable)),
         row("head",IsHeader)(
           group("1_grp", MinWidth(50),MaxWidth(50), Priority(1)),
           mCell("0",50)(_⇒selectAllCheckBox(userList)),
@@ -737,10 +738,7 @@ class TestComponent(
 
   private def toolbar(title:String): ChildPair[OfDiv] =
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
-      divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
-        divAlignWrapper("1","left","middle",text("title",title)::Nil)::Nil
-      ),
-      divWrapper("2",None,None,None,None,Some("right"),None,
+      divWrapper("menu",None,None,None,None,Some("left"),None,
         fieldPopupBox("menu",
           List(btnMenu("menu",popupToggle("navMenu"))),
           if(popupOpened!="navMenu") Nil else List(
@@ -748,7 +746,12 @@ class TestComponent(
             menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
             menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
           )
-        ) ::
+        ) ::Nil
+      ),
+      divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
+        divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil)::Nil
+      ),
+      divWrapper("2",None,None,None,None,Some("right"),None,
         eventToolbarButtons()
       )
     )))

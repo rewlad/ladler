@@ -30,6 +30,8 @@ import IconSocialPerson  from 'material-ui/lib/svg-icons/social/person'
 import IconMenu          from 'material-ui/lib/menus/icon-menu'
 import MenuItem          from 'material-ui/lib/menus/menu-item'
 import IconNavigationMenu from 'material-ui/lib/svg-icons/navigation/menu'
+import IconNavigationDropDown from 'material-ui/lib/svg-icons/navigation/arrow-drop-down'
+import IconNavigationDropUp from 'material-ui/lib/svg-icons/navigation/arrow-drop-up'
 import TextField         from 'material-ui/lib/TextField/TextField'
 import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 import Checkbox          from 'material-ui/lib/checkbox'
@@ -55,7 +57,7 @@ const DateInput = React.createClass({
             floatingLabelText: this.props.floatingLabelText,
             errorText: this.props.errorText,
             //container: 'inline',
-            //locale: "ee",
+            locale: "et-EE",
             //mode:"landscape",
             disabled:this.props.disabled,
             DateTimeFormat: global.Intl.DateTimeFormat,
@@ -288,7 +290,8 @@ const tp = ({
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
     IconActionRestore,IconContentSave,//,SelectField
-    IconMenuButton,MenuItem,IconNavigationMenu,CursorOver
+    IconMenuButton,MenuItem,IconNavigationMenu,CursorOver,
+    IconNavigationDropDown,IconNavigationDropUp
 })
 
 const transforms = ({tp})

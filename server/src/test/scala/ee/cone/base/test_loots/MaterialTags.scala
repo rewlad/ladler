@@ -14,6 +14,22 @@ case class Paper() extends VDomValue {
   }
 }
 
+case class InsetPaper() extends VDomValue{
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+      builder.append("backgroundColor").append("rgb(255,255,255)")
+      builder.append("transition").append("all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms")
+      builder.append("boxSizing").append("border-box")
+      builder.append("fontFamily").append("Roboto,sans-serif")
+      builder.append("borderRadius").append("2px")
+      builder.append("boxShadow").append("0px 1px 6px rgba(0, 0, 0, 0.12) inset, 0px 1px 4px rgba(0, 0, 0, 0.12) inset")
+    builder.end()
+    builder.end()
+  }
+}
+
 case class Table() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
@@ -491,8 +507,12 @@ class MaterialTags(
     ))
   def divider(key:VDomKey)=
     child[OfDiv](key,Divider(),Nil)
-  def paper(key: VDomKey, children: ChildPair[OfDiv]*) =
+  def paper(key: VDomKey, inset: Boolean=false)(children: ChildPair[OfDiv]*) =
+    if(inset)
+      child[OfDiv](key,InsetPaper(),children.toList)
+    else
     child[OfDiv](key, Paper(), children.toList)
+
   def checkBox(key:VDomKey,label:String,checked:Boolean,check:Boolean=>Unit)=
     child[OfDiv](key,CheckBox(checked,label)(Some(v⇒check(v.nonEmpty))),Nil)
 
@@ -528,6 +548,10 @@ class MaterialTags(
       IconButton(tooltip)(Some(action)),
       child("icon", SVGIcon(picture), Nil) :: Nil
     )
+  def iconArrowUp()=
+    child[OfDiv]("icon",SVGIcon("IconNavigationDropDown"),Nil)
+  def iconArrowDown()=
+    child[OfDiv]("icon",SVGIcon("IconNavigationDropUp"),Nil)
   //def btnViewList(key:VDomKey, action: ()=>Unit) =
   //  iconButton(key,"view list","IconActionViewList",action)
   def btnSave(key:VDomKey, action: ()=>Unit) =
