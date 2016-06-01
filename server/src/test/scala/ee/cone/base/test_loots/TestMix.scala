@@ -50,8 +50,8 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, testAttributes, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alienCanChange, transient, mandatory, unique, onUpdate, filters)()
-  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, asDuration, asString)()
-  lazy val fuelingItems = new FuelingItems(fuelingAttrs, alienAccessAttrs, filterAttrs, factIndex, searchIndex, alienCanChange, filters)()
+  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, asString, asDuration)()
+  lazy val fuelingItems = new FuelingItems(fuelingAttrs, findAttrs, alienAccessAttrs, filterAttrs, factIndex, searchIndex, alienCanChange, filters, onUpdate, attrFactory)()
   //
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)

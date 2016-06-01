@@ -55,6 +55,9 @@ class ExecutionManagerImpl(threadCount: Int) extends ExecutionManager {
           e.printStackTrace()
           connection.handlerLists.list(FailEventKey).foreach(_(e))
           throw e
+        case e: Throwable ⇒
+          e.printStackTrace()
+          throw e
       }
     } finally lifeCycle.close()
   }
