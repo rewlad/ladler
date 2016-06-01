@@ -357,6 +357,7 @@ class TestComponent(
     val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList)
     List( //class LootsBoatLogList
       toolbar("Entry List"),
+
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
         controlPanel(
           List(flexGrid("controlGrid1",List(
@@ -604,13 +605,12 @@ class TestComponent(
     )
   }
   private def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
-    divSimpleWrapper("tableControl",
+    divSimpleWrapper("tableControl",paper("1",
 
         divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,withMinHeight("1",48,List():_*)::Nil),
         divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1),
         divWrapper("3",None,None,None,None,Some("right"),None,chld2)
-    )::Nil
-
+    ))::Nil
   }
   //// users
   private def loginView() = {
