@@ -23,12 +23,12 @@ trait ObjIdFactory {
   def toObjId(hiObjId: Long, loObjId: Long): ObjId
   def toObjId(uuid: UUID): ObjId
   def toObjId(uuid: String): ObjId
+  def compose(objIds: List[ObjId]): ObjId
 }
 
 trait AttrFactory {
   def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V]
   def define[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V]
-  def derive[V](attrAId: ObjId, attrBId: ObjId, valueType: AttrValueType[V]): Attr[V]
   def attrId[V](attr: Attr[V]): ObjId
   def valueType[V](attr: Attr[V]): AttrValueType[V]
   def toAttr[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V]

@@ -9,12 +9,14 @@ class AlienAccessAttrs(
   objIdFactory: ObjIdFactory,
   attr: AttrFactory,
   asNode: AttrValueType[Obj],
-  asString: AttrValueType[String]
+  asString: AttrValueType[String],
+  asBoolean: AttrValueType[Boolean]
 )(
   val target: ObjId = objIdFactory.toObjId("5a7300e9-a1d9-41a6-959f-cbd2f6791deb"),
   val created: ObjId = objIdFactory.toObjId("7947ca07-d72f-438d-9e21-1ed8196689ae"),
   val targetObj: Attr[Obj] = attr("0cd4abcb-c83f-4e15-aa9f-d217f2e36596", asNode),
-  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString)
+  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString),
+  val isEditing: Attr[Boolean] = attr("3e7fbcd6-4707-407f-911e-7493b017afc1",asBoolean)
 )
 
 class DemandedNode(var objId: ObjId, val setup: Obj⇒Unit)
@@ -28,7 +30,7 @@ class Alien(
   at: AlienAccessAttrs, nodeAttrs: NodeAttrs, attrFactory: AttrFactory,
   handlerLists: CoHandlerLists,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey], factIndex: FactIndex,
-  alienWrapType: WrapType[Unit], demandedWrapType: WrapType[DemandedNode],
+  alienWrapType: WrapType[Unit], demandedWrapType: WrapType[DemandedNode], dbWrapType: DBWrapType,
   objIdFactory: ObjIdFactory
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
@@ -36,7 +38,7 @@ class Alien(
     handlerLists.single(AttrCaption(attr), ()⇒attrFactory.attrId(attr).toString)
   def update[Value](attr: Attr[Value]) = {
     val attrId = attrFactory.attrId(attr)
-    val targetAttr = attrFactory.derive(at.target, attrId, attrFactory.valueType(attr))
+    val targetAttr = attrFactory.define(objIdFactory.compose(List(at.target, attrId)), attrFactory.valueType(attr))
     factIndex.handlers(targetAttr) :::
     CoHandler(SetValue(demandedWrapType, attr)){
       (obj: Obj, innerObj : InnerObj[DemandedNode], value: Value)⇒
@@ -59,17 +61,19 @@ class Alien(
       event(at.targetObj)(attr) = event(targetAttr)
     } :: Nil
   }
-  def wrap(obj: Obj): Obj = obj.wrap(alienWrapType, ())
+  def wrapForEdit(obj: Obj): Obj = obj.wrap(alienWrapType, ())
   def demandedNode(setup: Obj⇒Unit): Obj = {
-    wrap(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
+    wrapForEdit(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
   }
   def objIdStr: Attr[String] = at.objIdStr
   def handlers = List(
     CoHandler(GetValue(demandedWrapType,nodeAttrs.objId)){ (obj,innerObj)⇒
       innerObj.data.objId
     },
-    CoHandler(GetValue(alienWrapType, objIdStr)){ (obj, innerObj)⇒
+    CoHandler(GetValue(dbWrapType, objIdStr)){ (obj, innerObj)⇒
       findNodes.toUUIDString(obj(nodeAttrs.objId))
-    }) :::
-    factIndex.handlers(at.targetObj)
+    },
+    CoHandler(GetValue(dbWrapType, at.isEditing)){ (obj, innerObj)⇒ false },
+    CoHandler(GetValue(alienWrapType, at.isEditing)){ (obj, innerObj)⇒ true }
+  ) ::: factIndex.handlers(at.targetObj)
 }

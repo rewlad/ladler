@@ -37,7 +37,7 @@ class SearchIndexImpl(
   def handlers[Value](by: SearchByLabelProp[Value]) = {
     val labelAttrId = by.labelId
     val propAttrId = by.propId
-    val attr = attrFactory.derive(by.labelId, by.propId, by.propType)
+    val attr = attrFactory.define(objIdFactory.compose(List(by.labelId, by.propId)), by.propType)
     val attrId = attrFactory.attrId(attr)
     val getConverter: GetConverter[Value] = { ()⇒
       val converter = attrFactory.converter(by.propType)

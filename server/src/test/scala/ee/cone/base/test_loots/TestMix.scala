@@ -45,25 +45,26 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val asObjIdSet = new AttrValueType[Set[ObjId]]
   lazy val listedWrapType = new ListedWrapType
   lazy val transient = new Transient(handlerLists, attrFactory, dbWrapType)
-  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asString, asBoolean, asDBObjId, asObjIdSet)()
-  lazy val filters = new Filters(filterAttrs,nodeAttrs,findAttrs,alienAccessAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex,transient)()
+  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asBoolean, asDBObjId, asObjIdSet)()
+  lazy val filters = new Filters(filterAttrs,nodeAttrs,findAttrs,alienAccessAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex,transient,objIdFactory)()
   lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, asDBObj, asString, asUUID)()
-  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, testAttributes, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alienCanChange, transient, mandatory, unique, onUpdate, filters)()
-  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, asString, asDuration)()
-  lazy val fuelingItems = new FuelingItems(fuelingAttrs, findAttrs, alienAccessAttrs, filterAttrs, factIndex, searchIndex, alienCanChange, filters, onUpdate, attrFactory)()
+  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, testAttributes, alienAccessAttrs, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alienCanChange, transient, mandatory, unique, onUpdate, filters)()
+  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration)()
+  lazy val fuelingItems = new FuelingItems(fuelingAttrs, findAttrs, alienAccessAttrs, filterAttrs, nodeAttrs, factIndex, searchIndex, alienCanChange, filters, onUpdate, attrFactory, dbWrapType)()
   //
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
   lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes)
   lazy val testComponent = new TestComponent(
-    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes, userAttrs, fuelingAttrs,
+    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes, userAttrs, fuelingAttrs, alienAccessAttrs,
     handlerLists,
     attrFactory,
     findNodes, mainTx, alienCanChange, onUpdate,
     tags, materialTags, flexTags, currentView, dtTablesState,
-    searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems
+    searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
+    objIdFactory
   )()
 }
 

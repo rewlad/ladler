@@ -14,13 +14,6 @@ class AttrFactoryImpl(
     define(objIdFactory.toObjId(uuid), valueType)
   def define[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V] =
     new AttrImpl(attrId, valueType)
-
-  def derive[V](attrAId: ObjId, attrBId: ObjId, valueType: AttrValueType[V]) = {
-    val buffer = ByteBuffer.allocate(java.lang.Long.BYTES*4)
-    buffer.putLong(attrAId.hi).putLong(attrAId.lo)
-    buffer.putLong(attrBId.hi).putLong(attrBId.lo)
-    define(objIdFactory.toObjId(UUID.nameUUIDFromBytes(buffer.array())), valueType)
-  }
   def attrId[V](attr: Attr[V]): ObjId = attr.asInstanceOf[AttrImpl[V]].id
   def valueType[V](attr: Attr[V]): AttrValueType[V] = attr.asInstanceOf[AttrImpl[V]].valueType
   def toAttr[V](attrId: ObjId, valueType: AttrValueType[V]) =

@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import java.nio.ByteBuffer
 import java.util.UUID
 
 import ee.cone.base.connection_api.Attr
@@ -17,8 +18,14 @@ case class ObjIdImpl(hi: Long, lo: Long) extends ObjId {
 class ObjIdFactoryImpl extends ObjIdFactory {
   def noObjId = NoObjId
   def toObjId(hiObjId: Long, loObjId: Long) = new ObjIdImpl(hiObjId, loObjId)
-  def toObjId(uuid: UUID) = toObjId(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
+  def toObjId(uuid: UUID): ObjId =
+    toObjId(uuid.getMostSignificantBits, uuid.getLeastSignificantBits)
   def toObjId(uuid: String) = toObjId(UUID.fromString(uuid))
+  def compose(objIds: List[ObjId]): ObjId = {
+    val buffer = ByteBuffer.allocate(java.lang.Long.BYTES*2*objIds.size)
+    objIds.foreach(objId⇒buffer.putLong(objId.hi).putLong(objId.lo))
+    toObjId(UUID.nameUUIDFromBytes(buffer.array()))
+  }
 }
 
 class NodeAttrsImpl(attr: AttrFactory, asDBNode: AttrValueType[ObjId])(

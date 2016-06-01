@@ -11,18 +11,17 @@ import scala.math.Ordering
 class FilterAttrs(
   attr: AttrFactory,
   label: LabelFactory,
-  asString: AttrValueType[String],
   asBoolean: AttrValueType[Boolean],
   asObjId: AttrValueType[ObjId],
   asObjIdSet: AttrValueType[Set[ObjId]]
 )(
   val asFilter: Attr[Obj] = label("eee2d171-b5f2-4f8f-a6d9-e9f3362ff9ed"),
-  val filterFullKey: Attr[String] = attr("2879097b-1fd6-45b1-a8b4-1de807ce9572",asString),
+  val filterFullKey: Attr[ObjId] = attr("2879097b-1fd6-45b1-a8b4-1de807ce9572",asObjId),
   val isSelected: Attr[Boolean] = attr("a5045617-279f-48b8-95a9-a42dc721d67b",asBoolean),
   val isListed: Attr[Boolean] = attr("bd68ccbc-b63c-45ce-88f2-7c6058b11338",asBoolean),
   val isExpanded: Attr[Boolean] = attr("2dd74df5-0ca7-4734-bc49-f420515fd663",asBoolean),
   val selectedItems: Attr[Set[ObjId]] = attr("32a62c43-e837-4855-985a-d79f5dc03db0",asObjIdSet),
-  val expandedItem: Attr[String] = attr("d0b7b274-74ac-40b0-8e51-a1e1751578af", asString),
+  val expandedItem: Attr[ObjId] = attr("d0b7b274-74ac-40b0-8e51-a1e1751578af", asObjId),
   val orderByAttrId: Attr[ObjId] = attr("064f4dfd-d3df-4748-ae5b-cc03ef42a1cb", asObjId),
   val orderDirection: Attr[Boolean] = attr("ae1bee8e-828d-42d6-a3ca-36f146549c6a",asBoolean)
 )
@@ -39,8 +38,7 @@ trait ItemList {
   def selectAllListed(): Unit
   def removeSelected(): Unit
   def orderByAction(attr: Attr[_]): (Option[()⇒Unit],Option[Boolean])
-  def isEditing(item: Obj): Boolean
-  def startEditing(item: Obj): Unit
+  def isEditable: Boolean
 }
 
 class ObjIdSetValueConverter(
@@ -69,24 +67,25 @@ class Filters(
   listedWrapType: WrapType[InnerItemList],
   factIndex: FactIndex,
   searchIndex: SearchIndex,
-  transient: Transient
+  transient: Transient,
+  objIdFactory: ObjIdFactory
 )(
-  val filterByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFilter,at.filterFullKey),
+  val filterByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFilter,at.filterFullKey),
   var editing: Obj = findNodes.noNode
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-  def lazyLinkingObj(index: SearchByLabelProp[String], keyObj: Obj, keyStr: String, wrap: Boolean): Obj = {
-    val key = s"${findNodes.toUUIDString(keyObj(nodeAttrs.objId))}$keyStr"
+  def lazyLinkingObj(index: SearchByLabelProp[ObjId], objIds: List[ObjId], wrapForEdit: Boolean): Obj = {
+    val key = objIdFactory.compose(objIds)
     val obj = findNodes.single(findNodes.where(mainTx(), index, key, Nil))
-    if(!wrap) obj
-    else if(obj(findAttrs.nonEmpty)) alien.wrap(obj)
+    if(!wrapForEdit) obj
+    else if(obj(findAttrs.nonEmpty)) alien.wrapForEdit(obj)
     else alien.demandedNode { obj ⇒
       obj(attrFactory.toAttr(index.labelId, index.labelType)) = obj
       obj(attrFactory.toAttr(index.propId, index.propType)) = key
     }
   }
-  def filterObj(key: String): Obj =
-    lazyLinkingObj(filterByFullKey, alien.wrap(eventSource.mainSession), key, wrap = true)
+  def filterObj(ids: List[ObjId]): Obj =
+    lazyLinkingObj(filterByFullKey, eventSource.mainSession(nodeAttrs.objId) :: ids, wrapForEdit = true)
   def itemList[Value](
     index: SearchByLabelProp[Value],
     parentValue: Value,
@@ -101,15 +100,15 @@ class Filters(
     val getElement = Map[Attr[Boolean],Obj⇒Boolean](
       at.isSelected → { obj ⇒ selectedSet contains obj(nodeAttrs.objId) },
       at.isListed → { obj ⇒ obj(parentAttr) == parentValue },
-      at.isExpanded → { obj ⇒ expandedItem == obj(alienAttrs.objIdStr) }
+      at.isExpanded → { obj ⇒ expandedItem == obj(nodeAttrs.objId) }
     )
     val setElement = Map[(Attr[Boolean],Boolean),Obj⇒Unit](
       (at.isSelected→false) → { obj ⇒ filterObj(at.selectedItems) = selectedSet - obj(nodeAttrs.objId) },
       (at.isSelected→true)  → { obj ⇒ filterObj(at.selectedItems) = selectedSet + obj(nodeAttrs.objId) },
       (at.isListed→false)   → { obj ⇒ obj(parentAttr) = attrFactory.converter(attrFactory.valueType(parentAttr)).convertEmpty() },
       (at.isListed→true)    → { obj ⇒ obj(parentAttr) = parentValue },
-      (at.isExpanded→false) → { obj ⇒ filterObj(at.expandedItem) = "" },
-      (at.isExpanded→true)  → { obj ⇒ filterObj(at.expandedItem) = obj(alienAttrs.objIdStr) }
+      (at.isExpanded→false) → { obj ⇒ filterObj(at.expandedItem) = objIdFactory.noObjId },
+      (at.isExpanded→true)  → { obj ⇒ filterObj(at.expandedItem) = obj(nodeAttrs.objId) }
     )
     val inner = new InnerItemList {
       def get(obj: Obj, attr: Attr[Boolean]) = getElement(attr)(obj)
@@ -120,10 +119,14 @@ class Filters(
     val sortDirection = filterObj(at.orderDirection)
     val sortBy = orderBy(sortByAttrId).getOrElse((l:List[Obj],_:Boolean)⇒l)
 
+    val editingId = editing(nodeAttrs.objId)
+
+
     val items = sortBy(
       findNodes.where(mainTx(), index, parentValue, Nil)
       .filter(obj⇒filters.forall(_(obj)))
-      .map(obj⇒ alien.wrap(obj).wrap(listedWrapType,inner)),
+      .map(obj⇒if(editable && obj(nodeAttrs.objId) == editingId) alien.wrapForEdit(obj) else obj)
+      .map(obj⇒ obj.wrap(listedWrapType,inner)),
       sortDirection
     )
 
@@ -134,7 +137,7 @@ class Filters(
       def add() = Setup(newItem)(_(at.isListed) = true)
       def removeSelected() = {
         selectedSet.foreach(objId⇒
-          alien.wrap(findNodes.whereObjId(objId)).wrap(listedWrapType,inner)(at.isListed)=false
+          alien.wrapForEdit(findNodes.whereObjId(objId)).wrap(listedWrapType,inner)(at.isListed)=false
         )
         filter(at.selectedItems) = Set[ObjId]()
       }
@@ -150,12 +153,7 @@ class Filters(
         }
         (act, if(isCurrentAttr) Some(sortDirection) else None)
       }
-      def isEditing(item: Obj) =
-        editable && item(nodeAttrs.objId) == editing(nodeAttrs.objId)
-      def startEditing(item: Obj) = {
-        editing = item
-        item(at.isExpanded) = true
-      }
+      def isEditable = editable
     }
   }
 
@@ -168,6 +166,10 @@ class Filters(
         innerObj.data.set(obj,attr,value)
       }
     )} :::
+    CoHandler(SetValue(listedWrapType,alienAttrs.isEditing)){ (obj,innerObj,value)⇒
+      if(value) editing = obj
+      else if(obj(alienAttrs.isEditing)) editing = findNodes.noNode
+    } ::
     List(
       at.asFilter, at.filterFullKey, at.selectedItems,
       at.orderByAttrId, at.orderDirection

@@ -26,7 +26,7 @@ class UserAttrs(
 )
 
 class Users(
-  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, cat: TestAttributes,
+  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, cat: TestAttributes, alienAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists, attrFactory: AttrFactory,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
@@ -50,6 +50,7 @@ class Users(
       user(at.encryptedPassword) = Some(encryptPassword(userId,username,pw))
       user(at.unEncryptedPassword) = ""
       user(at.unEncryptedPasswordAgain) = ""
+      user(alienAttrs.isEditing) = false
     }
     else None
   }
@@ -59,10 +60,10 @@ class Users(
     if(username.isEmpty || pw.isEmpty) None else {
       val user = findNodes.single(findNodes.where(mainTx(), findActiveByName, dialog(at.username), Nil))
       val userId = user(nodeAttrs.objId)
-      val mainSession = alien.wrap(eventSource.mainSession)
+      val mainSession = alien.wrapForEdit(eventSource.mainSession)
       val encryptedPassword = if(userId.nonEmpty) user(at.encryptedPassword) else None
       Some{ () ⇒
-        if(encryptedPassword.exists(_==encryptPassword(userId,username,pw)))
+        if(encryptedPassword.contains(encryptPassword(userId, username, pw)))
           mainSession(at.authenticatedUser) = user
         else throw new Exception("Bad username or password")
       }

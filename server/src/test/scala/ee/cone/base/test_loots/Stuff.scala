@@ -122,6 +122,7 @@ class BoatLogEntryAttributes(
 
   val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
   val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", asString)
+
 )
 
 
@@ -148,6 +149,7 @@ class TestComponent(
   filterAttrs: FilterAttrs, at: TestAttributes, logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
+  alienAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
@@ -164,7 +166,8 @@ class TestComponent(
   filters: Filters,
   htmlTable: HtmlTable,
   users: Users,
-  fuelingItems: FuelingItems
+  fuelingItems: FuelingItems,
+  objIdFactory: ObjIdFactory
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -178,23 +181,27 @@ class TestComponent(
   import alien.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-  private def strField(obj: Obj, attr: Attr[String], editable: Boolean, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+  private def strField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(textInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
     else List(labeledText("1", obj(attr), visibleLabel))
   }
-  private def strPassField(obj: Obj, attr: Attr[String], editable: Boolean, showLabel: Boolean, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+  private def strPassField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
     else List(labeledText("1", "******", visibleLabel))
   }
 
-  private def booleanField(obj: Obj, attr: Attr[Boolean], editable: Boolean, showLabel:Boolean = false): List[ChildPair[OfDiv]] = {
+  private def booleanField(obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
   }
 
-  private def durationField(obj: Obj, attr: Attr[Option[Duration]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
+  private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
 
     val value = obj(attr).map(x => {
@@ -206,7 +213,8 @@ class TestComponent(
     else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_))
   }
 
-  private def dateField(obj: Obj, attr: Attr[Option[Instant]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
+  private def dateField(obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _))
     else {
@@ -219,7 +227,8 @@ class TestComponent(
     }
   }
 
-  private def timeField(obj: Obj, attr: Attr[Option[LocalTime]], editable: Boolean, showLabel:Boolean): List[ChildPair[OfDiv]] = {
+  private def timeField(obj: Obj, attr: Attr[Option[LocalTime]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_))
     else {
@@ -232,7 +241,8 @@ class TestComponent(
   private def popupToggle(key: String)() =
     popupOpened = if(popupOpened == key) "" else key
 
-  private def objField(obj: Obj, attr: Attr[Obj], editable: Boolean, showLabel:Boolean)(items: ()⇒List[Obj]=()⇒Nil): List[ChildPair[OfDiv]] = {
+  private def objField(obj: Obj, attr: Attr[Obj], showLabel: Boolean, editableOpt: Option[Boolean]=None)(items: ()⇒List[Obj]=()⇒Nil): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val vObj = obj(attr)
     val notSelected = "(not selected)"
@@ -285,8 +295,8 @@ class TestComponent(
     Toggled(item(filterAttrs.isExpanded))(Some(()=>item(filterAttrs.isExpanded)=true)),
     IsSelected(item(filterAttrs.isSelected))
   )
-  def toggledRow(filterObj: Obj, key: String) =
-    Toggled(filterObj(filterAttrs.expandedItem)==key)(Some(()=>filterObj(filterAttrs.expandedItem)=key))
+  def toggledRow(filterObj: Obj, id: ObjId) =
+    Toggled(filterObj(filterAttrs.expandedItem)==id)(Some(()=>filterObj(filterAttrs.expandedItem)=id))
 
   private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
@@ -332,8 +342,8 @@ class TestComponent(
     else List(divClickable("1",action,text("2", icon),txt))
   }
 
-  private def addRemoveControlView(itemList: ItemList, editable: Boolean)(add: ()⇒Unit) =
-    if(editable) List(btnDelete("btnDelete", itemList.removeSelected),btnAdd("btnAdd", ()⇒itemList.add()))
+  private def addRemoveControlView(itemList: ItemList)(add: ()⇒Unit) =
+    if(itemList.isEditable) List(btnDelete("btnDelete", itemList.removeSelected),btnAdd("btnAdd", ()⇒itemList.add()))
     else Nil
 
 
@@ -345,14 +355,20 @@ class TestComponent(
   private def selectAllGroup(itemList: ItemList) =
     iconCellGroup("selected")(_⇒selectAllCheckBox(itemList))
   private def selectRowGroup(item: Obj) =
-    iconCellGroup("selected")(_⇒booleanField(item, filterAttrs.isSelected, editable = true))
+    iconCellGroup("selected")(_⇒booleanField(item, filterAttrs.isSelected, editableOpt = Some(true)))
   private def editAllGroup() = iconCellGroup("edit")(_⇒Nil)
   private def editRowGroup(on: Boolean)(action: ()⇒Unit) =
     iconCellGroup("edit")(_⇒if(on) List(btnCreate("btnCreate",action)) else Nil)
+  def editRowGroup(itemList: ItemList, item: Obj) =
+    editRowGroup(itemList.isEditable){ () ⇒
+      val newIsEditing = !item(alienAttrs.isEditing)
+      item(alienAttrs.isEditing) = newIsEditing
+      if(newIsEditing) item(filterAttrs.isExpanded) = true
+    }
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
-    val filterObj = filters.filterObj("/entryList")
+    val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asEntry)))
     val filterList: List[Obj⇒Boolean] = {
       val value = filterObj(logAt.boat)(nodeAttrs.objId)
       if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.boat)(nodeAttrs.objId)==value) else Nil
@@ -368,7 +384,7 @@ class TestComponent(
     }
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
-    val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList)
+    val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList,editable)
     val go = (entry: Obj) ⇒ currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
     List( //class LootsBoatLogList
       toolbar("Entry List"),
@@ -376,14 +392,14 @@ class TestComponent(
       withMaxWidth("1",1200,List(paperTable("dtTableList2")(
         controlPanel(
           List(flexGrid("controlGrid1",List(
-            flexGridItem("1a",150,Some(200), boatSelectView(filterObj, editable = true)),
-            flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, editable = true, showLabel = true)),
-            flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, editable = true, showLabel = true)),
+            flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
+            flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, showLabel = true)),
+            flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, showLabel = true)),
             flexGridItem("4a",150,Some(200), divHeightWrapper("1",72,
-              divAlignWrapper("1","","bottom",withMargin("1",10,booleanField(filterObj, logAt.hideConfirmed, editable = true,showLabel = true))::Nil)
+              divAlignWrapper("1","","bottom",withMargin("1",10,booleanField(filterObj, logAt.hideConfirmed, showLabel = true))::Nil)
             )::Nil)
           ))),
-          addRemoveControlView(itemList, editable)(() ⇒ go(itemList.add()))
+          addRemoveControlView(itemList)(() ⇒ go(itemList.add()))
         ),
         List(
           row("row",List(MaxVisibleLines(2),IsHeader))(
@@ -406,9 +422,9 @@ class TestComponent(
             selectRowGroup(entry) :::
             List(
               group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
-              mCell("2",100)(showLabel=>objField(entry, logAt.boat, editable = false, showLabel)()),
-              mCell("3",150)(showLabel=>dateField(entry, logAt.date, editable = false, showLabel)),
-              mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, editable = false, showLabel)),
+              mCell("2",100)(showLabel=>objField(entry, logAt.boat, showLabel)()),
+              mCell("3",150)(showLabel=>dateField(entry, logAt.date, showLabel)),
+              mCell("4",180)(showLabel=>durationField(entry, logAt.durationTotal, showLabel)),
               mCell("5",100)(_=>
                {
                   val confirmed = entry(logAt.asConfirmed)
@@ -417,8 +433,8 @@ class TestComponent(
                   else Nil
                }
               ),
-              mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, editable = false, showLabel)()),
-              mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, editable = false, showLabel))
+              mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, showLabel)()),
+              mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, showLabel))
             ) :::
             editRowGroup(on=true)(()⇒go(entry))
           )
@@ -428,15 +444,16 @@ class TestComponent(
   }}
   // currentVDom.invalidate() ?
 
-  private def boatSelectView(obj: Obj, editable: Boolean) =
-    objField(obj,logAt.boat,editable,showLabel = true)(()⇒
-      filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil).list
+  private def boatSelectView(obj: Obj) =
+    objField(obj,logAt.boat,showLabel = true)(()⇒
+      filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil, editable=false).list
     )
 
   private def entryEditView(pf: String) = wrapDBView { () =>
-    val entry = alien.wrap(findNodes.whereObjId(findNodes.toObjId(UUID.fromString(pf.tail)))(logAt.asEntry))
-    val isConfirmed = entry(logAt.asConfirmed)(nonEmpty)
-    val editable = !isConfirmed /*todo roles*/
+    val entryObj = findNodes.whereObjId(findNodes.toObjId(UUID.fromString(pf.tail)))(logAt.asEntry)
+    val isConfirmed = entryObj(logAt.asConfirmed)(nonEmpty)
+    val entry = if(isConfirmed) entryObj else alien.wrapForEdit(entryObj)
+    //val editable = !isConfirmed /*todo roles*/
 
     val entryIdStr = entry(alien.objIdStr)
 
@@ -452,17 +469,17 @@ class TestComponent(
         flexGrid("flexGridEdit1",List(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
-              flexGridItem("boat1",100,None,boatSelectView(entry, editable)),
-              flexGridItem("date",150,None,dateField(entry, logAt.date, editable, showLabel = true)),
+              flexGridItem("boat1",100,None,boatSelectView(entry)),
+              flexGridItem("date",150,None,dateField(entry, logAt.date, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
-              durationField(entry,logAt.durationTotal, editable = false, showLabel = true))))
+              durationField(entry,logAt.durationTotal, editableOpt = Some(false), showLabel = true))))
             ))
           )),
           flexGridItem("2",500,None,List(
             flexGrid("flexGridEdit12",
               (if(!isConfirmed) Nil else List(
-                flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy,editable = false, showLabel = true)()),
-                flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, editable = false, showLabel = true))
+                flexGridItem("conf_by",150,None,objField(entry,logAt.confirmedBy, showLabel = true)()),
+                flexGridItem("conf_on",150,None,dateField(entry, logAt.confirmedOn, showLabel = true))
               )) :::
               List(
                 flexGridItem("conf_do",150,None,List(
@@ -495,40 +512,41 @@ class TestComponent(
         )
       ))),
 
-      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, editable, fillMore))),
-      withMaxWidth("3",1200,List(entryEditWorkListView(entry, editable)))
+      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, fillMore))),
+      withMaxWidth("3",1200,List(entryEditWorkListView(entry)))
     )
   }
 
 
-  def entryEditFuelScheduleView(entry: Obj, editable: Boolean, fillMore: Int): ChildPair[OfDiv] = {
+  def entryEditFuelScheduleView(entry: Obj, fillMore: Int): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
-    val filterObj = filters.filterObj(s"/entry/$entryIdStr")
+    val filterObj = filters.filterObj(List(entry(nodeAttrs.objId)))
     val deferSend = if(fillMore==1) false else true
-    def fuelingRowView(time: String, isRF: Boolean) = {
-      val fueling = if(isRF) entry else fuelingItems.fueling(entry, time, wrap=true)
-      row(time,toggledRow(filterObj,time))(
+    def fuelingRowView(time: ObjId, isRF: Boolean) = {
+      val fueling = if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
+      val timeStr = findNodes.whereObjId(time)(fuelingAttrs.time)
+      row(timeStr,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
-          else List(labeledText("1",if(showLabel) "Time" else "",time))
+          else List(labeledText("1",if(showLabel) "Time" else "",timeStr))
         ),
         mCell("2",150,1)(showLabel=>
           if(isRF) List(text("1","Received Fuel"))
           else text("c",if(fueling(fuelingAttrs.meHours).nonEmpty) "+" else "-" ) ::
-            strField(fueling, fuelingAttrs.meHoursStr, editable, showLabel, deferSend = false)
+            strField(fueling, fuelingAttrs.meHoursStr, showLabel, deferSend = false)
         ),
         mCell("3",100,1)(showLabel=>
-          strField(fueling, fuelingAttrs.fuel, editable, showLabel, deferSend)
+          strField(fueling, fuelingAttrs.fuel, showLabel, deferSend=deferSend)
         ),
         mCell("4",250,3)(showLabel=>
-          strField(fueling, fuelingAttrs.comment, editable, showLabel, deferSend)
+          strField(fueling, fuelingAttrs.comment, showLabel, deferSend=deferSend)
         ),
         mCell("5",150,2)(showLabel=>
-          strField(fueling, fuelingAttrs.engineer, editable, showLabel, deferSend)
+          strField(fueling, fuelingAttrs.engineer, showLabel, deferSend=deferSend)
         ),
         mCell("6",150,2)(showLabel=>
           if(isRF) Nil
-          else strField(fueling, fuelingAttrs.master, editable, showLabel, deferSend)
+          else strField(fueling, fuelingAttrs.master, showLabel, deferSend=deferSend)
         )
       )
     }
@@ -541,19 +559,19 @@ class TestComponent(
         mCell("5",150,2)(_=>List(text("1",caption(fuelingAttrs.engineer)))),
         mCell("6",150,2)(_=>List(text("1",caption(fuelingAttrs.master))))
       ),
-      fuelingRowView("00:00",isRF = false),
-      fuelingRowView("08:00",isRF = false),
-      fuelingRowView("RF",isRF = true),
-      fuelingRowView("24:00",isRF = false)
+      fuelingRowView(fuelingAttrs.time00,isRF = false),
+      fuelingRowView(fuelingAttrs.time08,isRF = false),
+      fuelingRowView(objIdFactory.noObjId,isRF = true),
+      fuelingRowView(fuelingAttrs.time24,isRF = false)
     ))
   }
 
-  def entryEditWorkListView(entry: Obj, editable: Boolean): ChildPair[OfDiv] = {
+  def entryEditWorkListView(entry: Obj): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
-    val filterObj = filters.filterObj(s"/entryEditWorkList/$entryIdStr")
-    val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil)
+    val filterObj = filters.filterObj(List(entry(nodeAttrs.objId),attrFactory.attrId(logAt.asWork)))
+    val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil,entry(alienAttrs.isEditing))
     paperTable("dtTableEdit2")(
-      controlPanel(Nil,addRemoveControlView(workList, editable)(()⇒workList.add())),
+      controlPanel(Nil,addRemoveControlView(workList)(()⇒workList.add())),
       List(
         row("row",List(IsHeader))(
           selectAllGroup(workList) :::
@@ -563,7 +581,8 @@ class TestComponent(
             mCell("3",100)(_=>sortingHeader(workList,logAt.workStop)),
             mCell("4",150)(_=>sortingHeader(workList,logAt.workDuration)),
             mCell("5",250,3)(_=>sortingHeader(workList,logAt.workComment))
-          )
+          ) :::
+          editAllGroup()
         )
       ) :::
       workList.list.map { (work: Obj) =>
@@ -573,39 +592,40 @@ class TestComponent(
           List(
             group("2_group",MinWidth(150)),
             mCell("2",100)(showLabel=>
-              timeField(work, logAt.workStart, editable, showLabel)
+              timeField(work, logAt.workStart, showLabel)
             ),
             mCell("3",100)(showLabel=>
-              timeField(work, logAt.workStop, editable, showLabel)
+              timeField(work, logAt.workStop, showLabel)
             ),
             mCell("4",150)(showLabel=>
-              durationField(work, logAt.workDuration, editable = false, showLabel)
+              durationField(work, logAt.workDuration, showLabel, editableOpt = Some(false))
             ),
             mCell("5",250,3)(showLabel=>
-              strField(work, logAt.workComment, editable, showLabel)
+              strField(work, logAt.workComment, showLabel)
             )
-          )
+          ) :::
+          editRowGroup(workList, work)
         )
       }
     )
   }
 
   private def boatListView(pf: String) = wrapDBView { () =>
-    val editable = true //todo roles
-    val filterObj = filters.filterObj("/boatList")
-    val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj, Nil)
+    val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
+    val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj, Nil, editable=true) //todo roles
     List(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
       paperTable("table")(
-        controlPanel(Nil, addRemoveControlView(itemList, editable)(()⇒itemList.add())),
+        controlPanel(Nil, addRemoveControlView(itemList)(()⇒itemList.add())),
         List(
           row("head",List(IsHeader))(
             selectAllGroup(itemList) :::
             List(
               group("2_group",MinWidth(50)),
               mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
-            )
+            ) :::
+            editAllGroup()
           )
         ) :::
         itemList.list.map{boat ⇒
@@ -614,8 +634,9 @@ class TestComponent(
             selectRowGroup(boat) :::
             List(
               group("2_group",MinWidth(50)),
-              mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, editable, showLabel = showLabel))
-            )
+              mCell("1",250)(showLabel⇒strField(boat, logAt.boatName, showLabel))
+            ) :::
+            editRowGroup(itemList, boat)
           )
         }
       )::Nil)
@@ -631,13 +652,11 @@ class TestComponent(
   }
   //// users
   private def loginView() = {
-    val editable = true
     val showLabel = true
-    val dialog = filters.filterObj("/login")
-
+    val dialog = filters.filterObj(List(attrFactory.attrId(userAttrs.asActiveUser)))
     List(withMaxWidth("1",400,paperWithMargin("login",
-      divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, editable, showLabel):_*)),
-      divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, editable, showLabel, deferSend = false):_*)),
+      divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, showLabel):_*)),
+      divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, showLabel, deferSend = false):_*)),
       divSimpleWrapper("3", divAlignWrapper("1","right","top",users.loginAction(dialog).map(btnRaised("login","LOGIN")(_)).toList))
     )::Nil))
 
@@ -646,14 +665,13 @@ class TestComponent(
 
 
   private def userListView(pf: String) = wrapDBView { () =>
-    val filterObj = filters.filterObj("/userList")
-    val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj, Nil)
-    val editableList = true //todo roles
+    val filterObj = filters.filterObj(List(attrFactory.attrId(userAttrs.asUser)))
+    val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj, Nil, editable = true) //todo roles
     val showPasswordCols = filters.editing(userAttrs.asUser)(nonEmpty)
     List(
       toolbar("Users"),
       paperTable("table")(
-        controlPanel(Nil, addRemoveControlView(userList, editableList)(()⇒userList.add())),
+        controlPanel(Nil, addRemoveControlView(userList)(()⇒userList.add())),
         row("head",List(IsHeader))(
           selectAllGroup(userList) :::
           List(
@@ -672,47 +690,32 @@ class TestComponent(
         ) ::
         userList.list.map{ user ⇒
           val srcId = user(alien.objIdStr)
-          val editable = userList.isEditing(user)
           row(srcId,toggledSelectedRow(user))(
             selectRowGroup(user) :::
             List(
               group("2_grp", MinWidth(300)),
-              mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, editable, showLabel = showLabel)),
-              mCell("2",250)(showLabel=>
-                strField(user, userAttrs.username, editable, showLabel)),
+              mCell("1",250)(showLabel⇒strField(user, userAttrs.fullName, showLabel)),
+              mCell("2",250)(showLabel⇒strField(user, userAttrs.username, showLabel)),
               mmCell("3",100,150)(showLabel⇒
                 if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil
               )
             ) :::
             (if(showPasswordCols) List(
               group("3_grp",MinWidth(150)),
-              mCell("4",150)(showLabel=>
-                  strPassField(user, userAttrs.unEncryptedPassword, editable, showLabel)
-              ),
-              mCell("5",150)(showLabel=>
-                  strPassField(user, userAttrs.unEncryptedPasswordAgain, editable, showLabel, deferSend = false)
-              ),
+              mCell("4",150)(showLabel⇒strPassField(user, userAttrs.unEncryptedPassword, showLabel)),
+              mCell("5",150)(showLabel⇒strPassField(user, userAttrs.unEncryptedPasswordAgain, showLabel, deferSend = false)),
               mCell("6",150) { _ =>
                 users.changePasswordAction(user).map(
-                  action ⇒
-                    btnRaised("doChange", "Change Password") { () ⇒
-                      action()
-                      editing = findNodes.noNode
-                    }
+                  btnRaised("doChange", "Change Password")(_)
                 ).toList
               }
             ) else Nil) :::
-            editRowGroup(editableList && !editable){ () ⇒
-              editing = user
-              user(filterAttrs.isExpanded) = true
-            }
+            editRowGroup(userList, user)
           )
         }
       )
     )
   }
-
-
 
   //// events
   private def eventListView(pf: String) = wrapDBView { () =>
@@ -723,7 +726,7 @@ class TestComponent(
           mCell("1",250)(_⇒List(text("text", "Event"))),
           mCell("2",250)(_⇒Nil)
         ) ::
-        eventSource.unmergedEvents.map(alien.wrap).map { ev =>
+        eventSource.unmergedEvents.map(alien.wrapForEdit).map { ev =>
           val srcId = ev(alien.objIdStr)
           row(srcId)(
             mCell("1",250)(_⇒List(text("text", ev(eventSource.comment)))),
@@ -835,6 +838,7 @@ class TestComponent(
 class FuelingAttrs(
   attr: AttrFactory,
   label: LabelFactory,
+  objIdFactory: ObjIdFactory,
   asString: AttrValueType[String],
   asDuration: AttrValueType[Option[Duration]]
 )(
@@ -845,7 +849,11 @@ class FuelingAttrs(
   val fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asString),
   val comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
   val engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
-  val master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString)
+  val master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString),
+  val time: Attr[String] = attr("df695468-c2bd-486c-9e58-f83da9566940", asString),
+  val time00: ObjId = objIdFactory.toObjId("2b4c0bbf-fd24-4df8-b57a-29c26af11b23"),
+  val time08: ObjId = objIdFactory.toObjId("a281aafc-b32d-4cf0-8599-eee8448c937d"),
+  val time24: ObjId = objIdFactory.toObjId("f6bdcef8-179e-4da3-8c3d-ec7f51716ee6")
 )
 
 class FuelingItems(
@@ -853,17 +861,24 @@ class FuelingItems(
   findAttrs: FindAttrs,
   alienAttrs: AlienAccessAttrs,
   filterAttrs: FilterAttrs,
+  nodeAttrs: NodeAttrs,
   factIndex: FactIndex,
   searchIndex: SearchIndex,
   alien: Alien,
   filters: Filters,
   onUpdate: OnUpdate,
-  attrFactory: AttrFactory
+  attrFactory: AttrFactory,
+  dbWrapType: WrapType[ObjId]
 )(
-  val fuelingByFullKey: SearchByLabelProp[String] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
-  val times: List[String] = List("00:00","08:00","24:00")
+  val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
+  val times: List[ObjId] = List(at.time00,at.time08,at.time24)
 ) extends CoHandlerProvider {
   def handlers =
+    CoHandler(GetValue(dbWrapType, at.time)){ (obj,innerObj)⇒
+      if(innerObj.data == at.time00) "00:00" else
+      if(innerObj.data == at.time08) "08:00" else
+      if(innerObj.data == at.time24) "24:00" else Never()
+    } ::
     CoHandler(AttrCaption(at.meHours))("ME Hours.Min") ::
     CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::
     CoHandler(AttrCaption(at.comment))("Comment") ::
@@ -886,10 +901,11 @@ class FuelingItems(
         }
       }
     })
-  def fueling(entry: Obj, time: String, wrap: Boolean) =
-    filters.lazyLinkingObj(fuelingByFullKey,entry,time,wrap)
+
+  def fueling(entry: Obj, time: ObjId, wrapForEdit: Boolean) =
+    filters.lazyLinkingObj(fuelingByFullKey,List(entry(nodeAttrs.objId),time),wrapForEdit)
   def notFilled(entry: Obj): Int = times.map { time ⇒
-    val obj = fueling(entry, time, wrap = false)
+    val obj = fueling(entry, time, wrapForEdit = false)
     (if(obj(at.meHours).isEmpty) 1 else 0) +
     (if(obj(at.fuel).isEmpty) 1 else 0) +
     (if(obj(at.engineer).isEmpty) 1 else 0) +
@@ -897,7 +913,7 @@ class FuelingItems(
   }.sum
   def meHoursIsInc(entry: Obj) = {
     val meHours: List[Duration] =
-      times.flatMap(time ⇒ fueling(entry, time, wrap = false)(at.meHours))
+      times.flatMap(time ⇒ fueling(entry, time, wrapForEdit = false)(at.meHours))
     meHours.size == times.size && meHours.sliding(2).forall{ case a :: b :: Nil ⇒ a.compareTo(b) <= 0 }
   }
 }
