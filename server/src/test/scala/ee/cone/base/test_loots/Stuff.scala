@@ -202,15 +202,18 @@ class TestComponent(
     List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
   }
 
+  private def zeroPad2(x: String) = x.length match {
+    case 0 ⇒ "00"
+    case 1 ⇒ s"0$x"
+    case _ ⇒ x
+  }
+
   private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-
-    val value = obj(attr).map(x => {
-      val h=if(x.abs.toHours<10) "0"+x.abs.toHours else x.abs.toHours
-      val m=if(x.abs.minusHours(x.abs.toHours).toMinutes<10) "0"+x.abs.minusHours(x.abs.toHours).toMinutes else x.abs.minusHours(x.abs.toHours).toMinutes
-      h+":"+m
-    }).getOrElse("")
+    val value = obj(attr).map(x =>
+      s"${zeroPad2(x.abs.toHours.toString)}:${zeroPad2(x.abs.minusHours(x.abs.toHours).toMinutes.toString)}"
+    ).getOrElse("")
     if(!editable) List(labeledText("1",visibleLabel,value))
     else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_))
   }
@@ -234,7 +237,9 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_))
     else {
-      val value = obj(attr).map(v ⇒ s"${v.getHour}:${v.getMinute}").getOrElse("")
+      val value = obj(attr).map(v ⇒
+        s"${zeroPad2(v.getHour.toString)}:${zeroPad2(v.getMinute.toString)}"
+      ).getOrElse("")
       List(labeledText("1", visibleLabel, value))
     }
   }
