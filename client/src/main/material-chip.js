@@ -1,5 +1,5 @@
 import React from 'react'
-
+import IconNavigationClose from 'material-ui/lib/svg-icons/navigation/close'
 export default class MaterialChip extends React.Component{
 	constructor(props){
 		super(props);
@@ -9,32 +9,59 @@ export default class MaterialChip extends React.Component{
 
 	render(){
 	    const chipStyle={
-          backgroundColor: '#1B7E5A'/*'#e5e5e5'*/,
-          WebkitBorderRadius: '10px 30% 30% 30%',
-          MozBorderRadius: '10px 30% 10% 10%',
-          OBorderRadius: '10px 30px 10% 10%',
-          borderRadius: '12px 12px 12px 12px',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'row',
-          textAlign: 'center',
+          backgroundColor: '#e4e4e4',
+          WebkitBorderRadius: '16px',
+          MozBorderRadius: '16px',
+          OBorderRadius: '16px',
+          borderRadius: '16px',
+          display: 'inline-block',
           height: '32px',
           lineHeight: '32px',
-          margin: '2px 0px',
-          minWidth: '50px'
+          padding: '0 12px',
+          fontSize: '13px',
+          fontWeight: '500',
+          whiteSpace:"nowrap",
+          width:"100%",
+          boxSizing:"border-box",
+
         };
-        const chipNameStyle={
-          WebkitUserSelect: 'none',
-          maxWidth: '150px',
-          overflow: 'hidden',
-          textOverflow: 'hidden',
-          whiteSpace: 'nowrap',
-          margin:'0px auto',
-          color:'#FFFFFF'
-        };
+        const closeIconStyle={
+            cursor:"pointer",
+            //float:"right",
+            height:"16px",
+            width:"16px",
+            lineHeight:"32px",
+            paddingLeft:"8px",
+            display:"inline-block",
+            //whiteSpace:"nowrap",
+            verticalAlign:"text-bottom"
+
+        }
+        const imgStyle={
+            float:"left",
+            margin:"0 8px 0 -12px",
+            height: "32px",
+            width:"32px",
+            borderRadius:"50%",
+            border:"0",
+            lineHeight:"32px"
+        }
+        const textStyle={
+            whiteSpace:"nowrap",
+            display:"inline-block",
+            overflow:"hidden",
+            textOverflow:"ellipsis",
+            width:"calc(100%"+ (this.props.children?" - 32px":"") + (this.props.onClick?" - 16px":"")+")",
+            textAlign:"center"
+        }
+        const img=this.props.children?React.createElement("div",{key:"img",style:imgStyle},this.props.children):null
+        const closeIcon=this.props.onClick?React.createElement("div",{key:"close",style:{display:"inline-block",float:"right"},
+            onClick:this.props.onClick},React.createElement(IconNavigationClose,{key:"close",style:closeIconStyle})):null
 		return (
 			React.createElement("div",{key:1,style:chipStyle},[
-				React.createElement("span",{key:1,style:chipNameStyle},this.props.text)
+			    img,closeIcon,
+				React.createElement("div",{key:1,style:textStyle},this.props.text)
+
 			])
 		);
 	};

@@ -24,6 +24,7 @@ import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
 import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
 import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
 import IconActionLock from 'material-ui/lib/svg-icons/action/lock'
+import IconActionDateRange from 'material-ui/lib/svg-icons/action/date-range'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
 import IconSocialPerson  from 'material-ui/lib/svg-icons/social/person'
@@ -32,6 +33,8 @@ import MenuItem          from 'material-ui/lib/menus/menu-item'
 import IconNavigationMenu from 'material-ui/lib/svg-icons/navigation/menu'
 import IconNavigationDropDown from 'material-ui/lib/svg-icons/navigation/arrow-drop-down'
 import IconNavigationDropUp from 'material-ui/lib/svg-icons/navigation/arrow-drop-up'
+import IconNavigationExpandMore from 'material-ui/lib/svg-icons/navigation/expand-more'
+import IconNavigationExpandLess from 'material-ui/lib/svg-icons/navigation/expand-less'
 import TextField         from 'material-ui/lib/TextField/TextField'
 import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 import Checkbox          from 'material-ui/lib/checkbox'
@@ -291,7 +294,7 @@ const tp = ({
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
     IconActionRestore,IconContentSave,//,SelectField
     IconMenuButton,MenuItem,IconNavigationMenu,CursorOver,
-    IconNavigationDropDown,IconNavigationDropUp
+    IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess
 })
 
 const transforms = ({tp})

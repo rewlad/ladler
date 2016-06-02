@@ -245,11 +245,13 @@ class TestComponent(
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
     val key = s"$objIdStr-${findNodes.toUUIDString(attrFactory.attrId(attr))}"
     val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false)
-    val collapsed = List(divClickable("1",Some(popupToggle(key)), input))
+    //val collapsed = List(divClickable("1",Some(), input))
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
       items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
-    List(fieldPopupBox("1",showUnderscore = true,collapsed,rows
+    val collapsed= btnInput("btnInput")(
+      if(rows.nonEmpty) btnExpandLess("less",popupToggle(key)) else btnExpandMore("more",popupToggle(key)),input)::Nil
+    List(fieldPopupBox("1",showUnderscore = false,collapsed,rows
     ))
   }
 /*
@@ -269,13 +271,13 @@ class TestComponent(
 
   private def wrapDBView(view: ()=>List[ChildPair[OfDiv]]): VDomValue =
     eventSource.incrementalApplyAndView { () ⇒
-      root(if(users.needToLogIn) loginView() else {
+      root(withMinWidth("minWidth320",320,if(users.needToLogIn) loginView() else {
         val startTime = System.currentTimeMillis
         val res = view()
         val endTime = System.currentTimeMillis
         currentVDom.until(endTime + (endTime - startTime) * 10)
         res
-      })
+      })::Nil)
     }
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]*) =
@@ -398,7 +400,7 @@ class TestComponent(
              {
                 val confirmed = entry(logAt.asConfirmed)
                 if(confirmed(nonEmpty))
-                  List(materialChip("1","CONFIRMED"))
+                  List(materialChip("1","CONFIRMED")(None))
                 else Nil
              }
             ),
@@ -620,8 +622,8 @@ class TestComponent(
     val dialog = filters.filterObj("/login")
 
     List(withMaxWidth("1",400,paperWithMargin("login",
-      divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, editable, showLabel):_*)),
-      divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, editable, showLabel, deferSend = false):_*)),
+      divSimpleWrapper("1",iconInput("1","IconSocialPerson")(strField(dialog, userAttrs.username, editable, showLabel).head)),
+      divSimpleWrapper("2",iconInput("1","IconActionLock")(strPassField(dialog, userAttrs.unEncryptedPassword, editable, showLabel, deferSend = false).head)),
       divSimpleWrapper("3", divAlignWrapper("1","right","top",users.loginAction(dialog).map(btnRaised("login","LOGIN")(_)).toList))
     )::Nil))
 
@@ -657,7 +659,7 @@ class TestComponent(
             mCell("2",250)(showLabel=>
               strField(user, userAttrs.username, editable, showLabel)),
             mmCell("3",100,150)(showLabel⇒
-              if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")) else Nil),
+              if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")(None)) else Nil),
             group("3_grp",MinWidth(300)),
             mCell("4",250)(showLabel=>if(user(filterAttrs.isExpanded))
                 strPassField(user, userAttrs.unEncryptedPassword, editable, showLabel)
