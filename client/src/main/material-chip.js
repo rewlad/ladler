@@ -30,9 +30,7 @@ export default class MaterialChip extends React.Component{
           textOverflow: 'hidden',
           whiteSpace: 'nowrap',
           margin:'0px auto',
-          color:'#FFFFFF',
-          fontFamily:'Roboto'
-
+          color:'#FFFFFF'
         };
 		return (
 			React.createElement("div",{key:1,style:chipStyle},[
