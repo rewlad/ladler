@@ -117,11 +117,12 @@ case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp) //color str
-    if(color.nonEmpty) {
+
       builder.append("style").startObject()
+    if(color.nonEmpty)
         builder.append("fill").append(color.get)
+        builder.append("verticalAlign").append("middle")
       builder.end()
-    }
     builder.end()
   }
 }
@@ -363,12 +364,14 @@ case class LabeledTextComponent(text:String,label:String) extends VDomValue{
     builder.end()
   }
 }
-case class MaterialChip(text:String) extends VDomValue{
+case class MaterialChip(text:String)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
 
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
       builder.append("tp").append("MaterialChip")
       builder.append("text").append(text)
+      if(onClick.nonEmpty)
+        builder.append("onClick").append("send")
     builder.end()
   }
 }
@@ -493,8 +496,8 @@ trait OfTableRow
 class MaterialTags(
   child: ChildPairFactory, inputAttributes: InputAttributes
 ) {
-  def materialChip(key:VDomKey,text:String)=
-    child[OfDiv](key,MaterialChip(text),Nil)
+  def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
+    child[OfDiv](key,MaterialChip(text)(action),children)
   def fieldPopupBox(key: VDomKey, chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
     child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
       child[OfDiv](key+"box", FieldPopupBox(showUnderscore = false), chl1),
@@ -516,18 +519,25 @@ class MaterialTags(
   def checkBox(key:VDomKey,label:String,checked:Boolean,check:Boolean=>Unit)=
     child[OfDiv](key,CheckBox(checked,label)(Some(v⇒check(v.nonEmpty))),Nil)
 
-  def iconInput(key: VDomKey,picture:String,focused:Boolean=false)(theChild:ChildPair[OfDiv]*)=
-
+  def iconInput(key: VDomKey,picture:String,focused:Boolean=false)(children: List[ChildPair[OfDiv]])=
       divNoWrap("1",
         Seq(
-          child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("36px"),Some("relative"),Some(6)),
+          child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("36px"),Some("relative"),None),
             child[OfDiv]("icon",SVGIcon(picture,if(focused) Some("rgb(0,188,212)") else None),Nil)::Nil
           ),
-          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("100%"),None,None),theChild.toList)
+          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 36px)"),None,None), children)
         ):_*
       )
 
-
+  def btnInput(key: VDomKey)(btn:ChildPair[OfDiv],input:ChildPair[OfDiv])=
+    divNoWrap("1",
+      List(
+        child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 48px)"),None,None),input::Nil),
+        child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("48px"),None,None),
+          btn::Nil
+        )
+      ):_*
+    )
   /*
   def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
     child[OfDiv](key, Table(),
@@ -572,6 +582,12 @@ class MaterialTags(
     iconButton(key,"","IconActionDelete",action)
   def btnMenu(key:VDomKey,action:()=>Unit)=
     iconButton(key,"menu","IconNavigationMenu",action)
+  def btnDateRange(key:VDomKey,action:()=>Unit)=
+    iconButton(key,"calendar","IconActionDateRange",action)
+  def btnExpandMore(key:VDomKey,action:()=>Unit)=
+    iconButton(key,"more","IconNavigationExpandMore",action)
+  def btnExpandLess(key:VDomKey,action:()=>Unit)=
+    iconButton(key,"less","IconNavigationExpandLess",action)
   def withMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
     child[OfDiv](key, MarginWrapper(value), theChild :: Nil)
   def withMargin(key: VDomKey, value: Int, children: List[ChildPair[OfDiv]]) =
