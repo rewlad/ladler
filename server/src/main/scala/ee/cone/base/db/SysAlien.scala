@@ -71,7 +71,7 @@ class Alien(
       innerObj.data.objId
     },
     CoHandler(GetValue(dbWrapType, objIdStr)){ (obj, innerObj)⇒
-      findNodes.toUUIDString(obj(nodeAttrs.objId))
+      objIdFactory.toUUIDString(obj(nodeAttrs.objId))
     },
     CoHandler(GetValue(dbWrapType, at.isEditing)){ (obj, innerObj)⇒ false },
     CoHandler(GetValue(alienWrapType, at.isEditing)){ (obj, innerObj)⇒ true }

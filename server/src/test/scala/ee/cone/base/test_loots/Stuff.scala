@@ -253,7 +253,7 @@ class TestComponent(
       popupOpened = ""
     },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
-    val key = s"$objIdStr-${findNodes.toUUIDString(attrFactory.attrId(attr))}"
+    val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
     val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false)
     val collapsed = List(divClickable("1",Some(popupToggle(key)), input))
     val rows = if(popupOpened != key) Nil
@@ -357,10 +357,10 @@ class TestComponent(
   private def selectRowGroup(item: Obj) =
     iconCellGroup("selected")(_⇒booleanField(item, filterAttrs.isSelected, editableOpt = Some(true)))
   private def editAllGroup() = iconCellGroup("edit")(_⇒Nil)
-  private def editRowGroup(on: Boolean)(action: ()⇒Unit) =
+  private def editRowGroupBase(on: Boolean)(action: ()⇒Unit) =
     iconCellGroup("edit")(_⇒if(on) List(btnCreate("btnCreate",action)) else Nil)
-  def editRowGroup(itemList: ItemList, item: Obj) =
-    editRowGroup(itemList.isEditable){ () ⇒
+  private def editRowGroup(itemList: ItemList, item: Obj) =
+    editRowGroupBase(itemList.isEditable){ () ⇒
       val newIsEditing = !item(alienAttrs.isEditing)
       item(alienAttrs.isEditing) = newIsEditing
       if(newIsEditing) item(filterAttrs.isExpanded) = true
@@ -436,7 +436,7 @@ class TestComponent(
               mCell("6",150)(showLabel=>objField(entry, logAt.confirmedBy, showLabel)()),
               mCell("7",150)(showLabel=>dateField(entry, logAt.confirmedOn, showLabel))
             ) :::
-            editRowGroup(on=true)(()⇒go(entry))
+            editRowGroupBase(on=true)(()⇒go(entry))
           )
         }
       )))
@@ -450,7 +450,7 @@ class TestComponent(
     )
 
   private def entryEditView(pf: String) = wrapDBView { () =>
-    val entryObj = findNodes.whereObjId(findNodes.toObjId(UUID.fromString(pf.tail)))(logAt.asEntry)
+    val entryObj = findNodes.whereObjId(objIdFactory.toObjId(pf.tail))(logAt.asEntry)
     val isConfirmed = entryObj(logAt.asConfirmed)(nonEmpty)
     val entry = if(isConfirmed) entryObj else alien.wrapForEdit(entryObj)
     //val editable = !isConfirmed /*todo roles*/
@@ -485,11 +485,15 @@ class TestComponent(
                 flexGridItem("conf_do",150,None,List(
                   divHeightWrapper("1",72,
                     divAlignWrapper("1","right","bottom",
-                      if(isConfirmed)
-                        List(btnRaised("reopen","Reopen"){()⇒
-                          entry(logAt.confirmedOn) = None
-                          entry(logAt.confirmedBy) = findNodes.noNode
-                        })
+                      if(isConfirmed) {
+                        val entry = alien.wrapForEdit(entryObj)
+                        List(
+                          btnRaised("reopen", "Reopen") { () ⇒
+                            entry(logAt.confirmedOn) = None
+                            entry(logAt.confirmedBy) = findNodes.noNode
+                          }
+                        )
+                      }
                       else if(fillMore > 0){
                         List(text("1",s"Fill $fillMore more to confirm"))
                       }
@@ -524,7 +528,7 @@ class TestComponent(
     val deferSend = if(fillMore==1) false else true
     def fuelingRowView(time: ObjId, isRF: Boolean) = {
       val fueling = if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
-      val timeStr = findNodes.whereObjId(time)(fuelingAttrs.time)
+      val timeStr = if(isRF) "RF" else findNodes.whereObjId(time)(fuelingAttrs.time)
       row(timeStr,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
@@ -877,7 +881,7 @@ class FuelingItems(
     CoHandler(GetValue(dbWrapType, at.time)){ (obj,innerObj)⇒
       if(innerObj.data == at.time00) "00:00" else
       if(innerObj.data == at.time08) "08:00" else
-      if(innerObj.data == at.time24) "24:00" else Never()
+      if(innerObj.data == at.time24) "24:00" else throw new Exception(s"? ${innerObj.data}")
     } ::
     CoHandler(AttrCaption(at.meHours))("ME Hours.Min") ::
     CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::

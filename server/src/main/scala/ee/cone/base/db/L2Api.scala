@@ -24,6 +24,7 @@ trait ObjIdFactory {
   def toObjId(uuid: UUID): ObjId
   def toObjId(uuid: String): ObjId
   def compose(objIds: List[ObjId]): ObjId
+  def toUUIDString(objId: ObjId): String
 }
 
 trait AttrFactory {

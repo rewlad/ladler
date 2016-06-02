@@ -1,4 +1,6 @@
 
+scalaVersion := "2.11.8"
+
 fork in test := true
 
 // libraryDependencies += "org.deephacks.lmdbjni" % "lmdbjni-linux64" % "0.4.6" % Test

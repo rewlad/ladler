@@ -26,6 +26,7 @@ class ObjIdFactoryImpl extends ObjIdFactory {
     objIds.foreach(objId⇒buffer.putLong(objId.hi).putLong(objId.lo))
     toObjId(UUID.nameUUIDFromBytes(buffer.array()))
   }
+  def toUUIDString(objId: ObjId) = new UUID(objId.hi,objId.lo).toString
 }
 
 class NodeAttrsImpl(attr: AttrFactory, asDBNode: AttrValueType[ObjId])(

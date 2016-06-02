@@ -21,7 +21,7 @@ class FindNodesImpl(
   attrFactory: AttrFactory, factIndex: FactIndex, objIdFactory: ObjIdFactory,
   dBObjValueConverter: RawValueConverter[ObjId], dbWrapType: WrapType[ObjId]
 )(
-  val noNode: Obj = noObj.wrap(dbWrapType, NoObjId)
+  val noNode: Obj = noObj.wrap(dbWrapType, objIdFactory.noObjId)
 ) extends FindNodes  with CoHandlerProvider {
   def whereObjId(objId: ObjId): Obj = noObj.wrap(dbWrapType, objId)
   def zeroNode = whereObjId(dBObjValueConverter.convert(0L,0L))
@@ -78,7 +78,6 @@ main, m
    */
   def justIndexed = "Y"
   def toObjId(uuid: UUID): ObjId = objIdFactory.toObjId(uuid)
-  def toUUIDString(objId: ObjId) = new UUID(objId.hi,objId.lo).toString
   def handlers = {
     CoHandler(GetValue(dbWrapType, at.nonEmpty))(
       (obj, innerObj) ⇒ innerObj.data.nonEmpty

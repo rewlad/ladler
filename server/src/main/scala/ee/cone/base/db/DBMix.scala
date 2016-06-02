@@ -73,7 +73,7 @@ trait DBConnectionMix extends CoMixBase {
   lazy val eventSourceOperations =
     new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,findAttrs,factIndex,handlerLists,findNodes,instantTx,mainTx,searchIndex,mandatory)()
 
-  lazy val alienAccessAttrs = new AlienAccessAttrs(objIdFactory, attrFactory, asDBObj, asString)()
+  lazy val alienAccessAttrs = new AlienAccessAttrs(objIdFactory, attrFactory, asDBObj, asString, asBoolean)()
 
   lazy val alienWrapType = new AlienWrapType
   lazy val demandedWrapType = new DemandedWrapType

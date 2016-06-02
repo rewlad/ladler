@@ -56,7 +56,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
   lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter)
-  lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,findNodes)
+  lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes, userAttrs, fuelingAttrs, alienAccessAttrs,
     handlerLists,

@@ -29,7 +29,6 @@ trait FindNodes {
   def justIndexed: String
   def whereObjId(objId: ObjId): Obj
   def toObjId(uuid: UUID): ObjId
-  def toUUIDString(objId: ObjId): String
 }
 
 //trait ListByDBNode extends Attr[List[Attr[_]]]
