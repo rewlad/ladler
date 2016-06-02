@@ -781,8 +781,13 @@ class TestComponent(
   //// calculations
 
   private def calcWorkDuration(on: Boolean, work: Obj): Unit = {
-    work(logAt.workDuration) = if(!on) None else
-      Option(Duration.between(work(logAt.workStart).get, work(logAt.workStop).get))
+    work(logAt.workDuration) = if(!on) None else {
+      val start = work(logAt.workStart).get
+      val stop = work(logAt.workStop).get
+      if(start.isBefore(stop)) Option(Duration.between(start, stop))
+      else if(LocalTime.of(0,0)==start && start==stop) Option(Duration.ofDays(1))
+      else None
+    }
   }
   private def calcEntryDuration(on: Boolean, work: Obj): Unit = {
     val entry = work(logAt.entryOfWork)
