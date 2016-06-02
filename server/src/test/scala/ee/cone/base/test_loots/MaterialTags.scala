@@ -293,7 +293,10 @@ case class InputField[Value](tp: String, value: Value, alignRight:Boolean,label:
     builder.append("underlineStyle").startObject()
       builder.append("borderColor").append("rgba(0,0,0,0.24)")
     builder.end()
-    if(isPassword) builder.append("type").append("password")
+    if(isPassword) {
+      builder.append("type").append("password")
+      builder.append("autoComplete").append("new-password")
+    }
     input.appendJson(builder, convertToString(value), deferSend)
     builder.append("style"); {
       builder.startObject()
