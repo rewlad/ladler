@@ -6,6 +6,11 @@ import ee.cone.base.connection_api.DictMessage
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
 
+sealed trait ValidationKey
+case object RequiredValidationKey extends ValidationKey
+case object ErrorValidationKey extends ValidationKey
+case object DefaultValidationKey extends ValidationKey
+
 case class Paper() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
@@ -282,7 +287,10 @@ case class DivEmpty() extends VDomValue{
     builder.end()
   }
 }
-case class InputField[Value](tp: String, value: Value, alignRight:Boolean,label: String,deferSend: Boolean,isPassword:Boolean=false)(
+case class InputField[Value](
+  tp: String, value: Value, alignRight:Boolean, label: String, deferSend: Boolean,
+  fieldValidationState: ValidationKey, isPassword:Boolean=false
+)(
   input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
 ) extends VDomValue with OnChangeReceiver {
   def appendJson(builder: JsonBuilder) = {
@@ -290,9 +298,23 @@ case class InputField[Value](tp: String, value: Value, alignRight:Boolean,label:
     builder.append("tp").append(tp)
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
-    builder.append("underlineStyle").startObject()
-      builder.append("borderColor").append("rgba(0,0,0,0.24)")
-    builder.end()
+    (fieldValidationState match {
+      case DefaultValidationKey ⇒ ""
+      case RequiredValidationKey ⇒ "#ff9800"
+      case ErrorValidationKey ⇒ "#f44336"
+    }) match {
+      case "" ⇒ //"rgba(0,0,0,0.24)"
+      case color ⇒
+        builder.append("underlineStyle").startObject()
+        //builder.append("bottom").append("6px")
+        builder.append("borderColor").append(color)
+        builder.end()
+      //builder.append("hintText").append(fieldValidationState.msg)
+    }
+
+
+
+
     if(isPassword) {
       builder.append("type").append("password")
       builder.append("autoComplete").append("new-password")
@@ -522,13 +544,13 @@ class MaterialTags(
   def checkBox(key:VDomKey,label:String,checked:Boolean,check:Boolean=>Unit)=
     child[OfDiv](key,CheckBox(checked,label)(Some(v⇒check(v.nonEmpty))),Nil)
 
-  def iconInput(key: VDomKey,picture:String,focused:Boolean=false)(children: List[ChildPair[OfDiv]])=
+  def iconInput(key: VDomKey,picture:String,focused:Boolean=false)(input: List[ChildPair[OfDiv]])=
       divNoWrap("1",
         Seq(
           child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("36px"),Some("relative"),None),
             child[OfDiv]("icon",SVGIcon(picture,if(focused) Some("rgb(0,188,212)") else None),Nil)::Nil
           ),
-          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 36px)"),None,None), children)
+          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 36px)"),None,None), input)
         ):_*
       )
 
@@ -629,12 +651,12 @@ class MaterialTags(
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
 
-  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean) =
-    child[OfDiv](key, InputField("TextField", value, alignRight, label, deferSend, isPassword = false)
+  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean,fieldValidationState: ValidationKey) =
+    child[OfDiv](key, InputField("TextField", value, alignRight, label, deferSend, fieldValidationState, isPassword = false)
       (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
-  def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean) =
-    child[OfDiv](key, InputField("TextField",value, alignRight = false, label, deferSend, isPassword = true)
+  def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, fieldValidationState: ValidationKey) =
+    child[OfDiv](key, InputField("TextField",value, alignRight = false, label, deferSend, fieldValidationState, isPassword = true)
     (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
   private def instantToString(value: Option[Instant]): String =
@@ -668,14 +690,14 @@ class MaterialTags(
 
     } else None
 
-  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit) =
-    child[OfDiv](key, InputField("DateInput",value,alignRight = false,label, deferSend = false,isPassword = false)(inputAttributes,
+  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit, fieldValidationState: ValidationKey) =
+    child[OfDiv](key, InputField("DateInput",value,alignRight = false,label, deferSend = false,fieldValidationState,isPassword = false)(inputAttributes,
       instantToString, Some(newValue ⇒ change(stringToInstant(newValue)))), Nil)
-  def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,isPassword = false)(inputAttributes,
+  def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit, fieldValidationState: ValidationKey)=
+    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,fieldValidationState,isPassword = false)(inputAttributes,
       localTimeToString,Some(newValue=>change(stringToLocalTime(newValue)))),Nil)
-  def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,isPassword = false)(inputAttributes,
+  def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit, fieldValidationState: ValidationKey)=
+    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false)(inputAttributes,
       durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)
   def labeledText(key:VDomKey, label:String, content:String) =
     if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)

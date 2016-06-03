@@ -52,7 +52,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val asObjValidation = new AttrValueType[ObjValidation]
   lazy val validationAttributes = new ValidationAttributes(attrFactory,asObjValidation)()
   lazy val validationWrapType = new ValidationWrapType
-  lazy val validationFactory = new ValidationFactory(validationAttributes,nodeAttrs,attrFactory,dbWrapType,validationWrapType)()
+  lazy val validationFactory = new ValidationFactory(validationAttributes,nodeAttrs,attrFactory,dbWrapType,validationWrapType,alienCanChange)()
 
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, testAttributes, alienAccessAttrs, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alienCanChange, transient, mandatory, unique, onUpdate, filters)()
@@ -67,7 +67,8 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
   lazy val testComponent = new TestComponent(
-    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes, userAttrs, fuelingAttrs, alienAccessAttrs,
+    nodeAttrs, findAttrs, filterAttrs, testAttributes, logAttributes, userAttrs,
+    fuelingAttrs, alienAccessAttrs, validationAttributes,
     handlerLists,
     attrFactory,
     findNodes, mainTx, alienCanChange, onUpdate,

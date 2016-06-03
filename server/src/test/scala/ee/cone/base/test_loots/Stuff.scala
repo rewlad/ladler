@@ -150,6 +150,7 @@ class TestComponent(
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
   alienAttrs: AlienAccessAttrs,
+  validationAttrs: ValidationAttributes,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
@@ -182,6 +183,13 @@ class TestComponent(
   import alien.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
+  private def getValidationKey[Value](obj: Obj, attr: Attr[Value]): ValidationKey = {
+    val states = obj(validationAttrs.validation).get(attr)
+    if(states.isEmpty) DefaultValidationKey
+    else if(states.exists(_.isError)) ErrorValidationKey
+    else RequiredValidationKey
+  }
+
   private def strField(
     obj: Obj, attr: Attr[String], showLabel: Boolean,
     editableOpt: Option[Boolean]=None,
@@ -190,7 +198,8 @@ class TestComponent(
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
-    if(editable) List(textInput("1", visibleLabel, value, obj(attr) = _, deferSend, alignRight = alignRight))
+    if(editable) List(textInput("1", visibleLabel, value, obj(attr) = _, deferSend, alignRight = alignRight, getValidationKey(obj,attr)))
+
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
     else Nil
   }
@@ -201,7 +210,7 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
+    if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend, getValidationKey(obj,attr)))
     else Nil
   }
 
@@ -230,7 +239,7 @@ class TestComponent(
       s"${zeroPad2(x.abs.toHours.toString)}:${zeroPad2(x.abs.minusHours(x.abs.toHours).toMinutes.toString)}"
     ).getOrElse("")
     if(!editable) List(labeledText("1",visibleLabel,value))
-    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_))
+    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
   }
 
   private def dateField(
@@ -239,7 +248,7 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _))
+    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _, getValidationKey(obj,attr)))
     else {
       val dateStr = obj(attr).map{ v ⇒
         val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
@@ -256,7 +265,7 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_))
+    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
     else {
       val value = obj(attr).map(v ⇒
         s"${zeroPad2(v.getHour.toString)}:${zeroPad2(v.getMinute.toString)}"
@@ -287,7 +296,7 @@ class TestComponent(
     },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
     val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
-    val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false, alignRight = false)
+    val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false, alignRight = false, getValidationKey(obj,attr))
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
         items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
@@ -538,9 +547,8 @@ class TestComponent(
                         )
                       }
                       else if(validationStates.nonEmpty){
-                        validationStates.collect{
-                          case st: TextValidationState ⇒ text("1",st.text)
-                        }
+                        val state = validationStates.head
+                        List(text("1",state.text))
                       }
                       else {
                         val user = eventSource.mainSession(userAttrs.authenticatedUser)
