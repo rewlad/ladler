@@ -1,19 +1,15 @@
 package ee.cone.base.test_loots
 
-import java.nio.ByteBuffer
-import java.time.format.DateTimeFormatter
-import java.time._
-import java.util.UUID
 
-import ee.cone.base.util.Single
+
+import java.time.{Instant,LocalTime,Duration}
+
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
-import ee.cone.base.util.{Bytes, Never}
+import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom._
-
-import scala.collection.mutable
 
 /*
 object TimeZoneOffsetProvider{
@@ -49,46 +45,6 @@ class FailOfConnection(
     sender.sendToAlien("fail",e.toString) //todo
   } :: Nil
 }
-
-class DurationValueConverter(
-  val valueType: AttrValueType[Option[Duration]], inner: RawConverter
-) extends RawValueConverterImpl[Option[Duration]] {
-  def convertEmpty() = None
-  def convert(valueA: Long, valueB: Long) = Option(Duration.ofSeconds(valueA,valueB))
-  def convert(value: String) = Never()
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value.nonEmpty) inner.toBytes(preId, value.get.getSeconds, value.get.getNano, finId) else Array()
-}
-
-class InstantValueConverter(
-  val valueType: AttrValueType[Option[Instant]], inner: RawConverter
-) extends RawValueConverterImpl[Option[Instant]] {
-  def convertEmpty() = None
-  def convert(valueA: Long, valueB: Long) = Option(Instant.ofEpochSecond(valueA,valueB))
-  def convert(value: String) = Never()
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value.nonEmpty) inner.toBytes(preId, value.get.getEpochSecond, value.get.getNano, finId) else Array()
-}
-
-class LocalTimeValueConverter(
-  val valueType: AttrValueType[Option[LocalTime]], inner: RawConverter) extends RawValueConverterImpl[Option[LocalTime]] {
-  def convertEmpty()=None
-  def convert(valueA: Long, valueB: Long) = {
-    if(valueB != 0L) Never()
-    Option(LocalTime.ofSecondOfDay(valueA))
-  }
-  def convert(value: String) = Never()
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value.nonEmpty) inner.toBytes(preId, value.get.toSecondOfDay,0L,finId) else Array()
-}
-
-class TestAttributes(
-  attr: AttrFactory,
-  label: LabelFactory,
-  asString: AttrValueType[String]
-)(
-  val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", asString)
-)
 
 class BoatLogEntryAttributes(
   attr: AttrFactory,
@@ -145,8 +101,10 @@ class DataTablesState(currentVDom: CurrentVDom){
 ///////
 
 class TestComponent(
-  nodeAttrs: NodeAttrs, findAttrs: FindAttrs,
-  filterAttrs: FilterAttrs, at: TestAttributes, logAt: BoatLogEntryAttributes,
+  nodeAttrs: NodeAttrs,
+  findAttrs: FindAttrs,
+  filterAttrs: FilterAttrs,
+  logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
   alienAttrs: AlienAccessAttrs,
@@ -169,7 +127,11 @@ class TestComponent(
   users: Users,
   fuelingItems: FuelingItems,
   objIdFactory: ObjIdFactory,
-  validationFactory: ValidationFactory
+  validationFactory: ValidationFactory,
+  asDuration: AttrValueType[Option[Duration]],
+  asInstant: AttrValueType[Option[Instant]],
+  asDBObj: AttrValueType[Obj],
+  uiStrings: UIStrings
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -180,7 +142,7 @@ class TestComponent(
   import flexTags._
   import htmlTable._
   import findAttrs.nonEmpty
-  import alien.caption
+  import uiStrings.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
   private def getValidationKey[Value](obj: Obj, attr: Attr[Value]): ValidationKey = {
@@ -223,22 +185,16 @@ class TestComponent(
     List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
   }
 
-  private def zeroPad2(x: String) = x.length match {
-    case 0 ⇒ "00"
-    case 1 ⇒ s"0$x"
-    case _ ⇒ x
-  }
-
   private def durationField(
     obj: Obj, attr: Attr[Option[Duration]], showLabel: Boolean,
     editableOpt: Option[Boolean]=None
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val value = obj(attr).map(x =>
-      s"${zeroPad2(x.abs.toHours.toString)}:${zeroPad2(x.abs.minusHours(x.abs.toHours).toMinutes.toString)}"
-    ).getOrElse("")
-    if(!editable) List(labeledText("1",visibleLabel,value))
+    if(!editable) {
+      val value = uiStrings.convert(obj(attr), asDuration)
+      List(labeledText("1",visibleLabel,value))
+    }
     else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
   }
 
@@ -250,12 +206,8 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _, getValidationKey(obj,attr)))
     else {
-      val dateStr = obj(attr).map{ v ⇒
-        val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
-        val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-        date.format(formatter)
-      }.getOrElse("")
-      List(labeledText("1", visibleLabel, dateStr))
+      val value = uiStrings.convert(obj(attr), asInstant)
+      List(labeledText("1", visibleLabel, value))
     }
   }
 
@@ -267,9 +219,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
     else {
-      val value = obj(attr).map(v ⇒
-        s"${zeroPad2(v.getHour.toString)}:${zeroPad2(v.getMinute.toString)}"
-      ).getOrElse("")
+      val value = uiStrings.convert(obj(attr), asInstant)
       List(labeledText("1", visibleLabel, value))
     }
   }
@@ -278,6 +228,7 @@ class TestComponent(
   private def popupToggle(key: String)() =
     popupOpened = if(popupOpened == key) "" else key
 
+  private def objCaption(obj: Obj) = uiStrings.convert(obj, asDBObj)
   private def objField(
     obj: Obj, attr: Attr[Obj], showLabel: Boolean,
     editableOpt: Option[Boolean]=None
@@ -288,7 +239,10 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val vObj = obj(attr)
     val notSelected = "(not selected)"
-    val value = if(vObj(nonEmpty)) vObj(at.caption) else ""
+
+
+
+    val value = if(vObj(nonEmpty)) objCaption(vObj) else ""
     if(!editable){ return  List(labeledText("1",visibleLabel,value)) }
     def option(item: Obj, key: VDomKey, caption: String) = divClickable(key,Some{ ()⇒
       obj(attr) = item
@@ -299,7 +253,7 @@ class TestComponent(
     val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false, alignRight = false, getValidationKey(obj,attr))
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
-        items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
+        items().map(item ⇒ option(item, item(alien.objIdStr), objCaption(item)))
     val collapsed = btnInput("btnInput")(
       if(rows.nonEmpty) btnExpandLess("less",popupToggle(key)) else btnExpandMore("more",popupToggle(key)),
       input
@@ -883,8 +837,7 @@ class TestComponent(
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
-    factIndex.handlers(at.caption) :::
-    onUpdate.handlers(List(logAt.asBoat, logAt.boatName).map(attrFactory.attrId(_)),(on,obj)⇒obj(at.caption)=if(on)obj(logAt.boatName)else "") :::
+    uiStrings.handlers(List(logAt.asBoat, logAt.boatName))(_(logAt.boatName)) :::
     alien.update(findAttrs.justIndexed) :::
     CoHandler(AttrCaption(logAt.boat))("Boat") ::
     CoHandler(AttrCaption(logAt.date))("Date") ::

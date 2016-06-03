@@ -26,11 +26,12 @@ class UserAttrs(
 )
 
 class Users(
-  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, cat: TestAttributes, alienAttrs: AlienAccessAttrs,
+  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAccessAttrs,
   handlerLists: CoHandlerLists, attrFactory: AttrFactory,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
-  alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique, onUpdate: OnUpdate, filters: Filters
+  alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique,
+  onUpdate: OnUpdate, filters: Filters, captions: UIStrings
 )(
   val findAll: SearchByLabelProp[String] = searchIndex.create(at.asUser, findAttrs.justIndexed),
   val findAllActive: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, findAttrs.justIndexed),
@@ -92,7 +93,7 @@ class Users(
       unique(at.asUser, at.username) :::
       unique(at.asUser, at.fullName) :::
       onUpdate.handlers(List(at.asUser, findAttrs.justIndexed, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
-      onUpdate.handlers(List(at.asUser, at.fullName).map(attrFactory.attrId(_)),(on,obj)⇒obj(cat.caption)=if(on)obj(at.fullName)else "") :::
+      captions.handlers(List(at.asUser, at.fullName))(_(at.fullName)) :::
       filters.orderBy(at.fullName) :::
       filters.orderBy(at.username)
 }
