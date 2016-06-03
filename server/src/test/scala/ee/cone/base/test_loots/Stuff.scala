@@ -225,7 +225,7 @@ class TestComponent(
     else {
       val dateStr = obj(attr).map{ v ⇒
         val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
-        val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+        val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
         date.format(formatter)
       }.getOrElse("")
       List(labeledText("1", visibleLabel, dateStr))
