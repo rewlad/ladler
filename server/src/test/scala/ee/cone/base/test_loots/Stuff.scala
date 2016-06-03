@@ -181,11 +181,12 @@ class TestComponent(
   import alien.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-  private def strField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None, deferSend: Boolean=true, alignRight: Boolean = false): List[ChildPair[OfDiv]] = {
+  private def strField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None,
+                       deferSend: Boolean=true, alignRight: Boolean = false): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
-    if(editable) List(textInput("1", visibleLabel, value, obj(attr) = _, deferSend, alignRight = alignRight))
+    if(editable) List(textInput("1", visibleLabel, value, obj(attr) = _, deferSend, alignRight = alignRight,fieldValidationState = Required("ss")))
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
     else Nil
   }
@@ -215,13 +216,13 @@ class TestComponent(
       s"${zeroPad2(x.abs.toHours.toString)}:${zeroPad2(x.abs.minusHours(x.abs.toHours).toMinutes.toString)}"
     ).getOrElse("")
     if(!editable) List(labeledText("1",visibleLabel,value))
-    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_))
+    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_,fieldValidationState = Required()))
   }
 
   private def dateField(obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _))
+    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _,fieldValidationState = Error()))
     else {
       val dateStr = obj(attr).map{ v ⇒
         val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
@@ -235,7 +236,7 @@ class TestComponent(
   private def timeField(obj: Obj, attr: Attr[Option[LocalTime]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_))
+    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_,fieldValidationState = Required()))
     else {
       val value = obj(attr).map(v ⇒
         s"${zeroPad2(v.getHour.toString)}:${zeroPad2(v.getMinute.toString)}"

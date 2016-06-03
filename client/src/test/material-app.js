@@ -65,6 +65,7 @@ const DateInput = React.createClass({
             disabled:this.props.disabled,
             DateTimeFormat: global.Intl.DateTimeFormat,
             textFieldStyle: this.props.style,
+            underlineStyle: this.props.underlineStyle,
             onChange: (dummy,value) =>{ this.props.onChange({ target: { value: value.getTime().toString() }})}
         }
         const a=new Date()
@@ -92,7 +93,8 @@ const TimeInput = React.createClass({
             const m=value.getMinutes()<10?"0"+value.getMinutes().toString():value.getMinutes().toString()
             this.props.onChange({target:{value: h+":"+m}})
         }
-        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText, errorText: this.props.errorText,
+        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText,
+        underlineStyle: this.props.underlineStyle,
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
 })
