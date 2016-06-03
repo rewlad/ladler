@@ -167,7 +167,8 @@ class TestComponent(
   htmlTable: HtmlTable,
   users: Users,
   fuelingItems: FuelingItems,
-  objIdFactory: ObjIdFactory
+  objIdFactory: ObjIdFactory,
+  validationFactory: ValidationFactory
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -181,7 +182,11 @@ class TestComponent(
   import alien.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-  private def strField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None, deferSend: Boolean=true, alignRight: Boolean = false): List[ChildPair[OfDiv]] = {
+  private def strField(
+    obj: Obj, attr: Attr[String], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None,
+    deferSend: Boolean=true, alignRight: Boolean = false
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
@@ -189,14 +194,21 @@ class TestComponent(
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
     else Nil
   }
-  private def strPassField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+  private def strPassField(
+    obj: Obj, attr: Attr[String], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None,
+    deferSend: Boolean=true
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
     else Nil
   }
 
-  private def booleanField(obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def booleanField(
+    obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
@@ -208,7 +220,10 @@ class TestComponent(
     case _ ⇒ x
   }
 
-  private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def durationField(
+    obj: Obj, attr: Attr[Option[Duration]], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr).map(x =>
@@ -218,7 +233,10 @@ class TestComponent(
     else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_))
   }
 
-  private def dateField(obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def dateField(
+    obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _))
@@ -232,7 +250,10 @@ class TestComponent(
     }
   }
 
-  private def timeField(obj: Obj, attr: Attr[Option[LocalTime]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def timeField(
+    obj: Obj, attr: Attr[Option[LocalTime]], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_))
@@ -248,7 +269,12 @@ class TestComponent(
   private def popupToggle(key: String)() =
     popupOpened = if(popupOpened == key) "" else key
 
-  private def objField(obj: Obj, attr: Attr[Obj], showLabel: Boolean, editableOpt: Option[Boolean]=None)(items: ()⇒List[Obj]=()⇒Nil): List[ChildPair[OfDiv]] = {
+  private def objField(
+    obj: Obj, attr: Attr[Obj], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  )(
+    items: ()⇒List[Obj]=()⇒Nil
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val vObj = obj(attr)
@@ -470,15 +496,13 @@ class TestComponent(
   private def entryEditView(pf: String) = wrapDBView { () =>
     val entryObj = findNodes.whereObjId(objIdFactory.toObjId(pf.tail))(logAt.asEntry)
     val isConfirmed = entryObj(logAt.asConfirmed)(nonEmpty)
-    val entry = if(isConfirmed) entryObj else alien.wrapForEdit(entryObj)
-    //val editable = !isConfirmed /*todo roles*/
-
+    val validationStates = if(isConfirmed) Nil else
+      fuelingItems.validation(entryObj) :::
+      validationFactory.need[Obj](entryObj,logAt.boat,v⇒if(!v(nonEmpty)) Some("") else None) :::
+      validationFactory.need[Option[Instant]](entryObj,logAt.date,v⇒if(v.isEmpty) Some("") else None)
+    val validationContext = validationFactory.context(validationStates)
+    val entry = if(isConfirmed) entryObj else validationContext.wrap(alien.wrapForEdit(entryObj)) /*todo roles*/
     val entryIdStr = entry(alien.objIdStr)
-
-    val fillMore = if(isConfirmed) 0 else
-      (if(!entry(logAt.boat)(nonEmpty)) 1 else 0) +
-      (if(entry(logAt.date).isEmpty) 1 else 0) +
-      fuelingItems.notFilled(entry)
 
     List(
       toolbar("Entry Edit"),
@@ -490,7 +514,8 @@ class TestComponent(
               flexGridItem("boat1",100,None,boatSelectView(entry)),
               flexGridItem("date",150,None,dateField(entry, logAt.date, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
-              durationField(entry,logAt.durationTotal, editableOpt = Some(false), showLabel = true))))
+                durationField(entry,logAt.durationTotal, editableOpt = Some(false), showLabel = true)
+              )))
             ))
           )),
           flexGridItem("2",500,None,List(
@@ -512,11 +537,10 @@ class TestComponent(
                           }
                         )
                       }
-                      else if(fillMore > 0){
-                        List(text("1",s"Fill $fillMore more to confirm"))
-                      }
-                      else if(!fuelingItems.meHoursIsInc(entry)){
-                        List(text("1",s"ME times shold increase"))
+                      else if(validationStates.nonEmpty){
+                        validationStates.collect{
+                          case st: TextValidationState ⇒ text("1",st.text)
+                        }
                       }
                       else {
                         val user = eventSource.mainSession(userAttrs.authenticatedUser)
@@ -534,18 +558,22 @@ class TestComponent(
         )
       ))),
 
-      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, fillMore))),
+      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, validationStates))),
       withMaxWidth("3",1200,List(entryEditWorkListView(entry)))
     )
   }
 
 
-  def entryEditFuelScheduleView(entry: Obj, fillMore: Int): ChildPair[OfDiv] = {
+  def entryEditFuelScheduleView(entry: Obj, validationStates: List[ValidationState]): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(List(entry(nodeAttrs.objId)))
-    val deferSend = if(fillMore==1) false else true
+    val deferSend = validationStates.size > 2
+    val validationContext = validationFactory.context(validationStates)
+
     def fuelingRowView(time: ObjId, isRF: Boolean) = {
-      val fueling = if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
+      val fueling = validationContext.wrap(
+        if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
+      )
       val timeStr = if(isRF) "RF" else findNodes.whereObjId(time)(fuelingAttrs.time)
       row(timeStr,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
@@ -909,7 +937,8 @@ class FuelingItems(
   filters: Filters,
   onUpdate: OnUpdate,
   attrFactory: AttrFactory,
-  dbWrapType: WrapType[ObjId]
+  dbWrapType: WrapType[ObjId],
+  validationFactory: ValidationFactory
 )(
   val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
   val times: List[ObjId] = List(at.time00,at.time08,at.time24)
@@ -942,20 +971,24 @@ class FuelingItems(
         }
       }
     })*/
-
+/*
+else if(!fuelingItems.meHoursIsInc(entry)){
+                        List(text("1",s"ME times shold increase"))
+                      }
+* */
   def fueling(entry: Obj, time: ObjId, wrapForEdit: Boolean) =
     filters.lazyLinkingObj(fuelingByFullKey,List(entry(nodeAttrs.objId),time),wrapForEdit)
-  def notFilled(entry: Obj): Int = times.map { time ⇒
-    val obj = fueling(entry, time, wrapForEdit = false)
-    (if(obj(at.meHours).isEmpty) 1 else 0) +
-    (if(obj(at.fuel).isEmpty) 1 else 0) +
-    (if(obj(at.engineer).isEmpty) 1 else 0) +
-    (if(obj(at.master).isEmpty) 1 else 0)
-  }.sum
-  def meHoursIsInc(entry: Obj) = {
-    val meHours: List[Duration] =
-      times.flatMap(time ⇒ fueling(entry, time, wrapForEdit = false)(at.meHours))
-    meHours.size == times.size && meHours.sliding(2).forall{ case a :: b :: Nil ⇒ a.compareTo(b) <= 0 }
+  def validation(entry: Obj): List[ValidationState] = {
+    val fuelingList = times.map(time⇒fueling(entry, time, wrapForEdit = false))
+    fuelingList.flatMap { obj ⇒
+      validationFactory.need[String](obj,at.fuel,v⇒if(v.isEmpty) Some("") else None) :::
+      validationFactory.need[String](obj,at.engineer,v⇒if(v.isEmpty) Some("") else None) :::
+      validationFactory.need[String](obj,at.master,v⇒if(v.isEmpty) Some("") else None)
+    } :::
+    fuelingList.sliding(2).toList.flatMap{ fuelingPair ⇒ fuelingPair.map(_(at.meHours)) match {
+      case Some(a) :: Some(b) :: Nil if a.compareTo(b) <= 0 ⇒ Nil
+      case _ ⇒ validationFactory.need[Option[Duration]](fuelingPair.head,at.meHours,v⇒Some("to increase"))
+    }}
   }
 }
 

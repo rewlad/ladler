@@ -48,10 +48,19 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asBoolean, asDBObjId, asObjIdSet)()
   lazy val filters = new Filters(filterAttrs,nodeAttrs,findAttrs,alienAccessAttrs,handlerLists,attrFactory,findNodes,mainTx,alienCanChange,listedWrapType,factIndex,searchIndex,transient,objIdFactory)()
   lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
+
+  lazy val asObjValidation = new AttrValueType[ObjValidation]
+  lazy val validationAttributes = new ValidationAttributes(attrFactory,asObjValidation)()
+  lazy val validationWrapType = new ValidationWrapType
+  lazy val validationFactory = new ValidationFactory(validationAttributes,nodeAttrs,attrFactory,dbWrapType,validationWrapType)()
+
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, testAttributes, alienAccessAttrs, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alienCanChange, transient, mandatory, unique, onUpdate, filters)()
   lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration)()
-  lazy val fuelingItems = new FuelingItems(fuelingAttrs, findAttrs, alienAccessAttrs, filterAttrs, nodeAttrs, factIndex, searchIndex, alienCanChange, filters, onUpdate, attrFactory, dbWrapType)()
+  lazy val fuelingItems = new FuelingItems(
+    fuelingAttrs, findAttrs, alienAccessAttrs, filterAttrs, nodeAttrs,
+    factIndex, searchIndex, alienCanChange, filters, onUpdate, attrFactory, dbWrapType, validationFactory
+  )()
   //
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter)
@@ -64,7 +73,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     findNodes, mainTx, alienCanChange, onUpdate,
     tags, materialTags, flexTags, currentView, dtTablesState,
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
-    objIdFactory
+    objIdFactory, validationFactory
   )()
 }
 
