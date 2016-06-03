@@ -130,7 +130,9 @@ class TestComponent(
   validationFactory: ValidationFactory,
   asDuration: AttrValueType[Option[Duration]],
   asInstant: AttrValueType[Option[Instant]],
+  asLocalTime: AttrValueType[Option[LocalTime]],
   asDBObj: AttrValueType[Obj],
+  asString: AttrValueType[String],
   uiStrings: UIStrings
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
@@ -152,6 +154,15 @@ class TestComponent(
     else RequiredValidationKey
   }
 
+  private def booleanField(
+      obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false,
+      editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
+  }
+
   private def strField(
     obj: Obj, attr: Attr[String], showLabel: Boolean,
     editableOpt: Option[Boolean]=None,
@@ -160,8 +171,10 @@ class TestComponent(
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
-    if(editable) List(textInput("1", visibleLabel, value, obj(attr) = _, deferSend, alignRight = alignRight, getValidationKey(obj,attr)))
-
+    if(editable) List(inputField(
+      "1", TextFieldType, visibleLabel, value, obj(attr) = _,
+      deferSend, alignRight, getValidationKey(obj,attr)
+    ))
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
     else Nil
   }
@@ -172,17 +185,12 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend, getValidationKey(obj,attr)))
+    val value = obj(attr)
+    if(editable) List(inputField(
+      "1", TextFieldType, visibleLabel, value, obj(attr) = _,
+      deferSend, alignRight=false, getValidationKey(obj,attr)
+    ))
     else Nil
-  }
-
-  private def booleanField(
-    obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false,
-    editableOpt: Option[Boolean]=None
-  ): List[ChildPair[OfDiv]] = {
-    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
-    val visibleLabel = if(showLabel) caption(attr) else ""
-    List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
   }
 
   private def durationField(
@@ -191,11 +199,13 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(!editable) {
-      val value = uiStrings.convert(obj(attr), asDuration)
-      List(labeledText("1",visibleLabel,value))
-    }
-    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
+    val valueType = asDuration
+    val value = uiStrings.converter(valueType, asString)(obj(attr))
+    if(editable) List(inputField(
+      "1", TimeFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend=false, alignRight=true, getValidationKey(obj,attr)
+    ))
+    else List(labeledText("1",visibleLabel,value))
   }
 
   private def dateField(
@@ -204,11 +214,13 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _, getValidationKey(obj,attr)))
-    else {
-      val value = uiStrings.convert(obj(attr), asInstant)
-      List(labeledText("1", visibleLabel, value))
-    }
+    val valueType = asInstant
+    val value = uiStrings.converter(valueType, asString)(obj(attr))
+    if(editable) List(inputField(
+      "1", DateFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend=false, alignRight=true, getValidationKey(obj,attr)
+    ))
+    else List(labeledText("1", visibleLabel, value))
   }
 
   private def timeField(
@@ -217,18 +229,20 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
-    else {
-      val value = uiStrings.convert(obj(attr), asInstant)
-      List(labeledText("1", visibleLabel, value))
-    }
+    val valueType = asLocalTime
+    val value = uiStrings.converter(valueType, asString)(obj(attr))
+    if(editable) List(inputField(
+      "1", TimeFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend=false, alignRight=true, getValidationKey(obj,attr)
+    ))
+    else List(labeledText("1", visibleLabel, value))
   }
 
   private var popupOpened = ""
   private def popupToggle(key: String)() =
     popupOpened = if(popupOpened == key) "" else key
 
-  private def objCaption(obj: Obj) = uiStrings.convert(obj, asDBObj)
+  private def objCaption(obj: Obj) = uiStrings.converter(asDBObj, asString)(obj)
   private def objField(
     obj: Obj, attr: Attr[Obj], showLabel: Boolean,
     editableOpt: Option[Boolean]=None
@@ -240,8 +254,6 @@ class TestComponent(
     val vObj = obj(attr)
     val notSelected = "(not selected)"
 
-
-
     val value = if(vObj(nonEmpty)) objCaption(vObj) else ""
     if(!editable){ return  List(labeledText("1",visibleLabel,value)) }
     def option(item: Obj, key: VDomKey, caption: String) = divClickable(key,Some{ ()⇒
@@ -250,7 +262,10 @@ class TestComponent(
     },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
     val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
-    val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false, alignRight = false, getValidationKey(obj,attr))
+    val input = inputField(
+      "1", TextFieldType, visibleLabel, value, _=>{},
+      deferSend=false, alignRight = false, getValidationKey(obj,attr)
+    )
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
         items().map(item ⇒ option(item, item(alien.objIdStr), objCaption(item)))
@@ -260,15 +275,6 @@ class TestComponent(
     )::Nil
     List(fieldPopupBox("1",showUnderscore = false,collapsed,rows))
   }
-/*
-  fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
-    divNoWrap("1",text("1","aaa"))::
-      divNoWrap("2",text("1","aaa sdfsdfs sds fs d"))::
-      (0 to 20).map(x=>{
-        divNoWrap("3"+x,text("1","aaa"))}).toList
-
-  )::Nil //objField(entry,logAt.boat,editable = false,"Boat",showLabel = true)
-  */
 
   ////
 

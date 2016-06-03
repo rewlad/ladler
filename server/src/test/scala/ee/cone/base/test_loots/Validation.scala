@@ -25,7 +25,7 @@ class ValidationFactory(
   nodeAttrs: NodeAttrs, attrFactory: AttrFactory,
   dbWrapType: WrapType[ObjId],
   validationWrapType: WrapType[ObjValidation],
-  alien: Alien
+  uiStrings: UIStrings
 )(
   val noObjValidation: ObjValidation = new ObjValidation {
     def get[Value](attr: Attr[Value]) = Nil
@@ -47,7 +47,7 @@ class ValidationFactory(
   }
   def need[Value](obj: Obj, attr: Attr[Value], check: Value⇒Option[String]) =
     check(obj(attr)).map{ text ⇒
-      ValidationState(obj(nodeAttrs.objId), attrFactory.attrId(attr), text.nonEmpty, s"${alien.caption(attr)} is required $text")
+      ValidationState(obj(nodeAttrs.objId), attrFactory.attrId(attr), text.nonEmpty, s"${uiStrings.caption(attr)} is required $text")
     }.toList
 
   def handlers = List(

@@ -73,13 +73,13 @@ trait DBConnectionMix extends CoMixBase {
   lazy val eventSourceOperations =
     new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,findAttrs,factIndex,handlerLists,findNodes,instantTx,mainTx,searchIndex,mandatory)()
 
-  lazy val uiStringAttributes = new UIStringAttributes(attrFactory, asString)
-  lazy val uiStrings = new UIStringsImpl(uiStringAttributes, handlerLists, attrFactory, factIndex, onUpdate, findNodes, asDBObj, asDBObjId)
+  lazy val uiStringAttributes = new UIStringAttributes(attrFactory, asString)()
+  lazy val uiStrings = new UIStringsImpl(uiStringAttributes, handlerLists, attrFactory, factIndex, onUpdate, findNodes, asDBObj, asDBObjId, asString)
 
   lazy val alienAttrs = new AlienAccessAttrs(objIdFactory, attrFactory, asDBObj, asString, asBoolean)()
   lazy val alienWrapType = new AlienWrapType
   lazy val demandedWrapType = new DemandedWrapType
-  lazy val alien = new Alien(alienAttrs,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,dbWrapType,objIdFactory,uiStrings,asDBObj)
+  lazy val alien = new Alien(alienAttrs,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,dbWrapType,objIdFactory,uiStrings,asDBObj,asString)
 
   lazy val definedValueConverter = new DefinedValueConverter(asDefined, rawConverter)
   lazy val booleanValueConverter = new BooleanValueConverter(asBoolean, rawConverter)
