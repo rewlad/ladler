@@ -301,7 +301,6 @@ case class InputField(
 )(
   input: InputAttributes, val onChange: Option[String=>Unit]
 ) extends VDomValue with OnChangeReceiver {
-  //def onChange = Some(str⇒change(uiStrings.fromString(str,valueType)))
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp match {
@@ -537,7 +536,7 @@ trait OfTable
 trait OfTableRow
 
 class MaterialTags(
-  child: ChildPairFactory, inputAttributes: InputAttributes, uiStrings: UIStrings
+  child: ChildPairFactory, inputAttributes: InputAttributes
 ) {
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
     child[OfDiv](key,MaterialChip(text)(action),children)

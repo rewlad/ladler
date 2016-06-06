@@ -1,8 +1,7 @@
 package ee.cone.base.test_loots
 
 
-import java.time.format.DateTimeFormatter
-import java.time._
+import java.time.{Instant,LocalTime,Duration}
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
@@ -218,11 +217,28 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val valueType = asInstant
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(editable) List(inputField(
-      "1", DateFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
-      deferSend=false, alignRight=true, getValidationKey(obj,attr)
+    if(!editable){ return List(labeledText("1", visibleLabel, value)) }
+
+    val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
+    val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
+
+    val popupCalendar =
+      if(popupOpened != key) Nil
+      else  withMinWidth("minWidth",320,calendarDialog("calendar",Some{ newVal =>
+        obj(attr) = uiStrings.converter(asString,valueType)(newVal)
+        popupToggle(key)
+      })::Nil)::Nil
+
+    val input = inputField(
+      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend = true, alignRight = true, getValidationKey(obj,attr)
+    )
+
+    List(fieldPopupBox(
+      "calendar",
+      List(btnInput("icon")(btnDateRange("btnCalendar",popupToggle(key)), input)),
+      popupCalendar
     ))
-    else List(labeledText("1", visibleLabel, value))
   }
 
   private def timeField(
@@ -277,30 +293,6 @@ class TestComponent(
       input
     )::Nil
     List(fieldPopupBox("1",collapsed,rows))
-  }
-  var date:Option[Instant]=None
-  private def calendar(obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, editableOpt: Option[Boolean]=None)= {
-    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
-    val visibleLabel = if(showLabel) caption(attr) else ""
-    val vObj = obj(attr)
-    val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
-    val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
-    lazy val popupCalendar = if(popupOpened != key) Nil
-    else  withMinWidth("minWidth",320,calendarDialog("calendar",Some(newVal=>{println(newVal);
-      date=Some(toInstant(newVal))
-      popupToggle(key)}))::Nil)::Nil
-    def toInstant(value:String)=
-      Instant.ofEpochMilli(java.lang.Long.valueOf(value))
-    def getString(value:Option[Instant])=
-      if(value.isEmpty) ""
-      else
-        DateTimeFormatter.ofPattern("dd.MM.yyyy").format(value.get.atZone(ZoneId.of("UTC")))
-    fieldPopupBox("calendar",
-      btnInput("icon")(
-        btnDateRange("btnCalendar",popupToggle(key)),
-        inputField("input",TextFieldType,visibleLabel,getString(date),(_)=>{},deferSend = false,alignRight = false,fieldValidationState = DefaultValidationKey))::Nil,
-      popupCalendar)::Nil
-
   }
 
   ////
@@ -433,8 +425,8 @@ class TestComponent(
         controlPanel(inset = true)(
           List(flexGrid("controlGrid1",List(
             flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
-            flexGridItem("2a",150,Some(200), calendar(filterObj, logAt.dateFrom, showLabel = true)),
-            flexGridItem("3a",150,Some(200), calendar(filterObj, logAt.dateTo, showLabel = true)),
+            flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, showLabel = true)),
+            flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, showLabel = true)),
             flexGridItem("4a",150,Some(200), divHeightWrapper("1",72,
               divAlignWrapper("1","","bottom",withMargin("1",10,booleanField(filterObj, logAt.hideConfirmed, showLabel = true))::Nil)
             )::Nil)
@@ -786,7 +778,7 @@ class TestComponent(
         eventSource.unmergedEvents.map(alien.wrapForEdit).map { ev =>
           val srcId = ev(alien.objIdStr)
           row(srcId)(
-            mCell("1",250)(_⇒List(text("text", ev(eventSource.comment)))),
+            mCell("1",250)(_⇒List(text("text", ev(alienAttrs.comment)))),
             mCell("2",250)(_⇒List(btnRemove("btn", () => eventSource.addUndo(ev))))
           )
         }

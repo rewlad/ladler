@@ -1,9 +1,7 @@
 package ee.cone.base.db
 
 import ee.cone.base.connection_api._
-
 import ee.cone.base.util.Never
-
 
 class UIStringAttributes(
   attr: AttrFactory,
@@ -20,7 +18,6 @@ class UIStringsImpl(
   onUpdate: OnUpdate,
   findNodes: FindNodes,
   asDBObj: AttrValueType[Obj],
-
   asObjId: AttrValueType[ObjId],
   asString: AttrValueType[String]
 ) extends UIStrings with CoHandlerProvider {

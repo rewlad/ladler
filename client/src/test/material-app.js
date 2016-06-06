@@ -293,8 +293,10 @@ class CrazyCalendar extends React.Component{
     }
 
     handleOnDayTouchTap(e,day){
-        const utcDate=day.getTime()-day.getTimezoneOffset()*60*1000
-        this.props.onChange({ target: { value: utcDate.toString() }})
+        //const utcDate=day.getTime()-day.getTimezoneOffset()*60*1000
+        //this.props.onChange({ target: { value: utcDate.toString() }})
+        const value = day.getDate()+"."+day.getMonth()+"."+day.getFullYear()
+        this.props.onChange({ target: ({value}) })
     }
 
     render(){

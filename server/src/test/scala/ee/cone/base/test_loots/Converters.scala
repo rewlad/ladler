@@ -7,7 +7,6 @@ import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider}
 import ee.cone.base.db._
 import ee.cone.base.util.Never
 
-
 abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValue] with CoHandlerProvider {
   type Value = IValue
   def valueType: AttrValueType[Value]
@@ -24,7 +23,6 @@ abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValu
     case 1 ⇒ s"0$x"
     case _ ⇒ x
   }
-
   protected def strToPair[To](value: String, by: (Int,Int)⇒To): Option[To] = if(value.nonEmpty) {
     val Array(h,m) = value.split(":")
     Some(by(h.toInt,m.toInt))
@@ -62,7 +60,7 @@ class InstantValueConverter(
     date.format(formatter)
   }.getOrElse("")
   def fromUIString(value: String) = if(value.isEmpty) None else {
-    val DateRe = """(\d{2})\.(\d{2})\.(\d{4})""".r
+    val DateRe = """(\d{1,2})\.(\d{1,2})\.(\d{4})""".r
     val DateRe(d,m,y) = value
     val date = LocalDate.of(y.toInt,m.toInt,d.toInt)
     Some(Instant.from(ZonedDateTime.of(date,LocalTime.MIN,zoneId)))
@@ -72,7 +70,6 @@ class InstantValueConverter(
 class LocalTimeValueConverter(
   val valueType: AttrValueType[Option[LocalTime]], inner: RawConverter, val asString: AttrValueType[String]
 ) extends TimeRawValueConverterImpl[Option[LocalTime]] {
-
   def convertEmpty()=None
   def convert(valueA: Long, valueB: Long) = {
     if(valueB != 0L) Never()
@@ -84,8 +81,6 @@ class LocalTimeValueConverter(
   def toUIString(value: Value) = value.map(v ⇒
     s"${zeroPad2(v.getHour.toString)}:${zeroPad2(v.getMinute.toString)}"
   ).getOrElse("")
-
   def fromUIString(value: String) = strToPair(value, (h,m)⇒LocalTime.of(h,m))
-
 }
 

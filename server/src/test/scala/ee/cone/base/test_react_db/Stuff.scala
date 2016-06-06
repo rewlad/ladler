@@ -87,7 +87,7 @@ class TestComponent(
         val objIdStr = ev(alien.objIdStr)
         tags.div(
           objIdStr,
-          text("text", ev(eventSource.comment)) ::
+          text("text", ev(alienAccessAttrs.comment)) ::
           tags.button("remove", "-", ()=>eventSource.addUndo(ev)) ::
           Nil
         )
@@ -111,7 +111,7 @@ class TestComponent(
   private def saveAction()() = eventSource.addRequest()
   private def removeTaskAction(obj: Obj)() = eventSource.addEvent{ ev =>
     ev(alienAccessAttrs.targetObj) = obj
-    (at.taskRemoved, "task was removed")
+    at.taskRemoved
   }
 
   private def taskRemoved(ev: Obj): Unit = {
@@ -119,16 +119,18 @@ class TestComponent(
     task(at.asTestTask) = findNodes.noNode
     task(at.comments) = ""
     task(at.testState) = ""
+    alien.describeEvent(ev, "task was removed")
   }
   private def createTaskAction()() = eventSource.addEvent{ ev =>
     ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
-    (at.taskCreated, "task was created")
+    at.taskCreated
   }
 
   private def taskCreated(ev: Obj): Unit = {
     val task = ev(alienAccessAttrs.targetObj)
     task(at.asTestTask) = task
     task(at.testState) = "A"
+    alien.describeEvent(ev, "task was created")
   }
 
   def handlers =

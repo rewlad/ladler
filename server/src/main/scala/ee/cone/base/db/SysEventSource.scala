@@ -36,8 +36,7 @@ class EventSourceAttrsImpl(
   val requested: ObjId = objIdFactory.toObjId("55b09b31-3af4-402e-963b-522f71646e9e"),
   //0x001C
   val applyAttr: Attr[ObjId] = attr("a105c5e0-aaee-41ca-8f8a-5d4328594670", asDBObjId),
-  val mainSession: Attr[Obj] = attr("363bb985-aa39-48bf-a866-e74dd3584056", asObj),
-  val comment: Attr[String] = attr("c0e6114b-bfb2-49fc-b9ef-5110ed3a9521", asString)
+  val mainSession: Attr[Obj] = attr("363bb985-aa39-48bf-a866-e74dd3584056", asObj)
 ) extends SessionEventSourceAttrs
 
 class EventSourceOperationsImpl(
@@ -154,8 +153,7 @@ class EventSourceOperationsImpl(
       asCommit,
       lastMergedRequest,
       applyAttr,
-      mainSession,
-      comment
+      mainSession
     ).flatMap(factIndex.handlers(_)) :::
       mandatory(asInstantSession, sessionKey, mutual = true) :::
       mandatory(asInstantSession, mainSession, mutual = true) :::
