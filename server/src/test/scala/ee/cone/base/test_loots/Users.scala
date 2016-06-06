@@ -80,6 +80,7 @@ class Users(
     CoHandler(AttrCaption(at.asUser))("As User") ::
       CoHandler(AttrCaption(at.fullName))("Full Name") ::
       CoHandler(AttrCaption(at.username))("Username") ::
+      CoHandler(AttrCaption(at.asActiveUser))("Active") ::
       CoHandler(AttrCaption(at.unEncryptedPassword))("Password") ::
       CoHandler(AttrCaption(at.unEncryptedPasswordAgain))("Repeat Password") ::
       List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers) :::

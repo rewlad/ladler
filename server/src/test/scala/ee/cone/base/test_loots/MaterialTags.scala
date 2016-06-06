@@ -127,7 +127,7 @@ case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
       builder.append("style").startObject()
     if(color.nonEmpty)
         builder.append("fill").append(color.get)
-        builder.append("verticalAlign").append("middle")
+        //builder.append("verticalAlign").append("middle")
       builder.end()
     builder.end()
   }
@@ -323,6 +323,7 @@ case class InputField(
         builder.end()
       //builder.append("hintText").append(fieldValidationState.msg)
     }
+
     if(isPassword) {
       builder.append("type").append("password")
       builder.append("autoComplete").append("new-password")
@@ -440,12 +441,11 @@ case class FieldPopupDrop(opened:Boolean,maxHeight:Option[Int]=None) extends VDo
 
   }
 }
-case class FieldPopupBox(showUnderscore:Boolean) extends VDomValue{
+case class FieldPopupBox() extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("FieldPopupBox")
     builder.append("popupReg").append("def")
-    builder.append("showUnderscore").append(showUnderscore)
     builder.end()
 
   }
@@ -523,6 +523,15 @@ case object ControlPanelColor extends Color{
 
 */
 
+case class CalendarDialog()(val onChange:Option[(String)=>Unit]) extends VDomValue with OnChangeReceiver{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("CrazyCalendar")
+    builder.append("onChange").append("send")
+    builder.end()
+  }
+}
+
 trait OfTable
 trait OfTableRow
 
@@ -531,15 +540,10 @@ class MaterialTags(
 ) {
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
     child[OfDiv](key,MaterialChip(text)(action),children)
-  def fieldPopupBox(key: VDomKey, chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
-    child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
-      child[OfDiv](key+"box", FieldPopupBox(showUnderscore = false), chl1),
-      child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
-    ))
-  def fieldPopupBox(key: VDomKey, showUnderscore:Boolean,chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
+  def fieldPopupBox(key: VDomKey,fieldChildren:List[ChildPair[OfDiv]], popupChildren:List[ChildPair[OfDiv]]) =
     child[OfDiv](key,DivPositionWrapper(Option("inline-block"),Some("100%"),Some("relative"),None),List(
-      child[OfDiv](key+"box", FieldPopupBox(showUnderscore), chl1),
-      child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
+      child[OfDiv](key+"box", FieldPopupBox(), fieldChildren),
+      child[OfDiv](key+"popup", FieldPopupDrop(popupChildren.nonEmpty,maxHeight = Some(400)), popupChildren)
     ))
   def divider(key:VDomKey)=
     child[OfDiv](key,Divider(),Nil)
@@ -591,6 +595,9 @@ class MaterialTags(
       IconButton(tooltip)(Some(action)),
       child("icon", SVGIcon(picture), Nil) :: Nil
     )
+  def calendarDialog(key:VDomKey,action: Option[(String)=>Unit])={
+    child[OfDiv](key,CalendarDialog()(action),Nil)
+  }
   def iconArrowUp()=
     child[OfDiv]("icon",SVGIcon("IconNavigationDropDown"),Nil)
   def iconArrowDown()=
@@ -658,9 +665,6 @@ class MaterialTags(
     child[OfDiv](key,DivMinHeight(value),theChild.toList)
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
-
-
-
   def inputField(
       key: VDomKey,
       inputType: FieldType, label: String, value: String,
@@ -706,6 +710,7 @@ class MaterialTags(
     child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,fieldValidationState,isPassword = false,asLocalTime)(inputAttributes, uiStrings, change),Nil)
   def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit, fieldValidationState: ValidationKey)=
     child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false,asDuration)(inputAttributes, uiStrings, change),Nil)
+
       durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)*/
   def labeledText(key:VDomKey, label:String, content:String) =
     if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)

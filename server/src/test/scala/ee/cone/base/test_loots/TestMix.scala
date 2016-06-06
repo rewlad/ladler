@@ -34,7 +34,6 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val asInstant = new AttrValueType[Option[Instant]]
   lazy val asDuration = new AttrValueType[Option[Duration]]
   lazy val asLocalTime = new AttrValueType[Option[LocalTime]]
-
   lazy val logAttributes = new BoatLogEntryAttributes(
     attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()

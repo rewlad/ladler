@@ -60,7 +60,7 @@ class InstantValueConverter(
     date.format(formatter)
   }.getOrElse("")
   def fromUIString(value: String) = if(value.isEmpty) None else {
-    val DateRe = """(\d{2})\.(\d{2})\.(\d{4})""".r
+    val DateRe = """(\d{1,2})\.(\d{1,2})\.(\d{4})""".r
     val DateRe(d,m,y) = value
     val date = LocalDate.of(y.toInt,m.toInt,d.toInt)
     Some(Instant.from(ZonedDateTime.of(date,LocalTime.MIN,zoneId)))

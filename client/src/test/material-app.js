@@ -40,7 +40,7 @@ import DatePicker        from 'material-ui/lib/date-picker/date-picker'
 import Checkbox          from 'material-ui/lib/checkbox'
 import TimePicker        from 'material-ui/lib/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
-//import SelectField       from '../test/select-field'
+import Calendar          from 'material-ui/lib/date-picker/calendar'
 import injectTapEventPlugin from "react-tap-event-plugin"
 injectTapEventPlugin()
 function fixOnScrollBug(){
@@ -286,6 +286,47 @@ class CursorOver extends React.Component{
     }
 }
 
+class CrazyCalendar extends React.Component{
+    constructor(props){
+        super(props)
+        this.handleOnDayTouchTap=this.handleOnDayTouchTap.bind(this)
+    }
+
+    handleOnDayTouchTap(e,day){
+        //const utcDate=day.getTime()-day.getTimezoneOffset()*60*1000
+        //this.props.onChange({ target: { value: utcDate.toString() }})
+        const value = day.getDate()+"."+day.getMonth()+"."+day.getFullYear()
+        this.props.onChange({ target: ({value}) })
+    }
+
+    render(){
+    //console.log(global.Intl.DateTimeFormat)
+        const propsCalender={
+            key:"dialog",
+            container:"dialog",
+            ref:"calender",
+            DateTimeFormat: global.Intl.DateTimeFormat,
+            locale:"et-EE",
+            mode:"portrait",
+            onDayTouchTap:this.handleOnDayTouchTap,
+            //onAccept:this.handleDialogAccept,
+            initialDate:(new Date()),
+            //open:false,
+            //onShow={onShow}
+            //onDismiss={onDismiss}
+            //minDate={minDate}
+            //maxDate={maxDate}
+            //autoOk={autoOk}
+            //disableYearSelection={disableYearSelection}
+            //shouldDisableDate={this.props.shouldDisableDate}
+            firstDayOfWeek:0
+        }
+
+        return React.createElement(Calendar,propsCalender)
+    }
+}
+
+
 const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
@@ -294,7 +335,7 @@ const tp = ({
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
-    IconActionRestore,IconContentSave,//,SelectField
+    IconActionRestore,IconContentSave,CrazyCalendar,//Calendar,
     IconMenuButton,MenuItem,IconNavigationMenu,CursorOver,
     IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess
 })

@@ -1,7 +1,6 @@
 package ee.cone.base.test_loots
 
 
-
 import java.time.{Instant,LocalTime,Duration}
 
 import ee.cone.base.connection_api._
@@ -154,6 +153,7 @@ class TestComponent(
     else RequiredValidationKey
   }
 
+
   private def booleanField(
       obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false,
       editableOpt: Option[Boolean]=None
@@ -206,6 +206,7 @@ class TestComponent(
       deferSend=false, alignRight=true, getValidationKey(obj,attr)
     ))
     else List(labeledText("1",visibleLabel,value))
+
   }
 
   private def dateField(
@@ -216,11 +217,28 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val valueType = asInstant
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(editable) List(inputField(
-      "1", DateFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
-      deferSend=false, alignRight=true, getValidationKey(obj,attr)
+    if(!editable){ return List(labeledText("1", visibleLabel, value)) }
+
+    val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
+    val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
+
+    val popupCalendar =
+      if(popupOpened != key) Nil
+      else  withMinWidth("minWidth",320,calendarDialog("calendar",Some{ newVal =>
+        obj(attr) = uiStrings.converter(asString,valueType)(newVal)
+        popupToggle(key)
+      })::Nil)::Nil
+
+    val input = inputField(
+      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend = true, alignRight = true, getValidationKey(obj,attr)
+    )
+
+    List(fieldPopupBox(
+      "calendar",
+      List(btnInput("icon")(btnDateRange("btnCalendar",popupToggle(key)), input)),
+      popupCalendar
     ))
-    else List(labeledText("1", visibleLabel, value))
   }
 
   private def timeField(
@@ -229,6 +247,7 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
+
     val valueType = asLocalTime
     val value = uiStrings.converter(valueType, asString)(obj(attr))
     if(editable) List(inputField(
@@ -241,8 +260,8 @@ class TestComponent(
   private var popupOpened = ""
   private def popupToggle(key: String)() =
     popupOpened = if(popupOpened == key) "" else key
-
   private def objCaption(obj: Obj) = uiStrings.converter(asDBObj, asString)(obj)
+
   private def objField(
     obj: Obj, attr: Attr[Obj], showLabel: Boolean,
     editableOpt: Option[Boolean]=None
@@ -273,7 +292,7 @@ class TestComponent(
       if(rows.nonEmpty) btnExpandLess("less",popupToggle(key)) else btnExpandMore("more",popupToggle(key)),
       input
     )::Nil
-    List(fieldPopupBox("1",showUnderscore = false,collapsed,rows))
+    List(fieldPopupBox("1",collapsed,rows))
   }
 
   ////
@@ -708,13 +727,13 @@ class TestComponent(
             group("2_grp", MinWidth(300)),
             mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
             mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
-            mCell("3",250)(_⇒sortingHeader(userList,userAttrs.asActiveUser))
+            mmCell("3",100,150)(_⇒sortingHeader(userList,userAttrs.asActiveUser))
           ) :::
           (if(showPasswordCols) List(
             group("3_grp",MinWidth(150)),
-            mCell("4",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
-            mCell("5",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
-            mCell("6",250)(_⇒Nil)
+            mCell("4",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
+            mCell("5",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
+            mCell("6",150)(_⇒Nil)
           ) else Nil) :::
           editAllGroup()
         ) ::
