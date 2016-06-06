@@ -7,11 +7,13 @@ class UIStringAttributes(
   attr: AttrFactory,
   asString: AttrValueType[String]
 )(
+  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString),
   val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", asString)
 )
 
 class UIStringsImpl(
   at: UIStringAttributes,
+  findAttrs: FindAttrs,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   factIndex: FactIndex,
@@ -29,9 +31,9 @@ class UIStringsImpl(
   private def objIdToUIString(value: ObjId) = objToUIString(findNodes.whereObjId(value))
   private def objToUIString(obj: Obj) = {
     val res = obj(at.caption)
-    if(res.nonEmpty) res else obj.toString
+    if(res.nonEmpty) res else if(obj(findAttrs.nonEmpty)) obj(at.objIdStr) else "empty"
   }
-  def handlers(attributes: List[Attr[_]])(calculate: Obj⇒String) =
+  def captions(attributes: List[Attr[_]])(calculate: Obj⇒String) =
     onUpdate.handlers(attributes.map(attrFactory.attrId(_)), (on,obj)⇒
       obj(at.caption) = if(on) calculate(obj) else ""
     )

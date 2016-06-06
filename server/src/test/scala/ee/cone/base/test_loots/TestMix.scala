@@ -73,7 +73,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
     asDuration, asInstant, asLocalTime, asDBObj, asString,
-    uiStrings
+    uiStrings, mandatory
   )()
 }
 

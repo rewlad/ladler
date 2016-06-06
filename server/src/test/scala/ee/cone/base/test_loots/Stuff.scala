@@ -132,7 +132,8 @@ class TestComponent(
   asLocalTime: AttrValueType[Option[LocalTime]],
   asDBObj: AttrValueType[Obj],
   asString: AttrValueType[String],
-  uiStrings: UIStrings
+  uiStrings: UIStrings,
+  mandatory: Mandatory
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -226,7 +227,7 @@ class TestComponent(
       deferSend = true, alignRight = true, getValidationKey(obj,attr)
     )
     val popup = if(popupOpened != key) Nil
-      else  withMinWidth("minWidth",320,calendarDialog("calendar",Some{ newVal =>
+      else  withMinWidth("minWidth",320,calendarDialog("calendar",value/*may be not 'value' later*/,Some{ newVal =>
         obj(attr) = uiStrings.converter(asString,valueType)(newVal)
         popupToggle(key)
       })::Nil)::Nil
@@ -839,7 +840,8 @@ class TestComponent(
         ) ::Nil
       ),
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
-        divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil)::Nil
+        withSidePadding("1",50,
+          divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil))::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
         eventToolbarButtons()
@@ -861,7 +863,7 @@ class TestComponent(
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
-    uiStrings.handlers(List(logAt.asBoat, logAt.boatName))(_(logAt.boatName)) :::
+    uiStrings.captions(List(logAt.asBoat, logAt.boatName))(_(logAt.boatName)) :::
     alien.update(findAttrs.justIndexed) :::
     CoHandler(AttrCaption(logAt.boat))("Boat") ::
     CoHandler(AttrCaption(logAt.date))("Date") ::
@@ -886,7 +888,10 @@ class TestComponent(
     calcHandlers :::
     CoHandler(SessionInstantAdded)(currentVDom.invalidate) ::
     CoHandler(TransientChanged)(currentVDom.invalidate) ::
-    Nil
+    //todo: ?mandatory(logAt.asEntry, logAt.asConfirmed, mutual = true)
+    mandatory(logAt.asBoat, logAt.boatName, mutual = true) :::
+    mandatory(logAt.asWork, logAt.workDuration, mutual = true)
+
 }
 
 class FuelingAttrs(
@@ -972,7 +977,9 @@ else if(!fuelingItems.meHoursIsInc(entry)){
     } :::
     fuelingList.sliding(2).toList.flatMap{ fuelingPair ⇒ fuelingPair.map(_(at.meHours)) match {
       case Some(a) :: Some(b) :: Nil if a.compareTo(b) <= 0 ⇒ Nil
-      case _ ⇒ validationFactory.need[Option[Duration]](fuelingPair.head,at.meHours,v⇒Some("to increase"))
+      case _ ⇒ fuelingPair.flatMap(fueling⇒
+        validationFactory.need[Option[Duration]](fueling,at.meHours,v⇒Some("to increase"))
+      )
     }}
   }
 }

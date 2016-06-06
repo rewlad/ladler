@@ -10,5 +10,5 @@ case class ToUIStringConverter[From,To](from: AttrValueType[From], to: AttrValue
 trait UIStrings {
   def caption(attr: Attr[_]): String
   def converter[From,To](from: AttrValueType[From], to: AttrValueType[To]): From⇒To
-  def handlers(attributes: List[Attr[_]])(calculate: Obj⇒String): List[BaseCoHandler]
+  def captions(attributes: List[Attr[_]])(calculate: Obj⇒String): List[BaseCoHandler]
 }
