@@ -16,7 +16,8 @@ class AlienAccessAttrs(
   val created: ObjId = objIdFactory.toObjId("7947ca07-d72f-438d-9e21-1ed8196689ae"),
   val targetObj: Attr[Obj] = attr("0cd4abcb-c83f-4e15-aa9f-d217f2e36596", asNode),
   val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString),
-  val isEditing: Attr[Boolean] = attr("3e7fbcd6-4707-407f-911e-7493b017afc1",asBoolean)
+  val isEditing: Attr[Boolean] = attr("3e7fbcd6-4707-407f-911e-7493b017afc1",asBoolean),
+  val comment: Attr[String] = attr("c0e6114b-bfb2-49fc-b9ef-5110ed3a9521", asString)
 )
 
 class DemandedNode(var objId: ObjId, val setup: Obj⇒Unit)
@@ -32,7 +33,8 @@ class Alien(
   objIdFactory: ObjIdFactory,
   uiStrings: UIStrings,
   asDBObj: AttrValueType[Obj],
-  asString:   AttrValueType[String]
+  asString:   AttrValueType[String],
+  transient: Transient
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   def update[Value](attr: Attr[Value]) = {
@@ -53,16 +55,20 @@ class Alien(
         eventSource.addEvent{ event =>
           event(at.targetObj) = obj
           event(targetAttr) = newValue
-          val attrStr = uiStrings.caption(attr)
-          val objStr = uiStrings.converter(asDBObj,asString)(obj)
-          val valStr = uiStrings.converter(attrFactory.valueType(attr),asString)(newValue)
-          (attrId, s"'$attrStr' of $objStr was changed to '$valStr'")
+          attrId
         }
     } ::
     CoHandler(ApplyEvent(attrId)){ event =>
-      event(at.targetObj)(attr) = event(targetAttr)
+      val obj = event(at.targetObj)
+      val value = event(targetAttr)
+      val attrStr = uiStrings.caption(attr)
+      val objStr = uiStrings.converter(asDBObj,asString)(obj)
+      val valStr = uiStrings.converter(attrFactory.valueType(attr),asString)(value)
+      obj(attr) = value
+      describeEvent(event, s"'$attrStr' of '$objStr' was changed to '$valStr'")
     } :: Nil
   }
+  def describeEvent(event: Obj, comment: String) = event(at.comment) = comment //todo
   def wrapForEdit(obj: Obj): Obj = obj.wrap(alienWrapType, ())
   def demandedNode(setup: Obj⇒Unit): Obj = {
     wrapForEdit(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
@@ -77,5 +83,5 @@ class Alien(
     },
     CoHandler(GetValue(dbWrapType, at.isEditing)){ (obj, innerObj)⇒ false },
     CoHandler(GetValue(alienWrapType, at.isEditing)){ (obj, innerObj)⇒ true }
-  ) ::: factIndex.handlers(at.targetObj)
+  ) ::: factIndex.handlers(at.targetObj) ::: transient.update(at.comment)
 }

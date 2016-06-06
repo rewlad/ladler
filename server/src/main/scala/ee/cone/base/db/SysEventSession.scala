@@ -70,16 +70,14 @@ class SessionEventSourceOperationsImpl(
       added
     }
   }
-  def addEvent(fill: Obj=>(ObjId,String)): Unit = addInstantTx { () ⇒
+  def addEvent(fill: Obj=>ObjId): Unit = addInstantTx { () ⇒
     val instantSession = findSession()
     val ev = ops.addInstant(instantSession, at.asEvent)
-    val (handler, comment) = fill(ev)
-    ev(at.applyAttr) = handler
-    ev(at.comment) = comment
+    ev(at.applyAttr) = fill(ev)
     true
   }
 
-  def addRequest() = addEvent{ req ⇒ (at.requested, "requested") }
+  def addRequest() = addEvent{ req ⇒ at.requested }
   private def handleSessionKey(uuid: UUID): Unit = {
     val uuidOpt = Option(uuid)
     if(sessionKeyOpt == uuidOpt){ return }
@@ -88,7 +86,6 @@ class SessionEventSourceOperationsImpl(
       if(findSession()(sysAttrs.nonEmpty)) false else { addSession(); true }
     }
   }
-  def comment = at.comment
   def handlers =
     CoHandler(SessionEventSource)(this) ::
     CoHandler(SwitchSession)(handleSessionKey) :: Nil

@@ -76,10 +76,12 @@ trait DBConnectionMix extends CoMixBase {
   lazy val uiStringAttributes = new UIStringAttributes(attrFactory, asString)()
   lazy val uiStrings = new UIStringsImpl(uiStringAttributes, handlerLists, attrFactory, factIndex, onUpdate, findNodes, asDBObj, asDBObjId, asString)
 
+  lazy val transient = new TransientImpl(handlerLists, attrFactory, dbWrapType)
+
   lazy val alienAttrs = new AlienAccessAttrs(objIdFactory, attrFactory, asDBObj, asString, asBoolean)()
   lazy val alienWrapType = new AlienWrapType
   lazy val demandedWrapType = new DemandedWrapType
-  lazy val alien = new Alien(alienAttrs,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,dbWrapType,objIdFactory,uiStrings,asDBObj,asString)
+  lazy val alien = new Alien(alienAttrs,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,dbWrapType,objIdFactory,uiStrings,asDBObj,asString,transient)
 
   lazy val definedValueConverter = new DefinedValueConverter(asDefined, rawConverter)
   lazy val booleanValueConverter = new BooleanValueConverter(asBoolean, rawConverter)

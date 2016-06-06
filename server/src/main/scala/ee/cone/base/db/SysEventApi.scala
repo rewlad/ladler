@@ -46,11 +46,10 @@ trait SessionEventSourceOperations {
   var decoupled: Boolean
   def incrementalApplyAndView[R](view: ()=>R): R
   def unmergedEvents: List[Obj]
-  def addEvent(setup: Obj=>(ObjId,String)): Unit
+  def addEvent(setup: Obj=>ObjId): Unit
   def addRequest(): Unit
   def addUndo(event: Obj): Unit
   def mainSession: Obj
-  def comment: Attr[String]
 }
 
 trait SessionEventSourceAttrs {
@@ -62,5 +61,4 @@ trait SessionEventSourceAttrs {
   def requested: ObjId
   def asCommit: Attr[Obj]
   def applyAttr: Attr[ObjId]
-  def comment: Attr[String]
 }

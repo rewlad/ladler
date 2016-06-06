@@ -759,7 +759,7 @@ class TestComponent(
         eventSource.unmergedEvents.map(alien.wrapForEdit).map { ev =>
           val srcId = ev(alien.objIdStr)
           row(srcId)(
-            mCell("1",250)(_⇒List(text("text", ev(eventSource.comment)))),
+            mCell("1",250)(_⇒List(text("text", ev(alienAttrs.comment)))),
             mCell("2",250)(_⇒List(btnRemove("btn", () => eventSource.addUndo(ev))))
           )
         }

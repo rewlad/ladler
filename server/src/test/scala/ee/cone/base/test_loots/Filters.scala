@@ -188,19 +188,3 @@ class Filters(
 }
 
 case class OrderByAttr(attrId: ObjId) extends EventKey[Option[(List[Obj],Boolean)⇒List[Obj]]]
-
-case object TransientChanged extends EventKey[()=>Unit]
-class Transient(handlerLists: CoHandlerLists, attrFactory: AttrFactory, wrapType: WrapType[ObjId]) {
-  def update[R](attr: Attr[R]): List[BaseCoHandler] = {
-    val data = collection.mutable.Map[ObjId,R]()
-    List(
-      CoHandler(GetValue(wrapType,attr))((obj,innerObj)⇒
-        data.getOrElse(innerObj.data, attrFactory.converter(attrFactory.valueType(attr)).convertEmpty())
-      ),
-      CoHandler(SetValue(wrapType,attr)) { (obj, innerObj, value) ⇒
-        data(innerObj.data) = value
-        handlerLists.list(TransientChanged).foreach(_())
-      }
-    )
-  }
-}
