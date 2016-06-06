@@ -1,8 +1,8 @@
 package ee.cone.base.test_loots
 
 
-
-import java.time.{Instant,LocalTime,Duration}
+import java.time.format.DateTimeFormatter
+import java.time._
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
@@ -278,18 +278,27 @@ class TestComponent(
     )::Nil
     List(fieldPopupBox("1",collapsed,rows))
   }
+  var date:Option[Instant]=None
   private def calendar(obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, editableOpt: Option[Boolean]=None)= {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val vObj = obj(attr)
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
     val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
-    val popupCalendar = if(popupOpened != key) Nil
-    else  withMinWidth("minWidth",320,calendarDialog("calendar",Some(newVal=>{println(newVal);popupToggle(key)}))::Nil)::Nil
+    lazy val popupCalendar = if(popupOpened != key) Nil
+    else  withMinWidth("minWidth",320,calendarDialog("calendar",Some(newVal=>{println(newVal);
+      date=Some(toInstant(newVal))
+      popupToggle(key)}))::Nil)::Nil
+    def toInstant(value:String)=
+      Instant.ofEpochMilli(java.lang.Long.valueOf(value))
+    def getString(value:Option[Instant])=
+      if(value.isEmpty) ""
+      else
+        DateTimeFormatter.ofPattern("dd.MM.yyyy").format(value.get.atZone(ZoneId.of("UTC")))
     fieldPopupBox("calendar",
       btnInput("icon")(
         btnDateRange("btnCalendar",popupToggle(key)),
-        inputField("input",TextFieldType,visibleLabel,"",(_)=>{},deferSend = false,alignRight = false,fieldValidationState = DefaultValidationKey))::Nil,
+        inputField("input",TextFieldType,visibleLabel,getString(date),(_)=>{},deferSend = false,alignRight = false,fieldValidationState = DefaultValidationKey))::Nil,
       popupCalendar)::Nil
 
   }
@@ -425,7 +434,7 @@ class TestComponent(
           List(flexGrid("controlGrid1",List(
             flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
             flexGridItem("2a",150,Some(200), calendar(filterObj, logAt.dateFrom, showLabel = true)),
-            flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, showLabel = true)),
+            flexGridItem("3a",150,Some(200), calendar(filterObj, logAt.dateTo, showLabel = true)),
             flexGridItem("4a",150,Some(200), divHeightWrapper("1",72,
               divAlignWrapper("1","","bottom",withMargin("1",10,booleanField(filterObj, logAt.hideConfirmed, showLabel = true))::Nil)
             )::Nil)
