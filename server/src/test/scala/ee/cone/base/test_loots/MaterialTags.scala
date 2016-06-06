@@ -288,16 +288,27 @@ case class DivEmpty() extends VDomValue{
     builder.end()
   }
 }
-case class InputField[Value](
-  tp: String, value: Value, alignRight:Boolean, label: String, deferSend: Boolean,
-  fieldValidationState: ValidationKey, isPassword:Boolean=false, valueType: AttrValueType[Value]
+
+sealed trait FieldType
+case object TextFieldType extends FieldType
+case object DateFieldType extends FieldType
+case object TimeFieldType extends FieldType
+
+case class InputField(
+  tp: FieldType, label: String, value: String,
+  deferSend: Boolean, alignRight: Boolean, fieldValidationState: ValidationKey,
+  isPassword: Boolean = false
 )(
-  input: InputAttributes, uiStrings: UIStrings, change: Value⇒Unit
+  input: InputAttributes, val onChange: Option[String=>Unit]
 ) extends VDomValue with OnChangeReceiver {
-  def onChange = Some(str⇒change(uiStrings.fromString(str,valueType)))
+  //def onChange = Some(str⇒change(uiStrings.fromString(str,valueType)))
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-    builder.append("tp").append(tp)
+    builder.append("tp").append(tp match {
+      case TextFieldType ⇒ "TextField"
+      case DateFieldType ⇒ "DateField"
+      case TimeFieldType ⇒ "TimeField"
+    })
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
     (fieldValidationState match {
@@ -314,14 +325,11 @@ case class InputField[Value](
       //builder.append("hintText").append(fieldValidationState.msg)
     }
 
-
-
-
     if(isPassword) {
       builder.append("type").append("password")
       builder.append("autoComplete").append("new-password")
     }
-    input.appendJson(builder, uiStrings.convert(value,valueType), deferSend)
+    input.appendJson(builder, value, deferSend)
     builder.append("style"); {
       builder.startObject()
       builder.append("width").append("100%")
@@ -658,7 +666,21 @@ class MaterialTags(
     child[OfDiv](key,DivMinHeight(value),theChild.toList)
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
-
+  def inputField(
+      key: VDomKey,
+      inputType: FieldType, label: String, value: String,
+      change: String⇒Unit,
+      deferSend: Boolean, alignRight: Boolean, fieldValidationState: ValidationKey,
+      isPassword: Boolean = false
+  ) = {
+    val input = InputField(
+      inputType, label, value,
+      deferSend, alignRight, fieldValidationState,
+      isPassword
+    )(inputAttributes, Some(change))
+    child[OfDiv](key, input, Nil)
+  }
+/*
   def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean,fieldValidationState: ValidationKey) =
     child[OfDiv](key, InputField("TextField", value, alignRight, label, deferSend, fieldValidationState, isPassword = false)
       (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
@@ -666,10 +688,11 @@ class MaterialTags(
   def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, fieldValidationState: ValidationKey) =
     child[OfDiv](key, InputField("TextField",value, alignRight = false, label, deferSend, fieldValidationState, isPassword = true)
     (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
+    */
 /*
   private def instantToString(value: Option[Instant]): String =
     value.map(_.toEpochMilli.toString).getOrElse("")
-*/
+*//*
   private def stringToInstant(value: String): Option[Instant] =
     if(value.nonEmpty) Some(Instant.ofEpochMilli(java.lang.Long.valueOf(value))) else None
   private def stringToLocalTime(value:String): Option[LocalTime]=
@@ -688,7 +711,8 @@ class MaterialTags(
     child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,fieldValidationState,isPassword = false,asLocalTime)(inputAttributes, uiStrings, change),Nil)
   def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit, fieldValidationState: ValidationKey)=
     child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false,asDuration)(inputAttributes, uiStrings, change),Nil)
-      durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)
+
+      durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)*/
   def labeledText(key:VDomKey, label:String, content:String) =
     if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)
     else child[OfDiv](key, TextContentElement(content), Nil)

@@ -2,6 +2,9 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api._
 
+import ee.cone.base.util.Never
+
+
 class UIStringAttributes(
   attr: AttrFactory,
   asString: AttrValueType[String]
@@ -17,15 +20,14 @@ class UIStringsImpl(
   onUpdate: OnUpdate,
   findNodes: FindNodes,
   asDBObj: AttrValueType[Obj],
-  asObjId: AttrValueType[ObjId]
+
+  asObjId: AttrValueType[ObjId],
+  asString: AttrValueType[String]
 ) extends UIStrings with CoHandlerProvider {
-  def fromString[Value](value: String, valueType: AttrValueType[Value]): Value ={
-    ???
-  }
   def handlers = factIndex.handlers(at.caption) :::
     List(
-      CoHandler(ToUIStringConverter(asDBObj))(objToUIString),
-      CoHandler(ToUIStringConverter(asObjId))(objIdToUIString)
+      CoHandler(ToUIStringConverter(asDBObj,asString))(objToUIString),
+      CoHandler(ToUIStringConverter(asObjId,asString))(objIdToUIString)
     )
   private def objIdToUIString(value: ObjId) = objToUIString(findNodes.whereObjId(value))
   private def objToUIString(obj: Obj) = {
@@ -39,7 +41,9 @@ class UIStringsImpl(
 
   def caption(attr: Attr[_]) =
     handlerLists.single(AttrCaption(attr), ()⇒attrFactory.attrId(attr).toString)
-  def convert[Value](value: Value, valueType: AttrValueType[Value]): String = {
-    handlerLists.single(ToUIStringConverter(valueType), ()⇒(v:Value)⇒v.toString)(value)
-  }
+
+  def converter[From,To](from: AttrValueType[From], to: AttrValueType[To]) =
+    handlerLists.single(ToUIStringConverter(from,to),
+      ()⇒(v:From)⇒if(to==asString) v.toString.asInstanceOf[To] else Never()
+    )
 }

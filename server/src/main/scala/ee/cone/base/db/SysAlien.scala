@@ -31,7 +31,8 @@ class Alien(
   alienWrapType: WrapType[Unit], demandedWrapType: WrapType[DemandedNode], dbWrapType: DBWrapType,
   objIdFactory: ObjIdFactory,
   uiStrings: UIStrings,
-  asDBObj: AttrValueType[Obj]
+  asDBObj: AttrValueType[Obj],
+  asString:   AttrValueType[String]
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   def update[Value](attr: Attr[Value]) = {
@@ -53,8 +54,8 @@ class Alien(
           event(at.targetObj) = obj
           event(targetAttr) = newValue
           val attrStr = uiStrings.caption(attr)
-          val objStr = uiStrings.convert(obj,asDBObj)
-          val valStr = uiStrings.convert(newValue,attrFactory.valueType(attr))
+          val objStr = uiStrings.converter(asDBObj,asString)(obj)
+          val valStr = uiStrings.converter(attrFactory.valueType(attr),asString)(newValue)
           (attrId, s"'$attrStr' of $objStr was changed to '$valStr'")
         }
     } ::
