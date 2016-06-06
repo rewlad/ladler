@@ -224,7 +224,7 @@ class TestComponent(
 
     val popupCalendar =
       if(popupOpened != key) Nil
-      else  withMinWidth("minWidth",320,calendarDialog("calendar",Some{ newVal =>
+      else  withMinWidth("minWidth",320,calendarDialog("calendar",value,Some{ newVal =>
         obj(attr) = uiStrings.converter(asString,valueType)(newVal)
         popupToggle(key)
       })::Nil)::Nil
@@ -840,7 +840,8 @@ class TestComponent(
         ) ::Nil
       ),
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
-        divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil)::Nil
+        withSidePadding("1",50,
+          divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil))::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
         eventToolbarButtons()

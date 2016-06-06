@@ -252,7 +252,7 @@ case class DivNoTextWrap() extends VDomValue{
     builder.append("tp").append("div")
     builder.append("style").startObject()
     builder.append("whiteSpace").append("nowrap")
-    builder.append("overflow").append("hidden")
+    //builder.append("overflow").append("hidden")
     builder.end()
     builder.end()
 
@@ -305,8 +305,8 @@ case class InputField(
     builder.startObject()
     builder.append("tp").append(tp match {
       case TextFieldType ⇒ "TextField"
-      case DateFieldType ⇒ "DateField"
-      case TimeFieldType ⇒ "TimeField"
+      case DateFieldType ⇒ "DateInput"
+      case TimeFieldType ⇒ "TimeInput"
     })
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
@@ -332,6 +332,7 @@ case class InputField(
     builder.append("style"); {
       builder.startObject()
       builder.append("width").append("100%")
+      builder.append("fontSize").append("13px")
       builder.end()
     }
     if(alignRight) {
@@ -523,11 +524,12 @@ case object ControlPanelColor extends Color{
 
 */
 
-case class CalendarDialog()(val onChange:Option[(String)=>Unit]) extends VDomValue with OnChangeReceiver{
+case class CalendarDialog(date:String)(val onChange:Option[(String)=>Unit]) extends VDomValue with OnChangeReceiver{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("CrazyCalendar")
     builder.append("onChange").append("send")
+    builder.append("initialDate").append(date)
     builder.end()
   }
 }
@@ -541,7 +543,7 @@ class MaterialTags(
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
     child[OfDiv](key,MaterialChip(text)(action),children)
   def fieldPopupBox(key: VDomKey,fieldChildren:List[ChildPair[OfDiv]], popupChildren:List[ChildPair[OfDiv]]) =
-    child[OfDiv](key,DivPositionWrapper(Option("inline-block"),Some("100%"),Some("relative"),None),List(
+    child[OfDiv](key,DivPositionWrapper(Option("block"),Some("100%"),Some("relative"),None),List(
       child[OfDiv](key+"box", FieldPopupBox(), fieldChildren),
       child[OfDiv](key+"popup", FieldPopupDrop(popupChildren.nonEmpty,maxHeight = Some(400)), popupChildren)
     ))
@@ -575,6 +577,7 @@ class MaterialTags(
         )
       ):_*
     )
+
   /*
   def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
     child[OfDiv](key, Table(),
@@ -595,8 +598,8 @@ class MaterialTags(
       IconButton(tooltip)(Some(action)),
       child("icon", SVGIcon(picture), Nil) :: Nil
     )
-  def calendarDialog(key:VDomKey,action: Option[(String)=>Unit])={
-    child[OfDiv](key,CalendarDialog()(action),Nil)
+  def calendarDialog(key:VDomKey,date:String,action: Option[(String)=>Unit])={
+    child[OfDiv](key,CalendarDialog(date)(action),Nil)
   }
   def iconArrowUp()=
     child[OfDiv]("icon",SVGIcon("IconNavigationDropDown"),Nil)
@@ -613,13 +616,13 @@ class MaterialTags(
   def btnClear(key: VDomKey, action: ()=>Unit) =
     iconButton(key,"clear sorting","IconContentClear",action)
   def btnAdd(key: VDomKey, action: ()=>Unit) =
-    iconButton(key,"","IconContentAdd",action)
+    iconButton(key,"add","IconContentAdd",action)
   def btnRemove(key: VDomKey, action: ()=>Unit) =
-    iconButton(key,"","IconContentRemove",action)
+    iconButton(key,"remove","IconContentRemove",action)
   def btnCreate(key:VDomKey,action:()=>Unit)=
-    iconButton(key,"","IconContentCreate",action)
+    iconButton(key,"add","IconContentCreate",action)
   def btnDelete(key:VDomKey,action:()=>Unit)=
-    iconButton(key,"","IconActionDelete",action)
+    iconButton(key,"delete","IconActionDelete",action)
   def btnMenu(key:VDomKey,action:()=>Unit)=
     iconButton(key,"menu","IconNavigationMenu",action)
   def btnDateRange(key:VDomKey,action:()=>Unit)=

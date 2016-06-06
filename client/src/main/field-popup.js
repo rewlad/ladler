@@ -4,7 +4,9 @@ const FieldPopupBox= React.createClass({
    render(){
       const style={
           display:"block",
-          width:"100%"
+          width:"100%",
+          position:"absolute",
+          zIndex:4000
       }
       const ref = el => this.props.popupReg(false,el)
       const hrStyle={

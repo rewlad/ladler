@@ -25,6 +25,7 @@ import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
 import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
 import IconActionLock from 'material-ui/lib/svg-icons/action/lock'
 import IconActionDateRange from 'material-ui/lib/svg-icons/action/date-range'
+import IconActionSchedule from 'material-ui/lib/svg-icons/action/schedule'
 import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
 import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
 import IconSocialPerson  from 'material-ui/lib/svg-icons/social/person'
@@ -53,7 +54,7 @@ const feedback = Feedback()
 const vdom = VDomMix(feedback)
 const receivers = [feedback.receivers, vdom.receivers, {fail}]
 SSEConnection("http://localhost:5556/sse", receivers, 5)
-
+/*
 const DateInput = React.createClass({
     render(){
         const at = {
@@ -74,7 +75,7 @@ const DateInput = React.createClass({
         at.value = this.props.value ? new Date(parseInt(this.props.value,10)) : this.props.value
         return React.createElement(DatePicker, at, null)
     }
-})
+})*/
 const TimeInput = React.createClass({
     render(){
         //const value=this.props.value? new Date(parseInt(this.props.value,10)):null
@@ -293,14 +294,19 @@ class CrazyCalendar extends React.Component{
     }
 
     handleOnDayTouchTap(e,day){
-        //const utcDate=day.getTime()-day.getTimezoneOffset()*60*1000
-        //this.props.onChange({ target: { value: utcDate.toString() }})
         const value = day.getDate()+"."+day.getMonth()+"."+day.getFullYear()
         this.props.onChange({ target: ({value}) })
     }
 
     render(){
-    //console.log(global.Intl.DateTimeFormat)
+        const initialDate=new Date()
+        if(this.props.initialDate){
+            const dmy=this.props.initialDate.split(".")
+            initialDate.setDate(parseInt(dmy[0]))
+            initialDate.setMonth(parseInt(dmy[1]))
+            initialDate.setFullYear(parseInt(dmy[2]))
+        }
+
         const propsCalender={
             key:"dialog",
             container:"dialog",
@@ -310,7 +316,7 @@ class CrazyCalendar extends React.Component{
             mode:"portrait",
             onDayTouchTap:this.handleOnDayTouchTap,
             //onAccept:this.handleDialogAccept,
-            initialDate:(new Date()),
+            initialDate,
             //open:false,
             //onShow={onShow}
             //onDismiss={onDismiss}
@@ -326,6 +332,37 @@ class CrazyCalendar extends React.Component{
     }
 }
 
+class CrazyClock extends React.Component{
+    constructor(props){
+        super(props)
+        this.handleClockChangeMinutes=this.handleClockChangeMinutes.bind(this)
+    }
+
+    handleClockChangeMinutes(){
+        const time=this.refs.clock.getSelectedTime()
+        const value = time.Hours()+":"+time.getMinutes()
+        this.props.onChange({ target: ({value}) })
+    }
+
+    render(){
+        const initialTime=new Date()
+        if(this.props.initialDate){
+            const hm=this.props.initialDate.split(":")
+            initialTime.setHours(parseInt(hm[0]))
+            initialTime.setMinutes(parseInt(hm[1]))
+        }
+
+        const propsClock={
+            ref: 'clock',
+            format: format,
+            initialTime,
+            onChangeMinutes: this.handleClockChangeMinutes
+        }
+
+        return React.createElement(Clock,propsClock)
+    }
+}
+
 
 const tp = ({
     Paper,
@@ -333,11 +370,12 @@ const tp = ({
     RaisedButton,
     IconButton, IconContentCreate,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
-    TextField, DateInput,TimeInput,Checkbox,DataTableRow,//DataTableBody,
+    TextField,/* DateInput,*/TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
-    IconActionRestore,IconContentSave,CrazyCalendar,//Calendar,
+    IconActionRestore,IconContentSave,CrazyCalendar,CrazyClock,
     IconMenuButton,MenuItem,IconNavigationMenu,CursorOver,
-    IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess
+    IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess,
+    IconActionSchedule
 })
 
 const transforms = ({tp})
