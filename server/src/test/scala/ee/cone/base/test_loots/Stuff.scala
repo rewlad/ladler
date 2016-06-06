@@ -1,19 +1,15 @@
 package ee.cone.base.test_loots
 
-import java.nio.ByteBuffer
-import java.time.format.DateTimeFormatter
-import java.time._
-import java.util.UUID
 
-import ee.cone.base.util.Single
+
+import java.time.{Instant,LocalTime,Duration}
+
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
-import ee.cone.base.util.{Bytes, Never}
+import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom._
-
-import scala.collection.mutable
 
 /*
 object TimeZoneOffsetProvider{
@@ -49,46 +45,6 @@ class FailOfConnection(
     sender.sendToAlien("fail",e.toString) //todo
   } :: Nil
 }
-
-class DurationValueConverter(
-  val valueType: AttrValueType[Option[Duration]], inner: RawConverter
-) extends RawValueConverterImpl[Option[Duration]] {
-  def convertEmpty() = None
-  def convert(valueA: Long, valueB: Long) = Option(Duration.ofSeconds(valueA,valueB))
-  def convert(value: String) = Never()
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value.nonEmpty) inner.toBytes(preId, value.get.getSeconds, value.get.getNano, finId) else Array()
-}
-
-class InstantValueConverter(
-  val valueType: AttrValueType[Option[Instant]], inner: RawConverter
-) extends RawValueConverterImpl[Option[Instant]] {
-  def convertEmpty() = None
-  def convert(valueA: Long, valueB: Long) = Option(Instant.ofEpochSecond(valueA,valueB))
-  def convert(value: String) = Never()
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value.nonEmpty) inner.toBytes(preId, value.get.getEpochSecond, value.get.getNano, finId) else Array()
-}
-
-class LocalTimeValueConverter(
-  val valueType: AttrValueType[Option[LocalTime]], inner: RawConverter) extends RawValueConverterImpl[Option[LocalTime]] {
-  def convertEmpty()=None
-  def convert(valueA: Long, valueB: Long) = {
-    if(valueB != 0L) Never()
-    Option(LocalTime.ofSecondOfDay(valueA))
-  }
-  def convert(value: String) = Never()
-  def toBytes(preId: ObjId, value: Value, finId: ObjId) =
-    if(value.nonEmpty) inner.toBytes(preId, value.get.toSecondOfDay,0L,finId) else Array()
-}
-
-class TestAttributes(
-  attr: AttrFactory,
-  label: LabelFactory,
-  asString: AttrValueType[String]
-)(
-  val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", asString)
-)
 
 class BoatLogEntryAttributes(
   attr: AttrFactory,
@@ -145,11 +101,14 @@ class DataTablesState(currentVDom: CurrentVDom){
 ///////
 
 class TestComponent(
-  nodeAttrs: NodeAttrs, findAttrs: FindAttrs,
-  filterAttrs: FilterAttrs, at: TestAttributes, logAt: BoatLogEntryAttributes,
+  nodeAttrs: NodeAttrs,
+  findAttrs: FindAttrs,
+  filterAttrs: FilterAttrs,
+  logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
   alienAttrs: AlienAccessAttrs,
+  validationAttrs: ValidationAttributes,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
@@ -167,7 +126,12 @@ class TestComponent(
   htmlTable: HtmlTable,
   users: Users,
   fuelingItems: FuelingItems,
-  objIdFactory: ObjIdFactory
+  objIdFactory: ObjIdFactory,
+  validationFactory: ValidationFactory,
+  asDuration: AttrValueType[Option[Duration]],
+  asInstant: AttrValueType[Option[Instant]],
+  asDBObj: AttrValueType[Obj],
+  uiStrings: UIStrings
 )(
   val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -178,69 +142,84 @@ class TestComponent(
   import flexTags._
   import htmlTable._
   import findAttrs.nonEmpty
-  import alien.caption
+  import uiStrings.caption
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
-  private def strField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None,
-                       deferSend: Boolean=true, alignRight: Boolean = false): List[ChildPair[OfDiv]] = {
+  private def getValidationKey[Value](obj: Obj, attr: Attr[Value]): ValidationKey = {
+    val states = obj(validationAttrs.validation).get(attr)
+    if(states.isEmpty) DefaultValidationKey
+    else if(states.exists(_.isError)) ErrorValidationKey
+    else RequiredValidationKey
+  }
+
+  private def strField(
+    obj: Obj, attr: Attr[String], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None,
+    deferSend: Boolean=true, alignRight: Boolean = false
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
-    if(editable) List(textInput("1", visibleLabel, value, obj(attr) = _, deferSend, alignRight = alignRight,fieldValidationState = Required("ss")))
+    if(editable) List(textInput("1", visibleLabel, value, obj(attr) = _, deferSend, alignRight = alignRight, getValidationKey(obj,attr)))
+
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
     else Nil
   }
-  private def strPassField(obj: Obj, attr: Attr[String], showLabel: Boolean, editableOpt: Option[Boolean]=None, deferSend: Boolean=true): List[ChildPair[OfDiv]] = {
+  private def strPassField(
+    obj: Obj, attr: Attr[String], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None,
+    deferSend: Boolean=true
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend))
+    if(editable) List(passInput("1", visibleLabel, obj(attr), obj(attr) = _, deferSend, getValidationKey(obj,attr)))
     else Nil
   }
 
-  private def booleanField(obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def booleanField(
+    obj: Obj, attr: Attr[Boolean], showLabel: Boolean = false,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     List(checkBox("1", visibleLabel, obj(attr), if(editable) obj(attr)=_ else _⇒()))
   }
 
-  private def zeroPad2(x: String) = x.length match {
-    case 0 ⇒ "00"
-    case 1 ⇒ s"0$x"
-    case _ ⇒ x
-  }
-
-  private def durationField(obj: Obj, attr: Attr[Option[Duration]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def durationField(
+    obj: Obj, attr: Attr[Option[Duration]], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val value = obj(attr).map(x =>
-      s"${zeroPad2(x.abs.toHours.toString)}:${zeroPad2(x.abs.minusHours(x.abs.toHours).toMinutes.toString)}"
-    ).getOrElse("")
-    if(!editable) List(labeledText("1",visibleLabel,value))
-    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_,fieldValidationState = Required()))
+    if(!editable) {
+      val value = uiStrings.convert(obj(attr), asDuration)
+      List(labeledText("1",visibleLabel,value))
+    }
+    else List(durationInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
   }
 
-  private def dateField(obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def dateField(
+    obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _,fieldValidationState = Error()))
+    if(editable) List(dateInput("1", visibleLabel, obj(attr), obj(attr) = _, getValidationKey(obj,attr)))
     else {
-      val dateStr = obj(attr).map{ v ⇒
-        val date = LocalDate.from(v.atZone(ZoneId.of("UTC")))
-        val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
-        date.format(formatter)
-      }.getOrElse("")
-      List(labeledText("1", visibleLabel, dateStr))
+      val value = uiStrings.convert(obj(attr), asInstant)
+      List(labeledText("1", visibleLabel, value))
     }
   }
 
-  private def timeField(obj: Obj, attr: Attr[Option[LocalTime]], showLabel: Boolean, editableOpt: Option[Boolean]=None): List[ChildPair[OfDiv]] = {
+  private def timeField(
+    obj: Obj, attr: Attr[Option[LocalTime]], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_,fieldValidationState = Required()))
+    if(editable) List(localTimeInput("1",visibleLabel,obj(attr),obj(attr)=_, getValidationKey(obj,attr)))
     else {
-      val value = obj(attr).map(v ⇒
-        s"${zeroPad2(v.getHour.toString)}:${zeroPad2(v.getMinute.toString)}"
-      ).getOrElse("")
+      val value = uiStrings.convert(obj(attr), asInstant)
       List(labeledText("1", visibleLabel, value))
     }
   }
@@ -249,12 +228,21 @@ class TestComponent(
   private def popupToggle(key: String)() =
     popupOpened = if(popupOpened == key) "" else key
 
-  private def objField(obj: Obj, attr: Attr[Obj], showLabel: Boolean, editableOpt: Option[Boolean]=None)(items: ()⇒List[Obj]=()⇒Nil): List[ChildPair[OfDiv]] = {
+  private def objCaption(obj: Obj) = uiStrings.convert(obj, asDBObj)
+  private def objField(
+    obj: Obj, attr: Attr[Obj], showLabel: Boolean,
+    editableOpt: Option[Boolean]=None
+  )(
+    items: ()⇒List[Obj]=()⇒Nil
+  ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
     val vObj = obj(attr)
     val notSelected = "(not selected)"
-    val value = if(vObj(nonEmpty)) vObj(at.caption) else ""
+
+
+
+    val value = if(vObj(nonEmpty)) objCaption(vObj) else ""
     if(!editable){ return  List(labeledText("1",visibleLabel,value)) }
     def option(item: Obj, key: VDomKey, caption: String) = divClickable(key,Some{ ()⇒
       obj(attr) = item
@@ -262,15 +250,30 @@ class TestComponent(
     },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
     val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
     val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
-    val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false, alignRight = false)
+    val input = textInput("1",visibleLabel,value,_=>{}, deferSend=false, alignRight = false, getValidationKey(obj,attr))
     val rows = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
-        items().map(item ⇒ option(item, item(alien.objIdStr), item(at.caption)))
+        items().map(item ⇒ option(item, item(alien.objIdStr), objCaption(item)))
     val collapsed = btnInput("btnInput")(
       if(rows.nonEmpty) btnExpandLess("less",popupToggle(key)) else btnExpandMore("more",popupToggle(key)),
       input
     )::Nil
-    List(fieldPopupBox("1",showUnderscore = false,collapsed,rows))
+    List(fieldPopupBox("1",collapsed,rows))
+  }
+  private def calendar(obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, editableOpt: Option[Boolean]=None)= {
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    val vObj = obj(attr)
+    val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
+    val key = s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
+    val popupCalendar = if(popupOpened != key) Nil
+    else  withMinWidth("minWidth",320,calendarDialog("calendar",Some(newVal=>{println(newVal);popupToggle(key)}))::Nil)::Nil
+    fieldPopupBox("calendar",
+      btnInput("icon")(
+        btnDateRange("btnCalendar",popupToggle(key)),
+        textInput("input",visibleLabel,"",(_)=>{},deferSend = false,alignRight = false,fieldValidationState = Default))::Nil,
+      popupCalendar)::Nil
+
   }
 /*
   fieldPopupBox("1",selectDropShow1,divClickable("1",Some(selectDropShowHandle1),labeledText("1","aaa","a2"))::Nil,
@@ -412,7 +415,7 @@ class TestComponent(
         controlPanel(inset = true)(
           List(flexGrid("controlGrid1",List(
             flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
-            flexGridItem("2a",150,Some(200), dateField(filterObj, logAt.dateFrom, showLabel = true)),
+            flexGridItem("2a",150,Some(200), calendar(filterObj, logAt.dateFrom, showLabel = true)),
             flexGridItem("3a",150,Some(200), dateField(filterObj, logAt.dateTo, showLabel = true)),
             flexGridItem("4a",150,Some(200), divHeightWrapper("1",72,
               divAlignWrapper("1","","bottom",withMargin("1",10,booleanField(filterObj, logAt.hideConfirmed, showLabel = true))::Nil)
@@ -471,15 +474,13 @@ class TestComponent(
   private def entryEditView(pf: String) = wrapDBView { () =>
     val entryObj = findNodes.whereObjId(objIdFactory.toObjId(pf.tail))(logAt.asEntry)
     val isConfirmed = entryObj(logAt.asConfirmed)(nonEmpty)
-    val entry = if(isConfirmed) entryObj else alien.wrapForEdit(entryObj)
-    //val editable = !isConfirmed /*todo roles*/
-
+    val validationStates = if(isConfirmed) Nil else
+      fuelingItems.validation(entryObj) :::
+      validationFactory.need[Obj](entryObj,logAt.boat,v⇒if(!v(nonEmpty)) Some("") else None) :::
+      validationFactory.need[Option[Instant]](entryObj,logAt.date,v⇒if(v.isEmpty) Some("") else None)
+    val validationContext = validationFactory.context(validationStates)
+    val entry = if(isConfirmed) entryObj else validationContext.wrap(alien.wrapForEdit(entryObj)) /*todo roles*/
     val entryIdStr = entry(alien.objIdStr)
-
-    val fillMore = if(isConfirmed) 0 else
-      (if(!entry(logAt.boat)(nonEmpty)) 1 else 0) +
-      (if(entry(logAt.date).isEmpty) 1 else 0) +
-      fuelingItems.notFilled(entry)
 
     List(
       toolbar("Entry Edit"),
@@ -491,7 +492,8 @@ class TestComponent(
               flexGridItem("boat1",100,None,boatSelectView(entry)),
               flexGridItem("date",150,None,dateField(entry, logAt.date, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
-              durationField(entry,logAt.durationTotal, editableOpt = Some(false), showLabel = true))))
+                durationField(entry,logAt.durationTotal, editableOpt = Some(false), showLabel = true)
+              )))
             ))
           )),
           flexGridItem("2",500,None,List(
@@ -513,11 +515,9 @@ class TestComponent(
                           }
                         )
                       }
-                      else if(fillMore > 0){
-                        List(text("1",s"Fill $fillMore more to confirm"))
-                      }
-                      else if(!fuelingItems.meHoursIsInc(entry)){
-                        List(text("1",s"ME times shold increase"))
+                      else if(validationStates.nonEmpty){
+                        val state = validationStates.head
+                        List(text("1",state.text))
                       }
                       else {
                         val user = eventSource.mainSession(userAttrs.authenticatedUser)
@@ -535,18 +535,22 @@ class TestComponent(
         )
       ))),
 
-      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, fillMore))),
+      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, validationStates))),
       withMaxWidth("3",1200,List(entryEditWorkListView(entry)))
     )
   }
 
 
-  def entryEditFuelScheduleView(entry: Obj, fillMore: Int): ChildPair[OfDiv] = {
+  def entryEditFuelScheduleView(entry: Obj, validationStates: List[ValidationState]): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(List(entry(nodeAttrs.objId)))
-    val deferSend = if(fillMore==1) false else true
+    val deferSend = validationStates.size > 2
+    val validationContext = validationFactory.context(validationStates)
+
     def fuelingRowView(time: ObjId, isRF: Boolean) = {
-      val fueling = if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
+      val fueling = validationContext.wrap(
+        if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
+      )
       val timeStr = if(isRF) "RF" else findNodes.whereObjId(time)(fuelingAttrs.time)
       row(timeStr,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
@@ -713,13 +717,13 @@ class TestComponent(
             group("2_grp", MinWidth(300)),
             mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
             mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
-            mCell("3",250)(_⇒sortingHeader(userList,userAttrs.asActiveUser))
+            mmCell("3",100,150)(_⇒sortingHeader(userList,userAttrs.asActiveUser))
           ) :::
           (if(showPasswordCols) List(
             group("3_grp",MinWidth(150)),
-            mCell("4",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
-            mCell("5",250)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
-            mCell("6",250)(_⇒Nil)
+            mCell("4",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
+            mCell("5",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
+            mCell("6",150)(_⇒Nil)
           ) else Nil) :::
           editAllGroup()
         ) ::
@@ -848,8 +852,7 @@ class TestComponent(
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
-    factIndex.handlers(at.caption) :::
-    onUpdate.handlers(List(logAt.asBoat, logAt.boatName).map(attrFactory.attrId(_)),(on,obj)⇒obj(at.caption)=if(on)obj(logAt.boatName)else "") :::
+    uiStrings.handlers(List(logAt.asBoat, logAt.boatName))(_(logAt.boatName)) :::
     alien.update(findAttrs.justIndexed) :::
     CoHandler(AttrCaption(logAt.boat))("Boat") ::
     CoHandler(AttrCaption(logAt.date))("Date") ::
@@ -910,7 +913,8 @@ class FuelingItems(
   filters: Filters,
   onUpdate: OnUpdate,
   attrFactory: AttrFactory,
-  dbWrapType: WrapType[ObjId]
+  dbWrapType: WrapType[ObjId],
+  validationFactory: ValidationFactory
 )(
   val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
   val times: List[ObjId] = List(at.time00,at.time08,at.time24)
@@ -943,20 +947,24 @@ class FuelingItems(
         }
       }
     })*/
-
+/*
+else if(!fuelingItems.meHoursIsInc(entry)){
+                        List(text("1",s"ME times shold increase"))
+                      }
+* */
   def fueling(entry: Obj, time: ObjId, wrapForEdit: Boolean) =
     filters.lazyLinkingObj(fuelingByFullKey,List(entry(nodeAttrs.objId),time),wrapForEdit)
-  def notFilled(entry: Obj): Int = times.map { time ⇒
-    val obj = fueling(entry, time, wrapForEdit = false)
-    (if(obj(at.meHours).isEmpty) 1 else 0) +
-    (if(obj(at.fuel).isEmpty) 1 else 0) +
-    (if(obj(at.engineer).isEmpty) 1 else 0) +
-    (if(obj(at.master).isEmpty) 1 else 0)
-  }.sum
-  def meHoursIsInc(entry: Obj) = {
-    val meHours: List[Duration] =
-      times.flatMap(time ⇒ fueling(entry, time, wrapForEdit = false)(at.meHours))
-    meHours.size == times.size && meHours.sliding(2).forall{ case a :: b :: Nil ⇒ a.compareTo(b) <= 0 }
+  def validation(entry: Obj): List[ValidationState] = {
+    val fuelingList = times.map(time⇒fueling(entry, time, wrapForEdit = false))
+    fuelingList.flatMap { obj ⇒
+      validationFactory.need[String](obj,at.fuel,v⇒if(v.isEmpty) Some("") else None) :::
+      validationFactory.need[String](obj,at.engineer,v⇒if(v.isEmpty) Some("") else None) :::
+      validationFactory.need[String](obj,at.master,v⇒if(v.isEmpty) Some("") else None)
+    } :::
+    fuelingList.sliding(2).toList.flatMap{ fuelingPair ⇒ fuelingPair.map(_(at.meHours)) match {
+      case Some(a) :: Some(b) :: Nil if a.compareTo(b) <= 0 ⇒ Nil
+      case _ ⇒ validationFactory.need[Option[Duration]](fuelingPair.head,at.meHours,v⇒Some("to increase"))
+    }}
   }
 }
 

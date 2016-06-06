@@ -3,25 +3,14 @@ package ee.cone.base.test_loots
 import java.time._
 
 import ee.cone.base.connection_api.DictMessage
+import ee.cone.base.db.{AttrValueType, UIStrings}
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
 
-trait FieldValidationState{
-  def color:String
-  def msg:String
-}
-case class Required(msgText:String = "") extends FieldValidationState{
-  def color="#ff9800"
-  def msg=msgText
-}
-case class Error(msgText:String = "") extends FieldValidationState{
-  def color="#f44336"
-  def msg=msgText
-}
-case object Default extends FieldValidationState{
-  def color=""
-  def msg=""
-}
+sealed trait ValidationKey
+case object RequiredValidationKey extends ValidationKey
+case object ErrorValidationKey extends ValidationKey
+case object DefaultValidationKey extends ValidationKey
 
 case class Paper() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
@@ -138,7 +127,7 @@ case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
       builder.append("style").startObject()
     if(color.nonEmpty)
         builder.append("fill").append(color.get)
-        builder.append("verticalAlign").append("middle")
+        //builder.append("verticalAlign").append("middle")
       builder.end()
     builder.end()
   }
@@ -299,28 +288,40 @@ case class DivEmpty() extends VDomValue{
     builder.end()
   }
 }
-case class InputField[Value](tp: String, value: Value, alignRight:Boolean,label: String,deferSend: Boolean,fieldValidationState: FieldValidationState = Default,isPassword:Boolean=false)(
-  input: InputAttributes, convertToString: Value⇒String, val onChange: Option[String⇒Unit]
+case class InputField[Value](
+  tp: String, value: Value, alignRight:Boolean, label: String, deferSend: Boolean,
+  fieldValidationState: ValidationKey, isPassword:Boolean=false, valueType: AttrValueType[Value]
+)(
+  input: InputAttributes, uiStrings: UIStrings, change: Value⇒Unit
 ) extends VDomValue with OnChangeReceiver {
+  def onChange = Some(str⇒change(uiStrings.fromString(str,valueType)))
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp)
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
+    (fieldValidationState match {
+      case DefaultValidationKey ⇒ ""
+      case RequiredValidationKey ⇒ "#ff9800"
+      case ErrorValidationKey ⇒ "#f44336"
+    }) match {
+      case "" ⇒ //"rgba(0,0,0,0.24)"
+      case color ⇒
+        builder.append("underlineStyle").startObject()
+        //builder.append("bottom").append("6px")
+        builder.append("borderColor").append(color)
+        builder.end()
+      //builder.append("hintText").append(fieldValidationState.msg)
+    }
 
-      fieldValidationState match{
-        case Default => //builder.append("borderColor").append("rgba(0,0,0,0.24)")
-        case _ =>
-          builder.append("underlineStyle").startObject()
-          //builder.append("bottom").append("6px")
-          builder.append("borderColor").append(fieldValidationState.color)
-          builder.end()
-          //builder.append("hintText").append(fieldValidationState.msg)
-      }
 
 
-    if(isPassword) builder.append("type").append("password")
-    input.appendJson(builder, convertToString(value), deferSend)
+
+    if(isPassword) {
+      builder.append("type").append("password")
+      builder.append("autoComplete").append("new-password")
+    }
+    input.appendJson(builder, uiStrings.convert(value,valueType), deferSend)
     builder.append("style"); {
       builder.startObject()
       builder.append("width").append("100%")
@@ -433,12 +434,11 @@ case class FieldPopupDrop(opened:Boolean,maxHeight:Option[Int]=None) extends VDo
 
   }
 }
-case class FieldPopupBox(showUnderscore:Boolean) extends VDomValue{
+case class FieldPopupBox() extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("FieldPopupBox")
     builder.append("popupReg").append("def")
-    builder.append("showUnderscore").append(showUnderscore)
     builder.end()
 
   }
@@ -516,23 +516,27 @@ case object ControlPanelColor extends Color{
 
 */
 
+case class CalendarDialog()(val onChange:Option[(String)=>Unit]) extends VDomValue with OnChangeReceiver{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("CrazyCalendar")
+    builder.append("onChange").append("send")
+    builder.end()
+  }
+}
+
 trait OfTable
 trait OfTableRow
 
 class MaterialTags(
-  child: ChildPairFactory, inputAttributes: InputAttributes
+  child: ChildPairFactory, inputAttributes: InputAttributes, uiStrings: UIStrings
 ) {
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
     child[OfDiv](key,MaterialChip(text)(action),children)
-  def fieldPopupBox(key: VDomKey, chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
-    child[OfDiv](key,DivPositionWrapper(Option("inline-block"),None,Some("relative"),None),List(
-      child[OfDiv](key+"box", FieldPopupBox(showUnderscore = false), chl1),
-      child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
-    ))
-  def fieldPopupBox(key: VDomKey, showUnderscore:Boolean,chl1:List[ChildPair[OfDiv]], chl2:List[ChildPair[OfDiv]]) =
+  def fieldPopupBox(key: VDomKey,fieldChildren:List[ChildPair[OfDiv]], popupChildren:List[ChildPair[OfDiv]]) =
     child[OfDiv](key,DivPositionWrapper(Option("inline-block"),Some("100%"),Some("relative"),None),List(
-      child[OfDiv](key+"box", FieldPopupBox(showUnderscore), chl1),
-      child[OfDiv](key+"popup", FieldPopupDrop(chl2.nonEmpty), chl2)
+      child[OfDiv](key+"box", FieldPopupBox(), fieldChildren),
+      child[OfDiv](key+"popup", FieldPopupDrop(popupChildren.nonEmpty,maxHeight = Some(400)), popupChildren)
     ))
   def divider(key:VDomKey)=
     child[OfDiv](key,Divider(),Nil)
@@ -584,6 +588,9 @@ class MaterialTags(
       IconButton(tooltip)(Some(action)),
       child("icon", SVGIcon(picture), Nil) :: Nil
     )
+  def calendarDialog(key:VDomKey,action: Option[(String)=>Unit])={
+    child[OfDiv](key,CalendarDialog()(action),Nil)
+  }
   def iconArrowUp()=
     child[OfDiv]("icon",SVGIcon("IconNavigationDropDown"),Nil)
   def iconArrowDown()=
@@ -652,53 +659,35 @@ class MaterialTags(
   def btnRaised(key: VDomKey, label: String)(action: ()=>Unit) =
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
 
-  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean,fieldValidationState: FieldValidationState = Default) =
+  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean,fieldValidationState: ValidationKey) =
     child[OfDiv](key, InputField("TextField", value, alignRight, label, deferSend, fieldValidationState, isPassword = false)
       (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
-  def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, fieldValidationState: FieldValidationState = Default) =
+  def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, fieldValidationState: ValidationKey) =
     child[OfDiv](key, InputField("TextField",value, alignRight = false, label, deferSend, fieldValidationState, isPassword = true)
     (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
-
+/*
   private def instantToString(value: Option[Instant]): String =
     value.map(_.toEpochMilli.toString).getOrElse("")
-
+*/
   private def stringToInstant(value: String): Option[Instant] =
     if(value.nonEmpty) Some(Instant.ofEpochMilli(java.lang.Long.valueOf(value))) else None
-
-  private def localTimeToString(value: Option[LocalTime]):String=
-    value.map(x=>x.getHour().toString+":"+x.getMinute().toString).getOrElse("")
-
   private def stringToLocalTime(value:String): Option[LocalTime]=
     if(value.nonEmpty) Some(LocalTime.parse(value)) else None
-
-  private def durationToString(value: Option[Duration]):String=
-
-    value.map(x=>{
-
-      val h=if(x.abs.toHours<10) "0"+x.abs.toHours else x.abs.toHours
-      val m=if(x.abs.minusHours(x.abs.toHours).toMinutes<10) "0"+x.abs.minusHours(x.abs.toHours).toMinutes else x.abs.minusHours(x.abs.toHours).toMinutes
-      h+":"+m
-    }).getOrElse("")
-
   private def stringToDuration(value:String):Option[Duration]=
     if(value.nonEmpty) {
       val hm=value.split(":")
       val h=hm(0)
       val m=hm(1)
-
       Some(Duration.ofMinutes(h.toLong*60+m.toLong))
-
     } else None
 
-  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit, fieldValidationState: FieldValidationState = Default) =
-    child[OfDiv](key, InputField("DateInput",value,alignRight = false,label, deferSend = false,fieldValidationState,isPassword = false)(inputAttributes,
-      instantToString, Some(newValue ⇒ change(stringToInstant(newValue)))), Nil)
-  def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit, fieldValidationState: FieldValidationState = Default)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,fieldValidationState,isPassword = false)(inputAttributes,
-      localTimeToString,Some(newValue=>change(stringToLocalTime(newValue)))),Nil)
-  def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit, fieldValidationState: FieldValidationState = Default)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false)(inputAttributes,
+  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit, fieldValidationState: ValidationKey) =
+    child[OfDiv](key, InputField("DateInput",value,alignRight = false,label, deferSend = false,fieldValidationState,isPassword = false,asInstant)(inputAttributes, uiStrings, change), Nil)
+  def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit, fieldValidationState: ValidationKey)=
+    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,fieldValidationState,isPassword = false,asLocalTime)(inputAttributes, uiStrings, change),Nil)
+  def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit, fieldValidationState: ValidationKey)=
+    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false,asDuration)(inputAttributes, uiStrings, change),Nil)
       durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)
   def labeledText(key:VDomKey, label:String, content:String) =
     if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)
