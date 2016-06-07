@@ -51,7 +51,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val validationWrapType = new ValidationWrapType
   lazy val validationFactory = new ValidationFactory(validationAttributes,nodeAttrs,attrFactory,dbWrapType,validationWrapType,uiStrings)()
 
-  lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, asDBObj, asString, asUUID)()
+  lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, filters, uiStrings)()
   lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration)()
   lazy val fuelingItems = new FuelingItems(
@@ -73,7 +73,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
     asDuration, asInstant, asLocalTime, asDBObj, asString,
-    uiStrings
+    uiStrings, mandatory
   )()
 }
 

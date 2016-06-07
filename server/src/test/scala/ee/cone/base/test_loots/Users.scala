@@ -11,6 +11,7 @@ import ee.cone.base.util.{Bytes, Never}
 class UserAttrs(
   attr: AttrFactory,
   label: LabelFactory,
+  objIdFactory: ObjIdFactory,
   asDBObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   asUUID: AttrValueType[Option[UUID]]
@@ -22,7 +23,9 @@ class UserAttrs(
   val unEncryptedPassword: Attr[String] = attr("7d12edd9-a162-4305-8a0c-31ef3f2e3300",asString),
   val unEncryptedPasswordAgain: Attr[String] = attr("24517821-c606-4f6c-8e93-4f01c2490747",asString),
   val asActiveUser: Attr[Obj] = label("eac3b82c-5bf0-4278-8e0a-e1e0e3a95ffc"),
-  val authenticatedUser: Attr[Obj] = attr("47ee2460-b170-4213-9d56-a8fe0f7bc1f5",asDBObj) //of session
+  val authenticatedUser: Attr[Obj] = attr("47ee2460-b170-4213-9d56-a8fe0f7bc1f5",asDBObj), //of session
+  val world: ObjId = objIdFactory.toObjId("4c766f02-5a76-47c3-aec7-2315caa5828b"),
+  val location: Attr[Obj] = attr("98e4646e-e5ba-4ac3-a2e2-4f79dde3886e",asDBObj)
 )
 
 class Users(
@@ -33,8 +36,8 @@ class Users(
   alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique,
   onUpdate: OnUpdate, filters: Filters, captions: UIStrings
 )(
-  val findAll: SearchByLabelProp[String] = searchIndex.create(at.asUser, findAttrs.justIndexed),
-  val findAllActive: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, findAttrs.justIndexed),
+  val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asUser, at.location),
+  val findAllActive: SearchByLabelProp[Obj] = searchIndex.create(at.asActiveUser, at.location),
   val findActiveByName: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, at.username)
 ) extends CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
@@ -70,9 +73,10 @@ class Users(
       }
     }
   }
+  def world: Obj = findNodes.whereObjId(at.world)
   def needToLogIn: Boolean =
     !eventSource.mainSession(at.authenticatedUser)(at.asUser)(findAttrs.nonEmpty) &&
-      findNodes.where(mainTx(), findAllActive, findNodes.justIndexed, FindFirstOnly::Nil).nonEmpty
+      findNodes.where(mainTx(), findAllActive, world, FindFirstOnly::Nil).nonEmpty
   private def calcCanLogin(on: Boolean, user: Obj) =
     user(at.asActiveUser) = if(on) user else findNodes.noNode
 
@@ -83,18 +87,18 @@ class Users(
       CoHandler(AttrCaption(at.asActiveUser))("Active") ::
       CoHandler(AttrCaption(at.unEncryptedPassword))("Password") ::
       CoHandler(AttrCaption(at.unEncryptedPasswordAgain))("Repeat Password") ::
-      List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers) :::
+      List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers(_)) :::
       List(at.unEncryptedPassword, at.unEncryptedPasswordAgain).flatMap(transient.update) :::
-      List(at.asUser,at.fullName,at.username,at.encryptedPassword,at.authenticatedUser).flatMap{ attr⇒
+      List(at.asUser,at.fullName,at.username,at.encryptedPassword,at.authenticatedUser,at.location).flatMap{ attr⇒
         factIndex.handlers(attr) ::: alien.update(attr)
       } :::
       List(at.asActiveUser).flatMap(factIndex.handlers) :::
-      mandatory(at.asUser, at.username, mutual = false) :::
-      mandatory(at.asUser, at.fullName, mutual = false) :::
+      mandatory(at.location, at.username, mutual = false) :::
+      mandatory(at.location, at.fullName, mutual = false) :::
       unique(at.asUser, at.username) :::
       unique(at.asUser, at.fullName) :::
-      onUpdate.handlers(List(at.asUser, findAttrs.justIndexed, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
-      captions.handlers(List(at.asUser, at.fullName))(_(at.fullName)) :::
+      onUpdate.handlers(List(at.asUser, at.location, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
+      captions.captions(List(at.asUser, at.fullName))(_(at.fullName)) :::
       filters.orderBy(at.fullName) :::
       filters.orderBy(at.username)
 }
