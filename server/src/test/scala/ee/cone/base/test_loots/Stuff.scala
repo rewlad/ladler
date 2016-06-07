@@ -63,6 +63,7 @@ class BoatLogEntryAttributes(
   val asConfirmed: Attr[Obj] = label("c54e4fd2-0989-4555-a8a5-be57589ff79d"),
   val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", asObj),
   val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", asInstant), //0x6709
+  val locationOfEntry: Attr[Obj] = attr("6ccde3e9-5522-4adb-9770-a1301506afd7",asObj),
 
   val dateFrom: Attr[Option[Instant]] = attr("6e260496-9534-4ca1-97f6-6b234ef93a55", asInstant),
   val dateTo: Attr[Option[Instant]] = attr("7bd7e2cb-d7fd-4b0f-b88b-b1e70dd609a1", asInstant),
@@ -76,8 +77,8 @@ class BoatLogEntryAttributes(
   val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
 
   val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
-  val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", asString)
-
+  val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", asString),
+  val locationOfBoat: Attr[Obj] = attr("0924571d-e8c6-4d62-ac50-2c4404e7fc6e",asObj)
 )
 
 
@@ -135,9 +136,9 @@ class TestComponent(
   uiStrings: UIStrings,
   mandatory: Mandatory
 )(
-  val findEntry: SearchByLabelProp[String] = searchIndex.create(logAt.asEntry, findAttrs.justIndexed),
+  val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
-  val findBoat: SearchByLabelProp[String] = searchIndex.create(logAt.asBoat, findAttrs.justIndexed)
+  val findBoat: SearchByLabelProp[Obj] = searchIndex.create(logAt.asBoat, logAt.locationOfBoat)
 ) extends CoHandlerProvider {
   import tags._
   import materialTags._
@@ -189,7 +190,8 @@ class TestComponent(
     val value = obj(attr)
     if(editable) List(inputField(
       "1", TextFieldType, visibleLabel, value, obj(attr) = _,
-      deferSend, alignRight=false, getValidationKey(obj,attr)
+      deferSend, alignRight=false, getValidationKey(obj,attr),
+      isPassword=true
     ))
     else Nil
   }
@@ -405,17 +407,17 @@ class TestComponent(
       if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.boat)(nodeAttrs.objId)==value) else Nil
     } ::: {
       val value = filterObj(logAt.dateFrom)
-      if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.date).forall((v:Instant) ⇒ v.isAfter(value.get))) else Nil
+      if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.date).forall((v:Instant) ⇒ v==value.get || v.isAfter(value.get))) else Nil
     } ::: {
       val value = filterObj(logAt.dateTo)
-      if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.date).forall((v:Instant) ⇒ v.isBefore(value.get))) else Nil
+      if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.date).forall((v:Instant) ⇒ v==value.get || v.isBefore(value.get))) else Nil
     } ::: {
       val value = filterObj(logAt.hideConfirmed)
       if(value) List((obj:Obj) ⇒ !obj(logAt.asConfirmed)(nonEmpty) ) else Nil
     }
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
-    val itemList = filters.itemList(findEntry,findNodes.justIndexed,filterObj,filterList,editable)
+    val itemList = filters.itemList(findEntry,users.world,filterObj,filterList,editable)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
     List( //class LootsBoatLogList
@@ -478,7 +480,7 @@ class TestComponent(
 
   private def boatSelectView(obj: Obj) =
     objField(obj,logAt.boat,showLabel = true)(()⇒
-      filters.itemList(findBoat, findNodes.justIndexed, findNodes.noNode, Nil, editable=false).list
+      filters.itemList(findBoat, users.world, findNodes.noNode, Nil, editable=false).list
     )
 
   private def entryEditView(pf: String) = wrapDBView { () =>
@@ -650,7 +652,7 @@ class TestComponent(
 
   private def boatListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
-    val itemList = filters.itemList(findBoat, findNodes.justIndexed, filterObj, Nil, editable=true) //todo roles
+    val itemList = filters.itemList[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
     List(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
@@ -715,7 +717,7 @@ class TestComponent(
 
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(userAttrs.asUser)))
-    val userList = filters.itemList(users.findAll, findNodes.justIndexed, filterObj, Nil, editable = true) //todo roles
+    val userList = filters.itemList(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
     val showPasswordCols = filters.editing(userAttrs.asUser)(nonEmpty)
     List(
       toolbar("Users"),
@@ -856,15 +858,14 @@ class TestComponent(
     ).flatMap(factIndex.handlers(_)) :::
     List(
       logAt.asEntry, logAt.boat, logAt.confirmedOn, logAt.date, logAt.confirmedBy,
-      logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
+      logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed, logAt.locationOfEntry,
       logAt.asWork, logAt.entryOfWork,
       logAt.workStart, logAt.workStop, logAt.workComment,
-      logAt.asBoat, logAt.boatName
+      logAt.asBoat, logAt.boatName, logAt.locationOfBoat
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
     uiStrings.captions(List(logAt.asBoat, logAt.boatName))(_(logAt.boatName)) :::
-    alien.update(findAttrs.justIndexed) :::
     CoHandler(AttrCaption(logAt.boat))("Boat") ::
     CoHandler(AttrCaption(logAt.date))("Date") ::
     CoHandler(AttrCaption(logAt.durationTotal))("Total duration, hrs:min") ::
@@ -889,9 +890,9 @@ class TestComponent(
     CoHandler(SessionInstantAdded)(currentVDom.invalidate) ::
     CoHandler(TransientChanged)(currentVDom.invalidate) ::
     //todo: ?mandatory(logAt.asEntry, logAt.asConfirmed, mutual = true)
-    mandatory(logAt.asBoat, logAt.boatName, mutual = true) :::
-    mandatory(logAt.asWork, logAt.workDuration, mutual = true)
-
+    mandatory(logAt.locationOfBoat, logAt.boatName, mutual = true) :::
+    mandatory(logAt.entryOfWork, logAt.workDuration, mutual = true) :::
+    filters.orderBy(logAt.date)
 }
 
 class FuelingAttrs(
