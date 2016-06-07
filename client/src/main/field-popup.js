@@ -5,7 +5,7 @@ const FieldPopupBox= React.createClass({
       const style={
           display:"block",
           width:"100%",
-          position:"absolute",
+          //position:"absolute",
           zIndex:4000
       }
       const ref = el => this.props.popupReg(false,el)

@@ -18,11 +18,16 @@ case class RootElement(conf: List[(String,List[String])]) extends VDomValue {
     builder.end()
   }
 }
-case class TextContentElement(content: String) extends VDomValue {
+case class TextContentElement(content: String, color:String) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("span")
     builder.append("content").append(content)
+    if(color.nonEmpty) {
+      builder.append("style").startObject()
+      builder.append("color").append(color)
+      builder.end()
+    }
     builder.end()
   }
 }
@@ -33,6 +38,7 @@ class TagsImpl(
 ) extends Tags {
   def root(children: List[ChildPair[OfDiv]]) =
     child("root", RootElement(currentView.rootAttributes), children.toList).value
-  def text(key: VDomKey, text: String) =
-    child[OfDiv](key, TextContentElement(text), Nil)
+  def text(key: VDomKey, text: String, color:String = "") =
+    child[OfDiv](key, TextContentElement(text,color), Nil)
+
 }

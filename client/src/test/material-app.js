@@ -17,7 +17,7 @@ import TableRow          from 'material-ui/lib/table/table-row'
 import TableRowColumn    from 'material-ui/lib/table/table-row-column'
 import RaisedButton      from 'material-ui/lib/raised-button'
 import IconButton        from 'material-ui/lib/icon-button'
-import IconContentCreate from 'material-ui/lib/svg-icons/content/create'
+import IconEditorModeEdit from 'material-ui/lib/svg-icons/editor/mode-edit'
 import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
 import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
 import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
@@ -94,8 +94,9 @@ const TimeInput = React.createClass({
             const m=value.getMinutes()<10?"0"+value.getMinutes().toString():value.getMinutes().toString()
             this.props.onChange({target:{value: h+":"+m}})
         }
+        console.log(this.props.style)
         return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText,
-        underlineStyle: this.props.underlineStyle,
+        underlineStyle: this.props.underlineStyle,inputStyle:this.props.style,
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
 })
@@ -232,7 +233,7 @@ class LabeledText extends React.Component{
             position:"relative",
             marginTop:"38px"
         }
-
+        Object.assign(pStyle,this.props.style)
         return(
         React.createElement("div",{key:"1",style:pStyle},[
             React.createElement("label",{key:"label",style:lStyle},this.props.label),
@@ -340,7 +341,7 @@ class CrazyClock extends React.Component{
 
     handleClockChangeMinutes(){
         const time=this.refs.clock.getSelectedTime()
-        const value = time.Hours()+":"+time.getMinutes()
+        const value = time.getHours()+":"+time.getMinutes()
         this.props.onChange({ target: ({value}) })
     }
 
@@ -368,7 +369,7 @@ const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
     RaisedButton,
-    IconButton, IconContentCreate,MaterialChip,
+    IconButton, IconEditorModeEdit,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField,/* DateInput,*/TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,

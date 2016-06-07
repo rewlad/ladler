@@ -396,6 +396,9 @@ case class LabeledTextComponent(text:String,label:String) extends VDomValue{
       builder.append("tp").append("LabeledText")
       builder.append("content").append(text)
       builder.append("label").append(label)
+      builder.append("style").startObject()
+      builder.append("fontSize").append("13px")
+      builder.end()
     builder.end()
   }
 }
@@ -516,6 +519,10 @@ case object MenuItemHoverColor extends Color{
 case object ControlPanelColor extends Color{
   def color="rgba(0,0,0,0.1)"
 }
+case object AlertTextColor extends Color {
+  def color="#f44336"
+}
+
 
   /*
 //todo: DateField, SelectField
@@ -530,6 +537,15 @@ case class CalendarDialog(date:String)(val onChange:Option[(String)=>Unit]) exte
     builder.append("tp").append("CrazyCalendar")
     builder.append("onChange").append("send")
     builder.append("initialDate").append(date)
+    builder.end()
+  }
+}
+case class ClockDialog(time:String)(val onChange:Option[(String)=>Unit]) extends VDomValue with OnChangeReceiver{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("CrazyClock")
+    builder.append("onChange").append("send")
+    builder.append("initialTime").append(time)
     builder.end()
   }
 }
@@ -601,6 +617,9 @@ class MaterialTags(
   def calendarDialog(key:VDomKey,date:String,action: Option[(String)=>Unit])={
     child[OfDiv](key,CalendarDialog(date)(action),Nil)
   }
+  def clockDialog(key: VDomKey,time:String,action: Option[(String)=>Unit])={
+    child[OfDiv](key,ClockDialog(time)(action),Nil)
+  }
   def iconArrowUp()=
     child[OfDiv]("icon",SVGIcon("IconNavigationDropDown"),Nil)
   def iconArrowDown()=
@@ -619,8 +638,8 @@ class MaterialTags(
     iconButton(key,"add","IconContentAdd",action)
   def btnRemove(key: VDomKey, action: ()=>Unit) =
     iconButton(key,"remove","IconContentRemove",action)
-  def btnCreate(key:VDomKey,action:()=>Unit)=
-    iconButton(key,"add","IconContentCreate",action)
+  def btnModeEdit(key:VDomKey, action:()=>Unit)=
+    iconButton(key,"edit","IconEditorModeEdit",action)
   def btnDelete(key:VDomKey,action:()=>Unit)=
     iconButton(key,"delete","IconActionDelete",action)
   def btnMenu(key:VDomKey,action:()=>Unit)=
@@ -717,7 +736,7 @@ class MaterialTags(
       durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)*/
   def labeledText(key:VDomKey, label:String, content:String) =
     if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)
-    else child[OfDiv](key, TextContentElement(content), Nil)
+    else child[OfDiv](key, TextContentElement(content,color = ""), Nil)
 
   def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivHeightWrapper(height),theChild.toList)

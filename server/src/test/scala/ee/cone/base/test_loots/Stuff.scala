@@ -390,7 +390,7 @@ class TestComponent(
     iconCellGroup("selected")(_⇒booleanField(item, filterAttrs.isSelected, editableOpt = Some(true)))
   private def editAllGroup() = iconCellGroup("edit")(_⇒Nil)
   private def editRowGroupBase(on: Boolean)(action: ()⇒Unit) =
-    iconCellGroup("edit")(_⇒if(on) List(btnCreate("btnCreate",action)) else Nil)
+    iconCellGroup("edit")(_⇒if(on) List(btnModeEdit("btnCreate",action)) else Nil)
   private def editRowGroup(itemList: ItemList, item: Obj) =
     editRowGroupBase(itemList.isEditable){ () ⇒
       item(alienAttrs.isEditing) = !item(alienAttrs.isEditing)
@@ -527,11 +527,11 @@ class TestComponent(
                       }
                       else if(validationStates.nonEmpty){
                         val state = validationStates.head
-                        List(text("1",state.text))
+                        List(text("1",state.text,AlertTextColor.color))
                       }
                       else {
                         val user = eventSource.mainSession(userAttrs.authenticatedUser)
-                        if(!user(nonEmpty)) List(text("1",s"User required"))
+                        if(!user(nonEmpty)) List(text("1",s"User required",AlertTextColor.color))
                         else List(btnRaised("confirm","Confirm"){()⇒
                           entry(logAt.confirmedOn) = Option(Instant.now())
                           entry(logAt.confirmedBy) = user
