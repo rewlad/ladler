@@ -10,62 +10,63 @@ import scala.collection.mutable
 /**
   * Created by wregs on 5/3/2016.
   */
-trait AttrOfTableElement
+trait AttrOfHtmlElement
 trait ChildOfTable
 trait ChildOfTableRow
+case object DefaultAttr extends AttrOfHtmlElement
 
 trait SimpleHtmlTable{
   type TableElement
   type CellContentVariant = Boolean
-  def table(key: VDomKey, attr:AttrOfTableElement*)(tableElement:(TableElement with ChildOfTable)*):List[ChildPair[OfDiv]]
-  def table(key: VDomKey, attr:List[AttrOfTableElement])(tableElement:List[TableElement with ChildOfTable]):List[ChildPair[OfDiv]]
-  def row(key: VDomKey, attr: AttrOfTableElement*)(tableElement:(TableElement with ChildOfTableRow)*):TableElement with ChildOfTable
-  def row(key: VDomKey, attr: List[AttrOfTableElement])(tableElement:List[TableElement with ChildOfTableRow]):TableElement with ChildOfTable
-  def group(key:VDomKey, attr: AttrOfTableElement*):TableElement with ChildOfTableRow
-  def group(key:VDomKey, attr: List[AttrOfTableElement]):TableElement with ChildOfTableRow
-  def cell(key:VDomKey, attr:AttrOfTableElement*)(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
-  def cell(key:VDomKey, attr:List[AttrOfTableElement])(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
+  def table(key: VDomKey, attr:AttrOfHtmlElement*)(tableElement:(TableElement with ChildOfTable)*):List[ChildPair[OfDiv]]
+  def table(key: VDomKey, attr:List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTable]):List[ChildPair[OfDiv]]
+  def row(key: VDomKey, attr: AttrOfHtmlElement*)(tableElement:(TableElement with ChildOfTableRow)*):TableElement with ChildOfTable
+  def row(key: VDomKey, attr: List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTableRow]):TableElement with ChildOfTable
+  def group(key:VDomKey, attr: AttrOfHtmlElement*):TableElement with ChildOfTableRow
+  def group(key:VDomKey, attr: List[AttrOfHtmlElement]):TableElement with ChildOfTableRow
+  def cell(key:VDomKey, attr:AttrOfHtmlElement*)(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
+  def cell(key:VDomKey, attr:List[AttrOfHtmlElement])(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
 }
 trait HtmlTable extends SimpleHtmlTable
 
-case class Width(value:Float) extends AttrOfTableElement
-case class MaxWidth(value:Int) extends AttrOfTableElement
-case class Priority(value:Int) extends AttrOfTableElement
-trait TextAlign extends AttrOfTableElement
-case object TextAlignLeft extends TextAlign with AttrOfTableElement
-case object TextAlignCenter extends TextAlign with AttrOfTableElement
-case object TextAlignRight extends TextAlign with AttrOfTableElement
-trait VerticalAlign extends AttrOfTableElement
-case object VerticalAlignTop extends VerticalAlign with AttrOfTableElement
-case object VerticalAlignMiddle extends VerticalAlign with AttrOfTableElement
-case object VerticalAlignBottom extends VerticalAlign with AttrOfTableElement
-case class MinWidth(value:Int) extends AttrOfTableElement
-case class Caption(value:String) extends AttrOfTableElement
-case class MaxVisibleLines(value:Int) extends AttrOfTableElement
-case class Toggled(value:Boolean)(val toggleHandle:Option[()=>Unit]) extends AttrOfTableElement
-case class IsSelected(value:Boolean) extends AttrOfTableElement
-case object IsHeader extends AttrOfTableElement
+case class Width(value:Float) extends AttrOfHtmlElement
+case class MaxWidth(value:Int) extends AttrOfHtmlElement
+case class Priority(value:Int) extends AttrOfHtmlElement
+trait TextAlign extends AttrOfHtmlElement
+case object TextAlignLeft extends TextAlign
+case object TextAlignCenter extends TextAlign
+case object TextAlignRight extends TextAlign
+trait VerticalAlign extends AttrOfHtmlElement
+case object VerticalAlignTop extends VerticalAlign
+case object VerticalAlignMiddle extends VerticalAlign
+case object VerticalAlignBottom extends VerticalAlign
+case class MinWidth(value:Int) extends AttrOfHtmlElement
+case class Caption(value:String) extends AttrOfHtmlElement
+case class MaxVisibleLines(value:Int) extends AttrOfHtmlElement
+case class Toggled(value:Boolean)(val toggleHandle:Option[()=>Unit]) extends AttrOfHtmlElement
+case class IsSelected(value:Boolean) extends AttrOfHtmlElement
+case object IsHeader extends AttrOfHtmlElement
 
 class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
   type TableElement=FlexDataTableElement
-  def table(key: VDomKey,attr: AttrOfTableElement*)(tableElement: (TableElement with ChildOfTable)*)={
+  def table(key: VDomKey,attr: AttrOfHtmlElement*)(tableElement: (TableElement with ChildOfTable)*)={
     table(key,attr.toList)(tableElement.toList)
   }
-  def table(key: VDomKey,attr: List[AttrOfTableElement])(tableElement: List[TableElement with ChildOfTable])={
+  def table(key: VDomKey,attr: List[AttrOfHtmlElement])(tableElement: List[TableElement with ChildOfTable])={
     val tableWidth=Single.option[Float](attr.collect{case Width(x)=>x})
     FlexDataTable(tableWidth,flexTags,tableElement.toIndexedSeq).genView()
   }
-  def row(key: VDomKey, attr:AttrOfTableElement*)(tableElement:(TableElement with ChildOfTableRow)*) =
+  def row(key: VDomKey, attr:AttrOfHtmlElement*)(tableElement:(TableElement with ChildOfTableRow)*) =
     row(key,attr.toList)(tableElement.toList)
-  def row(key: VDomKey, attr:List[AttrOfTableElement])(tableElement:List[TableElement with ChildOfTableRow])={
+  def row(key: VDomKey, attr:List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTableRow])={
     val maxVisibleLines=Single.option[Int](attr.collect({case MaxVisibleLines(x)=>x})).getOrElse(1)
     val toggled=Single.option[Toggled](attr.collect({case x:Toggled=>x})).getOrElse(Toggled(value = false)(None))
     val isSelected=Single.option[Boolean](attr.collect({case IsSelected(x)=>x})).getOrElse(false)
     val isHeader=Single.option[Boolean](attr.collect({case IsHeader=>true})).getOrElse(false)
     FlexDataTableRow(key,isHeader,maxVisibleLines,toggled.value,isSelected,flexTags,tableElement.toIndexedSeq)(toggled.toggleHandle)
   }
-  def group(key:VDomKey,attr: AttrOfTableElement*)=group(key, attr.toList)
-  def group(key:VDomKey,attr: List[AttrOfTableElement])={
+  def group(key:VDomKey,attr: AttrOfHtmlElement*)=group(key, attr.toList)
+  def group(key:VDomKey,attr: List[AttrOfHtmlElement])={
     val basisWidth = Single[Int](attr.collect{case MinWidth(x)=>x})
     val maxWidth = Single.option[Int](attr.collect{case MaxWidth(x)=>x})
     val textAlign = Single.option[String](attr.collect{case x:TextAlign=>x}.map(x=> x match {
@@ -82,8 +83,8 @@ class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
     val caption = Single.option[String](attr.collect{case Caption(x)=>x})
     FlexDataTableColGroup(key, basisWidth,maxWidth, textAlign,verticalAlign, priority.getOrElse(1), caption,flexTags)
   }
-  def cell(key:VDomKey, attr: AttrOfTableElement*)(children:(CellContentVariant)=> List[ChildPair[OfDiv]])= cell(key,attr.toList)(children)
-  def cell(key:VDomKey, attr: List[AttrOfTableElement])(children:(CellContentVariant)=> List[ChildPair[OfDiv]])={
+  def cell(key:VDomKey, attr: AttrOfHtmlElement*)(children:(CellContentVariant)=> List[ChildPair[OfDiv]])= cell(key,attr.toList)(children)
+  def cell(key:VDomKey, attr: List[AttrOfHtmlElement])(children:(CellContentVariant)=> List[ChildPair[OfDiv]])={
     val basisWidth = Single[Int](attr.collect{case MinWidth(x)=>x})
     val maxWidth = Single.option[Int](attr.collect{case MaxWidth(x)=>x})
     val textAlign = Single.option[String](attr.collect{case x:TextAlign=>x}.map(x=> x match {

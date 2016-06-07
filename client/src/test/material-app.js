@@ -94,7 +94,7 @@ const TimeInput = React.createClass({
             const m=value.getMinutes()<10?"0"+value.getMinutes().toString():value.getMinutes().toString()
             this.props.onChange({target:{value: h+":"+m}})
         }
-        console.log(this.props.style)
+        //console.log(this.props.style)
         return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText,
         underlineStyle: this.props.underlineStyle,inputStyle:this.props.style,
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
@@ -190,7 +190,7 @@ class DataTableBody extends React.Component{
     }
     componentDidMount(){
         this.calcPosition()
-        console.log(this.dims)
+        //console.log(this.dims)
     }
     componentWillUnmount(){}
     render(){
@@ -295,7 +295,8 @@ class CrazyCalendar extends React.Component{
     }
 
     handleOnDayTouchTap(e,day){
-        const value = day.getDate()+"."+day.getMonth()+"."+day.getFullYear()
+
+        const value = day.getDate()+"."+(day.getMonth()+1)+"."+day.getFullYear()
         this.props.onChange({ target: ({value}) })
     }
 
@@ -304,7 +305,7 @@ class CrazyCalendar extends React.Component{
         if(this.props.initialDate){
             const dmy=this.props.initialDate.split(".")
             initialDate.setDate(parseInt(dmy[0]))
-            initialDate.setMonth(parseInt(dmy[1]))
+            initialDate.setMonth(parseInt(dmy[1])-1)
             initialDate.setFullYear(parseInt(dmy[2]))
         }
 
@@ -364,6 +365,21 @@ class CrazyClock extends React.Component{
     }
 }
 
+class DecimalInput extends React.Component{
+    constructor(props){
+        super(props)
+    }
+
+    render(){
+
+        const fProps={
+            key:this.props.key
+        }
+        Object.assign(fProps,this.props)
+        //console.log(this.props,fProps)
+        return React.createElement(TextField,fProps)
+    }
+}
 
 const tp = ({
     Paper,
@@ -376,7 +392,7 @@ const tp = ({
     IconActionRestore,IconContentSave,CrazyCalendar,CrazyClock,
     IconMenuButton,MenuItem,IconNavigationMenu,CursorOver,
     IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess,
-    IconActionSchedule
+    IconActionSchedule,DecimalInput
 })
 
 const transforms = ({tp})

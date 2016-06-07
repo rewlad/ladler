@@ -119,7 +119,7 @@ case class IconButton(tooltip: String)(
   }
 }
 
-case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
+case class SVGIcon(tp: String,color:Option[String] = None,verticalAlign: Option[VerticalAlign] = None) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp) //color str
@@ -127,7 +127,13 @@ case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
       builder.append("style").startObject()
     if(color.nonEmpty)
         builder.append("fill").append(color.get)
-        //builder.append("verticalAlign").append("middle")
+    verticalAlign.getOrElse("") match{
+      case VerticalAlignTop => builder.append("verticalAlign").append("top")
+      case VerticalAlignBottom => builder.append("verticalAlign").append("bottom")
+      case VerticalAlignMiddle => builder.append("verticalAlign").append("middle")
+      case _ =>
+    }
+
       builder.end()
     builder.end()
   }
@@ -293,6 +299,7 @@ sealed trait FieldType
 case object TextFieldType extends FieldType
 case object DateFieldType extends FieldType
 case object TimeFieldType extends FieldType
+case object DecimalFieldType extends FieldType
 
 case class InputField(
   tp: FieldType, label: String, value: String,
@@ -307,6 +314,7 @@ case class InputField(
       case TextFieldType ⇒ "TextField"
       case DateFieldType ⇒ "DateInput"
       case TimeFieldType ⇒ "TimeInput"
+      case DecimalFieldType => "DecimalInput"
     })
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
@@ -500,6 +508,17 @@ case class DivBgColorHover(color:Color) extends VDomValue{
     builder.end()
   }
 }
+case class DivZIndex(zIndex:Int) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+      builder.append("position").append("relative")
+      builder.append("zIndex").append(s"${zIndex}")
+    builder.end()
+    builder.end()
+  }
+}
 case class DivBgColor(color:Color) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -589,7 +608,7 @@ class MaterialTags(
       List(
         child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 48px)"),None,None),input::Nil),
         child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("48px"),None,None),
-          btn::Nil
+          withZIndex("zIndex",4000,btn)::Nil
         )
       ):_*
     )
@@ -621,9 +640,9 @@ class MaterialTags(
     child[OfDiv](key,ClockDialog(time)(action),Nil)
   }
   def iconArrowUp()=
-    child[OfDiv]("icon",SVGIcon("IconNavigationDropDown"),Nil)
+    child[OfDiv]("icon",SVGIcon("IconNavigationDropDown",verticalAlign = Some(VerticalAlignMiddle)),Nil)
   def iconArrowDown()=
-    child[OfDiv]("icon",SVGIcon("IconNavigationDropUp"),Nil)
+    child[OfDiv]("icon",SVGIcon("IconNavigationDropUp",verticalAlign = Some(VerticalAlignMiddle)),Nil)
   //def btnViewList(key:VDomKey, action: ()=>Unit) =
   //  iconButton(key,"view list","IconActionViewList",action)
   def btnSave(key:VDomKey, action: ()=>Unit) =
@@ -746,5 +765,8 @@ class MaterialTags(
     child[OfDiv](key,DivBgColorHover(color),theChild.toList)
   def withBgColor(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivBgColor(color),theChild.toList)
+  def withZIndex(key:VDomKey,zIndex:Int,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,DivZIndex(zIndex),theChild.toList)
+
 }
 

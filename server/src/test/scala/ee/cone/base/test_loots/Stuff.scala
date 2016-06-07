@@ -252,6 +252,20 @@ class TestComponent(
     else List(labeledText("1", visibleLabel, value))
   }
 
+  private def decimalField( obj: Obj, attr: Attr[String], showLabel: Boolean,
+                            editableOpt: Option[Boolean]=None,
+                            deferSend: Boolean=true, alignRight: Boolean = false)={
+    val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
+    val visibleLabel = if(showLabel) caption(attr) else ""
+    val value = obj(attr)
+    if(editable) List(inputField(
+      "1", DecimalFieldType, visibleLabel, value, obj(attr) = _,
+      deferSend, alignRight, getValidationKey(obj,attr)
+    ))
+    else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
+    else Nil
+  }
+
   private var popupOpened = ""
   private def popupToggle(key: String)() =
     popupOpened = if(popupOpened == key) "" else key
@@ -423,7 +437,7 @@ class TestComponent(
     List( //class LootsBoatLogList
       toolbar("Entry List"),
 
-      withMaxWidth("1",1200,List(paperTable("dtTableList2")(
+      withMaxWidth("1",2056,List(paperTable("dtTableList2")(
         controlPanel(inset = true)(
           List(flexGrid("controlGrid1",List(
             flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
@@ -554,7 +568,7 @@ class TestComponent(
 
 
   def entryEditFuelScheduleView(entry: Obj, validationStates: List[ValidationState]): ChildPair[OfDiv] = {
-    val entryIdStr = entry(alien.objIdStr)
+    //val entryIdStr = entry(alien.objIdStr)
     val filterObj = filters.filterObj(List(entry(nodeAttrs.objId)))
     val deferSend = validationStates.size > 2
     val validationContext = validationFactory.context(validationStates)
@@ -576,7 +590,7 @@ class TestComponent(
             strField(fueling, fuelingAttrs.meHoursStr, showLabel, deferSend = false)*/
         ),
         mCell("3",100,1)(showLabel=>
-          strField(fueling, fuelingAttrs.fuel, showLabel, deferSend=deferSend, alignRight = true)
+          decimalField(fueling, fuelingAttrs.fuel, showLabel, deferSend=deferSend, alignRight = true)
         ),
         mCell("4",250,3)(showLabel=>
           strField(fueling, fuelingAttrs.comment, showLabel, deferSend=deferSend)
@@ -695,7 +709,9 @@ class TestComponent(
 
   private def usernameField(obj: Obj, showLabel: Boolean) = {
     val field = strField(obj, userAttrs.username, showLabel)
-    if(!showLabel) field else if(field.nonEmpty) List(iconInput("1","IconSocialPerson")(field)) else Nil
+    if(!showLabel) field
+    else if(field.nonEmpty) List(iconInput("1","IconSocialPerson")(field))
+    else Nil
   }
   private def passwordField(obj: Obj, attr: Attr[String], showLabel: Boolean) = {
     val field = strPassField(obj, attr, showLabel, deferSend = false)
@@ -718,7 +734,7 @@ class TestComponent(
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(userAttrs.asUser)))
     val userList = filters.itemList(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
-    val showPasswordCols = filters.editing(userAttrs.asUser)(nonEmpty)
+    val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(
       toolbar("Users"),
       paperTable("table")(
@@ -833,7 +849,7 @@ class TestComponent(
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
       divWrapper("menu",None,None,None,None,Some("left"),None,
         fieldPopupBox("menu",
-          List(btnMenu("menu",popupToggle("navMenu"))),
+          List(withZIndex("zIndex",4000,btnMenu("menu",popupToggle("navMenu")))),
           if(popupOpened!="navMenu") Nil else List(
             menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
             menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
