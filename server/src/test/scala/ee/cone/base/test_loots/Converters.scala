@@ -45,7 +45,7 @@ class DurationValueConverter(
 }
 
 class InstantValueConverter(
-  val valueType: AttrValueType[Option[Instant]], inner: RawConverter, val asString: AttrValueType[String]
+  val valueType: AttrValueType[Option[Instant]], inner: RawConverter, val asString: AttrValueType[String], zoneIds: ZoneIds
 ) extends TimeRawValueConverterImpl[Option[Instant]] {
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(Instant.ofEpochSecond(valueA,valueB))
@@ -53,9 +53,8 @@ class InstantValueConverter(
   def toBytes(preId: ObjId, value: Value, finId: ObjId) =
     if(value.nonEmpty) inner.toBytes(preId, value.get.getEpochSecond, value.get.getNano, finId) else Array()
 
-  private def zoneId = ZoneId.of("UTC")
   def toUIString(value: Value) = value.map{ v ⇒
-    val date = LocalDate.from(v.atZone(zoneId))
+    val date = LocalDate.from(v.atZone(zoneIds.zoneId))
     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
     date.format(formatter)
   }.getOrElse("")
@@ -63,8 +62,12 @@ class InstantValueConverter(
     val DateRe = """(\d{1,2})\.(\d{1,2})\.(\d{4})""".r
     val DateRe(d,m,y) = value
     val date = LocalDate.of(y.toInt,m.toInt,d.toInt)
-    Some(Instant.from(ZonedDateTime.of(date,LocalTime.MIN,zoneId)))
+    Some(Instant.from(ZonedDateTime.of(date,LocalTime.MIN,zoneIds.zoneId)))
   }
+}
+
+class ZoneIds {
+  def zoneId = ZoneId.of("Europe/Tallinn")
 }
 
 class LocalTimeValueConverter(

@@ -1,7 +1,8 @@
 package ee.cone.base.test_loots
 
 
-import java.time.{Instant,LocalTime,Duration}
+import java.time.temporal.ChronoUnit
+import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
@@ -75,6 +76,7 @@ class BoatLogEntryAttributes(
   val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", asDuration),
   val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
   val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
+  val workDate: Attr[Option[Instant]] = attr("e6df8fe4-86c7-4255-b93e-86de9a5a5d25", asInstant),
 
   val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
   val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", asString),
@@ -134,7 +136,8 @@ class TestComponent(
   asDBObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   uiStrings: UIStrings,
-  mandatory: Mandatory
+  mandatory: Mandatory,
+  zoneIds: ZoneIds
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -799,11 +802,21 @@ class TestComponent(
 
   private def calcWorkDuration(on: Boolean, work: Obj): Unit = {
     work(logAt.workDuration) = if(!on) None else {
-      val start = work(logAt.workStart).get
-      val stop = work(logAt.workStop).get
+      val date: ZonedDateTime = work(logAt.workDate).get.atZone(zoneIds.zoneId)
+      if(date.toLocalTime != LocalTime.of(0,0)) None else {
+        val start: ZonedDateTime = date.`with`(work(logAt.workStart).get)
+        val stopTime: LocalTime = work(logAt.workStop).get
+        val stop: ZonedDateTime =
+          if(stopTime == LocalTime.of(0,0)) date.plusDays(1)
+          else date.`with`(stopTime)
+        if(start.isBefore(stop)) Option(Duration.between(start, stop)) else None
+      }
+
+
+      /*
       if(start.isBefore(stop)) Option(Duration.between(start, stop))
       else if(LocalTime.of(0,0)==start && start==stop) Option(Duration.ofDays(1))
-      else None
+      else None*/
     }
   }
   private def calcEntryDuration(on: Boolean, work: Obj): Unit = {
@@ -816,8 +829,24 @@ class TestComponent(
   private def calcConfirmed(on: Boolean, entry: Obj): Unit = {
     entry(logAt.asConfirmed) = if(on) entry else findNodes.noNode
   }
+
+  private def inheritAttr[Value](fromAttr: Attr[Value], toAttr: Attr[Value], byIndex: SearchByLabelProp[Obj]): List[BaseCoHandler] = {
+    def copy(fromObj: Obj, toObj: Obj): Unit = toObj(toAttr) = fromObj(fromAttr)
+    CoHandler(AfterUpdate(attrFactory.attrId(fromAttr)))(fromObj ⇒
+      findNodes.where(mainTx(), byIndex, fromObj, Nil).foreach(toObj⇒
+        copy(fromObj,toObj)
+      )
+    ) ::
+    CoHandler(AfterUpdate(byIndex.propId)){ toObj ⇒
+      val byAttr = attrFactory.toAttr(byIndex.propId, byIndex.propType)
+      val fromObj = toObj(byAttr)
+      copy(fromObj, toObj)
+    } :: Nil
+  }
+
   private def calcHandlers() =
-    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
+    inheritAttr(logAt.date, logAt.workDate, findWorkByEntry) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop,logAt.workDate).map(attrFactory.attrId(_)), calcWorkDuration) :::
     onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
     onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn,logAt.confirmedBy).map(attrFactory.attrId(_)), calcConfirmed)
 
@@ -854,7 +883,7 @@ class TestComponent(
   def handlers =
     List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
     List(
-      logAt.durationTotal, logAt.asConfirmed, logAt.workDuration
+      logAt.durationTotal, logAt.asConfirmed, logAt.workDuration, logAt.workDate
     ).flatMap(factIndex.handlers(_)) :::
     List(
       logAt.asEntry, logAt.boat, logAt.confirmedOn, logAt.date, logAt.confirmedBy,

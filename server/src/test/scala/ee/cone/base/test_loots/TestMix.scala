@@ -58,8 +58,8 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     fuelingAttrs, findAttrs, alienAttrs, filterAttrs, nodeAttrs,
     factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory
   )()
-  //
-  lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter,asString)
+  lazy val zoneIds = new ZoneIds
+  lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter,asString,zoneIds)
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter,asString)
   lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter,asString)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
@@ -73,7 +73,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
     asDuration, asInstant, asLocalTime, asDBObj, asString,
-    uiStrings, mandatory
+    uiStrings, mandatory, zoneIds
   )()
 }
 
