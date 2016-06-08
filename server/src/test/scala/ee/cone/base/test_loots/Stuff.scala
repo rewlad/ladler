@@ -131,6 +131,7 @@ class TestComponent(
   asDuration: AttrValueType[Option[Duration]],
   asInstant: AttrValueType[Option[Instant]],
   asLocalTime: AttrValueType[Option[LocalTime]],
+  asBigDecimal: AttrValueType[Option[BigDecimal]],
   asDBObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   uiStrings: UIStrings,
@@ -204,12 +205,25 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val valueType = asDuration
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(editable) List(inputField(
-      "1", TimeFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
-      deferSend=false, alignRight=true, getValidationKey(obj,attr)
-    ))
-    else List(labeledText("1",visibleLabel,value))
+    if(!editable) { return List(labeledText("1",visibleLabel,value))}
 
+    //val key = popupKey(obj,attr)
+    //println(popupOpened)
+    val (isOpened,popupToggle)=popupAction[Option[Duration]](obj,attr)
+    val btn = btnScheduleClock("btnClock",popupToggle)
+
+    val input = inputField(
+      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend=true, alignRight=true, getValidationKey(obj,attr)
+    )
+
+    val popup = if(!isOpened) Nil
+    else  withMinWidth("minWidth",280,clockDialog("clock",""/*may be not 'value' later*/,Some{ newVal =>
+      obj(attr) = uiStrings.converter(asString,valueType)(newVal)
+      popupToggle()
+    })::Nil)::Nil
+    btnInputPopup(btn,btnZIndex = if(isOpened)4000 else 1000,input,popup)
+    //input::Nil
   }
 
   private def dateField(
@@ -222,18 +236,19 @@ class TestComponent(
     val value = uiStrings.converter(valueType, asString)(obj(attr))
     if(!editable){ return List(labeledText("1", visibleLabel, value)) }
 
-    val key = popupKey(obj,attr)
-    val btn = btnDateRange("btnCalendar",popupToggle(key))
+    //val key = popupKey(obj,attr)
+    val (isOpened,popupToggle)=popupAction[Option[Instant]](obj,attr)
+    val btn = btnDateRange("btnCalendar",popupToggle)
     val input = inputField(
       "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend = true, alignRight = true, getValidationKey(obj,attr)
     )
-    val popup = if(popupOpened != key) Nil
+    val popup = if(!isOpened) Nil
       else  withMinWidth("minWidth",320,calendarDialog("calendar",value/*may be not 'value' later*/,Some{ newVal =>
         obj(attr) = uiStrings.converter(asString,valueType)(newVal)
-        popupToggle(key)
+        popupToggle()
       })::Nil)::Nil
-    btnInputPopup(btn, input, popup)
+    btnInputPopup(btn,btnZIndex = if(isOpened) 4000 else 1000, input, popup)
   }
 
   private def timeField(
@@ -252,14 +267,15 @@ class TestComponent(
     else List(labeledText("1", visibleLabel, value))
   }
 
-  private def decimalField( obj: Obj, attr: Attr[String], showLabel: Boolean,
+  private def decimalField( obj: Obj, attr: Attr[Option[BigDecimal]], showLabel: Boolean,
                             editableOpt: Option[Boolean]=None,
                             deferSend: Boolean=true, alignRight: Boolean = false)={
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val value = obj(attr)
+    val valueType = asBigDecimal
+    val value = uiStrings.converter(valueType, asString)(obj(attr))
     if(editable) List(inputField(
-      "1", DecimalFieldType, visibleLabel, value, obj(attr) = _,
+      "1", DecimalFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend, alignRight, getValidationKey(obj,attr)
     ))
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
@@ -271,13 +287,23 @@ class TestComponent(
     popupOpened = if(popupOpened == key) "" else key
   private def objCaption(obj: Obj) = uiStrings.converter(asDBObj, asString)(obj)
 
-  private def popupKey[Value](obj: Obj, attr: Attr[Value]): String = {
-    val objIdStr = if(obj(nonEmpty)) obj(alien.objIdStr) else "empty"
-    s"$objIdStr-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
+  private def popupAction[Value](obj: Obj, attr: Attr[Value]): (Boolean,()=>Unit) = {
+    val objNonEmpty = obj(nonEmpty)
+    def key = s"${obj(alien.objIdStr)}-${objIdFactory.toUUIDString(attrFactory.attrId(attr))}"
+    if(objNonEmpty){
+      val isOpened = key == popupOpened
+      (isOpened, () => popupOpened = if(isOpened) "" else key)
+    } else {
+      val value = obj(attr) //is just empty
+      (false, ()=>{
+        obj(attr) = value
+        popupOpened = key
+      })
+    }
   }
 
-  private def btnInputPopup(btn: ChildPair[OfDiv], input: ChildPair[OfDiv], popup: List[ChildPair[OfDiv]]) = {
-    val collapsed = List(btnInput("btnInput")(btn, input))
+  private def btnInputPopup(btn: ChildPair[OfDiv],btnZIndex:Int, input: ChildPair[OfDiv], popup: List[ChildPair[OfDiv]]) = {
+    val collapsed = List(btnInput("btnInput",btnZIndex)(btn, input))
     List(fieldPopupBox("1",collapsed,popup))
   }
 
@@ -298,17 +324,18 @@ class TestComponent(
       obj(attr) = item
       popupOpened = ""
     },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
-    val key = popupKey(obj,attr)
+    //val key = popupKey(obj,attr)
+    val (isOpened,popupToggle)=popupAction[Obj](obj,attr)
     val input = inputField(
       "1", TextFieldType, visibleLabel, value, _=>{},
       deferSend=false, alignRight = false, getValidationKey(obj,attr)
     )
-    val popup = if(popupOpened != key) Nil
+    val popup = if(!isOpened) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
         items().map(item ⇒ option(item, item(alien.objIdStr), objCaption(item)))
-    val btn = if(popup.nonEmpty) btnExpandLess("less",popupToggle(key))
-      else btnExpandMore("more",popupToggle(key))
-    btnInputPopup(btn, input, popup)
+    val btn = if(popup.nonEmpty) btnExpandLess("less",popupToggle)
+      else btnExpandMore("more",popupToggle)
+    btnInputPopup(btn,btnZIndex = if(isOpened) 4000 else 1000, input, popup)
   }
 
   ////
@@ -916,13 +943,14 @@ class FuelingAttrs(
   label: LabelFactory,
   objIdFactory: ObjIdFactory,
   asString: AttrValueType[String],
-  asDuration: AttrValueType[Option[Duration]]
+  asDuration: AttrValueType[Option[Duration]],
+  asBigDecimal: AttrValueType[Option[BigDecimal]]
 )(
   // 00 08 RF 24
   val asFueling: Attr[Obj] = label("8fc310bc-0ae7-4ad7-90f1-2dacdc6811ad"),
   //val meHoursStr: Attr[String] = attr("5415aa5e-efec-4f05-95fa-4954fee2dd2e", asString),
   val meHours: Attr[Option[Duration]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asDuration),
-  val fuel: Attr[String] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asString),
+  val fuel: Attr[Option[BigDecimal]] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asBigDecimal),
   val comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
   val engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
   val master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString),
@@ -988,7 +1016,7 @@ else if(!fuelingItems.meHoursIsInc(entry)){
   def validation(entry: Obj): List[ValidationState] = {
     val fuelingList = times.map(time⇒fueling(entry, time, wrapForEdit = false))
     fuelingList.flatMap { obj ⇒
-      validationFactory.need[String](obj,at.fuel,v⇒if(v.isEmpty) Some("") else None) :::
+      validationFactory.need[Option[BigDecimal]](obj,at.fuel,v⇒if(v.isEmpty) Some("") else None) :::
       validationFactory.need[String](obj,at.engineer,v⇒if(v.isEmpty) Some("") else None) :::
       validationFactory.need[String](obj,at.master,v⇒if(v.isEmpty) Some("") else None)
     } :::

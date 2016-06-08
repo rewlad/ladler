@@ -34,6 +34,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val asInstant = new AttrValueType[Option[Instant]]
   lazy val asDuration = new AttrValueType[Option[Duration]]
   lazy val asLocalTime = new AttrValueType[Option[LocalTime]]
+  lazy val asBigDecimal = new AttrValueType[Option[BigDecimal]]
   lazy val logAttributes = new BoatLogEntryAttributes(
     attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()
@@ -53,7 +54,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
 
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, filters, uiStrings)()
-  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration)()
+  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration,asBigDecimal)()
   lazy val fuelingItems = new FuelingItems(
     fuelingAttrs, findAttrs, alienAttrs, filterAttrs, nodeAttrs,
     factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory
@@ -63,6 +64,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter,asString)
   lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter,asString)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
+  lazy val bigDecimalValueConverter = new BigDecimalValueConverter(asBigDecimal,rawConverter,asString)
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, filterAttrs, logAttributes, userAttrs,
     fuelingAttrs, alienAttrs, validationAttributes,
@@ -72,7 +74,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     tags, materialTags, flexTags, currentView, dtTablesState,
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
-    asDuration, asInstant, asLocalTime, asDBObj, asString,
+    asDuration, asInstant, asLocalTime,asBigDecimal, asDBObj, asString,
     uiStrings, mandatory
   )()
 }

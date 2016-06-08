@@ -84,3 +84,31 @@ class LocalTimeValueConverter(
   def fromUIString(value: String) = strToPair(value, (h,m)⇒LocalTime.of(h,m))
 }
 
+class BigDecimalValueConverter(
+                                valueType: AttrValueType[Option[BigDecimal]], inner: RawConverter, asString: AttrValueType[String]
+                              ) extends RawValueConverter[Option[BigDecimal]] with CoHandlerProvider  {
+  def convertEmpty() = None
+  def convert(valueA: Long, valueB: Long) = {
+    val scale=8
+    Option(BigDecimal(valueB.toLong,scale))
+  }
+  def convert(value: String) = Never()
+  def toBytes(preId: ObjId, value: Option[BigDecimal], finId: ObjId) ={
+    if(value.nonEmpty){
+      val scale=8
+      val bgd=value.get.setScale(scale)
+      val unscaledVal=bgd.bigDecimal.unscaledValue()
+      val valueA=scale
+      val valueB= unscaledVal.longValueExact()
+      inner.toBytes(preId,valueA,valueB,finId)
+    }
+    else Array()
+  }
+  def toUIString(value: Option[BigDecimal]) = value.map(v ⇒v.bigDecimal.setScale(2,BigDecimal.RoundingMode.HALF_UP).toString()).getOrElse("")
+  def fromUIString(value: String):Option[BigDecimal] = if(value.nonEmpty) Some(BigDecimal(value)) else None
+  def handlers = List(
+    CoHandler(ToRawValueConverter(valueType))(this),
+    CoHandler(ToUIStringConverter(valueType,asString))(toUIString),
+    CoHandler(ToUIStringConverter(asString,valueType))(fromUIString)
+  )
+}
