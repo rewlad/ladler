@@ -3,7 +3,7 @@ package ee.cone.base.db
 import java.nio.ByteBuffer
 import java.util.UUID
 
-import ee.cone.base.connection_api.{CoHandlerLists, Attr}
+import ee.cone.base.connection_api._
 import ee.cone.base.util.Never
 
 class AttrFactoryImpl(

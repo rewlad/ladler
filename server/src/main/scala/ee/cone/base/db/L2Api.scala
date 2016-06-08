@@ -36,7 +36,7 @@ trait AttrFactory {
   def converter[V](valueType: AttrValueType[V]): RawValueConverter[V]
 }
 
-class AttrValueType[Value]
+case class AttrValueType[Value](id: ObjId)
 
 trait FactIndex {
   def switchReason(node: Obj): Unit

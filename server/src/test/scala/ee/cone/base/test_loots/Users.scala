@@ -99,8 +99,6 @@ class Users(
       unique(at.asUser, at.username) :::
       unique(at.asUser, at.fullName) :::
       onUpdate.handlers(List(at.asUser, at.location, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
-      captions.captions(List(at.asUser, at.fullName))(_(at.fullName)) :::
-      orderingFactory.handlers(at.fullName) :::
-      orderingFactory.handlers(at.username)
+      captions.captions(List(at.asUser, at.fullName))(_(at.fullName))
 }
 

@@ -29,8 +29,8 @@ trait DBConnectionMix extends CoMixBase {
   // L2
   lazy val noObj = new NoObjImpl(handlerLists)
 
-  lazy val asDefined = new AttrValueType[Boolean]
-  lazy val asDBObjId = new AttrValueType[ObjId]
+  lazy val asDefined = AttrValueType[Boolean](objIdFactory.toObjId("f8857bde-f26c-43ce-a1cd-a9091bcfdc23"))
+  lazy val asDBObjId = AttrValueType[ObjId](objIdFactory.toObjId("8619613c-069d-473f-97f5-87d23a881a04"))
   lazy val dbWrapType = new DBWrapType
 
   lazy val attrFactory = new AttrFactoryImpl(handlerLists,objIdFactory)
@@ -51,7 +51,7 @@ trait DBConnectionMix extends CoMixBase {
   lazy val mainTx = new CurrentTxImpl[MainEnvKey](dbAppMix.mainDB)
   lazy val txSelector = new TxSelectorImpl(nodeAttrs, instantTx, mainTx)
 
-  lazy val asString = new AttrValueType[String]
+  lazy val asString = AttrValueType[String](objIdFactory.toObjId("1e94f9bc-a34d-4fab-8a01-eb3dd98795d2"))
   lazy val findAttrs = new FindAttrsImpl(attrFactory,asDefined,asString)()
   lazy val findNodes = new FindNodesImpl(findAttrs, handlerLists, nodeAttrs, noObj, attrFactory, factIndex, objIdFactory, dbObjIdValueConverter, dbWrapType)()
 
@@ -59,9 +59,9 @@ trait DBConnectionMix extends CoMixBase {
   lazy val mandatory = new MandatoryImpl(attrFactory, factIndex, preCommitCheckCheckAll)
   lazy val unique = new UniqueImpl(attrFactory, factIndex, txSelector, preCommitCheckCheckAll, searchIndex, findNodes)
 
-  lazy val asDBObj = new AttrValueType[Obj]
-  lazy val asUUID = new AttrValueType[Option[UUID]]
-  lazy val asBoolean = new AttrValueType[Boolean]
+  lazy val asDBObj = AttrValueType[Obj](objIdFactory.toObjId("275701ec-cb9b-4474-82e6-69f2e1f28c87"))
+  lazy val asUUID = AttrValueType[Option[UUID]](objIdFactory.toObjId("13c5769d-f120-4a1a-9fce-c56df8835f08"))
+  lazy val asBoolean = AttrValueType[Boolean](objIdFactory.toObjId("fa03f6f1-90ef-460d-a4dd-2279269a4d79"))
   lazy val labelFactory = new LabelFactoryImpl(attrFactory,asDBObj)
 
   lazy val instantTxManager =

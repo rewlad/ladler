@@ -138,7 +138,8 @@ class TestComponent(
   uiStrings: UIStrings,
   mandatory: Mandatory,
   zoneIds: ZoneIds,
-  orderingFactory: ItemListOrderingFactory
+  itemListOrderingFactory: ItemListOrderingFactory,
+  objOrderingFactory: ObjOrderingFactory
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -419,7 +420,7 @@ class TestComponent(
     }
 
   private def creationTimeOrdering =
-    orderingFactory.ordering(attrFactory.attrId(filterAttrs.createdAt), reverse = true).get
+    objOrderingFactory.ordering(filterAttrs.createdAt, reverse = true).get
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
@@ -440,7 +441,7 @@ class TestComponent(
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
     val itemList = filters.itemList(findEntry,users.world,filterObj,filterList,editable)
-    val itemListOrdering = orderingFactory.itemList(filterObj)
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
     List( //class LootsBoatLogList
@@ -676,7 +677,7 @@ class TestComponent(
   private def boatListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
     val itemList = filters.itemList[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
-    val itemListOrdering = orderingFactory.itemList(filterObj)
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     List(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
@@ -744,7 +745,7 @@ class TestComponent(
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(userAttrs.asUser)))
     val userList = filters.itemList(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
-    val itemListOrdering = orderingFactory.itemList(filterObj)
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(
       toolbar("Users"),
@@ -944,9 +945,7 @@ class TestComponent(
     CoHandler(TransientChanged)(currentVDom.invalidate) ::
     //todo: ?mandatory(logAt.asEntry, logAt.asConfirmed, mutual = true)
     mandatory(logAt.locationOfBoat, logAt.boatName, mutual = true) :::
-    mandatory(logAt.entryOfWork, logAt.workDuration, mutual = true) :::
-    orderingFactory.handlers(logAt.date) :::
-    orderingFactory.handlers(filterAttrs.createdAt)
+    mandatory(logAt.entryOfWork, logAt.workDuration, mutual = true)
 }
 
 class FuelingAttrs(
