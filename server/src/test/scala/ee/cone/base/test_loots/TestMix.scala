@@ -42,7 +42,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val dtTablesState=new DataTablesState(currentView)
   lazy val asObjIdSet = new AttrValueType[Set[ObjId]]
   lazy val listedWrapType = new ListedWrapType
-  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asBoolean, asDBObjId, asObjIdSet)()
+  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asBoolean, asDBObjId, asObjIdSet, asInstant)()
   lazy val filters = new Filters(filterAttrs,nodeAttrs,findAttrs,alienAttrs,handlerLists,attrFactory,findNodes,mainTx,alien,listedWrapType,factIndex,searchIndex,transient,objIdFactory)()
   lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
 

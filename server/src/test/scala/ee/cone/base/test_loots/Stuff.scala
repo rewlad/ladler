@@ -137,7 +137,8 @@ class TestComponent(
   asString: AttrValueType[String],
   uiStrings: UIStrings,
   mandatory: Mandatory,
-  zoneIds: ZoneIds
+  zoneIds: ZoneIds,
+  orderingFactory: ItemListOrderingFactory
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -375,16 +376,17 @@ class TestComponent(
     )
   )
 
-  def sortingHeader(itemList: ItemList, attr: Attr[_]):List[ChildPair[OfDiv]] = {
-    val (action,reversed) = itemList.orderByAction(attr)
-    val txt = text("1",caption(attr))::Nil
-    val icon = reversed match {
-      case None ⇒ List()
-      case Some(false) ⇒ iconArrowDown()::Nil
-      case Some(true) ⇒ iconArrowUp()::Nil
+  def header(attr: Attr[_]):List[ChildPair[OfDiv]] = List(text("1",caption(attr)))
+  def sortingHeader(itemListOrdering: ItemListOrdering, attr: Attr[_]):List[ChildPair[OfDiv]] = {
+    val (action,reversed) = itemListOrdering.action(attr)
+    if(action.isEmpty) header(attr) else {
+      val icon = reversed match {
+        case None ⇒ List()
+        case Some(false) ⇒ iconArrowDown()::Nil
+        case Some(true) ⇒ iconArrowUp()::Nil
+      }
+      List(divClickable("1",action,icon:::header(attr):_*))
     }
-    if(action.isEmpty) List(txt:_*)
-    else List(divClickable("1",action,icon:::txt:_*))
   }
 
   private def addRemoveControlViewBase(itemList: ItemList)(add: ()⇒Unit) =
@@ -416,6 +418,9 @@ class TestComponent(
       item(filterAttrs.isExpanded) = true
     }
 
+  private def creationTimeOrdering =
+    orderingFactory.ordering(attrFactory.attrId(filterAttrs.createdAt), reverse = true).get
+
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asEntry)))
@@ -435,6 +440,7 @@ class TestComponent(
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
     val itemList = filters.itemList(findEntry,users.world,filterObj,filterList,editable)
+    val itemListOrdering = orderingFactory.itemList(filterObj)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
     List( //class LootsBoatLogList
@@ -457,17 +463,17 @@ class TestComponent(
             selectAllGroup(itemList) :::
             List(
               group("2_grp",MinWidth(150),Priority(3),TextAlignCenter),
-              mCell("2",100)(_=>sortingHeader(itemList,logAt.boat)),
-              mCell("3",150)(_=>sortingHeader(itemList,logAt.date)),
-              mCell("4",180)(_=>sortingHeader(itemList,logAt.durationTotal)),
-              mCell("5",100)(_=>sortingHeader(itemList,logAt.asConfirmed)),
-              mCell("6",150)(_=>sortingHeader(itemList,logAt.confirmedBy)),
-              mCell("7",150)(_=>sortingHeader(itemList,logAt.confirmedOn))
+              mCell("2",100)(_=>sortingHeader(itemListOrdering,logAt.boat)),
+              mCell("3",150)(_=>sortingHeader(itemListOrdering,logAt.date)),
+              mCell("4",180)(_=>sortingHeader(itemListOrdering,logAt.durationTotal)),
+              mCell("5",100)(_=>sortingHeader(itemListOrdering,logAt.asConfirmed)),
+              mCell("6",150)(_=>sortingHeader(itemListOrdering,logAt.confirmedBy)),
+              mCell("7",150)(_=>sortingHeader(itemListOrdering,logAt.confirmedOn))
             ) :::
             editAllGroup()
           )
         ) :::
-        itemList.list.map{ (entry:Obj)=>
+        itemList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{ (entry:Obj)=>
           val entrySrcId = entry(alien.objIdStr)
           row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry))(
             selectRowGroup(entry) :::
@@ -634,15 +640,15 @@ class TestComponent(
           selectAllGroup(workList) :::
           List(
             group("2_group",MinWidth(150)),
-            mCell("2",100)(_=>sortingHeader(workList,logAt.workStart)),
-            mCell("3",100)(_=>sortingHeader(workList,logAt.workStop)),
-            mCell("4",150)(_=>sortingHeader(workList,logAt.workDuration)),
-            mCell("5",250,3)(_=>sortingHeader(workList,logAt.workComment))
+            mCell("2",100)(_=>header(logAt.workStart)),
+            mCell("3",100)(_=>header(logAt.workStop)),
+            mCell("4",150)(_=>header(logAt.workDuration)),
+            mCell("5",250,3)(_=>header(logAt.workComment))
           ) :::
           editAllGroup()
         )
       ) :::
-      workList.list.map { (work: Obj) =>
+      workList.list.sorted(creationTimeOrdering.reverse).map { (work: Obj) =>
         val workSrcId = work(alien.objIdStr)
         row(workSrcId, toggledSelectedRow(work))(
           selectRowGroup(work) :::
@@ -670,6 +676,7 @@ class TestComponent(
   private def boatListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
     val itemList = filters.itemList[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
+    val itemListOrdering = orderingFactory.itemList(filterObj)
     List(
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
@@ -680,12 +687,12 @@ class TestComponent(
             selectAllGroup(itemList) :::
             List(
               group("2_group",MinWidth(50)),
-              mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
+              mCell("1",250)(_⇒sortingHeader(itemListOrdering,logAt.boatName))
             ) :::
             editAllGroup()
           )
         ) :::
-        itemList.list.map{boat ⇒
+        itemList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{boat ⇒
           val srcId = boat(alien.objIdStr)
           row(srcId,toggledSelectedRow(boat))(
             selectRowGroup(boat) :::
@@ -737,6 +744,7 @@ class TestComponent(
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(userAttrs.asUser)))
     val userList = filters.itemList(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
+    val itemListOrdering = orderingFactory.itemList(filterObj)
     val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(
       toolbar("Users"),
@@ -746,19 +754,19 @@ class TestComponent(
           selectAllGroup(userList) :::
           List(
             group("2_grp", MinWidth(300)),
-            mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
-            mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
-            mmCell("3",100,150)(_⇒sortingHeader(userList,userAttrs.asActiveUser))
+            mCell("1",250)(_⇒sortingHeader(itemListOrdering,userAttrs.fullName)),
+            mCell("2",250)(_⇒sortingHeader(itemListOrdering,userAttrs.username)),
+            mmCell("3",100,150)(_⇒sortingHeader(itemListOrdering,userAttrs.asActiveUser))
           ) :::
           (if(showPasswordCols) List(
             group("3_grp",MinWidth(150)),
-            mCell("4",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
-            mCell("5",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
+            mCell("4",150)(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPassword)),
+            mCell("5",150)(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPasswordAgain)),
             mCell("6",150)(_⇒Nil)
           ) else Nil) :::
           editAllGroup()
         ) ::
-        userList.list.map{ user ⇒
+        userList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{ user ⇒
           val srcId = user(alien.objIdStr)
           row(srcId,toggledSelectedRow(user))(
             selectRowGroup(user) :::
@@ -937,7 +945,8 @@ class TestComponent(
     //todo: ?mandatory(logAt.asEntry, logAt.asConfirmed, mutual = true)
     mandatory(logAt.locationOfBoat, logAt.boatName, mutual = true) :::
     mandatory(logAt.entryOfWork, logAt.workDuration, mutual = true) :::
-    filters.orderBy(logAt.date)
+    orderingFactory.handlers(logAt.date) :::
+    orderingFactory.handlers(filterAttrs.createdAt)
 }
 
 class FuelingAttrs(

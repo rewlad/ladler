@@ -34,7 +34,8 @@ class Users(
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
   alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique,
-  onUpdate: OnUpdate, filters: Filters, captions: UIStrings
+  onUpdate: OnUpdate, filters: Filters, captions: UIStrings,
+  orderingFactory: ItemListOrderingFactory
 )(
   val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asUser, at.location),
   val findAllActive: SearchByLabelProp[Obj] = searchIndex.create(at.asActiveUser, at.location),
@@ -99,7 +100,7 @@ class Users(
       unique(at.asUser, at.fullName) :::
       onUpdate.handlers(List(at.asUser, at.location, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
       captions.captions(List(at.asUser, at.fullName))(_(at.fullName)) :::
-      filters.orderBy(at.fullName) :::
-      filters.orderBy(at.username)
+      orderingFactory.handlers(at.fullName) :::
+      orderingFactory.handlers(at.username)
 }
 
