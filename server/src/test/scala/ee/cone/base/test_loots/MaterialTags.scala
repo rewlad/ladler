@@ -119,7 +119,7 @@ case class IconButton(tooltip: String)(
   }
 }
 
-case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
+case class SVGIcon(tp: String,color:Option[String] = None,verticalAlign: Option[VerticalAlign] = None) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp) //color str
@@ -127,7 +127,13 @@ case class SVGIcon(tp: String,color:Option[String] = None) extends VDomValue {
       builder.append("style").startObject()
     if(color.nonEmpty)
         builder.append("fill").append(color.get)
-        //builder.append("verticalAlign").append("middle")
+    verticalAlign.getOrElse("") match{
+      case VerticalAlignTop => builder.append("verticalAlign").append("top")
+      case VerticalAlignBottom => builder.append("verticalAlign").append("bottom")
+      case VerticalAlignMiddle => builder.append("verticalAlign").append("middle")
+      case _ =>
+    }
+
       builder.end()
     builder.end()
   }
@@ -293,6 +299,7 @@ sealed trait FieldType
 case object TextFieldType extends FieldType
 case object DateFieldType extends FieldType
 case object TimeFieldType extends FieldType
+case object DecimalFieldType extends FieldType
 
 case class InputField(
   tp: FieldType, label: String, value: String,
@@ -307,6 +314,7 @@ case class InputField(
       case TextFieldType ⇒ "TextField"
       case DateFieldType ⇒ "DateInput"
       case TimeFieldType ⇒ "TimeInput"
+      case DecimalFieldType => "DecimalInput"
     })
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
@@ -389,13 +397,15 @@ case class CheckBox(checked:Boolean,label:String)(
     builder.end()
   }
 }
-case class LabeledTextComponent(text:String,label:String) extends VDomValue{
-
+case class LabeledTextElement(text:String,label:String) extends VDomValue{
   def appendJson(builder:JsonBuilder)={
     builder.startObject()
       builder.append("tp").append("LabeledText")
       builder.append("content").append(text)
       builder.append("label").append(label)
+      builder.append("style").startObject()
+      builder.append("fontSize").append("13px")
+      builder.end()
     builder.end()
   }
 }
@@ -497,6 +507,17 @@ case class DivBgColorHover(color:Color) extends VDomValue{
     builder.end()
   }
 }
+case class DivZIndex(zIndex:Int) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("div")
+    builder.append("style").startObject()
+      builder.append("position").append("relative")
+      builder.append("zIndex").append(s"$zIndex")
+    builder.end()
+    builder.end()
+  }
+}
 case class DivBgColor(color:Color) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -516,6 +537,10 @@ case object MenuItemHoverColor extends Color{
 case object ControlPanelColor extends Color{
   def color="rgba(0,0,0,0.1)"
 }
+case object AlertTextColor extends Color {
+  def color="#f44336"
+}
+
 
   /*
 //todo: DateField, SelectField
@@ -533,12 +558,35 @@ case class CalendarDialog(date:String)(val onChange:Option[(String)=>Unit]) exte
     builder.end()
   }
 }
+case class ClockDialog(time:String)(val onChange:Option[(String)=>Unit]) extends VDomValue with OnChangeReceiver{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("CrazyClock")
+    builder.append("onChange").append("send")
+    builder.append("initialTime").append(time)
+    builder.end()
+  }
+}
+
+case class ColoredTextElement(content: String, color: Color) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("span")
+    builder.append("content").append(content);
+    {
+      builder.append("style").startObject()
+      builder.append("color").append(color.color)
+      builder.end()
+    }
+    builder.end()
+  }
+}
 
 trait OfTable
 trait OfTableRow
 
 class MaterialTags(
-  child: ChildPairFactory, inputAttributes: InputAttributes
+  child: ChildPairFactory, inputAttributes: InputAttributes, tags: Tags
 ) {
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
     child[OfDiv](key,MaterialChip(text)(action),children)
@@ -573,7 +621,7 @@ class MaterialTags(
       List(
         child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 48px)"),None,None),input::Nil),
         child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("48px"),None,None),
-          btn::Nil
+          withZIndex("zIndex",4000,btn)::Nil
         )
       ):_*
     )
@@ -601,10 +649,13 @@ class MaterialTags(
   def calendarDialog(key:VDomKey,date:String,action: Option[(String)=>Unit])={
     child[OfDiv](key,CalendarDialog(date)(action),Nil)
   }
+  def clockDialog(key: VDomKey,time:String,action: Option[(String)=>Unit])={
+    child[OfDiv](key,ClockDialog(time)(action),Nil)
+  }
   def iconArrowUp()=
-    child[OfDiv]("icon",SVGIcon("IconNavigationDropDown"),Nil)
+    child[OfDiv]("icon",SVGIcon("IconNavigationDropDown",verticalAlign = Some(VerticalAlignMiddle)),Nil)
   def iconArrowDown()=
-    child[OfDiv]("icon",SVGIcon("IconNavigationDropUp"),Nil)
+    child[OfDiv]("icon",SVGIcon("IconNavigationDropUp",verticalAlign = Some(VerticalAlignMiddle)),Nil)
   //def btnViewList(key:VDomKey, action: ()=>Unit) =
   //  iconButton(key,"view list","IconActionViewList",action)
   def btnSave(key:VDomKey, action: ()=>Unit) =
@@ -619,8 +670,8 @@ class MaterialTags(
     iconButton(key,"add","IconContentAdd",action)
   def btnRemove(key: VDomKey, action: ()=>Unit) =
     iconButton(key,"remove","IconContentRemove",action)
-  def btnCreate(key:VDomKey,action:()=>Unit)=
-    iconButton(key,"edit","IconContentCreate",action)
+  def btnModeEdit(key:VDomKey, action:()=>Unit)=
+    iconButton(key,"edit","IconEditorModeEdit",action)
   def btnDelete(key:VDomKey,action:()=>Unit)=
     iconButton(key,"delete","IconActionDelete",action)
   def btnMenu(key:VDomKey,action:()=>Unit)=
@@ -682,42 +733,13 @@ class MaterialTags(
     )(inputAttributes, Some(change))
     child[OfDiv](key, input, Nil)
   }
-/*
-  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean,fieldValidationState: ValidationKey) =
-    child[OfDiv](key, InputField("TextField", value, alignRight, label, deferSend, fieldValidationState, isPassword = false)
-      (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
-  def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, fieldValidationState: ValidationKey) =
-    child[OfDiv](key, InputField("TextField",value, alignRight = false, label, deferSend, fieldValidationState, isPassword = true)
-    (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
-    */
-/*
-  private def instantToString(value: Option[Instant]): String =
-    value.map(_.toEpochMilli.toString).getOrElse("")
-*//*
-  private def stringToInstant(value: String): Option[Instant] =
-    if(value.nonEmpty) Some(Instant.ofEpochMilli(java.lang.Long.valueOf(value))) else None
-  private def stringToLocalTime(value:String): Option[LocalTime]=
-    if(value.nonEmpty) Some(LocalTime.parse(value)) else None
-  private def stringToDuration(value:String):Option[Duration]=
-    if(value.nonEmpty) {
-      val hm=value.split(":")
-      val h=hm(0)
-      val m=hm(1)
-      Some(Duration.ofMinutes(h.toLong*60+m.toLong))
-    } else None
+  def alert(key:VDomKey, content:String) =
+    child[OfDiv](key, ColoredTextElement(content,AlertTextColor), Nil)
 
-  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit, fieldValidationState: ValidationKey) =
-    child[OfDiv](key, InputField("DateInput",value,alignRight = false,label, deferSend = false,fieldValidationState,isPassword = false,asInstant)(inputAttributes, uiStrings, change), Nil)
-  def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit, fieldValidationState: ValidationKey)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,fieldValidationState,isPassword = false,asLocalTime)(inputAttributes, uiStrings, change),Nil)
-  def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit, fieldValidationState: ValidationKey)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false,asDuration)(inputAttributes, uiStrings, change),Nil)
-
-      durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)*/
   def labeledText(key:VDomKey, label:String, content:String) =
-    if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)
-    else child[OfDiv](key, TextContentElement(content), Nil)
+    if(label.nonEmpty) child[OfDiv](key,LabeledTextElement(content,label),Nil)
+    else tags.text(key, content)
 
   def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivHeightWrapper(height),theChild.toList)
@@ -727,5 +749,8 @@ class MaterialTags(
     child[OfDiv](key,DivBgColorHover(color),theChild.toList)
   def withBgColor(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivBgColor(color),theChild.toList)
+  def withZIndex(key:VDomKey,zIndex:Int,theChild:ChildPair[OfDiv]*)=
+    child[OfDiv](key,DivZIndex(zIndex),theChild.toList)
+
 }
 
