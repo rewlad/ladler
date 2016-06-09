@@ -31,6 +31,7 @@ class ItemListOrderingAttributes(
 
 class ItemListOrderingFactory(
   at: ItemListOrderingAttributes,
+  uIStringAttributes: UIStringAttributes,
   attrFactory: AttrFactory,
   factIndex: FactIndex,
   alien: Alien,
@@ -42,6 +43,7 @@ class ItemListOrderingFactory(
     val direction = filterObj(at.orderDirection)
     new ItemListOrdering {
       def compose(defaultOrdering: Ordering[Obj]): Ordering[Obj] = {
+        if(!orderByAttrId.nonEmpty){ return defaultOrdering }
         val attr = attrFactory.toAttr(orderByAttrId, AttrValueType(orderByAttrValueTypeId))
         orderingFactory.ordering(attr, direction)
           .map( o ⇒ new CompositeOrdering(o,defaultOrdering) )
@@ -97,9 +99,11 @@ class ObjOrderingFactory(
     handlerLists: CoHandlerLists,
     attrFactory: AttrFactory
 ) {
-  def ordering[Value](attr: Attr[Value], reverse: Boolean): Option[Ordering[Obj]] =
-    ordering(attrFactory.valueType(attr))
-      .map(ord⇒Ordering.by[Obj,Value](_(attr))(ord))
+  def ordering[Value](attr: Attr[Value], reverse: Boolean): Option[Ordering[Obj]] = {
+    val orderingForType = ordering(attrFactory.valueType(attr))
+    orderingForType.map(ord⇒Ordering.by[Obj,Value](_(attr))(ord))
+      .map(o⇒if(reverse) o.reverse else o)
+  }
   def ordering[Value](valueType: AttrValueType[Value]): Option[Ordering[Value]] =
     handlerLists.single(OrderByAttrValueType(valueType), ()⇒None)
   def handlers[Value](asType: AttrValueType[Value])(implicit ord: Ordering[Value]): List[BaseCoHandler] =

@@ -1,7 +1,6 @@
 package ee.cone.base.test_loots
 
 
-import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
 
 import ee.cone.base.connection_api._
@@ -310,7 +309,8 @@ class TestComponent(
     )
     val popup = if(popupOpened != key) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
-        items().map(item ⇒ option(item, item(alien.objIdStr), objCaption(item)))
+        items().map(item⇒(item,objCaption(item))).sortBy(_._2)
+        .map{ case(item,caption) ⇒ option(item, item(alien.objIdStr), caption) }
     val btn = if(popup.nonEmpty) btnExpandLess("less",popupToggle(key))
       else btnExpandMore("more",popupToggle(key))
     btnInputPopup(btn, input, popup)
@@ -988,11 +988,11 @@ class FuelingItems(
   val times: List[ObjId] = List(at.time00,at.time08,at.time24)
 ) extends CoHandlerProvider {
   def handlers =
-    CoHandler(GetValue(dbWrapType, at.time)){ (obj,innerObj)⇒
-      if(innerObj.data == at.time00) "00:00" else
-      if(innerObj.data == at.time08) "08:00" else
-      if(innerObj.data == at.time24) "24:00" else throw new Exception(s"? ${innerObj.data}")
-    } ::
+    attrFactory.handlers(at.time)((obj,objId)⇒
+      if(objId == at.time00) "00:00" else
+      if(objId == at.time08) "08:00" else
+      if(objId == at.time24) "24:00" else throw new Exception(s"? $objId")
+    ) :::
     CoHandler(AttrCaption(at.meHours))("ME Hours.Min") ::
     CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::
     CoHandler(AttrCaption(at.comment))("Comment") ::

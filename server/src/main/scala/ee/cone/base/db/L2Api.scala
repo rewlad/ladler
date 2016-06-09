@@ -34,6 +34,7 @@ trait AttrFactory {
   def valueType[V](attr: Attr[V]): AttrValueType[V]
   def toAttr[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V]
   def converter[V](valueType: AttrValueType[V]): RawValueConverter[V]
+  def handlers[Value](attr: Attr[Value])(get: (Obj,ObjId)⇒Value): List[BaseCoHandler]
 }
 
 case class AttrValueType[Value](id: ObjId)
@@ -63,6 +64,5 @@ trait OnUpdate {
   //invoke will be called before and after update if all attrs are defined
   def handlers(definedAttrs: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
 }
-case class ToAttr[Value](attrId: ObjId, valueType: AttrValueType[Value]) extends EventKey[Attr[Value]]
 case class ToRawValueConverter[Value](valueType: AttrValueType[Value])
   extends EventKey[RawValueConverter[Value]]

@@ -54,7 +54,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val objOrderingFactory = new ObjOrderingFactory(handlerLists, attrFactory)
   lazy val objOrderingForAttrValueTypes = new ObjOrderingForAttrValueTypes(objOrderingFactory, asBoolean, asString, asDBObj, asInstant, asLocalTime, uiStrings)
   lazy val orderingAttributes = new ItemListOrderingAttributes(attrFactory, asBoolean, asDBObjId)()
-  lazy val itemListOrderingFactory = new ItemListOrderingFactory(orderingAttributes, attrFactory, factIndex, alien, objOrderingFactory)
+  lazy val itemListOrderingFactory = new ItemListOrderingFactory(orderingAttributes, uiStringAttributes, attrFactory, factIndex, alien, objOrderingFactory)
 
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, filters, uiStrings, itemListOrderingFactory)()

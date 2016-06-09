@@ -14,10 +14,10 @@ class FactIndexImpl(
   calcLists: CoHandlerLists,
   nodeAttributes: NodeAttrs,
   attrFactory: AttrFactory,
-  dbWrapType: WrapType[ObjId],
   objIdFactory: ObjIdFactory,
   zeroObjId: ObjId,
-  asDefined: AttrValueType[Boolean]
+  asDefined: AttrValueType[Boolean],
+  dbWrapType: WrapType[ObjId]
 ) extends FactIndex {
   private var srcObjId = zeroObjId
   def switchReason(node: Obj): Unit = {
@@ -53,23 +53,21 @@ class FactIndexImpl(
     val attrId = attrFactory.attrId(attr)
     val valueType = attrFactory.valueType(attr)
     val definedAttr = attrFactory.define(attrId, asDefined)
-    List(
-      CoHandler(GetValue(dbWrapType, attr))((obj, innerObj)⇒
-        get(innerObj.data, attrId, attrFactory.converter(valueType))
-      ),
-      CoHandler(ToAttr(attrId,valueType))(attr),
-      CoHandler(SetValue(dbWrapType, attr)){ (obj, innerObj, value)⇒
-        val valueConverter = attrFactory.converter(valueType)
-        if (get(innerObj.data, attrId, valueConverter) != value) { // we can't fail on empty values
-          for(calc <- calcLists.list(BeforeUpdate(attrId))) calc(obj)
-          set(innerObj.data, attrId, valueConverter, value)
-          for(calc <- calcLists.list(AfterUpdate(attrId))) calc(obj)
-        }
-      },
-      CoHandler(GetValue(dbWrapType, definedAttr))((obj, innerObj)⇒
-        get(innerObj.data, attrId, attrFactory.converter(asDefined))
-      ),
-      CoHandler(ToAttr(attrId,asDefined))(definedAttr)
+    CoHandler(SetValue(dbWrapType,attr)){ (obj, innerObj, value) ⇒
+      val objId = innerObj.data
+      val valueConverter = attrFactory.converter(valueType)
+      if(get(objId, attrId, valueConverter) != value) {
+        // we can't fail on empty values
+        for(calc <- calcLists.list(BeforeUpdate(attrId))) calc(obj)
+        set(objId, attrId, valueConverter, value)
+        for(calc <- calcLists.list(AfterUpdate(attrId))) calc(obj)
+      }
+    } ::
+    attrFactory.handlers(attr)((obj,objId)⇒
+      get(objId, attrId, attrFactory.converter(valueType))
+    ) :::
+    attrFactory.handlers(definedAttr)((obj,objId)⇒
+      get(objId, attrId, attrFactory.converter(asDefined))
     )
   }
   def defined(attrId: ObjId) = attrFactory.toAttr(attrId, asDefined)

@@ -29,7 +29,7 @@ class Alien(
   attrFactory: AttrFactory,
   handlerLists: CoHandlerLists,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey], factIndex: FactIndex,
-  alienWrapType: WrapType[Unit], demandedWrapType: WrapType[DemandedNode], dbWrapType: DBWrapType,
+  alienWrapType: WrapType[Unit], demandedWrapType: WrapType[DemandedNode],
   objIdFactory: ObjIdFactory,
   uiStrings: UIStrings,
   asDBObj: AttrValueType[Obj],
@@ -74,14 +74,16 @@ class Alien(
     wrapForEdit(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
   }
   def objIdStr: Attr[String] = uiStringAttributes.objIdStr
-  def handlers = List(
-    CoHandler(GetValue(demandedWrapType,nodeAttrs.objId)){ (obj,innerObj)⇒
-      innerObj.data.objId
-    },
-    CoHandler(GetValue(dbWrapType, objIdStr)){ (obj, innerObj)⇒
+  def handlers =
+    List(
+      CoHandler(GetValue(demandedWrapType,nodeAttrs.objId)){ (obj,innerObj)⇒
+        innerObj.data.objId
+      },
+      CoHandler(GetValue(alienWrapType, at.isEditing)){ (obj, innerObj)⇒ true }
+    ) :::
+    attrFactory.handlers(objIdStr)( (obj, objId) ⇒
       objIdFactory.toUUIDString(obj(nodeAttrs.objId))
-    },
-    CoHandler(GetValue(dbWrapType, at.isEditing)){ (obj, innerObj)⇒ false },
-    CoHandler(GetValue(alienWrapType, at.isEditing)){ (obj, innerObj)⇒ true }
-  ) ::: factIndex.handlers(at.targetObj) ::: transient.update(at.comment)
+    ) :::
+    attrFactory.handlers(at.isEditing)( (obj, objId) ⇒ false ) :::
+    factIndex.handlers(at.targetObj) ::: transient.update(at.comment)
 }

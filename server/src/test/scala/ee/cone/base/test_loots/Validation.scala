@@ -50,8 +50,7 @@ class ValidationFactory(
       ValidationState(obj(nodeAttrs.objId), attrFactory.attrId(attr), text.nonEmpty, s"${uiStrings.caption(attr)} is required $text")
     }.toList
 
-  def handlers = List(
-    CoHandler(GetValue(dbWrapType,at.validation))( (obj,innerObj) ⇒ noObjValidation ),
-    CoHandler(GetValue(validationWrapType,at.validation))( (obj,innerObj) ⇒ innerObj.data )
-  )
+  def handlers =
+    CoHandler(GetValue(validationWrapType,at.validation))( (obj,innerObj) ⇒ innerObj.data ) ::
+    attrFactory.handlers(at.validation)( (obj,objId) ⇒ noObjValidation )
 }

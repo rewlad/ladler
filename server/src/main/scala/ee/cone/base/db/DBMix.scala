@@ -29,19 +29,20 @@ trait DBConnectionMix extends CoMixBase {
   // L2
   lazy val noObj = new NoObjImpl(handlerLists)
 
+  lazy val objIdFactory = new ObjIdFactoryImpl
+
   lazy val asDefined = AttrValueType[Boolean](objIdFactory.toObjId("f8857bde-f26c-43ce-a1cd-a9091bcfdc23"))
   lazy val asDBObjId = AttrValueType[ObjId](objIdFactory.toObjId("8619613c-069d-473f-97f5-87d23a881a04"))
   lazy val dbWrapType = new DBWrapType
 
-  lazy val attrFactory = new AttrFactoryImpl(handlerLists,objIdFactory)
+  lazy val attrFactory = new AttrFactoryImpl(handlerLists,objIdFactory,dbWrapType)
   lazy val nodeAttrs = new NodeAttrsImpl(attrFactory, asDBObjId)()
 
-  lazy val objIdFactory = new ObjIdFactoryImpl
   lazy val dbObjIdValueConverter = new DBObjIdValueConverter(asDBObjId,rawConverter,objIdFactory)
 
   lazy val zeroNode = ObjIdImpl(0L,0L)
   lazy val factIndex =
-    new FactIndexImpl(rawConverter, dbObjIdValueConverter, rawVisitor, handlerLists, nodeAttrs, attrFactory, dbWrapType, objIdFactory, zeroNode, asDefined)
+    new FactIndexImpl(rawConverter, dbObjIdValueConverter, rawVisitor, handlerLists, nodeAttrs, attrFactory, objIdFactory, zeroNode, asDefined, dbWrapType)
   lazy val onUpdate = new OnUpdateImpl(factIndex)
   lazy val searchIndex =
     new SearchIndexImpl(handlerLists, rawConverter, dbObjIdValueConverter, rawVisitor, attrFactory, nodeAttrs, objIdFactory, onUpdate)
@@ -81,7 +82,7 @@ trait DBConnectionMix extends CoMixBase {
   lazy val alienAttrs = new AlienAccessAttrs(objIdFactory, attrFactory, asDBObj, asString, asBoolean)()
   lazy val alienWrapType = new AlienWrapType
   lazy val demandedWrapType = new DemandedWrapType
-  lazy val alien = new Alien(alienAttrs,nodeAttrs,uiStringAttributes,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,dbWrapType,objIdFactory,uiStrings,asDBObj,asString,transient)
+  lazy val alien = new Alien(alienAttrs,nodeAttrs,uiStringAttributes,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,objIdFactory,uiStrings,asDBObj,asString,transient)
 
   lazy val definedValueConverter = new DefinedValueConverter(asDefined, rawConverter)
   lazy val booleanValueConverter = new BooleanValueConverter(asBoolean, rawConverter)
