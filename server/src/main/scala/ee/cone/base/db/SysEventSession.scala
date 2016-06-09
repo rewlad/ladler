@@ -45,7 +45,7 @@ class SessionEventSourceOperationsImpl(
     val newStatus = findNodes.single(if(decoupled) findNodes.where(
       tx, ops.findCommitByInstantSession, instantSession, options
     ) else findNodes.where(
-      tx, ops.findCommit, findNodes.justIndexed, options
+      tx, ops.findCommit, findNodes.zeroNode, options
     ))
     if(!newStatus(sysAttrs.nonEmpty)) return false
     lastStatus = newStatus

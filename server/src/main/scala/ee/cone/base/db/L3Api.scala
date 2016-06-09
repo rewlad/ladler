@@ -16,7 +16,6 @@ case object FindFirstOnly extends SearchOption
 case object FindLastOnly extends SearchOption
 
 trait FindAttrs {
-  def justIndexed: Attr[String]
   def nonEmpty: Attr[Boolean]
 }
 
@@ -26,7 +25,6 @@ trait FindNodes {
   def nextNode(obj: Obj): Obj
   def single(l: List[Obj]): Obj
   def where[Value](tx: BoundToTx, index: SearchByLabelProp[Value], value: Value, options: List[SearchOption]): List[Obj]
-  def justIndexed: String
   def whereObjId(objId: ObjId): Obj
   def toObjId(uuid: UUID): ObjId
 }

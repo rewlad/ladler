@@ -54,7 +54,7 @@ trait DBConnectionMix extends CoMixBase {
 
   lazy val asString = AttrValueType[String](objIdFactory.toObjId("1e94f9bc-a34d-4fab-8a01-eb3dd98795d2"))
   lazy val findAttrs = new FindAttrsImpl(attrFactory,asDefined,asString)()
-  lazy val findNodes = new FindNodesImpl(findAttrs, handlerLists, nodeAttrs, noObj, attrFactory, factIndex, objIdFactory, dbObjIdValueConverter, dbWrapType)()
+  lazy val findNodes = new FindNodesImpl(findAttrs, handlerLists, nodeAttrs, noObj, attrFactory, objIdFactory, dbObjIdValueConverter, dbWrapType)()
 
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl(txSelector)
   lazy val mandatory = new MandatoryImpl(attrFactory, factIndex, preCommitCheckCheckAll)
