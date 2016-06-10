@@ -42,6 +42,7 @@ import Checkbox          from 'material-ui/lib/checkbox'
 import TimePicker        from 'material-ui/lib/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
 import Calendar          from 'material-ui/lib/date-picker/calendar'
+import Clock             from 'material-ui/lib/time-picker/clock'
 import injectTapEventPlugin from "react-tap-event-plugin"
 injectTapEventPlugin()
 function fixOnScrollBug(){
@@ -352,10 +353,10 @@ class CrazyClock extends React.Component{
             initialTime.setHours(parseInt(hm[0]))
             initialTime.setMinutes(parseInt(hm[1]))
         }
-
+        const format="24hr"
         const propsClock={
             ref: 'clock',
-            format: format,
+            format,
             initialTime,
             onChangeMinutes: this.handleClockChangeMinutes
         }

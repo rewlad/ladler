@@ -34,6 +34,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val asInstant = AttrValueType[Option[Instant]](objIdFactory.toObjId("ce152d2d-d783-439f-a21b-e175663f2650"))
   lazy val asDuration = AttrValueType[Option[Duration]](objIdFactory.toObjId("356068df-ac9d-44cf-871b-036fa0ac05ad"))
   lazy val asLocalTime = AttrValueType[Option[LocalTime]](objIdFactory.toObjId("8489d9a9-37ec-4206-be73-89287d0282e3"))
+  lazy val asBigDecimal = new AttrValueType[Option[BigDecimal]](objIdFactory.toObjId("4d5894bc-e913-4d90-8b7f-32bd1d3893ea"))
   lazy val logAttributes = new BoatLogEntryAttributes(
     attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()
@@ -52,13 +53,13 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val validationFactory = new ValidationFactory(validationAttributes,nodeAttrs,attrFactory,dbWrapType,validationWrapType,uiStrings)()
 
   lazy val objOrderingFactory = new ObjOrderingFactory(handlerLists, attrFactory)
-  lazy val objOrderingForAttrValueTypes = new ObjOrderingForAttrValueTypes(objOrderingFactory, asBoolean, asString, asDBObj, asInstant, asLocalTime, uiStrings)
+  lazy val objOrderingForAttrValueTypes = new ObjOrderingForAttrValueTypes(objOrderingFactory, asBoolean, asString, asDBObj, asInstant, asLocalTime, asBigDecimal, uiStrings)
   lazy val orderingAttributes = new ItemListOrderingAttributes(attrFactory, asBoolean, asDBObjId)()
   lazy val itemListOrderingFactory = new ItemListOrderingFactory(orderingAttributes, uiStringAttributes, attrFactory, factIndex, alien, objOrderingFactory)
 
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, filters, uiStrings, itemListOrderingFactory)()
-  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration)()
+  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration, asBigDecimal)()
   lazy val fuelingItems = new FuelingItems(
     fuelingAttrs, findAttrs, alienAttrs, filterAttrs, nodeAttrs,
     factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings
@@ -68,6 +69,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter,asString)
   lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter,asString)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
+  lazy val bigDecimalValueConverter = new BigDecimalValueConverter(asBigDecimal,rawConverter,asString)
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, filterAttrs, logAttributes, userAttrs,
     fuelingAttrs, alienAttrs, validationAttributes,
@@ -77,7 +79,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     tags, materialTags, flexTags, currentView, dtTablesState,
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
-    asDuration, asInstant, asLocalTime, asDBObj, asString, asUUID,
+    asDuration, asInstant, asLocalTime, asBigDecimal, asDBObj, asString, asUUID,
     uiStrings, mandatory, zoneIds, itemListOrderingFactory, objOrderingFactory
   )()
 }

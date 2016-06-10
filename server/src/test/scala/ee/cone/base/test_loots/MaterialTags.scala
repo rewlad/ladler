@@ -616,12 +616,12 @@ class MaterialTags(
         ):_*
       )
 
-  def btnInput(key: VDomKey)(btn:ChildPair[OfDiv],input:ChildPair[OfDiv])=
+  def btnInput(key: VDomKey,zIndex : Int)(btn:ChildPair[OfDiv],input:ChildPair[OfDiv])=
     divNoWrap("1",
       List(
         child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 48px)"),None,None),input::Nil),
         child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("48px"),None,None),
-          withZIndex("zIndex",4000,btn)::Nil
+          withZIndex("zIndex",zIndex,btn)::Nil
         )
       ):_*
     )
@@ -670,18 +670,20 @@ class MaterialTags(
     iconButton(key,"add","IconContentAdd",action)
   def btnRemove(key: VDomKey, action: ()=>Unit) =
     iconButton(key,"remove","IconContentRemove",action)
-  def btnModeEdit(key:VDomKey, action:()=>Unit)=
+  def btnModeEdit(key:VDomKey, action:()=>Unit) =
     iconButton(key,"edit","IconEditorModeEdit",action)
-  def btnDelete(key:VDomKey,action:()=>Unit)=
+  def btnDelete(key:VDomKey,action:()=>Unit) =
     iconButton(key,"delete","IconActionDelete",action)
-  def btnMenu(key:VDomKey,action:()=>Unit)=
+  def btnMenu(key:VDomKey,action:()=>Unit) =
     iconButton(key,"menu","IconNavigationMenu",action)
-  def btnDateRange(key:VDomKey,action:()=>Unit)=
+  def btnDateRange(key:VDomKey,action:()=>Unit) =
     iconButton(key,"calendar","IconActionDateRange",action)
-  def btnExpandMore(key:VDomKey,action:()=>Unit)=
+  def btnExpandMore(key:VDomKey,action:()=>Unit) =
     iconButton(key,"more","IconNavigationExpandMore",action)
-  def btnExpandLess(key:VDomKey,action:()=>Unit)=
+  def btnExpandLess(key:VDomKey,action:()=>Unit) =
     iconButton(key,"less","IconNavigationExpandLess",action)
+  def btnScheduleClock(key:VDomKey,action:()=>Unit) =
+    iconButton(key,"clock","IconActionSchedule",action)
   def withMargin(key: VDomKey, value: Int, theChild: ChildPair[OfDiv]) =
     child[OfDiv](key, MarginWrapper(value), theChild :: Nil)
   def withMargin(key: VDomKey, value: Int, children: List[ChildPair[OfDiv]]) =

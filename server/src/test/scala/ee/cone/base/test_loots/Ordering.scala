@@ -81,6 +81,7 @@ class ObjOrderingForAttrValueTypes(
     asObj: AttrValueType[Obj],
     asInstant: AttrValueType[Option[Instant]],
     asLocalTime: AttrValueType[Option[LocalTime]],
+    asBigDecimal: AttrValueType[Option[BigDecimal]],
     uiStrings: UIStrings
 ) extends CoHandlerProvider {
   def handlers =
@@ -88,7 +89,8 @@ class ObjOrderingForAttrValueTypes(
     objOrderingFactory.handlers(asString) :::
     objOrderingFactory.handlers(asObj)(Ordering.by(obj⇒uiStrings.converter(asObj,asString)(obj))) :::
     objOrderingFactory.handlers(asInstant) :::
-    objOrderingFactory.handlers(asLocalTime)
+    objOrderingFactory.handlers(asLocalTime) :::
+    objOrderingFactory.handlers(asBigDecimal)
 }
 
 ////
