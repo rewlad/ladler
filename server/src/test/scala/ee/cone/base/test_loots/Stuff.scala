@@ -205,7 +205,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val valueType = asDuration
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(!editable) { return List(labeledText("1",visibleLabel,value))}
+    if(!editable) { return List(labeledText("1",visibleLabel,value,alignRight = true))}
 
     //val key = popupKey(obj,attr)
     //println(popupOpened)
@@ -222,7 +222,7 @@ class TestComponent(
       obj(attr) = uiStrings.converter(asString,valueType)(newVal)
       popupToggle()
     })::Nil)::Nil
-    btnInputPopup(btn,btnZIndex = if(isOpened)4000 else 1000,input,popup)
+    btnInputPopup(btn,input,popup)
     //input::Nil
   }
 
@@ -234,7 +234,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val valueType = asInstant
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(!editable){ return List(labeledText("1", visibleLabel, value)) }
+    if(!editable){ return List(labeledText("1", visibleLabel, value,alignRight = true)) }
 
     //val key = popupKey(obj,attr)
     val (isOpened,popupToggle)=popupAction[Option[Instant]](obj,attr)
@@ -248,7 +248,7 @@ class TestComponent(
         obj(attr) = uiStrings.converter(asString,valueType)(newVal)
         popupToggle()
       })::Nil)::Nil
-    btnInputPopup(btn,btnZIndex = if(isOpened) 4000 else 1000, input, popup)
+    btnInputPopup(btn, input, popup)
   }
 
   private def timeField(
@@ -257,14 +257,24 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-
     val valueType = asLocalTime
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(editable) List(inputField(
-      "1", TimeFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
-      deferSend=false, alignRight=true, getValidationKey(obj,attr)
-    ))
-    else List(labeledText("1", visibleLabel, value))
+
+    if(!editable) { return List(labeledText("1", visibleLabel, value,alignRight = true))}
+    val (isOpened, popupToggle) = popupAction[Option[LocalTime]](obj,attr)
+    val btn = btnScheduleClock("btnClock",popupToggle)
+
+    val input = inputField(
+      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend=true, alignRight=true, getValidationKey(obj,attr)
+    )
+    //val controlButtons=divSimpleWrapper("1",btnClear("1",()=>{}),btnScheduleClock("1",()=>{}))
+    val popup = if(!isOpened) Nil
+    else withMinWidth("minWidth",280,clockDialog("clock",""/*may be not 'value' later*/,Some{ newVal =>
+      obj(attr) = uiStrings.converter(asString,valueType)(newVal)
+      popupToggle()
+    })::Nil)::Nil
+    btnInputPopup(btn,input,popup)
   }
 
   private def decimalField( obj: Obj, attr: Attr[Option[BigDecimal]], showLabel: Boolean,
@@ -275,10 +285,10 @@ class TestComponent(
     val valueType = asBigDecimal
     val value = uiStrings.converter(valueType, asString)(obj(attr))
     if(editable) List(inputField(
-      "1", DecimalFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend, alignRight, getValidationKey(obj,attr)
     ))
-    else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
+    else if(value.nonEmpty) List(labeledText("1", visibleLabel, value,alignRight))
     else Nil
   }
 
@@ -302,8 +312,8 @@ class TestComponent(
     }
   }
 
-  private def btnInputPopup(btn: ChildPair[OfDiv],btnZIndex:Int, input: ChildPair[OfDiv], popup: List[ChildPair[OfDiv]]) = {
-    val collapsed = List(btnInput("btnInput",btnZIndex)(btn, input))
+  private def btnInputPopup(btn: ChildPair[OfDiv], input: ChildPair[OfDiv], popup: List[ChildPair[OfDiv]]) = {
+    val collapsed = List(btnInput("btnInput")(btn, input))
     List(fieldPopupBox("1",collapsed,popup))
   }
 
@@ -335,7 +345,7 @@ class TestComponent(
         items().map(item ⇒ option(item, item(alien.objIdStr), objCaption(item)))
     val btn = if(popup.nonEmpty) btnExpandLess("less",popupToggle)
       else btnExpandMore("more",popupToggle)
-    btnInputPopup(btn,btnZIndex = if(isOpened) 4000 else 1000, input, popup)
+    btnInputPopup(btn, input, popup)
   }
 
   ////
@@ -608,7 +618,7 @@ class TestComponent(
       row(timeStr,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
-          else List(labeledText("1",if(showLabel) "Time" else "",timeStr))
+          else List(labeledText("1",if(showLabel) "Time" else "",timeStr,alignRight = true))
         ),
         mCell("2",150,1)(showLabel=>
           if(isRF) List(text("1","Received Fuel"))
@@ -876,7 +886,7 @@ class TestComponent(
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
       divWrapper("menu",None,None,None,None,Some("left"),None,
         fieldPopupBox("menu",
-          List(withZIndex("zIndex",4000,btnMenu("menu",popupToggle("navMenu")))),
+          List(btnMenu("menu",popupToggle("navMenu"))),
           if(popupOpened!="navMenu") Nil else List(
             menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
             menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
@@ -885,7 +895,7 @@ class TestComponent(
         ) ::Nil
       ),
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
-        withSidePadding("1",50,
+        withSidePadding("1",10,
           divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil))::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,

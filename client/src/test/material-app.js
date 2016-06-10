@@ -20,6 +20,7 @@ import IconButton        from 'material-ui/lib/icon-button'
 import IconEditorModeEdit from 'material-ui/lib/svg-icons/editor/mode-edit'
 import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
 import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
+import IconNavigationClose from 'material-ui/lib/svg-icons/navigation/close'
 import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
 import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
 import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
@@ -232,7 +233,8 @@ class LabeledText extends React.Component{
             height:"100%",
             color:"rgba(0,0,0,1)",
             position:"relative",
-            marginTop:"38px"
+            marginTop:"38px",
+            textAlign:this.props.alignRight?"right":"left"
         }
         Object.assign(pStyle,this.props.style)
         return(
@@ -243,7 +245,7 @@ class LabeledText extends React.Component{
         ]))
     }
 }
-
+/*
 class IconMenuButton extends React.Component{
     constructor(props){
         super(props)
@@ -264,6 +266,31 @@ class IconMenuButton extends React.Component{
             )
     }
 }
+*/
+class IconButtonEx extends React.Component{
+    constructor(props){
+        super(props)
+        this.state={zIndex:"auto"}
+        this.handleMouseEnter=this.handleMouseEnter.bind(this)
+        this.handleMouseLeave=this.handleMouseLeave.bind(this)
+    }
+    handleMouseEnter(){this.setState({zIndex:"4000"})}
+    handleMouseLeave(){this.setState({zIndex:"auto"})}
+    render(){
+        const props={
+            key:this.props.key,
+            onClick:this.props.onClick,
+            tooltip:this.props.tooltip,
+            style:Object.assign({zIndex:this.state.zIndex},this.props.style),
+            iconStyle:this.props.iconStyle,
+            onMouseEnter:this.handleMouseEnter,
+            onMouseLeave:this.handleMouseLeave,
+        }
+        console.log(props)
+        return React.createElement(IconButton,props,this.props.children)
+    }
+}
+
 
 class CursorOver extends React.Component{
     constructor(props){
@@ -365,35 +392,78 @@ class CrazyClock extends React.Component{
         return React.createElement(Clock,propsClock)
     }
 }
-
+/*
 class DecimalInput extends React.Component{
     constructor(props){
         super(props)
+        this.handleMouseEnter=this.handleMouseEnter.bind(this)
+        this.handleMouseLeave=this.handleMouseLeave.bind(this)
+        this.handleInputFocus=this.handleInputFocus.bind(this)
+        this.handleInputBlur=this.handleInputBlur.bind(this)
+        this.handleInputOnChange=this.handleInputOnChange.bind(this)
+        this.handleCloseButton=this.handleCloseButton.bind(this)
+        this.state={inFocus:false}
     }
 
+    handleMouseEnter(){}
+    handleMouseLeave(){}
+    handleInputBlur(){
+        this.props.onBlur()
+        this.setState({inFocus:false})
+    }
+    handleInputFocus(){
+        this.setState({inFocus:true})
+    }
+    handleInputOnChange(e,reset){
+        if(reset) e.target.value=""
+        this.props.onChange(e)
+    }
+    handleCloseButton(){
+        this.handleInputOnChange
+    }
     render(){
 
         const fProps={
-            key:this.props.key
+            key:"field",
+            inputStyle:Object.assign({marginLeft:"-15px"},this.props.inputStyle),
+            value:this.props.value,
+            style:this.props.style,
+            onChange:this.handleInputOnChange,
+            onBlur:this.handleInputBlur,
+            onFocus:this.handleInputFocus
         }
-        Object.assign(fProps,this.props)
-        //console.log(this.props,fProps)
-        return React.createElement(TextField,fProps)
+        //Object.assign(fProps,this.props)
+        //console.log(this.props)
+        const cBProps={
+            key:"close",
+            style:{position:"absolute",top:"15px",width:"",height:"",padding:"1px",right:"-5px"},
+            iconStyle:{width:"16px",height:"16px"},
+            onTouchTap:this.handleCloseButton
+            //backgroundColor:this.state.onHover?
+            //onMouseEnter:this.handleMouseEnter,
+            //onMouseLeave:this.handleMouseLeave,
+            //cursor:"pointer"
+        }
+        const closeButton=this.state.inFocus&&this.props.value?React.createElement(IconButton,cBProps,React.createElement(IconNavigationClose)):null
+        return React.createElement("div",{key:this.props.key,style:{position:"relative"}},[React.createElement(TextField,fProps),closeButton])
     }
 }
+
+*/
 
 const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
     RaisedButton,
-    IconButton, IconEditorModeEdit,MaterialChip,
+    IconButtonEx, IconEditorModeEdit,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField,/* DateInput,*/TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
     IconActionRestore,IconContentSave,CrazyCalendar,CrazyClock,
-    IconMenuButton,MenuItem,IconNavigationMenu,CursorOver,
+    /*IconMenuButton,MenuItem,*/IconNavigationMenu,CursorOver,
     IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess,
-    IconActionSchedule,DecimalInput
+    IconActionSchedule, IconNavigationClose
+    // DecimalInput
 })
 
 const transforms = ({tp})

@@ -107,24 +107,53 @@ case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int, isUnderl
   }
 }
 
+case class InputCloseIconButton(tooltip:String,label:String)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("IconButtonEx")
+    if(tooltip.nonEmpty) builder.append("tooltip").append(tooltip) //todo: color str
+    onClick.foreach(_⇒ builder.append("onClick").append("send"))
+    builder.append("style").startObject()
+      builder.append("position").append("absolute")
+      if(label.nonEmpty) builder.append("bottom").append("12px") else builder.append("bottom").append("14px")
+      builder.append("width").append("")
+      builder.append("height").append("")
+      builder.append("padding").append("1px")
+      builder.append("right").append("-5px")
+    builder.end()
+    builder.append("iconStyle").startObject()
+      builder.append("width").append("16px")
+      builder.append("height").append("16px")
+    builder.end()
+    builder.end()
+  }
+
+}
+
 case class IconButton(tooltip: String)(
     val onClick: Option[()⇒Unit]
 ) extends VDomValue with OnClickReceiver {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-    builder.append("tp").append("IconButton")
+    builder.append("tp").append("IconButtonEx")
     if(tooltip.nonEmpty) builder.append("tooltip").append(tooltip) //todo: color str
     onClick.foreach(_⇒ builder.append("onClick").append("send"))
     builder.end()
   }
 }
 
-case class SVGIcon(tp: String,color:Option[String] = None,verticalAlign: Option[VerticalAlign] = None) extends VDomValue {
+case class SVGIcon(tp: String,color:Option[String] = None,verticalAlign: Option[VerticalAlign] = None, inInput:Boolean = false, show:Boolean = true) extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append(tp) //color str
 
       builder.append("style").startObject()
+        if(inInput){
+          builder.append("width").append("16px")
+          builder.append("height").append("16px")
+        }
+      if(!show)
+          builder.append("display").append("none")
     if(color.nonEmpty)
         builder.append("fill").append(color.get)
     verticalAlign.getOrElse("") match{
@@ -346,6 +375,7 @@ case class InputField(
     if(alignRight) {
       builder.append("inputStyle").startObject()
         builder.append("textAlign").append("right")
+        builder.append("marginLeft").append("-15px")
       builder.end()
     }
     builder.end()
@@ -397,13 +427,14 @@ case class CheckBox(checked:Boolean,label:String)(
     builder.end()
   }
 }
-case class LabeledTextComponent(text:String,label:String) extends VDomValue{
+case class LabeledTextComponent(text:String,label:String,alignRight:Boolean) extends VDomValue{
 
   def appendJson(builder:JsonBuilder)={
     builder.startObject()
       builder.append("tp").append("LabeledText")
       builder.append("content").append(text)
       builder.append("label").append(label)
+      builder.append("alignRight").append(alignRight)
       builder.append("style").startObject()
       builder.append("fontSize").append("13px")
       builder.end()
@@ -462,6 +493,7 @@ case class FieldPopupBox() extends VDomValue{
 
   }
 }
+/*
 case class IconMenu(opened:Boolean)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -483,11 +515,12 @@ case class MenuItem(key:VDomKey,text:String)(val onClick:Option[()=>Unit]) exten
   }
 
 }
-
-case class DivPositionWrapper(display:Option[String],
-                              width:Option[String],
-                              position:Option[String],
-                              top:Option[Int]) extends VDomValue{
+*/
+case class DivPositionWrapper(display:Option[String] = None,
+                              width:Option[String] = None,
+                              position:Option[String] = None,
+                              top:Option[Int] = None,
+                              verticalAlign: Option[VerticalAlign] = None) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("div")
@@ -496,6 +529,12 @@ case class DivPositionWrapper(display:Option[String],
     position.foreach(x=>builder.append("position").append(x))
     top.foreach(x=>builder.append("top").append(s"${x}px"))
     if(width.nonEmpty) builder.append("width").append(width.get)
+    verticalAlign.getOrElse("") match {
+      case VerticalAlignBottom => builder.append("verticalAlign").append("bottom")
+      case VerticalAlignMiddle => builder.append("verticalAlign").append("middle")
+      case VerticalAlignTop => builder.append("verticalAlign").append("top")
+      case _=>
+    }
     builder.end()
     builder.end()
   }
@@ -508,6 +547,7 @@ case class DivBgColorHover(color:Color) extends VDomValue{
     builder.end()
   }
 }
+/*
 case class DivZIndex(zIndex:Int) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -518,7 +558,7 @@ case class DivZIndex(zIndex:Int) extends VDomValue{
     builder.end()
     builder.end()
   }
-}
+}*/
 case class DivBgColor(color:Color) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -578,9 +618,9 @@ class MaterialTags(
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
     child[OfDiv](key,MaterialChip(text)(action),children)
   def fieldPopupBox(key: VDomKey,fieldChildren:List[ChildPair[OfDiv]], popupChildren:List[ChildPair[OfDiv]]) =
-    child[OfDiv](key,DivPositionWrapper(Option("block"),Some("100%"),Some("relative"),None),List(
+    child[OfDiv](key,DivPositionWrapper(Option("block"),Some("100%"),Some("relative")),List(
       child[OfDiv](key+"box", FieldPopupBox(), fieldChildren),
-      child[OfDiv](key+"popup", FieldPopupDrop(popupChildren.nonEmpty,maxHeight = Some(400)), popupChildren)
+      child[OfDiv](key+"popup", FieldPopupDrop(popupChildren.nonEmpty,maxHeight = Some(500)), popupChildren)
     ))
   def divider(key:VDomKey)=
     child[OfDiv](key,Divider(),Nil)
@@ -596,19 +636,19 @@ class MaterialTags(
   def iconInput(key: VDomKey,picture:String,focused:Boolean=false)(input: List[ChildPair[OfDiv]])=
       divNoWrap("1",
         Seq(
-          child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("36px"),Some("relative"),None),
+          child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("36px"),Some("relative")),
             child[OfDiv]("icon",SVGIcon(picture,if(focused) Some("rgb(0,188,212)") else None),Nil)::Nil
           ),
-          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 36px)"),None,None), input)
+          child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 36px)")), input)
         ):_*
       )
 
-  def btnInput(key: VDomKey,zIndex : Int)(btn:ChildPair[OfDiv],input:ChildPair[OfDiv])=
+  def btnInput(key: VDomKey)(btn:ChildPair[OfDiv],input:ChildPair[OfDiv])=
     divNoWrap("1",
       List(
-        child[OfDiv]("1",DivPositionWrapper(Option("inline-block"),Some("calc(100% - 48px)"),None,None),input::Nil),
-        child[OfDiv]("icon",DivPositionWrapper(Option("inline-block"),Some("48px"),None,None),
-          withZIndex("zIndex",zIndex,btn)::Nil
+        child[OfDiv]("1",DivPositionWrapper(display = Option("inline-block"),width = Some("calc(100% - 48px)")),input::Nil),
+        child[OfDiv]("icon",DivPositionWrapper(display = Option("inline-block"), width = Some("48px"),verticalAlign = Some(VerticalAlignMiddle)),
+          btn::Nil
         )
       ):_*
     )
@@ -624,10 +664,10 @@ class MaterialTags(
   def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1, isUnderline: Boolean=false)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
     child[OfTableRow](key, TableColumn(isHead, isRight, colSpan, isUnderline)(action), children)
 */
-  def iconMenu(key: VDomKey,opened:Boolean)(action:()=>Unit,theChild:ChildPair[OfDiv]*)=
-    child[OfDiv](key,IconMenu(opened)(Some(action)),theChild.toList)
-  def menuItem(key: VDomKey,text:String)(action:()=>Unit)=
-    child[OfDiv](key,MenuItem(key,text)(Some(action)),Nil)
+  //def iconMenu(key: VDomKey,opened:Boolean)(action:()=>Unit,theChild:ChildPair[OfDiv]*)=
+  //  child[OfDiv](key,IconMenu(opened)(Some(action)),theChild.toList)
+  //def menuItem(key: VDomKey,text:String)(action:()=>Unit)=
+  //  child[OfDiv](key,MenuItem(key,text)(Some(action)),Nil)
   private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
     child[OfDiv](key,
       IconButton(tooltip)(Some(action)),
@@ -720,7 +760,14 @@ class MaterialTags(
       deferSend, alignRight, fieldValidationState,
       isPassword
     )(inputAttributes, Some(change))
-    child[OfDiv](key, input, Nil)
+
+      child[OfDiv](key,DivWrapper(position = Some("relative")),
+        child[OfDiv](key, input, Nil)::
+          child[OfDiv]("close",InputCloseIconButton("",label)(Some(()=>change(""))),
+            child[OfDiv]("icon",SVGIcon("IconNavigationClose",inInput = true,show = if(value.nonEmpty) true else false),Nil)::Nil
+          )::Nil
+      )
+
   }
 /*
   def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean,fieldValidationState: ValidationKey) =
@@ -755,9 +802,10 @@ class MaterialTags(
     child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false,asDuration)(inputAttributes, uiStrings, change),Nil)
 
       durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)*/
-  def labeledText(key:VDomKey, label:String, content:String) =
-    if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label),Nil)
-    else child[OfDiv](key, TextContentElement(content,color = ""), Nil)
+  def labeledText(key:VDomKey, label:String, content:String, alignRight:Boolean = false) =
+    if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label,alignRight),Nil)
+    else
+      child[OfDiv](key, TextContentElement(content,color = ""), Nil)
 
   def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivHeightWrapper(height),theChild.toList)
@@ -767,8 +815,9 @@ class MaterialTags(
     child[OfDiv](key,DivBgColorHover(color),theChild.toList)
   def withBgColor(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivBgColor(color),theChild.toList)
+  /*
   def withZIndex(key:VDomKey,zIndex:Int,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivZIndex(zIndex),theChild.toList)
-
+  */
 }
 
