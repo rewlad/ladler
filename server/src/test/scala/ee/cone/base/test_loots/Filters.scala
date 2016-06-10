@@ -148,6 +148,10 @@ class Filters(
   }
 
   def handlers =
+    CoHandler(AttrCaption(at.asFilter))("View Model") ::
+    CoHandler(AttrCaption(at.filterFullKey))("Key") ::
+    CoHandler(AttrCaption(at.selectedItems))("Selected Items") ::
+    CoHandler(AttrCaption(at.createdAt))("Creation Time") ::
     List(at.isSelected, at.isListed, at.isExpanded).flatMap{ attr ⇒ List(
       CoHandler(GetValue(listedWrapType,attr)){ (obj,innerObj)⇒
         innerObj.data.get(obj,attr)

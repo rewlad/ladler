@@ -12,6 +12,7 @@ class AlienAccessAttrs(
   asString: AttrValueType[String],
   asBoolean: AttrValueType[Boolean]
 )(
+  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString),
   val target: ObjId = objIdFactory.toObjId("5a7300e9-a1d9-41a6-959f-cbd2f6791deb"),
   val created: ObjId = objIdFactory.toObjId("7947ca07-d72f-438d-9e21-1ed8196689ae"),
   val targetObj: Attr[Obj] = attr("0cd4abcb-c83f-4e15-aa9f-d217f2e36596", asNode),
@@ -65,7 +66,9 @@ class Alien(
       val objStr = uiStrings.converter(asDBObj,asString)(obj)
       val valStr = uiStrings.converter(attrFactory.valueType(attr),asString)(value)
       obj(attr) = value
-      describeEvent(event, s"'$attrStr' of '$objStr' was changed to '$valStr'")
+      val description = if(objStr == valStr) s"'$objStr' became '$attrStr'"
+        else s"'$attrStr' of '$objStr' was changed to '$valStr'"
+      describeEvent(event, description)
     } :: Nil
   }
   def describeEvent(event: Obj, comment: String) = event(at.comment) = comment //todo
@@ -73,7 +76,7 @@ class Alien(
   def demandedNode(setup: Obj⇒Unit): Obj = {
     wrapForEdit(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
   }
-  def objIdStr: Attr[String] = uiStringAttributes.objIdStr
+  def objIdStr: Attr[String] = at.objIdStr
   def handlers =
     List(
       CoHandler(GetValue(demandedWrapType,nodeAttrs.objId)){ (obj,innerObj)⇒

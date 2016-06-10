@@ -57,11 +57,11 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val itemListOrderingFactory = new ItemListOrderingFactory(orderingAttributes, uiStringAttributes, attrFactory, factIndex, alien, objOrderingFactory)
 
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
-  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, attrFactory, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, filters, uiStrings, itemListOrderingFactory)()
+  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, filters, uiStrings, itemListOrderingFactory)()
   lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration)()
   lazy val fuelingItems = new FuelingItems(
     fuelingAttrs, findAttrs, alienAttrs, filterAttrs, nodeAttrs,
-    factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory
+    factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings
   )()
   lazy val zoneIds = new ZoneIds
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter,asString,zoneIds)
@@ -77,7 +77,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     tags, materialTags, flexTags, currentView, dtTablesState,
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
-    asDuration, asInstant, asLocalTime, asDBObj, asString,
+    asDuration, asInstant, asLocalTime, asDBObj, asString, asUUID,
     uiStrings, mandatory, zoneIds, itemListOrderingFactory, objOrderingFactory
   )()
 }

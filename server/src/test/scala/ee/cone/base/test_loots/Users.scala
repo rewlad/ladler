@@ -30,7 +30,7 @@ class UserAttrs(
 
 class Users(
   at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAccessAttrs,
-  handlerLists: CoHandlerLists, attrFactory: AttrFactory,
+  handlerLists: CoHandlerLists,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
   alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique,
@@ -82,12 +82,15 @@ class Users(
     user(at.asActiveUser) = if(on) user else findNodes.noNode
 
   def handlers =
-    CoHandler(AttrCaption(at.asUser))("As User") ::
+    CoHandler(ObjIdCaption(at.world))("Our World") ::
+      CoHandler(AttrCaption(at.asUser))("User") ::
       CoHandler(AttrCaption(at.fullName))("Full Name") ::
       CoHandler(AttrCaption(at.username))("Username") ::
       CoHandler(AttrCaption(at.asActiveUser))("Active") ::
       CoHandler(AttrCaption(at.unEncryptedPassword))("Password") ::
       CoHandler(AttrCaption(at.unEncryptedPasswordAgain))("Repeat Password") ::
+      CoHandler(AttrCaption(at.location))("Realm") ::
+      CoHandler(AttrCaption(at.encryptedPassword))("Encrypted Password") ::
       List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers(_)) :::
       List(at.unEncryptedPassword, at.unEncryptedPasswordAgain).flatMap(transient.update) :::
       List(at.asUser,at.fullName,at.username,at.encryptedPassword,at.authenticatedUser,at.location).flatMap{ attr⇒
@@ -98,7 +101,7 @@ class Users(
       mandatory(at.location, at.fullName, mutual = false) :::
       unique(at.asUser, at.username) :::
       unique(at.asUser, at.fullName) :::
-      onUpdate.handlers(List(at.asUser, at.location, at.username, at.encryptedPassword).map(attrFactory.attrId(_)), calcCanLogin) :::
-      captions.captions(List(at.asUser, at.fullName))(_(at.fullName))
+      onUpdate.handlers(List(at.asUser, at.location, at.username, at.encryptedPassword), Nil)(calcCanLogin) :::
+      captions.captions(at.asUser, at.fullName::Nil)(_(at.fullName))
 }
 

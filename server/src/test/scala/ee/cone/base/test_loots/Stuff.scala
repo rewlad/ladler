@@ -2,6 +2,7 @@ package ee.cone.base.test_loots
 
 
 import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
+import java.util.UUID
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
@@ -134,6 +135,7 @@ class TestComponent(
   asLocalTime: AttrValueType[Option[LocalTime]],
   asDBObj: AttrValueType[Obj],
   asString: AttrValueType[String],
+  asUUID: AttrValueType[Option[UUID]],
   uiStrings: UIStrings,
   mandatory: Mandatory,
   zoneIds: ZoneIds,
@@ -871,9 +873,9 @@ class TestComponent(
 
   private def calcHandlers() =
     inheritAttr(logAt.date, logAt.workDate, findWorkByEntry) :::
-    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop,logAt.workDate).map(attrFactory.attrId(_)), calcWorkDuration) :::
-    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
-    onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn,logAt.confirmedBy).map(attrFactory.attrId(_)), calcConfirmed)
+    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop,logAt.workDate), Nil)(calcWorkDuration) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork), Nil)(calcEntryDuration) :::
+    onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn,logAt.confirmedBy), Nil)(calcConfirmed)
 
   ////
 
@@ -906,6 +908,7 @@ class TestComponent(
 
 
   def handlers =
+    CoHandler(ToUIStringConverter(asUUID,asString))(_⇒"...") ::
     List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
     List(
       logAt.durationTotal, logAt.asConfirmed, logAt.workDuration, logAt.workDate
@@ -919,18 +922,26 @@ class TestComponent(
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
-    uiStrings.captions(List(logAt.asBoat, logAt.boatName))(_(logAt.boatName)) :::
+    uiStrings.captions(logAt.asEntry, Nil)(_⇒"") :::
+    uiStrings.captions(logAt.asWork, Nil)(_⇒"") :::
+    uiStrings.captions(logAt.asBoat, logAt.boatName::Nil)(_(logAt.boatName)) :::
+    CoHandler(AttrCaption(logAt.asEntry))("Entry") ::
+    CoHandler(AttrCaption(logAt.locationOfEntry))("Realm") ::
     CoHandler(AttrCaption(logAt.boat))("Boat") ::
     CoHandler(AttrCaption(logAt.date))("Date") ::
     CoHandler(AttrCaption(logAt.durationTotal))("Total duration, hrs:min") ::
     CoHandler(AttrCaption(logAt.asConfirmed))("Confirmed") ::
     CoHandler(AttrCaption(logAt.confirmedBy))("Confirmed by") ::
     CoHandler(AttrCaption(logAt.confirmedOn))("Confirmed on") ::
+    CoHandler(AttrCaption(logAt.asWork))("Work") ::
+    CoHandler(AttrCaption(logAt.entryOfWork))("Entry") ::
     CoHandler(AttrCaption(logAt.workStart))("Start") ::
     CoHandler(AttrCaption(logAt.workStop))("Stop") ::
     CoHandler(AttrCaption(logAt.workDuration))("Duration, hrs:min") ::
     CoHandler(AttrCaption(logAt.workComment))("Comment") ::
+    CoHandler(AttrCaption(logAt.asBoat))("Boat") ::
     CoHandler(AttrCaption(logAt.boatName))("Name") ::
+    CoHandler(AttrCaption(logAt.locationOfBoat))("Realm") ::
     CoHandler(AttrCaption(logAt.dateFrom))("Date From") ::
     CoHandler(AttrCaption(logAt.dateTo))("Date To") ::
     CoHandler(AttrCaption(logAt.hideConfirmed))("Hide Confirmed") ::
@@ -982,7 +993,8 @@ class FuelingItems(
   onUpdate: OnUpdate,
   attrFactory: AttrFactory,
   dbWrapType: WrapType[ObjId],
-  validationFactory: ValidationFactory
+  validationFactory: ValidationFactory,
+  uiStrings: UIStrings
 )(
   val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
   val times: List[ObjId] = List(at.time00,at.time08,at.time24)
@@ -993,6 +1005,8 @@ class FuelingItems(
       if(objId == at.time08) "08:00" else
       if(objId == at.time24) "24:00" else throw new Exception(s"? $objId")
     ) :::
+    uiStrings.captions(at.asFueling, Nil)(_⇒"") :::
+    CoHandler(AttrCaption(at.asFueling))("Fueling") ::
     CoHandler(AttrCaption(at.meHours))("ME Hours.Min") ::
     CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::
     CoHandler(AttrCaption(at.comment))("Comment") ::

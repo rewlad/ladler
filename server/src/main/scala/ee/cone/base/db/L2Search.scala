@@ -14,7 +14,7 @@ class SearchIndexImpl(
   attrFactory: AttrFactory,
   nodeAttributes: NodeAttrs,
   objIdFactory: ObjIdFactory,
-  onUpdate: OnUpdate
+  onUpdate: OnUpdateImpl
 ) extends SearchIndex {
   private type GetConverter[Value] = ()⇒(Value,ObjId)⇒Array[Byte]
   private def txSelector = handlerLists.single(TxSelectorKey, ()⇒Never())
@@ -56,15 +56,17 @@ class SearchIndexImpl(
       //println(s"set index $labelAttr -- $propAttr -- $on -- ${Hex(key)} -- ${Hex(value)}")
     }
     CoHandler(by)(execute[Value](attrId,getConverter)) ::
-      onUpdate.handlers(by.labelId :: by.propId :: Nil, setter)
+      onUpdate.handlersInner(by.labelId :: by.propId :: Nil, Nil, setter)
   }
 }
 
-class OnUpdateImpl(factIndex: FactIndex) extends OnUpdate {
-  def handlers(attrIds: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit) = {
+class OnUpdateImpl(attrFactory: AttrFactory, factIndex: FactIndex) extends OnUpdate {
+  def handlers(need: List[Attr[_]], optional: List[Attr[_]])(invoke: (Boolean,Obj) ⇒ Unit) =
+    handlersInner(need.map(attrFactory.attrId(_)), optional.map(attrFactory.attrId(_)), invoke)
+  def handlersInner(needAttrIds: List[ObjId], optionalAttrIds: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit) = {
     def setter(on: Boolean)(node: Obj) =
-      if (attrIds.forall(attrId⇒node(factIndex.defined(attrId)))) invoke(on, node)
-    attrIds.flatMap{ a => List(
+      if (needAttrIds.forall(attrId⇒node(factIndex.defined(attrId)))) invoke(on, node)
+    (needAttrIds:::optionalAttrIds).flatMap{ a => List(
       CoHandler(BeforeUpdate(a))(setter(on=false)),
       CoHandler(AfterUpdate(a))(setter(on=true))
     )}

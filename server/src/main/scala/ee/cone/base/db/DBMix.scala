@@ -43,7 +43,7 @@ trait DBConnectionMix extends CoMixBase {
   lazy val zeroNode = ObjIdImpl(0L,0L)
   lazy val factIndex =
     new FactIndexImpl(rawConverter, dbObjIdValueConverter, rawVisitor, handlerLists, nodeAttrs, attrFactory, objIdFactory, zeroNode, asDefined, dbWrapType)
-  lazy val onUpdate = new OnUpdateImpl(factIndex)
+  lazy val onUpdate = new OnUpdateImpl(attrFactory,factIndex)
   lazy val searchIndex =
     new SearchIndexImpl(handlerLists, rawConverter, dbObjIdValueConverter, rawVisitor, attrFactory, nodeAttrs, objIdFactory, onUpdate)
 
@@ -75,7 +75,7 @@ trait DBConnectionMix extends CoMixBase {
     new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,findAttrs,factIndex,handlerLists,findNodes,instantTx,mainTx,searchIndex,mandatory)()
 
   lazy val uiStringAttributes = new UIStringAttributes(attrFactory, asString)()
-  lazy val uiStrings = new UIStringsImpl(uiStringAttributes, findAttrs, handlerLists, attrFactory, factIndex, onUpdate, findNodes, asDBObj, asDBObjId, asString)
+  lazy val uiStrings = new UIStringsImpl(uiStringAttributes, nodeAttrs, handlerLists, objIdFactory, attrFactory, factIndex, onUpdate, findNodes, asDBObj, asDBObjId, asString)
 
   lazy val transient = new TransientImpl(handlerLists, attrFactory, dbWrapType)
 

@@ -62,7 +62,8 @@ case class BeforeUpdate(attrId: ObjId) extends EventKey[Obj=>Unit]
 case class AfterUpdate(attrId: ObjId) extends EventKey[Obj=>Unit]
 trait OnUpdate {
   //invoke will be called before and after update if all attrs are defined
-  def handlers(definedAttrs: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
+  def handlers(need: List[Attr[_]], optional: List[Attr[_]])(invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
+  //def handlers(needAttrIds: List[ObjId], optionalAttrIds: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit): List[BaseCoHandler]
 }
 case class ToRawValueConverter[Value](valueType: AttrValueType[Value])
   extends EventKey[RawValueConverter[Value]]
