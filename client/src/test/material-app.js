@@ -45,6 +45,8 @@ import MaterialChip      from '../main/material-chip'
 import Calendar          from 'material-ui/lib/date-picker/calendar'
 import Clock             from 'material-ui/lib/time-picker/clock'
 import injectTapEventPlugin from "react-tap-event-plugin"
+import Helmet            from 'react-helmet'
+import SnackBar          from 'material-ui/lib/snackbar'
 injectTapEventPlugin()
 function fixOnScrollBug(){
     document.body.style.overflowY="scroll"
@@ -286,7 +288,7 @@ class IconButtonEx extends React.Component{
             onMouseEnter:this.handleMouseEnter,
             onMouseLeave:this.handleMouseLeave,
         }
-        console.log(props)
+        //console.log(props)
         return React.createElement(IconButton,props,this.props.children)
     }
 }
@@ -376,8 +378,9 @@ class CrazyClock extends React.Component{
 
     render(){
         const initialTime=new Date()
-        if(this.props.initialDate){
-            const hm=this.props.initialDate.split(":")
+        //console.log(this.props)
+        if(this.props.initialTime){
+            const hm=this.props.initialTime.split(":")
             initialTime.setHours(parseInt(hm[0]))
             initialTime.setMinutes(parseInt(hm[1]))
         }
@@ -462,7 +465,7 @@ const tp = ({
     IconActionRestore,IconContentSave,CrazyCalendar,CrazyClock,
     /*IconMenuButton,MenuItem,*/IconNavigationMenu,CursorOver,
     IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess,
-    IconActionSchedule, IconNavigationClose
+    IconActionSchedule, IconNavigationClose, Helmet, SnackBar
     // DecimalInput
 })
 

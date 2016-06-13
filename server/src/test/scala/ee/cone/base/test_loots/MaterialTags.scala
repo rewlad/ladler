@@ -609,6 +609,37 @@ case class ClockDialog(time:String)(val onChange:Option[(String)=>Unit]) extends
   }
 }
 
+case class Helmet(title:String,addViewPort:Boolean) extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("Helmet")
+    builder.append("title").append(title)
+    builder.append("style").startArray().startObject()
+      builder.append("cssText").append("::-ms-clear {display: none;} ::-ms-reveal {display: none;}")
+    builder.end().end()
+    if(addViewPort) {
+      builder.append("meta").startArray().startObject()
+        builder.append("name").append("viewport")
+        builder.append("content").append("width=device-width, initial-scale=1")
+      builder.end().end()
+    }
+    builder.end()
+  }
+}
+
+case class SnackBar(message:String,actionLabel:String)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("SnackBar")
+    builder.append("onClick").append("send")
+    builder.append("open").append(if(message.nonEmpty) true else false)
+    builder.append("message").append(message)
+    if(actionLabel.nonEmpty)
+      builder.append("action").append(actionLabel)
+    builder.end()
+  }
+}
+
 trait OfTable
 trait OfTableRow
 
@@ -819,5 +850,10 @@ class MaterialTags(
   def withZIndex(key:VDomKey,zIndex:Int,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivZIndex(zIndex),theChild.toList)
   */
+
+  def helmet(title:String,addViewPort:Boolean = true)=
+    child[OfDiv]("helmet",Helmet(title,addViewPort),Nil)
+  def notification(message:String, actionLabel:String = "")(action:()=>Unit) =
+    child[OfDiv]("notification",SnackBar(message,actionLabel)(Some(action)),Nil)
 }
 
