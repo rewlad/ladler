@@ -454,6 +454,52 @@ class DecimalInput extends React.Component{
 
 */
 
+class SnackBarEx extends React.Component{
+    constructor(props){
+        super(props)
+
+        this.handleRequestClose=this.handleRequestClose.bind(this)
+    }
+    handleRequestClose(){
+
+        if(this.props.onRequestClose) this.props.onRequestClose()
+    }
+
+    render(){
+        const props={
+            key:this.props.key,
+            onKeyDown:this.handleKeyDown,
+            open:this.props.open,
+            message:this.props.message,
+            onRequestClose:this.handleRequestClose,
+            action:this.props.action
+        }
+        return React.createElement(SnackBar,props)
+    }
+}
+
+class KeyboardReceiver extends React.Component{
+    constructor(props){
+        super(props)
+        this.handleKeyDown=this.handleKeyDown.bind(this)
+    }
+    handleKeyDown(e){
+        if(this.props.send){
+            e.target.value=e.keyCode
+            this.props.onChange(e)
+        }
+    }
+    componentWillMount(){
+        document.addEventListener("keydown",this.handleKeyDown)
+    }
+    componentWillUnmount(){
+        document.removeEventListener("keydown",this.handleKeyDown)
+    }
+    render(){
+        return React.createElement("div",{key:"keyboardListener"})
+    }
+}
+
 const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
@@ -465,7 +511,7 @@ const tp = ({
     IconActionRestore,IconContentSave,CrazyCalendar,CrazyClock,
     /*IconMenuButton,MenuItem,*/IconNavigationMenu,CursorOver,
     IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess,
-    IconActionSchedule, IconNavigationClose, Helmet, SnackBar
+    IconActionSchedule, IconNavigationClose, Helmet, SnackBarEx,KeyboardReceiver
     // DecimalInput
 })
 

@@ -98,6 +98,40 @@ class DataTablesState(currentVDom: CurrentVDom){
   }
 }
 
+
+class ErrorAttributes(
+                       attr: AttrFactory,
+                       label: LabelFactory,
+                       asObj: AttrValueType[Obj],
+                       asString: AttrValueType[String]
+                     )
+(
+val asError: Attr[Obj] = label("40eed80a-f249-4e59-9193-2b27dffd8d6e"),
+val errorMsg: Attr[String] = attr("946913bd-e644-4ff0-8aa1-75ff95e6e7d9", asString),
+val error: Attr[Obj] = attr("9dbb1e0f-523f-4e7b-b524-6dfd7a12a681", asObj),
+val view: Attr[String] = attr("14976902-8ea2-4576-94d7-76f55a5ecdf2",asString)
+)
+
+class Errors(
+              at: ErrorAttributes, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAccessAttrs,
+              handlerLists: CoHandlerLists, attrFactory: AttrFactory,
+              factIndex: FactIndex, searchIndex: SearchIndex,
+              findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
+              alien: Alien
+            )
+(
+  val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asError, at.error),
+  val findByView: SearchByLabelProp[String]= searchIndex.create(at.asError,at.view)
+) extends CoHandlerProvider{
+  def handlers =
+    CoHandler(AttrCaption(at.error))("Error") ::
+    CoHandler(AttrCaption(at.view))("View") ::
+    List(findAll,findByView).flatMap(searchIndex.handlers(_)):::
+      List(at.asError,at.errorMsg,at.error,at.view).flatMap{ attr⇒
+        factIndex.handlers(attr) ::: alien.update(attr)
+      }
+}
+
 ///////
 
 class TestComponent(
@@ -135,7 +169,9 @@ class TestComponent(
   asDBObj: AttrValueType[Obj],
   asString: AttrValueType[String],
   uiStrings: UIStrings,
-  mandatory: Mandatory
+  mandatory: Mandatory,
+  errorAttributes: ErrorAttributes,
+  errors: Errors
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -147,6 +183,8 @@ class TestComponent(
   import htmlTable._
   import findAttrs.nonEmpty
   import uiStrings.caption
+
+
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
   private def getValidationKey[Value](obj: Obj, attr: Attr[Value]): ValidationKey = {
@@ -463,6 +501,27 @@ class TestComponent(
       item(filterAttrs.isExpanded) = true
     }
 
+
+  private def notificationViewMsg(view:String,show:Boolean=true):List[ChildPair[OfDiv]]=
+  {
+    //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
+    val filterObj = filters.filterObj(List(attrFactory.attrId(errorAttributes.asError)))
+    /*val filterList: List[Obj⇒Boolean] =
+      List((obj:Obj)=>{obj(errorAttributes.view)==view})*/
+     val itemList = filters.itemList(errors.findAll,users.world,filterObj,Nil,true)
+      //println(itemList2.length,itemList.list.length)
+    if(itemList.list.nonEmpty)
+      notification(itemList.list.last(errorAttributes.errorMsg),show=show)(()=>{}) ::Nil
+    else
+      Nil
+  }
+  var showError=true
+  private def errorNotification=
+    keyboardReceiver()(if(showError) Some(x=>{
+      if(x=="27") showError=false
+    }) else None)::
+    notificationViewMsg("Entry List",showError)
+
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asEntry)))
@@ -484,8 +543,8 @@ class TestComponent(
     val itemList = filters.itemList(findEntry,users.world,filterObj,filterList,editable)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
+    errorNotification:::
     List( //class LootsBoatLogList
-      notification("hello")(()=>{}),
       helmet("Entry List"),
       toolbar("Entry List"),
       withMaxWidth("1",2056,List(paperTable("dtTableList2")(
@@ -717,21 +776,24 @@ class TestComponent(
   }
 
   private def errorListView(pf: String) = wrapDBView{ () => //todo: replace with actual errors
-    val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
-    val itemList = filters.itemList[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
+    val filterObj = filters.filterObj(List(attrFactory.attrId(errorAttributes.asError)))
+    val itemList = filters.itemList[Obj](errors.findAll, users.world, filterObj, Nil, editable=true) //todo roles
+    //println(itemList.list.length)
     List(
       helmet("Errors"),
       toolbar("Errors"),
-      withMaxWidth("maxWidth",600,
+      withMaxWidth("maxWidth",800,
         paperTable("table")(
-          controlPanel(inset = false)(Nil, removeControlView(itemList)),
+          controlPanel(inset = false)(Nil, addRemoveControlView(itemList)),
           List(
             row("head",List(IsHeader))(
               selectAllGroup(itemList) :::
               List(
                 group("2_group",MinWidth(50)),
-                mCell("1",250)(_⇒text("1","Error")::Nil) //todo: sortingHeader for errors
-              )
+                mCell("1",250)(_⇒sortingHeader(itemList,errorAttributes.error)), //todo: sortingHeader for errors
+                mCell("2",250)(_⇒sortingHeader(itemList,errorAttributes.view)) //todo: sortingHeader for errors
+              ):::
+                editAllGroup()
             )
           ) :::
             itemList.list.map{error ⇒
@@ -740,8 +802,9 @@ class TestComponent(
                 selectRowGroup(error) :::
                 List(
                   group("2_group",MinWidth(50)),
-                  mCell("1",250)(showLabel⇒strField(error, logAt.boatName, showLabel))
-                )
+                  mCell("1",250)(showLabel⇒strField(error, errorAttributes.errorMsg, showLabel = false)),
+                  mCell("2",250)(showLabel⇒strField(error, errorAttributes.view, showLabel = false))
+                )::: editRowGroup(itemList, error)
               )
             }
         )::Nil)

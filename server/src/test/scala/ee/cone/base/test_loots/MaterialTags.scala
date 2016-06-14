@@ -627,17 +627,30 @@ case class Helmet(title:String,addViewPort:Boolean) extends VDomValue{
   }
 }
 
-case class SnackBar(message:String,actionLabel:String)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
+case class SnackBar(message:String,actionLabel:String,show:Boolean)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
-    builder.append("tp").append("SnackBar")
-    builder.append("onClick").append("send")
-    builder.append("open").append(if(message.nonEmpty) true else false)
+    builder.append("tp").append("SnackBarEx")
+    //builder.append("onClick").append("send")
+    builder.append("open").append(show)
     builder.append("message").append(message)
     if(actionLabel.nonEmpty)
       builder.append("action").append(actionLabel)
     builder.end()
   }
+}
+
+case class KeyboardReceiver(shouldSend:Boolean)(val onChange:Option[String=>Unit]) extends VDomValue with OnChangeReceiver{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("KeyboardReceiver")
+
+      builder.append("send").append(shouldSend)
+      builder.append("onChange").append("send")
+
+    builder.end()
+  }
+
 }
 
 trait OfTable
@@ -853,7 +866,9 @@ class MaterialTags(
 
   def helmet(title:String,addViewPort:Boolean = true)=
     child[OfDiv]("helmet",Helmet(title,addViewPort),Nil)
-  def notification(message:String, actionLabel:String = "")(action:()=>Unit) =
-    child[OfDiv]("notification",SnackBar(message,actionLabel)(Some(action)),Nil)
+  def notification(message:String, actionLabel:String = "",show:Boolean=true)(action:()=>Unit) =
+    child[OfDiv]("notification",SnackBar(message,actionLabel,show)(Some(action)),Nil)
+  def keyboardReceiver()(action:Option[String=>Unit]=None)=
+    child[OfDiv]("keyboardReceiver",KeyboardReceiver(if(action.nonEmpty) true else false)(action),Nil)
 }
 
