@@ -517,7 +517,7 @@ class TestComponent(
   }
   var showError=true
   private def errorNotification=
-    keyboardReceiver()(if(showError) Some(x=>{
+    keyboardReceiver(EscKeyCode)(if(showError) Some(x=>{
       if(x=="27") showError=false
     }) else None)::
     notificationViewMsg("Entry List",showError)

@@ -485,6 +485,7 @@ class KeyboardReceiver extends React.Component{
     }
     handleKeyDown(e){
         if(this.props.send){
+            if(e.keyCode!=this.props.keyCode) return
             e.target.value=e.keyCode
             this.props.onChange(e)
         }

@@ -12,6 +12,10 @@ case object RequiredValidationKey extends ValidationKey
 case object ErrorValidationKey extends ValidationKey
 case object DefaultValidationKey extends ValidationKey
 
+sealed trait KeyboardKeyCode
+case object EscKeyCode extends KeyboardKeyCode
+
+
 case class Paper() extends VDomValue {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
@@ -640,11 +644,11 @@ case class SnackBar(message:String,actionLabel:String,show:Boolean)(val onClick:
   }
 }
 
-case class KeyboardReceiver(shouldSend:Boolean)(val onChange:Option[String=>Unit]) extends VDomValue with OnChangeReceiver{
+case class KeyboardReceiver(keyCode:String,shouldSend:Boolean)(val onChange:Option[String=>Unit]) extends VDomValue with OnChangeReceiver{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("KeyboardReceiver")
-
+      builder.append("keyCode").append(keyCode)
       builder.append("send").append(shouldSend)
       builder.append("onChange").append("send")
 
@@ -868,7 +872,12 @@ class MaterialTags(
     child[OfDiv]("helmet",Helmet(title,addViewPort),Nil)
   def notification(message:String, actionLabel:String = "",show:Boolean=true)(action:()=>Unit) =
     child[OfDiv]("notification",SnackBar(message,actionLabel,show)(Some(action)),Nil)
-  def keyboardReceiver()(action:Option[String=>Unit]=None)=
-    child[OfDiv]("keyboardReceiver",KeyboardReceiver(if(action.nonEmpty) true else false)(action),Nil)
+  def keyboardReceiver(keyboardKeyCode: KeyboardKeyCode)(action:Option[String=>Unit]=None)= {
+    val keyCode = keyboardKeyCode match{
+      case EscKeyCode => "27"
+      case _=>""
+    }
+    child[OfDiv]("keyboardReceiver", KeyboardReceiver(keyCode: String, if (action.nonEmpty) true else false)(action), Nil)
+  }
 }
 
