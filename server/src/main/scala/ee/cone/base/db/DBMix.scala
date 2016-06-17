@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import java.time.{Duration, Instant, LocalTime}
 import java.util.UUID
 import java.util.concurrent.ExecutorService
 
@@ -52,17 +53,22 @@ trait DBConnectionMix extends CoMixBase {
   lazy val mainTx = new CurrentTxImpl[MainEnvKey](dbAppMix.mainDB)
   lazy val txSelector = new TxSelectorImpl(nodeAttrs, instantTx, mainTx)
 
-  lazy val asString = AttrValueType[String](objIdFactory.toObjId("1e94f9bc-a34d-4fab-8a01-eb3dd98795d2"))
-  lazy val findAttrs = new FindAttrsImpl(attrFactory,asDefined,asString)()
+  lazy val findAttrs = new FindAttrsImpl(attrFactory,asDefined)()
   lazy val findNodes = new FindNodesImpl(findAttrs, handlerLists, nodeAttrs, noObj, attrFactory, objIdFactory, dbObjIdValueConverter, dbWrapType)()
 
   lazy val preCommitCheckCheckAll = new PreCommitCheckAllOfConnectionImpl(txSelector)
   lazy val mandatory = new MandatoryImpl(attrFactory, factIndex, preCommitCheckCheckAll)
   lazy val unique = new UniqueImpl(attrFactory, factIndex, txSelector, preCommitCheckCheckAll, searchIndex, findNodes)
 
+  lazy val asString = AttrValueType[String](objIdFactory.toObjId("1e94f9bc-a34d-4fab-8a01-eb3dd98795d2"))
   lazy val asDBObj = AttrValueType[Obj](objIdFactory.toObjId("275701ec-cb9b-4474-82e6-69f2e1f28c87"))
   lazy val asUUID = AttrValueType[Option[UUID]](objIdFactory.toObjId("13c5769d-f120-4a1a-9fce-c56df8835f08"))
   lazy val asBoolean = AttrValueType[Boolean](objIdFactory.toObjId("fa03f6f1-90ef-460d-a4dd-2279269a4d79"))
+  lazy val asBigDecimal = new AttrValueType[Option[BigDecimal]](objIdFactory.toObjId("4d5894bc-e913-4d90-8b7f-32bd1d3893ea"))
+  lazy val asInstant = AttrValueType[Option[Instant]](objIdFactory.toObjId("ce152d2d-d783-439f-a21b-e175663f2650"))
+  lazy val asDuration = AttrValueType[Option[Duration]](objIdFactory.toObjId("356068df-ac9d-44cf-871b-036fa0ac05ad"))
+  lazy val asLocalTime = AttrValueType[Option[LocalTime]](objIdFactory.toObjId("8489d9a9-37ec-4206-be73-89287d0282e3"))
+
   lazy val labelFactory = new LabelFactoryImpl(attrFactory,asDBObj)
 
   lazy val instantTxManager =
@@ -89,6 +95,13 @@ trait DBConnectionMix extends CoMixBase {
   lazy val dbObjValueConverter = new DBObjValueConverter(asDBObj,dbObjIdValueConverter,findNodes,nodeAttrs)
   lazy val uuidValueConverter = new UUIDValueConverter(asUUID,rawConverter)
   lazy val stringValueConverter = new StringValueConverter(asString,rawConverter)
+  lazy val bigDecimalValueConverter = new BigDecimalValueConverter(asBigDecimal,rawConverter,asString)
+  lazy val zoneIds = new ZoneIds
+  lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter,asString,zoneIds)
+  lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter,asString)
+  lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter,asString)
+
+
 }
 
 trait MergerDBConnectionMix extends DBConnectionMix {

@@ -1,22 +1,12 @@
-package ee.cone.base.test_loots
+package ee.cone.base.db
 
-import java.time.{LocalTime, Instant}
-import javax.xml.datatype.Duration
-import ee.cone.base.connection_api._
-import ee.cone.base.db._
-
-//case class OrderByAttr(attrId: ObjId) extends EventKey[Option[Ordering[Obj]]]
+import ee.cone.base.connection_api.{Attr, CoHandlerProvider, Obj}
 
 final class CompositeOrdering[T](ordA: Ordering[T], ordB: Ordering[T]) extends Ordering[T] {
   def compare(a: T, b: T) = {
     val comp = ordA.compare(a, b)
     if(comp != 0) comp else ordB.compare(a, b)
   }
-}
-
-trait ItemListOrdering {
-  def compose(defaultOrdering: Ordering[Obj]): Ordering[Obj]
-  def action(attr: Attr[_]): (Option[()⇒Unit],Option[Boolean])
 }
 
 class ItemListOrderingAttributes(
@@ -29,15 +19,15 @@ class ItemListOrderingAttributes(
   val orderDirection: Attr[Boolean] = attr("ae1bee8e-828d-42d6-a3ca-36f146549c6a", asBoolean)
 )
 
-class ItemListOrderingFactory(
+class ItemListOrderingFactoryImpl(
   at: ItemListOrderingAttributes,
   uIStringAttributes: UIStringAttributes,
   attrFactory: AttrFactory,
   factIndex: FactIndex,
   alien: Alien,
   orderingFactory:  ObjOrderingFactory
-) extends CoHandlerProvider {
-  def itemList(filterObj: Obj): ItemListOrdering = {
+) extends ItemListOrderingFactory with CoHandlerProvider {
+  def itemList(filterObj: Obj) = {
     val orderByAttrValueTypeId = filterObj(at.orderByAttrValueTypeId)
     val orderByAttrId = filterObj(at.orderByAttrId)
     val direction = filterObj(at.orderDirection)
@@ -70,44 +60,4 @@ class ItemListOrderingFactory(
   ).flatMap{ attr ⇒
     factIndex.handlers(attr) ::: alien.update(attr)
   }
-}
-
-////
-
-class ObjOrderingForAttrValueTypes(
-    objOrderingFactory: ObjOrderingFactory,
-    asBoolean: AttrValueType[Boolean],
-    asString: AttrValueType[String],
-    asObj: AttrValueType[Obj],
-    asInstant: AttrValueType[Option[Instant]],
-    asLocalTime: AttrValueType[Option[LocalTime]],
-    asBigDecimal: AttrValueType[Option[BigDecimal]],
-    uiStrings: UIStrings
-) extends CoHandlerProvider {
-  def handlers =
-    objOrderingFactory.handlers(asBoolean) :::
-    objOrderingFactory.handlers(asString) :::
-    objOrderingFactory.handlers(asObj)(Ordering.by(obj⇒uiStrings.converter(asObj,asString)(obj))) :::
-    objOrderingFactory.handlers(asInstant) :::
-    objOrderingFactory.handlers(asLocalTime) :::
-    objOrderingFactory.handlers(asBigDecimal)
-}
-
-////
-
-case class OrderByAttrValueType[Value](asType: AttrValueType[Value]) extends EventKey[Option[Ordering[Value]]]
-
-class ObjOrderingFactory(
-    handlerLists: CoHandlerLists,
-    attrFactory: AttrFactory
-) {
-  def ordering[Value](attr: Attr[Value], reverse: Boolean): Option[Ordering[Obj]] = {
-    val orderingForType = ordering(attrFactory.valueType(attr))
-    orderingForType.map(ord⇒Ordering.by[Obj,Value](_(attr))(ord))
-      .map(o⇒if(reverse) o.reverse else o)
-  }
-  def ordering[Value](valueType: AttrValueType[Value]): Option[Ordering[Value]] =
-    handlerLists.single(OrderByAttrValueType(valueType), ()⇒None)
-  def handlers[Value](asType: AttrValueType[Value])(implicit ord: Ordering[Value]): List[BaseCoHandler] =
-    List(CoHandler(OrderByAttrValueType(asType))(Some(ord)))
 }

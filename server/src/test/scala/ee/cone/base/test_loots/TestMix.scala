@@ -31,10 +31,8 @@ class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
 }
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
-  lazy val asInstant = AttrValueType[Option[Instant]](objIdFactory.toObjId("ce152d2d-d783-439f-a21b-e175663f2650"))
-  lazy val asDuration = AttrValueType[Option[Duration]](objIdFactory.toObjId("356068df-ac9d-44cf-871b-036fa0ac05ad"))
-  lazy val asLocalTime = AttrValueType[Option[LocalTime]](objIdFactory.toObjId("8489d9a9-37ec-4206-be73-89287d0282e3"))
-  lazy val asBigDecimal = new AttrValueType[Option[BigDecimal]](objIdFactory.toObjId("4d5894bc-e913-4d90-8b7f-32bd1d3893ea"))
+
+
   lazy val logAttributes = new BoatLogEntryAttributes(
     attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()
@@ -42,6 +40,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
   lazy val asObjIdSet = AttrValueType[Set[ObjId]](objIdFactory.toObjId("ca3fd9c9-870f-4604-8fe2-a6ae98b37c29"))
+  lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
   lazy val listedWrapType = new ListedWrapType
   lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asBoolean, asDBObjId, asObjIdSet, asInstant)()
   lazy val filters = new Filters(filterAttrs,nodeAttrs,findAttrs,alienAttrs,handlerLists,attrFactory,findNodes,mainTx,alien,listedWrapType,factIndex,searchIndex,transient,objIdFactory)()
@@ -65,16 +64,10 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings
   )()
 
-  lazy val zoneIds = new ZoneIds
-  lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter,asString,zoneIds)
-
   lazy val errorAttrs=new ErrorAttributes(attrFactory,labelFactory,asDBObj,asString,asBoolean)()
   lazy val errors = new Errors(errorAttrs,factIndex,searchIndex,alien,users,findNodes,filters)()
   //
-  lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter,asString)
-  lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter,asString)
-  lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
-  lazy val bigDecimalValueConverter = new BigDecimalValueConverter(asBigDecimal,rawConverter,asString)
+
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, filterAttrs, logAttributes, userAttrs,
     fuelingAttrs, alienAttrs, validationAttributes,

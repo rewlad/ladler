@@ -1,7 +1,6 @@
-package ee.cone.base.test_loots
+package ee.cone.base.db
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db._
 
 case class ValidationState(objId: ObjId, attrId: ObjId, isError: Boolean, text: String)
 
@@ -20,7 +19,8 @@ class ValidationAttributes(
 
 class ValidationWrapType extends WrapType[ObjValidation]
 
-class ValidationFactory(
+
+class ValidationFactoryImpl(
   at: ValidationAttributes,
   nodeAttrs: NodeAttrs, attrFactory: AttrFactory,
   dbWrapType: WrapType[ObjId],
@@ -30,8 +30,8 @@ class ValidationFactory(
   val noObjValidation: ObjValidation = new ObjValidation {
     def get[Value](attr: Attr[Value]) = Nil
   }
-) extends CoHandlerProvider {
-  def context(stateList: List[ValidationState]): ValidationContext = {
+) extends ValidationFactory with CoHandlerProvider {
+  def context(stateList: List[ValidationState]) = {
     val stateMap = stateList.groupBy(_.objId).mapValues { states ⇒
       val values = states.groupBy(_.attrId)
       new ObjValidation {

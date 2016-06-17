@@ -1,9 +1,5 @@
 package ee.cone.base.test_loots
 
-import java.time._
-
-import ee.cone.base.connection_api.DictMessage
-import ee.cone.base.db.{AttrValueType, UIStrings}
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
 
@@ -36,77 +32,6 @@ case class InsetPaper() extends VDomValue{
       builder.append("borderRadius").append("2px")
       builder.append("boxShadow").append("0px 1px 6px rgba(0, 0, 0, 0.12) inset, 0px 1px 4px rgba(0, 0, 0, 0.12) inset")
     builder.end()
-    builder.end()
-  }
-}
-
-case class Table() extends VDomValue {
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-    builder.append("tp").append("table")
-    builder.append("style"); {
-      builder.startObject()
-      builder.append("borderCollapse").append("collapse")
-      builder.end()
-    }
-    /*
-    builder.append("tp").append("Table")
-    //builder.append("fixedHeader").append(false)
-    builder.append("displayRowCheckbox").append(false) //try
-    */
-    builder.end()
-  }
-}
-
-case class TableHeader() extends VDomValue {
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-    builder.append("tp").append("thead")
-    /*
-    builder.append("tp").append("TableHeader")
-    builder.append("adjustForCheckbox").append(true) //for indent
-    builder.append("displaySelectAll").append(false)
-    */
-    builder.end()
-  }
-}
-
-case class TableBody() extends VDomValue {
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-    builder.append("tp").append("tbody")
-    /*
-    builder.append("tp").append("TableBody")
-    builder.append("displayRowCheckbox").append(true) //try
-    */
-    builder.end()
-  }
-}
-
-case class TableRow() extends VDomValue {
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-    //builder.append("tp").append("TableRow") // selectable -- checkbox enabled
-    builder.append("tp").append("tr")
-    builder.end()
-  }
-}
-
-case class TableColumn(isHead: Boolean, isRight: Boolean, colSpan: Int, isUnderline: Boolean)(
-    val onClick: Option[()⇒Unit]
-) extends VDomValue with OnClickReceiver {
-  def appendJson(builder: JsonBuilder) = {
-    builder.startObject()
-    //builder.append("tp").append(if(isHead) "TableHeaderColumn" else "TableRowColumn")
-    builder.append("tp").append(if(isHead) "th" else "td")
-    onClick.foreach(_⇒ builder.append("onClick").append("send"))
-    if(colSpan != 1) builder.append("colSpan").append(colSpan.toString) //may be append int or transform
-    builder.append("style"); {
-      builder.startObject()
-      builder.append("textAlign").append(if(isRight) "right" else "left")
-      if(isUnderline) builder.append("borderBottom").append("1px solid silver")
-      builder.end()
-    }
     builder.end()
   }
 }
@@ -255,33 +180,12 @@ case class PaddingSideWrapper(value:Int) extends VDomValue{
     builder.end()
   }
 }
-case class DivMaxHeightWrapper() extends VDomValue{
-  def appendJson(builder:JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        builder.append("height").append("100%")
-      builder.end()
-    builder.end()
-  }
-}
+
 case class DivSimpleWrapper() extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("div")
     builder.end()
-  }
-}
-
-case class DivOverflowHidden() extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-    builder.append("tp").append("div")
-    builder.append("style").startObject()
-    builder.append("overflow").append("hidden")
-    builder.end()
-    builder.end()
-
   }
 }
 
@@ -317,13 +221,6 @@ case class DivHeightWrapper(height:Int) extends VDomValue{
     builder.append("style").startObject()
       builder.append("height").append(s"${height}px")
     builder.end()
-    builder.end()
-  }
-}
-case class DivEmpty() extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("div")
     builder.end()
   }
 }
@@ -445,26 +342,7 @@ case class MaterialChip(text:String)(val onClick:Option[()=>Unit]) extends VDomV
     builder.end()
   }
 }
-/*
-case class SelectField(label:String,showDrop:Boolean)(onFocus:(Boolean)=>()=>Unit) extends VDomValue with
-  OnBlurReceiver with OnClickReceiver with OnChangeReceiver{
 
-  def onClick()=Option(onFocus(true))
-  def onBlur=Option(onFocus(false))
-  def onChange=Option((x)=>{println(x+"change")})
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("SelectField")
-      builder.append("onChange").append("send")
-      builder.append("onBlur").append("blur")
-      builder.append("onClick").append("send")
-      builder.append("showDrop").append(showDrop)
-      builder.append("label").append(label)
-    builder.end()
-
-  }
-}
-*/
 case class FieldPopupDrop(opened:Boolean,maxHeight:Option[Int]=None) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -486,29 +364,7 @@ case class FieldPopupBox() extends VDomValue{
 
   }
 }
-/*
-case class IconMenu(opened:Boolean)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-    builder.append("tp").append("IconMenuButton")
-    builder.append("open").append(opened)
-    builder.append("onRequestChange").append("reqChange")
-    onClick.foreach(_⇒ builder.append("onClick").append("send"))
-    builder.end()
-  }
-}
-case class MenuItem(key:VDomKey,text:String)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-    builder.append("tp").append("MenuItem")
-    builder.append("primaryText").append(text)
-    builder.append("value").append(key.toString)
-    onClick.foreach(_⇒ builder.append("onClick").append("send"))
-    builder.end()
-  }
 
-}
-*/
 case class DivPositionWrapper(display:Option[String] = None,
                               width:Option[String] = None,
                               position:Option[String] = None,
@@ -540,48 +396,12 @@ case class DivBgColorHover(color:Color) extends VDomValue{
     builder.end()
   }
 }
-/*
-case class DivZIndex(zIndex:Int) extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-    builder.append("tp").append("div")
-    builder.append("style").startObject()
-      builder.append("position").append("relative")
-      builder.append("zIndex").append(s"$zIndex")
-    builder.end()
-    builder.end()
-  }
-}*/
-case class DivBgColor(color:Color) extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-    builder.append("tp").append("div")
-    builder.append("style").startObject()
-    builder.append("backgroundColor").append(color.color)
-    builder.end()
-    builder.end()
-  }
-}
+
 trait Color{
   def color:String
 }
-case object MenuItemHoverColor extends Color{
-  def color="rgba(0,0,0,0.1)"
-}
-case object ControlPanelColor extends Color{
-  def color="rgba(0,0,0,0.1)"
-}
-case object AlertTextColor extends Color {
-  def color="#f44336"
-}
-
-
-  /*
-//todo: DateField, SelectField
-//todo: Helmet, tap-event, StickyToolbars
-//todo: port: import MaterialChip      from './material-chip'   !!!Done
-
-*/
+case object MenuItemHoverColor extends Color { def color="rgba(0,0,0,0.1)" }
+case object AlertTextColor extends Color { def color="#f44336" }
 
 case class CalendarDialog(date:String)(val onChange:Option[(String)=>Unit]) extends VDomValue with OnChangeReceiver{
   def appendJson(builder: JsonBuilder)={
@@ -661,9 +481,6 @@ case class KeyboardReceiver(keyCode: KeyboardKeyCode)(change:()=>Unit) extends V
   }
 }
 
-trait OfTable
-trait OfTableRow
-
 class MaterialTags(
   child: ChildPairFactory, inputAttributes: InputAttributes, tags: Tags
 ) {
@@ -705,21 +522,6 @@ class MaterialTags(
       ):_*
     )
 
-  /*
-  def table(key: VDomKey, head: List[ChildPair[OfTable]], body: List[ChildPair[OfTable]]) =
-    child[OfDiv](key, Table(),
-      child("head",TableHeader(), head) ::
-      child("body",TableBody(), body) :: Nil
-    )
-  def row(key: VDomKey, children: ChildPair[OfTableRow]*) =
-    child[OfTable](key, TableRow(), children.toList)
-  def cell(key: VDomKey, isHead: Boolean=false, isRight: Boolean=false, colSpan: Int=1, isUnderline: Boolean=false)(children: List[ChildPair[OfDiv]]=Nil, action: Option[()⇒Unit]=None) =
-    child[OfTableRow](key, TableColumn(isHead, isRight, colSpan, isUnderline)(action), children)
-*/
-  //def iconMenu(key: VDomKey,opened:Boolean)(action:()=>Unit,theChild:ChildPair[OfDiv]*)=
-  //  child[OfDiv](key,IconMenu(opened)(Some(action)),theChild.toList)
-  //def menuItem(key: VDomKey,text:String)(action:()=>Unit)=
-  //  child[OfDiv](key,MenuItem(key,text)(Some(action)),Nil)
   private def iconButton(key: VDomKey, tooltip: String, picture: String, action: ()=>Unit) =
     child[OfDiv](key,
       IconButton(tooltip)(Some(action)),
@@ -737,14 +539,17 @@ class MaterialTags(
     child[OfDiv]("icon",SVGIcon("IconNavigationDropUp",verticalAlign = Some(VerticalAlignMiddle)),Nil)
   //def btnViewList(key:VDomKey, action: ()=>Unit) =
   //  iconButton(key,"view list","IconActionViewList",action)
+  //def btnFilterList(key: VDomKey, action: ()=>Unit) =
+  //  iconButton(key,"filters","IconContentFilterList",action)
+  //def btnClear(key: VDomKey, action: ()=>Unit) =
+  //  iconButton(key,"clear sorting","IconContentClear",action)
+
   def btnSave(key:VDomKey, action: ()=>Unit) =
     iconButton(key,"save","IconContentSave",action)
   def btnRestore(key:VDomKey, action: ()=>Unit) =
     iconButton(key,"restore","IconActionRestore",action)
-  def btnFilterList(key: VDomKey, action: ()=>Unit) =
-    iconButton(key,"filters","IconContentFilterList",action)
-  def btnClear(key: VDomKey, action: ()=>Unit) =
-    iconButton(key,"clear sorting","IconContentClear",action)
+
+
   def btnAdd(key: VDomKey, action: ()=>Unit) =
     iconButton(key,"add","IconContentAdd",action)
   def btnRemove(key: VDomKey, action: ()=>Unit) =
@@ -779,16 +584,11 @@ class MaterialTags(
     child[OfDiv](key,PaddingSideWrapper(value),theChild::Nil)
   def withSidePadding(key: VDomKey,value:Int,children:List[ChildPair[OfDiv]])=
     child[OfDiv](key,PaddingSideWrapper(value),children)
-  def divEWrapper(key:VDomKey,children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivMaxHeightWrapper(),children)
-  def divEWrapper(key:VDomKey,theChild:ChildPair[OfDiv])=
-    child[OfDiv](key,DivMaxHeightWrapper(),theChild::Nil)
+
   def divSimpleWrapper(key:VDomKey,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivSimpleWrapper(),theChild.toList)
   def divNoWrap(key:VDomKey,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivNoTextWrap(),theChild.toList)
-  def divOverflowHidden(key:VDomKey,theChild:ChildPair[OfDiv]*)=
-    child[OfDiv](key,DivOverflowHidden(),theChild.toList)
   def divClickable(key:VDomKey,action:Option[()=>Unit],theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivClickable()(action),theChild.toList)
 
@@ -832,16 +632,8 @@ class MaterialTags(
 
   def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivHeightWrapper(height),theChild.toList)
-  def divEmpty(key:VDomKey)=
-    child[OfDiv](key,DivEmpty(),Nil)
   def divBgColorHover(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivBgColorHover(color),theChild.toList)
-  def withBgColor(key:VDomKey,color:Color,theChild:ChildPair[OfDiv]*)=
-    child[OfDiv](key,DivBgColor(color),theChild.toList)
-  /*
-  def withZIndex(key:VDomKey,zIndex:Int,theChild:ChildPair[OfDiv]*)=
-    child[OfDiv](key,DivZIndex(zIndex),theChild.toList)
-  */
 
   def helmet(title:String,addViewPort:Boolean = true)=
     child[OfDiv]("helmet",Helmet(title,addViewPort),Nil)

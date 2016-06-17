@@ -7,8 +7,7 @@ import ee.cone.base.util.{Never,Single}
 
 class FindAttrsImpl(
   attr: AttrFactory,
-  asDefined: AttrValueType[Boolean],
-  asString: AttrValueType[String]
+  asDefined: AttrValueType[Boolean]
 )(
   val nonEmpty: Attr[Boolean] = attr("1cc81826-a1c0-4045-ab2a-e2501b4a71fc", asDefined)
 ) extends FindAttrs

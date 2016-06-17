@@ -64,3 +64,9 @@ trait SessionMainTxManager {
 trait LabelFactory {
   def apply(uuid: String): Attr[Obj]
 }
+
+trait ObjOrderingFactory {
+  def ordering[Value](attr: Attr[Value], reverse: Boolean): Option[Ordering[Obj]]
+  def ordering[Value](valueType: AttrValueType[Value]): Option[Ordering[Value]]
+  def handlers[Value](asType: AttrValueType[Value])(implicit ord: Ordering[Value]): List[BaseCoHandler]
+}

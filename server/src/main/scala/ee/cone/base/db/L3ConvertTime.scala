@@ -1,10 +1,9 @@
-package ee.cone.base.test_loots
+package ee.cone.base.db
 
-import java.time._
 import java.time.format.DateTimeFormatter
+import java.time.{ZoneId, _}
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider}
-import ee.cone.base.db._
 import ee.cone.base.util.Never
 
 abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValue] with CoHandlerProvider {
@@ -85,35 +84,4 @@ class LocalTimeValueConverter(
     s"${zeroPad2(v.getHour.toString)}:${zeroPad2(v.getMinute.toString)}"
   ).getOrElse("")
   def fromUIString(value: String) = strToPair(value, (h,m)⇒LocalTime.of(h,m))
-}
-
-class BigDecimalValueConverter(
-  valueType: AttrValueType[Option[BigDecimal]], inner: RawConverter, asString: AttrValueType[String]
-) extends RawValueConverter[Option[BigDecimal]] with CoHandlerProvider {
-  def convertEmpty() = None
-  private def storageScale = 8
-  private def uiScale = 2
-  def convert(valueA: Long, valueB: Long) =
-    if(valueA == storageScale) Option(BigDecimal(valueB.toLong,storageScale)) else Never()
-  def convert(value: String) = Never()
-  private def roundingMode = BigDecimal.RoundingMode.HALF_UP
-  def toBytes(preId: ObjId, value: Option[BigDecimal], finId: ObjId) =
-    if(value.nonEmpty){
-      val bgd = value.get.setScale(storageScale, roundingMode)
-      val unscaledVal = bgd.bigDecimal.unscaledValue()
-      val valueA = storageScale
-      val valueB = unscaledVal.longValueExact()
-      inner.toBytes(preId,valueA,valueB,finId)
-    }
-    else Array()
-
-  def toUIString(value: Option[BigDecimal]) =
-    value.map(v ⇒v.setScale(uiScale,roundingMode).toString).getOrElse("")
-  def fromUIString(value: String):Option[BigDecimal] =
-    if(value.nonEmpty) Some(BigDecimal(value)) else None
-  def handlers = List(
-    CoHandler(ToRawValueConverter(valueType))(this),
-    CoHandler(ToUIStringConverter(valueType,asString))(toUIString),
-    CoHandler(ToUIStringConverter(asString,valueType))(fromUIString)
-  )
 }
