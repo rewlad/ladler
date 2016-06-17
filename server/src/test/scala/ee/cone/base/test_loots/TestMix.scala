@@ -64,8 +64,13 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     fuelingAttrs, findAttrs, alienAttrs, filterAttrs, nodeAttrs,
     factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings
   )()
+
   lazy val zoneIds = new ZoneIds
   lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter,asString,zoneIds)
+
+  lazy val errorAttrs=new ErrorAttributes(attrFactory,labelFactory,asDBObj,asString,asBoolean)()
+  lazy val errors = new Errors(errorAttrs,factIndex,searchIndex,alien,users,findNodes,filters)()
+  //
   lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter,asString)
   lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter,asString)
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
@@ -79,8 +84,9 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     tags, materialTags, flexTags, currentView, dtTablesState,
     searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
-    asDuration, asInstant, asLocalTime, asBigDecimal, asDBObj, asString, asUUID,
-    uiStrings, mandatory, zoneIds, itemListOrderingFactory, objOrderingFactory
+    asDuration, asInstant, asLocalTime,asBigDecimal, asDBObj, asString, asUUID,
+    uiStrings, mandatory, zoneIds, itemListOrderingFactory, objOrderingFactory,
+    errorAttrs, errors
   )()
 }
 

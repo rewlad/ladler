@@ -4,6 +4,7 @@ package ee.cone.base.test_loots
 import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
 import java.util.UUID
 
+import com.sun.javafx.binding.SelectBinding.AsBoolean
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
@@ -100,6 +101,41 @@ class DataTablesState(currentVDom: CurrentVDom){
   }
 }
 
+
+class ErrorAttributes(
+   attr: AttrFactory,
+   label: LabelFactory,
+   asObj: AttrValueType[Obj],
+   asString: AttrValueType[String],
+   asBoolean: AttrValueType[Boolean]
+)(
+  val asError: Attr[Obj] = label("40eed80a-f249-4e59-9193-2b27dffd8d6e"),
+  val errorMsg: Attr[String] = attr("946913bd-e644-4ff0-8aa1-75ff95e6e7d9", asString),
+  val realm: Attr[Obj] = attr("9dbb1e0f-523f-4e7b-b524-6dfd7a12a681", asObj),
+  val show: Attr[Boolean] = attr("1626b864-21ae-4517-8006-c3d104852488", asBoolean)
+)
+
+class Errors(
+  at: ErrorAttributes,
+  factIndex: FactIndex, searchIndex: SearchIndex, alien: Alien,
+  users: Users, findNodes: FindNodes, filters: Filters
+)(
+  val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asError, at.realm)
+) extends CoHandlerProvider{
+  def lastError: Obj = { // todo replace
+    //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
+    val itemList = filters.itemList(findAll,users.world,findNodes.noNode,Nil,editable = false)
+    itemList.list.lastOption.getOrElse(findNodes.noNode)
+  }
+  def handlers =
+    CoHandler(AttrCaption(at.realm))("Error") ::
+    CoHandler(AttrCaption(at.show))("Show") ::
+    List(findAll).flatMap(searchIndex.handlers):::
+      List(at.asError,at.errorMsg,at.realm,at.show).flatMap{ attr⇒
+        factIndex.handlers(attr) ::: alien.update(attr)
+      }
+}
+
 ///////
 
 class TestComponent(
@@ -141,7 +177,9 @@ class TestComponent(
   mandatory: Mandatory,
   zoneIds: ZoneIds,
   itemListOrderingFactory: ItemListOrderingFactory,
-  objOrderingFactory: ObjOrderingFactory
+  objOrderingFactory: ObjOrderingFactory,
+  errorAttributes: ErrorAttributes,
+  errors: Errors
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -153,6 +191,8 @@ class TestComponent(
   import htmlTable._
   import findAttrs.nonEmpty
   import uiStrings.caption
+
+
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
   private def getValidationKey[Value](obj: Obj, attr: Attr[Value]): ValidationKey = {
@@ -181,7 +221,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
     if(editable) List(inputField(
-      "1", TextFieldType, visibleLabel, value, obj(attr) = _,
+      "1", visibleLabel, value, obj(attr) = _,
       deferSend, alignRight, getValidationKey(obj,attr)
     ))
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
@@ -196,7 +236,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
     if(editable) List(inputField(
-      "1", TextFieldType, visibleLabel, value, obj(attr) = _,
+      "1", visibleLabel, value, obj(attr) = _,
       deferSend, alignRight=false, getValidationKey(obj,attr),
       isPassword=true
     ))
@@ -211,7 +251,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val valueType = asDuration
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(!editable) { return List(labeledText("1",visibleLabel,value))}
+    if(!editable) { return List(labeledText("1",visibleLabel,value,alignRight = true))}
 
     //val key = popupKey(obj,attr)
     //println(popupOpened)
@@ -219,16 +259,16 @@ class TestComponent(
     val btn = btnScheduleClock("btnClock",popupToggle)
 
     val input = inputField(
-      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend=true, alignRight=true, getValidationKey(obj,attr)
     )
 
     val popup = if(!isOpened) Nil
-    else  withMinWidth("minWidth",280,clockDialog("clock",""/*may be not 'value' later*/,Some{ newVal =>
+    else  withMinWidth("minWidth",280,clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
       obj(attr) = uiStrings.converter(asString,valueType)(newVal)
       popupToggle()
     })::Nil)::Nil
-    btnInputPopup(btn,btnZIndex = if(isOpened)4000 else 1000,input,popup)
+    btnInputPopup(btn,input,popup)
     //input::Nil
   }
 
@@ -240,21 +280,28 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val valueType = asInstant
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(!editable){ return List(labeledText("1", visibleLabel, value)) }
+    if(!editable) { return List(labeledText("1", visibleLabel, value,alignRight = true))}
 
     //val key = popupKey(obj,attr)
-    val (isOpened,popupToggle)=popupAction[Option[Instant]](obj,attr)
-    val btn = btnDateRange("btnCalendar",popupToggle)
+    val (isOpened, popupToggle) = popupAction[Option[Instant]](obj, attr)
+    val btn = btnDateRange("btnCalendar", popupToggle)
+    val controlGrp = divSimpleWrapper("1", withPadding("1", 10, divAlignWrapper("1", "right", "", btnRaised("1", "Today")(() => {
+      obj(attr) = Option(Instant.now())
+      popupOpened=""
+    }) :: Nil)))
+
     val input = inputField(
-      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
-      deferSend = true, alignRight = true, getValidationKey(obj,attr)
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString, valueType)(v),
+      deferSend = true, alignRight = true, getValidationKey(obj, attr)
     )
-    val popup = if(!isOpened) Nil
-      else  withMinWidth("minWidth",320,calendarDialog("calendar",value/*may be not 'value' later*/,Some{ newVal =>
-        obj(attr) = uiStrings.converter(asString,valueType)(newVal)
-        popupToggle()
-      })::Nil)::Nil
-    btnInputPopup(btn,btnZIndex = if(isOpened) 4000 else 1000, input, popup)
+
+    val popup = if (!isOpened) Nil
+    else withMinWidth("minWidth", 320, calendarDialog("calendar", value /*may be not 'value' later*/ , Some { newVal =>
+      obj(attr) = uiStrings.converter(asString, valueType)(newVal)
+      popupToggle()
+    }) :: controlGrp :: Nil) :: Nil
+    btnInputPopup(btn, input, popup)
+
   }
 
   private def timeField(
@@ -263,14 +310,27 @@ class TestComponent(
   ): List[ChildPair[OfDiv]] = {
     val editable = editableOpt.getOrElse(obj(alienAttrs.isEditing))
     val visibleLabel = if(showLabel) caption(attr) else ""
-
     val valueType = asLocalTime
     val value = uiStrings.converter(valueType, asString)(obj(attr))
-    if(editable) List(inputField(
-      "1", TimeFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
-      deferSend=false, alignRight=true, getValidationKey(obj,attr)
-    ))
-    else List(labeledText("1", visibleLabel, value))
+
+    if(!editable) { return List(labeledText("1", visibleLabel, value,alignRight = true))}
+    val (isOpened, popupToggle) = popupAction[Option[LocalTime]](obj,attr)
+    val btn = btnScheduleClock("btnClock",popupToggle)
+
+    val input = inputField(
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      deferSend=true, alignRight=true, getValidationKey(obj,attr)
+    )
+    val controlGrp = divSimpleWrapper("1", withPadding("1", 10, divAlignWrapper("1", "right", "", btnRaised("1", "Now")(() => {
+      obj(attr) = Option(LocalTime.now())
+      popupOpened=""
+    }) :: Nil)))
+    val popup = if(!isOpened) Nil
+    else withMinWidth("minWidth",280,clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
+      obj(attr) = uiStrings.converter(asString,valueType)(newVal)
+      popupToggle()
+    })::controlGrp::Nil)::Nil
+    btnInputPopup(btn,input,popup)
   }
 
   private def decimalField( obj: Obj, attr: Attr[Option[BigDecimal]], showLabel: Boolean,
@@ -281,10 +341,10 @@ class TestComponent(
     val valueType = asBigDecimal
     val value = uiStrings.converter(valueType, asString)(obj(attr))
     if(editable) List(inputField(
-      "1", DecimalFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend, alignRight, getValidationKey(obj,attr)
     ))
-    else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
+    else if(value.nonEmpty) List(labeledText("1", visibleLabel, value,alignRight))
     else Nil
   }
 
@@ -308,8 +368,8 @@ class TestComponent(
     }
   }
 
-  private def btnInputPopup(btn: ChildPair[OfDiv],btnZIndex:Int, input: ChildPair[OfDiv], popup: List[ChildPair[OfDiv]]) = {
-    val collapsed = List(btnInput("btnInput",btnZIndex)(btn, input))
+  private def btnInputPopup(btn: ChildPair[OfDiv], input: ChildPair[OfDiv], popup: List[ChildPair[OfDiv]]) = {
+    val collapsed = List(btnInput("btnInput")(btn, input))
     List(fieldPopupBox("1",collapsed,popup))
   }
 
@@ -333,7 +393,7 @@ class TestComponent(
     //val key = popupKey(obj,attr)
     val (isOpened,popupToggle)=popupAction[Obj](obj,attr)
     val input = inputField(
-      "1", TextFieldType, visibleLabel, value, _=>{},
+      "1", visibleLabel, value, newValue=>{if(newValue.isEmpty) obj(attr) = findNodes.noNode },
       deferSend=false, alignRight = false, getValidationKey(obj,attr)
     )
     val popup = if(!isOpened) Nil
@@ -341,8 +401,8 @@ class TestComponent(
         items().map(item⇒(item,objCaption(item))).sortBy(_._2)
         .map{ case(item,caption) ⇒ option(item, item(alien.objIdStr), caption) }
     val btn = if(popup.nonEmpty) btnExpandLess("less",popupToggle)
-    else btnExpandMore("more",popupToggle)
-    btnInputPopup(btn, btnZIndex = if(isOpened) 4000 else 1000, input, popup)
+      else btnExpandMore("more",popupToggle)
+    btnInputPopup(btn, input, popup)
   }
 
   ////
@@ -419,6 +479,9 @@ class TestComponent(
     }
   }
 
+  private def removeControlView(itemList: ItemList) =
+    if(itemList.isEditable) List(btnDelete("btnDelete", itemList.removeSelected)) else Nil
+
   private def addRemoveControlViewBase(itemList: ItemList)(add: ()⇒Unit) =
     if(itemList.isEditable) List(btnDelete("btnDelete", itemList.removeSelected),btnAdd("btnAdd", add))
     else Nil
@@ -451,6 +514,15 @@ class TestComponent(
   private def creationTimeOrdering =
     objOrderingFactory.ordering(filterAttrs.createdAt, reverse = true).get
 
+
+
+  private def errorNotification = {
+    val err = errors.lastError
+    val show = err(errorAttributes.show)
+    val msg = notification(err(errorAttributes.errorMsg), "", show)(()=>{}) :: Nil
+    if(show) keyboardReceiver(EscKeyCode)(()=>err(errorAttributes.show)=false) :: msg else msg
+  }
+
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asEntry)))
@@ -473,9 +545,10 @@ class TestComponent(
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
+    errorNotification:::
     List( //class LootsBoatLogList
+      helmet("Entry List"),
       toolbar("Entry List"),
-
       withMaxWidth("1",2056,List(paperTable("dtTableList2")(
         controlPanel(inset = true)(
           List(flexGrid("controlGrid1",List(
@@ -548,6 +621,7 @@ class TestComponent(
     val entryIdStr = entry(alien.objIdStr)
 
     List(
+      helmet("Entry Edit"),
       toolbar("Entry Edit"),
       withMaxWidth("1",1200,List(
       paperWithMargin(s"$entryIdStr-1",
@@ -620,7 +694,7 @@ class TestComponent(
       row(timeStr,toggledRow(filterObj,time))(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
-          else List(labeledText("1",if(showLabel) "Time" else "",timeStr))
+          else List(labeledText("1",if(showLabel) "Time" else "",timeStr,alignRight = true))
         ),
         mCell("2",150,1)(showLabel=>
           if(isRF) List(text("1","Received Fuel"))
@@ -703,11 +777,49 @@ class TestComponent(
     )
   }
 
+  private def errorListView(pf: String) = wrapDBView{ () => //todo: replace with actual errors
+    val filterObj = filters.filterObj(List(attrFactory.attrId(errorAttributes.asError)))
+    val itemList = filters.itemList[Obj](errors.findAll, users.world, filterObj, Nil, editable=true) //todo roles
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
+    //println(itemList.list.length)
+    List(
+      helmet("Errors"),
+      toolbar("Errors"),
+      withMaxWidth("maxWidth",800,
+        paperTable("table")(
+          controlPanel(inset = false)(Nil, addRemoveControlView(itemList)),
+          List(
+            row("head",List(IsHeader))(
+              selectAllGroup(itemList) :::
+              List(
+                group("2_group",MinWidth(50)),
+                mCell("1",250)(_⇒sortingHeader(itemListOrdering,errorAttributes.realm)), //todo: sortingHeader for errors
+                mCell("2",250)(_⇒sortingHeader(itemListOrdering,errorAttributes.show)) //todo: sortingHeader for errors
+              ):::
+                editAllGroup()
+            )
+          ) :::
+            itemList.list.map{error ⇒
+              val srcId = error(alien.objIdStr)
+              row(srcId,toggledSelectedRow(error))(
+                selectRowGroup(error) :::
+                List(
+                  group("2_group",MinWidth(50)),
+                  mCell("1",250)(showLabel⇒strField(error, errorAttributes.errorMsg, showLabel = false)),
+                  mCell("2",250)(showLabel⇒booleanField(error, errorAttributes.show, showLabel = false))
+                )::: editRowGroup(itemList, error)
+              )
+            }
+        )::Nil)
+    )
+  }
+
   private def boatListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
     val itemList = filters.itemList[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     List(
+      helmet("Boats"),
       toolbar("Boats"),
       withMaxWidth("maxWidth",600,
       paperTable("table")(
@@ -760,13 +872,16 @@ class TestComponent(
 
   private def loginView() = {
     val showLabel = true
+
     val dialog = filters.filterObj(List(attrFactory.attrId(userAttrs.asActiveUser)))
-    List(withMaxWidth("1",400,paperWithMargin("login",
+    List(
+      helmet("Login"),
+      withMaxWidth("1",400,paperWithMargin("login",
       divSimpleWrapper("1",usernameField(dialog, showLabel):_*),
       divSimpleWrapper("2",passwordField(dialog, userAttrs.unEncryptedPassword, showLabel):_*),
       divSimpleWrapper("3", divAlignWrapper("1","right","top",users.loginAction(dialog).map(btnRaised("login","LOGIN")(_)).toList))
-    )::Nil))
-
+      )::Nil)
+    )
   }
 
 
@@ -777,6 +892,7 @@ class TestComponent(
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(
+      helmet("Users List"),
       toolbar("Users"),
       paperTable("table")(
         controlPanel(inset = false)(Nil, addRemoveControlView(userList)),
@@ -828,6 +944,7 @@ class TestComponent(
   //// events
   private def eventListView(pf: String) = wrapDBView { () =>
     List(
+      helmet("Event List"),
       toolbar("Events"),
       paperTable("table")(Nil,
         row("head", IsHeader)(
@@ -916,16 +1033,17 @@ class TestComponent(
     paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
       divWrapper("menu",None,None,None,None,Some("left"),None,
         fieldPopupBox("menu",
-          List(withZIndex("zIndex",4000,btnMenu("menu",popupToggle("navMenu")))),
+          List(btnMenu("menu",popupToggle("navMenu"))),
           if(popupOpened!="navMenu") Nil else List(
             menuItem("users","Users")(()⇒{currentVDom.relocate("/userList");popupOpened = ""}),
             menuItem("boats","Boats")(()⇒{currentVDom.relocate("/boatList");popupOpened = ""}),
-            menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""})
+            menuItem("entries","Entries")(()=>{currentVDom.relocate("/entryList");popupOpened = ""}),
+            menuItem("errors","Errors")(()=>{currentVDom.relocate("/errorList");popupOpened = ""})
           )
         ) ::Nil
       ),
       divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
-        withSidePadding("1",50,
+        withSidePadding("1",10,
           divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil))::Nil
       ),
       divWrapper("2",None,None,None,None,Some("right"),None,
@@ -977,6 +1095,7 @@ class TestComponent(
     CoHandler(ViewPath("/boatList"))(boatListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
     CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
+    CoHandler(ViewPath("/errorList"))(errorListView) ::
     eventListHandlers :::
     calcHandlers :::
     CoHandler(SessionInstantAdded)(currentVDom.invalidate) ::

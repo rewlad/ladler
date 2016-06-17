@@ -20,6 +20,7 @@ import IconButton        from 'material-ui/lib/icon-button'
 import IconEditorModeEdit from 'material-ui/lib/svg-icons/editor/mode-edit'
 import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
 import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
+import IconNavigationClose from 'material-ui/lib/svg-icons/navigation/close'
 import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
 import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
 import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
@@ -44,6 +45,8 @@ import MaterialChip      from '../main/material-chip'
 import Calendar          from 'material-ui/lib/date-picker/calendar'
 import Clock             from 'material-ui/lib/time-picker/clock'
 import injectTapEventPlugin from "react-tap-event-plugin"
+import Helmet            from 'react-helmet'
+import SnackBar          from 'material-ui/lib/snackbar'
 injectTapEventPlugin()
 function fixOnScrollBug(){
     document.body.style.overflowY="scroll"
@@ -232,7 +235,8 @@ class LabeledText extends React.Component{
             height:"100%",
             color:"rgba(0,0,0,1)",
             position:"relative",
-            marginTop:"38px"
+            marginTop:"38px",
+            textAlign:this.props.alignRight?"right":"left"
         }
         Object.assign(pStyle,this.props.style)
         return(
@@ -243,7 +247,7 @@ class LabeledText extends React.Component{
         ]))
     }
 }
-
+/*
 class IconMenuButton extends React.Component{
     constructor(props){
         super(props)
@@ -264,6 +268,31 @@ class IconMenuButton extends React.Component{
             )
     }
 }
+*/
+class IconButtonEx extends React.Component{
+    constructor(props){
+        super(props)
+        this.state={zIndex:"auto"}
+        this.handleMouseEnter=this.handleMouseEnter.bind(this)
+        this.handleMouseLeave=this.handleMouseLeave.bind(this)
+    }
+    handleMouseEnter(){this.setState({zIndex:"4000"})}
+    handleMouseLeave(){this.setState({zIndex:"auto"})}
+    render(){
+        const props={
+            key:this.props.key,
+            onClick:this.props.onClick,
+            tooltip:this.props.tooltip,
+            style:Object.assign({zIndex:this.state.zIndex},this.props.style),
+            iconStyle:this.props.iconStyle,
+            onMouseEnter:this.handleMouseEnter,
+            onMouseLeave:this.handleMouseLeave,
+        }
+        //console.log(props)
+        return React.createElement(IconButton,props,this.props.children)
+    }
+}
+
 
 class CursorOver extends React.Component{
     constructor(props){
@@ -348,8 +377,9 @@ class CrazyClock extends React.Component{
 
     render(){
         const initialTime=new Date()
-        if(this.props.initialDate){
-            const hm=this.props.initialDate.split(":")
+        //console.log(this.props)
+        if(this.props.initialTime){
+            const hm=this.props.initialTime.split(":")
             initialTime.setHours(parseInt(hm[0]))
             initialTime.setMinutes(parseInt(hm[1]))
         }
@@ -364,20 +394,109 @@ class CrazyClock extends React.Component{
         return React.createElement(Clock,propsClock)
     }
 }
-
+/*
 class DecimalInput extends React.Component{
     constructor(props){
         super(props)
+        this.handleMouseEnter=this.handleMouseEnter.bind(this)
+        this.handleMouseLeave=this.handleMouseLeave.bind(this)
+        this.handleInputFocus=this.handleInputFocus.bind(this)
+        this.handleInputBlur=this.handleInputBlur.bind(this)
+        this.handleInputOnChange=this.handleInputOnChange.bind(this)
+        this.handleCloseButton=this.handleCloseButton.bind(this)
+        this.state={inFocus:false}
     }
 
+    handleMouseEnter(){}
+    handleMouseLeave(){}
+    handleInputBlur(){
+        this.props.onBlur()
+        this.setState({inFocus:false})
+    }
+    handleInputFocus(){
+        this.setState({inFocus:true})
+    }
+    handleInputOnChange(e,reset){
+        if(reset) e.target.value=""
+        this.props.onChange(e)
+    }
+    handleCloseButton(){
+        this.handleInputOnChange
+    }
     render(){
 
         const fProps={
-            key:this.props.key
+            key:"field",
+            inputStyle:Object.assign({marginLeft:"-15px"},this.props.inputStyle),
+            value:this.props.value,
+            style:this.props.style,
+            onChange:this.handleInputOnChange,
+            onBlur:this.handleInputBlur,
+            onFocus:this.handleInputFocus
         }
-        Object.assign(fProps,this.props)
-        //console.log(this.props,fProps)
-        return React.createElement(TextField,fProps)
+        //Object.assign(fProps,this.props)
+        //console.log(this.props)
+        const cBProps={
+            key:"close",
+            style:{position:"absolute",top:"15px",width:"",height:"",padding:"1px",right:"-5px"},
+            iconStyle:{width:"16px",height:"16px"},
+            onTouchTap:this.handleCloseButton
+            //backgroundColor:this.state.onHover?
+            //onMouseEnter:this.handleMouseEnter,
+            //onMouseLeave:this.handleMouseLeave,
+            //cursor:"pointer"
+        }
+        const closeButton=this.state.inFocus&&this.props.value?React.createElement(IconButton,cBProps,React.createElement(IconNavigationClose)):null
+        return React.createElement("div",{key:this.props.key,style:{position:"relative"}},[React.createElement(TextField,fProps),closeButton])
+    }
+}
+
+*/
+
+class SnackBarEx extends React.Component{
+    constructor(props){
+        super(props)
+
+        this.handleRequestClose=this.handleRequestClose.bind(this)
+    }
+    handleRequestClose(){
+
+        if(this.props.onRequestClose) this.props.onRequestClose()
+    }
+
+    render(){
+        const props={
+            key:this.props.key,
+            onKeyDown:this.handleKeyDown,
+            open:this.props.open,
+            message:this.props.message,
+            onRequestClose:this.handleRequestClose,
+            action:this.props.action
+        }
+        return React.createElement(SnackBar,props)
+    }
+}
+
+class KeyboardReceiver extends React.Component{
+    constructor(props){
+        super(props)
+        this.handleKeyDown=this.handleKeyDown.bind(this)
+    }
+    handleKeyDown(e){
+        if(this.props.send){
+            if(e.keyCode!=this.props.keyCode) return
+            e.target.value=e.keyCode
+            this.props.onChange(e)
+        }
+    }
+    componentWillMount(){
+        document.addEventListener("keydown",this.handleKeyDown)
+    }
+    componentWillUnmount(){
+        document.removeEventListener("keydown",this.handleKeyDown)
+    }
+    render(){
+        return React.createElement("div",{key:"keyboardListener"})
     }
 }
 
@@ -385,14 +504,15 @@ const tp = ({
     Paper,
     Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
     RaisedButton,
-    IconButton, IconEditorModeEdit,MaterialChip,
+    IconButtonEx, IconEditorModeEdit,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
     TextField,/* DateInput,*/TimeInput,Checkbox,DataTableRow,//DataTableBody,
     LabeledText,FlexGridItemWidthSync,IconActionLock,IconSocialPerson,
     IconActionRestore,IconContentSave,CrazyCalendar,CrazyClock,
-    IconMenuButton,MenuItem,IconNavigationMenu,CursorOver,
+    /*IconMenuButton,MenuItem,*/IconNavigationMenu,CursorOver,
     IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess,
-    IconActionSchedule,DecimalInput
+    IconActionSchedule, IconNavigationClose, Helmet, SnackBarEx,KeyboardReceiver
+    // DecimalInput
 })
 
 const transforms = ({tp})

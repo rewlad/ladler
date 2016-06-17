@@ -110,12 +110,12 @@ case class DivFlexWrapper(flexBasis:Option[Int],
     builder.end()
   }
 }
-case class DivWrapper(display:Option[String],
-                      minWidth:Option[String],
-                      maxWidth:Option[String],
-                      height:Option[String],
-                      float:Option[String],
-                      position:Option[String]) extends VDomValue{
+case class DivWrapper(display:Option[String] = None,
+                      minWidth:Option[String] = None,
+                      maxWidth:Option[String] = None,
+                      height:Option[String] = None,
+                      float:Option[String] = None,
+                      position:Option[String] = None) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
       builder.append("tp").append("div")
