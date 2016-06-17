@@ -338,6 +338,7 @@ case class InputField(
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("TextField")
+    builder.append("name").append("text")
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
     (fieldValidationState match {
@@ -381,7 +382,7 @@ case class RaisedButton(label: String)(
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
     builder.append("tp").append("RaisedButton")
-    builder.append("secondary").append(true)
+    builder.append("primary").append(true)
     builder.append("label").append(label)
     onClick.foreach(_⇒ builder.append("onClick").append("send")) //try
     builder.end()
@@ -393,9 +394,9 @@ case class Divider() extends VDomValue{
       builder.append("tp").append("hr")
       builder.append("style").startObject()
         builder.append("didFlip").append(true)
-        builder.append("margin").append("0")
+        builder.append("margin").append("0px")
         builder.append("marginTop").append("0px")
-        builder.append("marginLeft").append("0")
+        builder.append("marginLeft").append("0px")
         builder.append("height").append("1px")
         builder.append("border").append("none")
         builder.append("borderBottom").append("1px solid #e0e0e0")
@@ -414,7 +415,7 @@ case class CheckBox(checked:Boolean,label:String)(
       builder.append("checked").append(checked)
       builder.append("label").append(label)
       builder.append("labelStyle").startObject()
-      builder.append("fontSize").append("12")
+      builder.append("fontSize").append("12px")
       builder.append("color").append("rgba(0,0,0,0.3)")
       builder.end()
     builder.end()
@@ -660,6 +661,14 @@ case class KeyboardReceiver(keyCode: KeyboardKeyCode)(change:()=>Unit) extends V
     builder.end()
   }
 }
+case class MuiTheme() extends VDomValue{
+  def appendJson(builder: JsonBuilder)={
+    builder.startObject()
+    builder.append("tp").append("MuiThemeParent")
+    builder.end()
+  }
+}
+
 
 trait OfTable
 trait OfTableRow
@@ -849,6 +858,7 @@ class MaterialTags(
     child[OfDiv]("notification",SnackBar(message,actionLabel,show)(Some(action)),Nil)
   def keyboardReceiver(keyboardKeyCode: KeyboardKeyCode)(action: ()=>Unit)=
     child[OfDiv]("keyboardReceiver", KeyboardReceiver(keyboardKeyCode)(action), Nil)
-
+  def muiTheme(theChild:ChildPair[OfDiv]*)=
+    child[OfDiv]("muiTheme",MuiTheme(),theChild.toList)
 }
 

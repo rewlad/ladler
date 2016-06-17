@@ -20,7 +20,7 @@ const FieldPopupBox= React.createClass({
         margin:"0px",
         display:this.props.showUnderscore?"":"none"
       }
-      return React.createElement("div",{key:this.props.key,style,ref},[this.props.children,React.createElement("hr",{key:"underscore",style:hrStyle})])
+      return React.createElement("div",{key:"fieldPopupBox",style,ref},[this.props.children,React.createElement("hr",{key:"underscore",style:hrStyle})])
    }
 })
 
@@ -46,7 +46,7 @@ const FieldPopupDrop = React.createClass({
             boxShadow:"0px 1px 6px rgba(0,0,0,0.12),0px 1px 4px rgba(0,0,0,0.12)"
         }
         const ref = el => this.props.popupReg(true,el)
-        return React.createElement("div",{key:this.props.key,style,ref},this.props.children)        
+        return React.createElement("div",{key:"fieldPopUpDrop",style,ref},this.props.children)
     }  
 	
 })
