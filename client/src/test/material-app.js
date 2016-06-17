@@ -325,7 +325,6 @@ class CrazyCalendar extends React.Component{
     }
 
     handleOnDayTouchTap(e,day){
-
         const value = day.getDate()+"."+(day.getMonth()+1)+"."+day.getFullYear()
         this.props.onChange({ target: ({value}) })
     }

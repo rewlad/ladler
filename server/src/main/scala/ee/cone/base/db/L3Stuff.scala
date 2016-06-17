@@ -10,7 +10,6 @@ class FindAttrsImpl(
   asDefined: AttrValueType[Boolean],
   asString: AttrValueType[String]
 )(
-  val justIndexed: Attr[String] = attr("e4a1ccbc-f039-4af1-a505-c6bee1b755fd", asString),
   val nonEmpty: Attr[Boolean] = attr("1cc81826-a1c0-4045-ab2a-e2501b4a71fc", asDefined)
 ) extends FindAttrs
 
@@ -18,7 +17,7 @@ class FindNodesImpl(
   at: FindAttrs,
   handlerLists: CoHandlerLists,
   nodeAttrs: NodeAttrs, noObj: Obj,
-  attrFactory: AttrFactory, factIndex: FactIndex, objIdFactory: ObjIdFactory,
+  attrFactory: AttrFactory, objIdFactory: ObjIdFactory,
   dBObjValueConverter: RawValueConverter[ObjId], dbWrapType: WrapType[ObjId]
 )(
   val noNode: Obj = noObj.wrap(dbWrapType, objIdFactory.noObjId)
@@ -76,17 +75,10 @@ main, m
 main, s
 main, m
    */
-  def justIndexed = "Y"
   def toObjId(uuid: UUID): ObjId = objIdFactory.toObjId(uuid)
-  def handlers = {
-    CoHandler(GetValue(dbWrapType, at.nonEmpty))(
-      (obj, innerObj) ⇒ innerObj.data.nonEmpty
-    ) ::
-    CoHandler(GetValue(dbWrapType, nodeAttrs.objId))(
-      (obj, innerObj) ⇒ innerObj.data
-    ) ::
-    factIndex.handlers(at.justIndexed)
-  }
+  def handlers =
+    attrFactory.handlers(at.nonEmpty)((obj,objId)⇒objId.nonEmpty) :::
+    attrFactory.handlers(nodeAttrs.objId)((obj,objId)⇒objId)
 }
 
 /*

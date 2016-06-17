@@ -7,14 +7,14 @@ class UIStringAttributes(
   attr: AttrFactory,
   asString: AttrValueType[String]
 )(
-  val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString),
   val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", asString)
 )
 
 class UIStringsImpl(
   at: UIStringAttributes,
-  findAttrs: FindAttrs,
+  nodeAttrs: NodeAttrs,
   handlerLists: CoHandlerLists,
+  objIdFactory: ObjIdFactory,
   attrFactory: AttrFactory,
   factIndex: FactIndex,
   onUpdate: OnUpdate,
@@ -25,17 +25,26 @@ class UIStringsImpl(
 ) extends UIStrings with CoHandlerProvider {
   def handlers = factIndex.handlers(at.caption) :::
     List(
+      CoHandler(ObjIdCaption(objIdFactory.noObjId))("Empty"),
       CoHandler(ToUIStringConverter(asDBObj,asString))(objToUIString),
       CoHandler(ToUIStringConverter(asObjId,asString))(objIdToUIString)
     )
   private def objIdToUIString(value: ObjId) = objToUIString(findNodes.whereObjId(value))
-  private def objToUIString(obj: Obj) = {
+  private def objToUIString(obj: Obj): String = {
     val res = obj(at.caption)
-    if(res.nonEmpty) res else if(obj(findAttrs.nonEmpty)) obj(at.objIdStr) else "empty"
+    if(res.nonEmpty) {return res }
+    val objId = obj(nodeAttrs.objId)
+    handlerLists.single(ObjIdCaption(objId), ()⇒
+      //s"${objIdFactory.toUUIDString(objId).substring(0,9)}..."
+      "Unnamed Entity"
+    )
   }
-  def captions(attributes: List[Attr[_]])(calculate: Obj⇒String) =
-    onUpdate.handlers(attributes.map(attrFactory.attrId(_)), (on,obj)⇒
-      obj(at.caption) = if(on) calculate(obj) else ""
+  def captions(label: Attr[Obj], attributes: List[Attr[_]])(calculate: Obj⇒String) =
+    onUpdate.handlers(List(label), attributes)( (on,obj)⇒
+      obj(at.caption) = if(!on) "" else {
+        val text = calculate(obj)
+        if(text.nonEmpty) text else s"Unnamed ${caption(label)}"
+      }
     )
 
   def caption(attr: Attr[_]) =

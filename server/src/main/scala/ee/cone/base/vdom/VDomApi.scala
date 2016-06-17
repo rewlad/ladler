@@ -83,5 +83,5 @@ trait InputAttributes {
 
 trait Tags {
   def root(children: List[ChildPair[OfDiv]]): VDomValue
-  def text(key: VDomKey, text: String, color:String = ""): ChildPair[OfDiv]
+  def text(key: VDomKey, text: String): ChildPair[OfDiv]
 }

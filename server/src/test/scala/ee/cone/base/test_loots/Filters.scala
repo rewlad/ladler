@@ -1,19 +1,18 @@
 package ee.cone.base.test_loots
 
-import java.util.UUID
+import java.time.Instant
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
-import ee.cone.base.util.{Setup, Never}
-
-import scala.math.Ordering
+import ee.cone.base.util.{Never, Setup}
 
 class FilterAttrs(
   attr: AttrFactory,
   label: LabelFactory,
   asBoolean: AttrValueType[Boolean],
   asObjId: AttrValueType[ObjId],
-  asObjIdSet: AttrValueType[Set[ObjId]]
+  asObjIdSet: AttrValueType[Set[ObjId]],
+  asInstant: AttrValueType[Option[Instant]]
 )(
   val asFilter: Attr[Obj] = label("eee2d171-b5f2-4f8f-a6d9-e9f3362ff9ed"),
   val filterFullKey: Attr[ObjId] = attr("2879097b-1fd6-45b1-a8b4-1de807ce9572",asObjId),
@@ -22,8 +21,7 @@ class FilterAttrs(
   val isExpanded: Attr[Boolean] = attr("2dd74df5-0ca7-4734-bc49-f420515fd663",asBoolean),
   val selectedItems: Attr[Set[ObjId]] = attr("32a62c43-e837-4855-985a-d79f5dc03db0",asObjIdSet),
   val expandedItem: Attr[ObjId] = attr("d0b7b274-74ac-40b0-8e51-a1e1751578af", asObjId),
-  val orderByAttrId: Attr[ObjId] = attr("064f4dfd-d3df-4748-ae5b-cc03ef42a1cb", asObjId),
-  val orderDirection: Attr[Boolean] = attr("ae1bee8e-828d-42d6-a3ca-36f146549c6a",asBoolean)
+  val createdAt: Attr[Option[Instant]] = attr("8b9fb96d-76e5-4db3-904d-1d18ff9f029d",asInstant)
 )
 
 trait InnerItemList {
@@ -37,7 +35,6 @@ trait ItemList {
   def list: List[Obj]
   def selectAllListed(): Unit
   def removeSelected(): Unit
-  def orderByAction(attr: Attr[_]): (Option[()⇒Unit],Option[Boolean])
   def isEditable: Boolean
 }
 
@@ -115,22 +112,25 @@ class Filters(
       def set(obj: Obj, attr: Attr[Boolean], value: Boolean) = setElement((attr,value))(obj)
     }
 
-    val sortByAttrId = filterObj(at.orderByAttrId)
-    val sortDirection = filterObj(at.orderDirection)
-    val sortBy = orderBy(sortByAttrId).getOrElse((l:List[Obj],_:Boolean)⇒l)
+
+
 
     val editingId = editing(nodeAttrs.objId)
 
-
-    val items = sortBy(
+    val items =
       findNodes.where(mainTx(), index, parentValue, Nil)
       .filter(obj⇒filters.forall(_(obj)))
       .map(obj⇒if(editable && obj(nodeAttrs.objId) == editingId) alien.wrapForEdit(obj) else obj)
-      .map(obj⇒ obj.wrap(listedWrapType,inner)),
-      sortDirection
-    )
+      .map(obj⇒ obj.wrap(listedWrapType,inner))
 
-    val newItem = alien.demandedNode{ obj ⇒ obj(asType) = obj }.wrap(listedWrapType,inner)
+
+
+    def setupNew(obj: Obj) = {
+      obj(asType) = obj
+      obj(at.createdAt) = Option(Instant.now())
+    }
+    val newItem = alien.demandedNode(setupNew).wrap(listedWrapType,inner)
+
     new ItemList {
       def filter = filterObj
       def list = items
@@ -143,21 +143,15 @@ class Filters(
       }
       def selectAllListed() =
         filter(at.selectedItems) = selectedSet ++ items.map(_(nodeAttrs.objId))
-      def orderByAction(attr: Attr[_]) = {
-        val attrId = attrFactory.attrId(attr)
-        val isCurrentAttr = attrId == sortByAttrId
-        val act = if(orderBy(attrId).isEmpty) None else Some{ ()⇒
-          if(!isCurrentAttr) filterObj(at.orderByAttrId) = attrId
-          val newDir = if(isCurrentAttr) !sortDirection else false
-          if(sortDirection != newDir) filterObj(at.orderDirection) = newDir
-        }
-        (act, if(isCurrentAttr) Some(sortDirection) else None)
-      }
       def isEditable = editable
     }
   }
 
   def handlers =
+    CoHandler(AttrCaption(at.asFilter))("View Model") ::
+    CoHandler(AttrCaption(at.filterFullKey))("Key") ::
+    CoHandler(AttrCaption(at.selectedItems))("Selected Items") ::
+    CoHandler(AttrCaption(at.createdAt))("Creation Time") ::
     List(at.isSelected, at.isListed, at.isExpanded).flatMap{ attr ⇒ List(
       CoHandler(GetValue(listedWrapType,attr)){ (obj,innerObj)⇒
         innerObj.data.get(obj,attr)
@@ -171,20 +165,11 @@ class Filters(
       else if(obj(alienAttrs.isEditing)) editing = findNodes.noNode
     } ::
     List(
-      at.asFilter, at.filterFullKey, at.selectedItems,
-      at.orderByAttrId, at.orderDirection
+      at.asFilter, at.filterFullKey, at.selectedItems, at.createdAt
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
     List(at.expandedItem).flatMap{ attr ⇒ transient.update(attr) } :::
     searchIndex.handlers(filterByFullKey)
-
-  def orderBy(attrId: ObjId): Option[(List[Obj],Boolean)⇒List[Obj]] =
-    handlerLists.single(OrderByAttr(attrId), ()⇒None)
-  def orderBy[T](attr: Attr[T])(implicit ord: Ordering[T]): List[BaseCoHandler] =
-    List(CoHandler(OrderByAttr(attrFactory.attrId(attr)))(Some(
-      (l:List[Obj],reverse:Boolean)⇒l.sortBy(obj⇒obj(attr))(if(reverse)ord.reverse else ord)
-    )))
 }
 
-case class OrderByAttr(attrId: ObjId) extends EventKey[Option[(List[Obj],Boolean)⇒List[Obj]]]

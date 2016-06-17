@@ -328,14 +328,8 @@ case class DivEmpty() extends VDomValue{
   }
 }
 
-sealed trait FieldType
-case object TextFieldType extends FieldType
-case object DateFieldType extends FieldType
-case object TimeFieldType extends FieldType
-case object DecimalFieldType extends FieldType
-
 case class InputField(
-  tp: FieldType, label: String, value: String,
+  label: String, value: String,
   deferSend: Boolean, alignRight: Boolean, fieldValidationState: ValidationKey,
   isPassword: Boolean = false
 )(
@@ -343,12 +337,7 @@ case class InputField(
 ) extends VDomValue with OnChangeReceiver {
   def appendJson(builder: JsonBuilder) = {
     builder.startObject()
-    builder.append("tp").append(tp match {
-      case TextFieldType ⇒ "TextField"
-      case DateFieldType ⇒ "DateInput"
-      case TimeFieldType ⇒ "TimeInput"
-      case DecimalFieldType => "DecimalInput"
-    })
+    builder.append("tp").append("TextField")
     //builder.append("errorText").append("ehhe")
     if(label.nonEmpty) builder.append("floatingLabelText").append(label)
     (fieldValidationState match {
@@ -431,8 +420,8 @@ case class CheckBox(checked:Boolean,label:String)(
     builder.end()
   }
 }
-case class LabeledTextComponent(text:String,label:String,alignRight:Boolean) extends VDomValue{
 
+case class LabeledTextElement(text:String,label:String,alignRight:Boolean) extends VDomValue{
   def appendJson(builder:JsonBuilder)={
     builder.startObject()
       builder.append("tp").append("LabeledText")
@@ -558,7 +547,7 @@ case class DivZIndex(zIndex:Int) extends VDomValue{
     builder.append("tp").append("div")
     builder.append("style").startObject()
       builder.append("position").append("relative")
-      builder.append("zIndex").append(s"${zIndex}")
+      builder.append("zIndex").append(s"$zIndex")
     builder.end()
     builder.end()
   }
@@ -613,6 +602,20 @@ case class ClockDialog(time:String)(val onChange:Option[(String)=>Unit]) extends
   }
 }
 
+case class ColoredTextElement(content: String, color: Color) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("span")
+    builder.append("content").append(content);
+    {
+      builder.append("style").startObject()
+      builder.append("color").append(color.color)
+      builder.end()
+    }
+    builder.end()
+  }
+}
+
 case class Helmet(title:String,addViewPort:Boolean) extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
@@ -644,24 +647,25 @@ case class SnackBar(message:String,actionLabel:String,show:Boolean)(val onClick:
   }
 }
 
-case class KeyboardReceiver(keyCode:String,shouldSend:Boolean)(val onChange:Option[String=>Unit]) extends VDomValue with OnChangeReceiver{
+case class KeyboardReceiver(keyCode: KeyboardKeyCode)(change:()=>Unit) extends VDomValue with OnChangeReceiver{
+  def onChange = Some((code:String) ⇒ change())
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
     builder.append("tp").append("KeyboardReceiver")
-      builder.append("keyCode").append(keyCode)
-      builder.append("send").append(shouldSend)
-      builder.append("onChange").append("send")
-
+    builder.append("keyCode").append(keyCode match {
+      case EscKeyCode => "27"
+    })
+    builder.append("send").append(true)
+    builder.append("onChange").append("send")
     builder.end()
   }
-
 }
 
 trait OfTable
 trait OfTableRow
 
 class MaterialTags(
-  child: ChildPairFactory, inputAttributes: InputAttributes
+  child: ChildPairFactory, inputAttributes: InputAttributes, tags: Tags
 ) {
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil)=
     child[OfDiv](key,MaterialChip(text)(action),children)
@@ -798,13 +802,13 @@ class MaterialTags(
     child[OfDiv](key, RaisedButton(label)(Some(action)), Nil)
   def inputField(
       key: VDomKey,
-      inputType: FieldType, label: String, value: String,
+      label: String, value: String,
       change: String⇒Unit,
       deferSend: Boolean, alignRight: Boolean, fieldValidationState: ValidationKey,
       isPassword: Boolean = false
   ) = {
     val input = InputField(
-      inputType, label, value,
+      label, value,
       deferSend, alignRight, fieldValidationState,
       isPassword
     )(inputAttributes, Some(change))
@@ -817,43 +821,14 @@ class MaterialTags(
       )
 
   }
-/*
-  def textInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, alignRight: Boolean,fieldValidationState: ValidationKey) =
-    child[OfDiv](key, InputField("TextField", value, alignRight, label, deferSend, fieldValidationState, isPassword = false)
-      (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
 
-  def passInput(key: VDomKey, label: String, value: String, change: String⇒Unit, deferSend: Boolean, fieldValidationState: ValidationKey) =
-    child[OfDiv](key, InputField("TextField",value, alignRight = false, label, deferSend, fieldValidationState, isPassword = true)
-    (inputAttributes, identity, Some(newValue ⇒ change(newValue))), Nil)
-    */
-/*
-  private def instantToString(value: Option[Instant]): String =
-    value.map(_.toEpochMilli.toString).getOrElse("")
-*//*
-  private def stringToInstant(value: String): Option[Instant] =
-    if(value.nonEmpty) Some(Instant.ofEpochMilli(java.lang.Long.valueOf(value))) else None
-  private def stringToLocalTime(value:String): Option[LocalTime]=
-    if(value.nonEmpty) Some(LocalTime.parse(value)) else None
-  private def stringToDuration(value:String):Option[Duration]=
-    if(value.nonEmpty) {
-      val hm=value.split(":")
-      val h=hm(0)
-      val m=hm(1)
-      Some(Duration.ofMinutes(h.toLong*60+m.toLong))
-    } else None
+  def alert(key:VDomKey, content:String) =
+    child[OfDiv](key, ColoredTextElement(content,AlertTextColor), Nil)
 
-  def dateInput(key: VDomKey, label: String, value: Option[Instant], change: Option[Instant]⇒Unit, fieldValidationState: ValidationKey) =
-    child[OfDiv](key, InputField("DateInput",value,alignRight = false,label, deferSend = false,fieldValidationState,isPassword = false,asInstant)(inputAttributes, uiStrings, change), Nil)
-  def localTimeInput(key:VDomKey, label:String, value:Option[LocalTime], change:Option[LocalTime]=>Unit, fieldValidationState: ValidationKey)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label, deferSend=false,fieldValidationState,isPassword = false,asLocalTime)(inputAttributes, uiStrings, change),Nil)
-  def durationInput(key:VDomKey, label:String, value:Option[Duration], change:Option[Duration]=>Unit, fieldValidationState: ValidationKey)=
-    child[OfDiv](key,InputField("TimeInput",value,alignRight = false,label,deferSend=false,fieldValidationState,isPassword = false,asDuration)(inputAttributes, uiStrings, change),Nil)
-
-      durationToString,Some(newValue=>change(stringToDuration(newValue)))),Nil)*/
   def labeledText(key:VDomKey, label:String, content:String, alignRight:Boolean = false) =
-    if(label.nonEmpty) child[OfDiv](key,LabeledTextComponent(content,label,alignRight),Nil)
-    else
-      child[OfDiv](key, TextContentElement(content,color = ""), Nil)
+    if(label.nonEmpty) child[OfDiv](key,LabeledTextElement(content,label,alignRight),Nil)
+    else tags.text(key, content)
+
 
   def divHeightWrapper(key:VDomKey,height:Int,theChild:ChildPair[OfDiv]*)=
     child[OfDiv](key,DivHeightWrapper(height),theChild.toList)
@@ -872,12 +847,8 @@ class MaterialTags(
     child[OfDiv]("helmet",Helmet(title,addViewPort),Nil)
   def notification(message:String, actionLabel:String = "",show:Boolean=true)(action:()=>Unit) =
     child[OfDiv]("notification",SnackBar(message,actionLabel,show)(Some(action)),Nil)
-  def keyboardReceiver(keyboardKeyCode: KeyboardKeyCode)(action:Option[String=>Unit]=None)= {
-    val keyCode = keyboardKeyCode match{
-      case EscKeyCode => "27"
-      case _=>""
-    }
-    child[OfDiv]("keyboardReceiver", KeyboardReceiver(keyCode: String, if (action.nonEmpty) true else false)(action), Nil)
-  }
+  def keyboardReceiver(keyboardKeyCode: KeyboardKeyCode)(action: ()=>Unit)=
+    child[OfDiv]("keyboardReceiver", KeyboardReceiver(keyboardKeyCode)(action), Nil)
+
 }
 

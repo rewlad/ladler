@@ -22,7 +22,7 @@ class MergerEventSourceOperationsImpl(
       currentRequest.objId = objIdFactory.noObjId
       instantTxManager.rwTx{ ()⇒ ops.undo(findNodes.whereObjId(objId)) }
     }
-    println("currentRequest before")
+    //println("currentRequest before")
     mainTxManager.rwTx { () ⇒
       instantTxManager.roTx { () ⇒
         val req = ops.nextRequest()
@@ -30,7 +30,7 @@ class MergerEventSourceOperationsImpl(
         if (currentRequest.objId.nonEmpty) ops.applyRequestedEvents(req)
       }
     }
-    println("currentRequest after")
+    //println("currentRequest after")
     if(currentRequest.objId.nonEmpty){
       val objId = currentRequest.objId
       instantTxManager.rwTx { () ⇒ ops.addCommit(findNodes.whereObjId(objId)) }

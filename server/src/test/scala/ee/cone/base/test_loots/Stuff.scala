@@ -1,8 +1,10 @@
 package ee.cone.base.test_loots
 
 
-import java.time.{Instant,LocalTime,Duration}
+import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
+import java.util.UUID
 
+import com.sun.javafx.binding.SelectBinding.AsBoolean
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
@@ -75,6 +77,7 @@ class BoatLogEntryAttributes(
   val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", asDuration),
   val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
   val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
+  val workDate: Attr[Option[Instant]] = attr("e6df8fe4-86c7-4255-b93e-86de9a5a5d25", asInstant),
 
   val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
   val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", asString),
@@ -100,34 +103,35 @@ class DataTablesState(currentVDom: CurrentVDom){
 
 
 class ErrorAttributes(
-                       attr: AttrFactory,
-                       label: LabelFactory,
-                       asObj: AttrValueType[Obj],
-                       asString: AttrValueType[String]
-                     )
-(
-val asError: Attr[Obj] = label("40eed80a-f249-4e59-9193-2b27dffd8d6e"),
-val errorMsg: Attr[String] = attr("946913bd-e644-4ff0-8aa1-75ff95e6e7d9", asString),
-val error: Attr[Obj] = attr("9dbb1e0f-523f-4e7b-b524-6dfd7a12a681", asObj),
-val view: Attr[String] = attr("14976902-8ea2-4576-94d7-76f55a5ecdf2",asString)
+   attr: AttrFactory,
+   label: LabelFactory,
+   asObj: AttrValueType[Obj],
+   asString: AttrValueType[String],
+   asBoolean: AttrValueType[Boolean]
+)(
+  val asError: Attr[Obj] = label("40eed80a-f249-4e59-9193-2b27dffd8d6e"),
+  val errorMsg: Attr[String] = attr("946913bd-e644-4ff0-8aa1-75ff95e6e7d9", asString),
+  val realm: Attr[Obj] = attr("9dbb1e0f-523f-4e7b-b524-6dfd7a12a681", asObj),
+  val show: Attr[Boolean] = attr("1626b864-21ae-4517-8006-c3d104852488", asBoolean)
 )
 
 class Errors(
-              at: ErrorAttributes, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAccessAttrs,
-              handlerLists: CoHandlerLists, attrFactory: AttrFactory,
-              factIndex: FactIndex, searchIndex: SearchIndex,
-              findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
-              alien: Alien
-            )
-(
-  val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asError, at.error),
-  val findByView: SearchByLabelProp[String]= searchIndex.create(at.asError,at.view)
+  at: ErrorAttributes,
+  factIndex: FactIndex, searchIndex: SearchIndex, alien: Alien,
+  users: Users, findNodes: FindNodes, filters: Filters
+)(
+  val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asError, at.realm)
 ) extends CoHandlerProvider{
+  def lastError: Obj = { // todo replace
+    //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
+    val itemList = filters.itemList(findAll,users.world,findNodes.noNode,Nil,editable = false)
+    itemList.list.lastOption.getOrElse(findNodes.noNode)
+  }
   def handlers =
-    CoHandler(AttrCaption(at.error))("Error") ::
-    CoHandler(AttrCaption(at.view))("View") ::
-    List(findAll,findByView).flatMap(searchIndex.handlers(_)):::
-      List(at.asError,at.errorMsg,at.error,at.view).flatMap{ attr⇒
+    CoHandler(AttrCaption(at.realm))("Error") ::
+    CoHandler(AttrCaption(at.show))("Show") ::
+    List(findAll).flatMap(searchIndex.handlers):::
+      List(at.asError,at.errorMsg,at.realm,at.show).flatMap{ attr⇒
         factIndex.handlers(attr) ::: alien.update(attr)
       }
 }
@@ -168,8 +172,12 @@ class TestComponent(
   asBigDecimal: AttrValueType[Option[BigDecimal]],
   asDBObj: AttrValueType[Obj],
   asString: AttrValueType[String],
+  asUUID: AttrValueType[Option[UUID]],
   uiStrings: UIStrings,
   mandatory: Mandatory,
+  zoneIds: ZoneIds,
+  itemListOrderingFactory: ItemListOrderingFactory,
+  objOrderingFactory: ObjOrderingFactory,
   errorAttributes: ErrorAttributes,
   errors: Errors
 )(
@@ -213,7 +221,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
     if(editable) List(inputField(
-      "1", TextFieldType, visibleLabel, value, obj(attr) = _,
+      "1", visibleLabel, value, obj(attr) = _,
       deferSend, alignRight, getValidationKey(obj,attr)
     ))
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value))
@@ -228,7 +236,7 @@ class TestComponent(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
     if(editable) List(inputField(
-      "1", TextFieldType, visibleLabel, value, obj(attr) = _,
+      "1", visibleLabel, value, obj(attr) = _,
       deferSend, alignRight=false, getValidationKey(obj,attr),
       isPassword=true
     ))
@@ -251,7 +259,7 @@ class TestComponent(
     val btn = btnScheduleClock("btnClock",popupToggle)
 
     val input = inputField(
-      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend=true, alignRight=true, getValidationKey(obj,attr)
     )
 
@@ -283,7 +291,7 @@ class TestComponent(
     }) :: Nil)))
 
     val input = inputField(
-      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString, valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString, valueType)(v),
       deferSend = true, alignRight = true, getValidationKey(obj, attr)
     )
 
@@ -310,7 +318,7 @@ class TestComponent(
     val btn = btnScheduleClock("btnClock",popupToggle)
 
     val input = inputField(
-      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend=true, alignRight=true, getValidationKey(obj,attr)
     )
     val controlGrp = divSimpleWrapper("1", withPadding("1", 10, divAlignWrapper("1", "right", "", btnRaised("1", "Now")(() => {
@@ -333,7 +341,7 @@ class TestComponent(
     val valueType = asBigDecimal
     val value = uiStrings.converter(valueType, asString)(obj(attr))
     if(editable) List(inputField(
-      "1", TextFieldType, visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = uiStrings.converter(asString,valueType)(v),
       deferSend, alignRight, getValidationKey(obj,attr)
     ))
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value,alignRight))
@@ -385,12 +393,13 @@ class TestComponent(
     //val key = popupKey(obj,attr)
     val (isOpened,popupToggle)=popupAction[Obj](obj,attr)
     val input = inputField(
-      "1", TextFieldType, visibleLabel, value, newValue=>{if(newValue.isEmpty) obj(attr) = findNodes.noNode },
+      "1", visibleLabel, value, newValue=>{if(newValue.isEmpty) obj(attr) = findNodes.noNode },
       deferSend=false, alignRight = false, getValidationKey(obj,attr)
     )
     val popup = if(!isOpened) Nil
       else option(findNodes.noNode, "not_selected", notSelected) ::
-        items().map(item ⇒ option(item, item(alien.objIdStr), objCaption(item)))
+        items().map(item⇒(item,objCaption(item))).sortBy(_._2)
+        .map{ case(item,caption) ⇒ option(item, item(alien.objIdStr), caption) }
     val btn = if(popup.nonEmpty) btnExpandLess("less",popupToggle)
       else btnExpandMore("more",popupToggle)
     btnInputPopup(btn, input, popup)
@@ -457,16 +466,17 @@ class TestComponent(
     )
   )
 
-  def sortingHeader(itemList: ItemList, attr: Attr[_]):List[ChildPair[OfDiv]] = {
-    val (action,reversed) = itemList.orderByAction(attr)
-    val txt = text("1",caption(attr))::Nil
-    val icon = reversed match {
-      case None ⇒ List()
-      case Some(false) ⇒ iconArrowDown()::Nil
-      case Some(true) ⇒ iconArrowUp()::Nil
+  def header(attr: Attr[_]):List[ChildPair[OfDiv]] = List(text("1",caption(attr)))
+  def sortingHeader(itemListOrdering: ItemListOrdering, attr: Attr[_]):List[ChildPair[OfDiv]] = {
+    val (action,reversed) = itemListOrdering.action(attr)
+    if(action.isEmpty) header(attr) else {
+      val icon = reversed match {
+        case None ⇒ List()
+        case Some(false) ⇒ iconArrowDown()::Nil
+        case Some(true) ⇒ iconArrowUp()::Nil
+      }
+      List(divClickable("1",action,icon:::header(attr):_*))
     }
-    if(action.isEmpty) List(txt:_*)
-    else List(divClickable("1",action,icon:::txt:_*))
   }
 
   private def removeControlView(itemList: ItemList) =
@@ -501,26 +511,17 @@ class TestComponent(
       item(filterAttrs.isExpanded) = true
     }
 
+  private def creationTimeOrdering =
+    objOrderingFactory.ordering(filterAttrs.createdAt, reverse = true).get
 
-  private def notificationViewMsg(view:String,show:Boolean=true):List[ChildPair[OfDiv]]=
-  {
-    //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
-    val filterObj = filters.filterObj(List(attrFactory.attrId(errorAttributes.asError)))
-    /*val filterList: List[Obj⇒Boolean] =
-      List((obj:Obj)=>{obj(errorAttributes.view)==view})*/
-     val itemList = filters.itemList(errors.findAll,users.world,filterObj,Nil,true)
-      //println(itemList2.length,itemList.list.length)
-    if(itemList.list.nonEmpty)
-      notification(itemList.list.last(errorAttributes.errorMsg),show=show)(()=>{}) ::Nil
-    else
-      Nil
+
+
+  private def errorNotification = {
+    val err = errors.lastError
+    val show = err(errorAttributes.show)
+    val msg = notification(err(errorAttributes.errorMsg), "", show)(()=>{}) :: Nil
+    if(show) keyboardReceiver(EscKeyCode)(()=>err(errorAttributes.show)=false) :: msg else msg
   }
-  var showError=true
-  private def errorNotification=
-    keyboardReceiver(EscKeyCode)(if(showError) Some(x=>{
-      if(x=="27") showError=false
-    }) else None)::
-    notificationViewMsg("Entry List",showError)
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
@@ -541,6 +542,7 @@ class TestComponent(
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
     val itemList = filters.itemList(findEntry,users.world,filterObj,filterList,editable)
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
     errorNotification:::
@@ -564,17 +566,17 @@ class TestComponent(
             selectAllGroup(itemList) :::
             List(
               group("2_grp",MinWidth(150),Priority(3),TextAlignCenter),
-              mCell("2",100)(_=>sortingHeader(itemList,logAt.boat)),
-              mCell("3",150)(_=>sortingHeader(itemList,logAt.date)),
-              mCell("4",180)(_=>sortingHeader(itemList,logAt.durationTotal)),
-              mCell("5",100)(_=>sortingHeader(itemList,logAt.asConfirmed)),
-              mCell("6",150)(_=>sortingHeader(itemList,logAt.confirmedBy)),
-              mCell("7",150)(_=>sortingHeader(itemList,logAt.confirmedOn))
+              mCell("2",100)(_=>sortingHeader(itemListOrdering,logAt.boat)),
+              mCell("3",150)(_=>sortingHeader(itemListOrdering,logAt.date)),
+              mCell("4",180)(_=>sortingHeader(itemListOrdering,logAt.durationTotal)),
+              mCell("5",100)(_=>sortingHeader(itemListOrdering,logAt.asConfirmed)),
+              mCell("6",150)(_=>sortingHeader(itemListOrdering,logAt.confirmedBy)),
+              mCell("7",150)(_=>sortingHeader(itemListOrdering,logAt.confirmedOn))
             ) :::
             editAllGroup()
           )
         ) :::
-        itemList.list.map{ (entry:Obj)=>
+        itemList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{ (entry:Obj)=>
           val entrySrcId = entry(alien.objIdStr)
           row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry))(
             selectRowGroup(entry) :::
@@ -654,11 +656,11 @@ class TestComponent(
                       }
                       else if(validationStates.nonEmpty){
                         val state = validationStates.head
-                        List(text("1",state.text,AlertTextColor.color))
+                        List(alert("1",state.text))
                       }
                       else {
                         val user = eventSource.mainSession(userAttrs.authenticatedUser)
-                        if(!user(nonEmpty)) List(text("1",s"User required",AlertTextColor.color))
+                        if(!user(nonEmpty)) List(alert("1",s"User required"))
                         else List(btnRaised("confirm","Confirm"){()⇒
                           entry(logAt.confirmedOn) = Option(Instant.now())
                           entry(logAt.confirmedBy) = user
@@ -742,15 +744,15 @@ class TestComponent(
           selectAllGroup(workList) :::
           List(
             group("2_group",MinWidth(150)),
-            mCell("2",100)(_=>sortingHeader(workList,logAt.workStart)),
-            mCell("3",100)(_=>sortingHeader(workList,logAt.workStop)),
-            mCell("4",150)(_=>sortingHeader(workList,logAt.workDuration)),
-            mCell("5",250,3)(_=>sortingHeader(workList,logAt.workComment))
+            mCell("2",100)(_=>header(logAt.workStart)),
+            mCell("3",100)(_=>header(logAt.workStop)),
+            mCell("4",150)(_=>header(logAt.workDuration)),
+            mCell("5",250,3)(_=>header(logAt.workComment))
           ) :::
           editAllGroup()
         )
       ) :::
-      workList.list.map { (work: Obj) =>
+      workList.list.sorted(creationTimeOrdering.reverse).map { (work: Obj) =>
         val workSrcId = work(alien.objIdStr)
         row(workSrcId, toggledSelectedRow(work))(
           selectRowGroup(work) :::
@@ -778,6 +780,7 @@ class TestComponent(
   private def errorListView(pf: String) = wrapDBView{ () => //todo: replace with actual errors
     val filterObj = filters.filterObj(List(attrFactory.attrId(errorAttributes.asError)))
     val itemList = filters.itemList[Obj](errors.findAll, users.world, filterObj, Nil, editable=true) //todo roles
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     //println(itemList.list.length)
     List(
       helmet("Errors"),
@@ -790,8 +793,8 @@ class TestComponent(
               selectAllGroup(itemList) :::
               List(
                 group("2_group",MinWidth(50)),
-                mCell("1",250)(_⇒sortingHeader(itemList,errorAttributes.error)), //todo: sortingHeader for errors
-                mCell("2",250)(_⇒sortingHeader(itemList,errorAttributes.view)) //todo: sortingHeader for errors
+                mCell("1",250)(_⇒sortingHeader(itemListOrdering,errorAttributes.realm)), //todo: sortingHeader for errors
+                mCell("2",250)(_⇒sortingHeader(itemListOrdering,errorAttributes.show)) //todo: sortingHeader for errors
               ):::
                 editAllGroup()
             )
@@ -803,7 +806,7 @@ class TestComponent(
                 List(
                   group("2_group",MinWidth(50)),
                   mCell("1",250)(showLabel⇒strField(error, errorAttributes.errorMsg, showLabel = false)),
-                  mCell("2",250)(showLabel⇒strField(error, errorAttributes.view, showLabel = false))
+                  mCell("2",250)(showLabel⇒booleanField(error, errorAttributes.show, showLabel = false))
                 )::: editRowGroup(itemList, error)
               )
             }
@@ -814,6 +817,7 @@ class TestComponent(
   private def boatListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
     val itemList = filters.itemList[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     List(
       helmet("Boats"),
       toolbar("Boats"),
@@ -825,12 +829,12 @@ class TestComponent(
             selectAllGroup(itemList) :::
             List(
               group("2_group",MinWidth(50)),
-              mCell("1",250)(_⇒sortingHeader(itemList,logAt.boatName))
+              mCell("1",250)(_⇒sortingHeader(itemListOrdering,logAt.boatName))
             ) :::
             editAllGroup()
           )
         ) :::
-        itemList.list.map{boat ⇒
+        itemList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{boat ⇒
           val srcId = boat(alien.objIdStr)
           row(srcId,toggledSelectedRow(boat))(
             selectRowGroup(boat) :::
@@ -885,6 +889,7 @@ class TestComponent(
   private def userListView(pf: String) = wrapDBView { () =>
     val filterObj = filters.filterObj(List(attrFactory.attrId(userAttrs.asUser)))
     val userList = filters.itemList(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(
       helmet("Users List"),
@@ -895,19 +900,19 @@ class TestComponent(
           selectAllGroup(userList) :::
           List(
             group("2_grp", MinWidth(300)),
-            mCell("1",250)(_⇒sortingHeader(userList,userAttrs.fullName)),
-            mCell("2",250)(_⇒sortingHeader(userList,userAttrs.username)),
-            mmCell("3",100,150)(_⇒sortingHeader(userList,userAttrs.asActiveUser))
+            mCell("1",250)(_⇒sortingHeader(itemListOrdering,userAttrs.fullName)),
+            mCell("2",250)(_⇒sortingHeader(itemListOrdering,userAttrs.username)),
+            mmCell("3",100,150)(_⇒sortingHeader(itemListOrdering,userAttrs.asActiveUser))
           ) :::
           (if(showPasswordCols) List(
             group("3_grp",MinWidth(150)),
-            mCell("4",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPassword)),
-            mCell("5",150)(_⇒sortingHeader(userList,userAttrs.unEncryptedPasswordAgain)),
+            mCell("4",150)(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPassword)),
+            mCell("5",150)(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPasswordAgain)),
             mCell("6",150)(_⇒Nil)
           ) else Nil) :::
           editAllGroup()
         ) ::
-        userList.list.map{ user ⇒
+        userList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{ user ⇒
           val srcId = user(alien.objIdStr)
           row(srcId,toggledSelectedRow(user))(
             selectRowGroup(user) :::
@@ -968,11 +973,21 @@ class TestComponent(
 
   private def calcWorkDuration(on: Boolean, work: Obj): Unit = {
     work(logAt.workDuration) = if(!on) None else {
-      val start = work(logAt.workStart).get
-      val stop = work(logAt.workStop).get
+      val date: ZonedDateTime = work(logAt.workDate).get.atZone(zoneIds.zoneId)
+      if(date.toLocalTime != LocalTime.of(0,0)) None else {
+        val start: ZonedDateTime = date.`with`(work(logAt.workStart).get)
+        val stopTime: LocalTime = work(logAt.workStop).get
+        val stop: ZonedDateTime =
+          if(stopTime == LocalTime.of(0,0)) date.plusDays(1)
+          else date.`with`(stopTime)
+        if(start.isBefore(stop)) Option(Duration.between(start, stop)) else None
+      }
+
+
+      /*
       if(start.isBefore(stop)) Option(Duration.between(start, stop))
       else if(LocalTime.of(0,0)==start && start==stop) Option(Duration.ofDays(1))
-      else None
+      else None*/
     }
   }
   private def calcEntryDuration(on: Boolean, work: Obj): Unit = {
@@ -985,10 +1000,26 @@ class TestComponent(
   private def calcConfirmed(on: Boolean, entry: Obj): Unit = {
     entry(logAt.asConfirmed) = if(on) entry else findNodes.noNode
   }
+
+  private def inheritAttr[Value](fromAttr: Attr[Value], toAttr: Attr[Value], byIndex: SearchByLabelProp[Obj]): List[BaseCoHandler] = {
+    def copy(fromObj: Obj, toObj: Obj): Unit = toObj(toAttr) = fromObj(fromAttr)
+    CoHandler(AfterUpdate(attrFactory.attrId(fromAttr)))(fromObj ⇒
+      findNodes.where(mainTx(), byIndex, fromObj, Nil).foreach(toObj⇒
+        copy(fromObj,toObj)
+      )
+    ) ::
+    CoHandler(AfterUpdate(byIndex.propId)){ toObj ⇒
+      val byAttr = attrFactory.toAttr(byIndex.propId, byIndex.propType)
+      val fromObj = toObj(byAttr)
+      copy(fromObj, toObj)
+    } :: Nil
+  }
+
   private def calcHandlers() =
-    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop).map(attrFactory.attrId(_)), calcWorkDuration) :::
-    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork).map(attrFactory.attrId(_)), calcEntryDuration) :::
-    onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn,logAt.confirmedBy).map(attrFactory.attrId(_)), calcConfirmed)
+    inheritAttr(logAt.date, logAt.workDate, findWorkByEntry) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop,logAt.workDate), Nil)(calcWorkDuration) :::
+    onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork), Nil)(calcEntryDuration) :::
+    onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn,logAt.confirmedBy), Nil)(calcConfirmed)
 
   ////
 
@@ -1022,9 +1053,10 @@ class TestComponent(
 
 
   def handlers =
+    CoHandler(ToUIStringConverter(asUUID,asString))(_⇒"...") ::
     List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
     List(
-      logAt.durationTotal, logAt.asConfirmed, logAt.workDuration
+      logAt.durationTotal, logAt.asConfirmed, logAt.workDuration, logAt.workDate
     ).flatMap(factIndex.handlers(_)) :::
     List(
       logAt.asEntry, logAt.boat, logAt.confirmedOn, logAt.date, logAt.confirmedBy,
@@ -1035,18 +1067,26 @@ class TestComponent(
     ).flatMap{ attr⇒
       factIndex.handlers(attr) ::: alien.update(attr)
     } :::
-    uiStrings.captions(List(logAt.asBoat, logAt.boatName))(_(logAt.boatName)) :::
+    uiStrings.captions(logAt.asEntry, Nil)(_⇒"") :::
+    uiStrings.captions(logAt.asWork, Nil)(_⇒"") :::
+    uiStrings.captions(logAt.asBoat, logAt.boatName::Nil)(_(logAt.boatName)) :::
+    CoHandler(AttrCaption(logAt.asEntry))("Entry") ::
+    CoHandler(AttrCaption(logAt.locationOfEntry))("Realm") ::
     CoHandler(AttrCaption(logAt.boat))("Boat") ::
     CoHandler(AttrCaption(logAt.date))("Date") ::
     CoHandler(AttrCaption(logAt.durationTotal))("Total duration, hrs:min") ::
     CoHandler(AttrCaption(logAt.asConfirmed))("Confirmed") ::
     CoHandler(AttrCaption(logAt.confirmedBy))("Confirmed by") ::
     CoHandler(AttrCaption(logAt.confirmedOn))("Confirmed on") ::
+    CoHandler(AttrCaption(logAt.asWork))("Work") ::
+    CoHandler(AttrCaption(logAt.entryOfWork))("Entry") ::
     CoHandler(AttrCaption(logAt.workStart))("Start") ::
     CoHandler(AttrCaption(logAt.workStop))("Stop") ::
     CoHandler(AttrCaption(logAt.workDuration))("Duration, hrs:min") ::
     CoHandler(AttrCaption(logAt.workComment))("Comment") ::
+    CoHandler(AttrCaption(logAt.asBoat))("Boat") ::
     CoHandler(AttrCaption(logAt.boatName))("Name") ::
+    CoHandler(AttrCaption(logAt.locationOfBoat))("Realm") ::
     CoHandler(AttrCaption(logAt.dateFrom))("Date From") ::
     CoHandler(AttrCaption(logAt.dateTo))("Date To") ::
     CoHandler(AttrCaption(logAt.hideConfirmed))("Hide Confirmed") ::
@@ -1062,8 +1102,7 @@ class TestComponent(
     CoHandler(TransientChanged)(currentVDom.invalidate) ::
     //todo: ?mandatory(logAt.asEntry, logAt.asConfirmed, mutual = true)
     mandatory(logAt.locationOfBoat, logAt.boatName, mutual = true) :::
-    mandatory(logAt.entryOfWork, logAt.workDuration, mutual = true) :::
-    filters.orderBy(logAt.date)
+    mandatory(logAt.entryOfWork, logAt.workDuration, mutual = true)
 }
 
 class FuelingAttrs(
@@ -1101,17 +1140,20 @@ class FuelingItems(
   onUpdate: OnUpdate,
   attrFactory: AttrFactory,
   dbWrapType: WrapType[ObjId],
-  validationFactory: ValidationFactory
+  validationFactory: ValidationFactory,
+  uiStrings: UIStrings
 )(
   val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
   val times: List[ObjId] = List(at.time00,at.time08,at.time24)
 ) extends CoHandlerProvider {
   def handlers =
-    CoHandler(GetValue(dbWrapType, at.time)){ (obj,innerObj)⇒
-      if(innerObj.data == at.time00) "00:00" else
-      if(innerObj.data == at.time08) "08:00" else
-      if(innerObj.data == at.time24) "24:00" else throw new Exception(s"? ${innerObj.data}")
-    } ::
+    attrFactory.handlers(at.time)((obj,objId)⇒
+      if(objId == at.time00) "00:00" else
+      if(objId == at.time08) "08:00" else
+      if(objId == at.time24) "24:00" else throw new Exception(s"? $objId")
+    ) :::
+    uiStrings.captions(at.asFueling, Nil)(_⇒"") :::
+    CoHandler(AttrCaption(at.asFueling))("Fueling") ::
     CoHandler(AttrCaption(at.meHours))("ME Hours.Min") ::
     CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::
     CoHandler(AttrCaption(at.comment))("Comment") ::
