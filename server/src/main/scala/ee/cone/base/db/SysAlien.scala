@@ -41,7 +41,7 @@ class Alien(
   def update[Value](attr: Attr[Value]) = {
     val attrId = attrFactory.attrId(attr)
     val targetAttr = attrFactory.define(objIdFactory.compose(List(at.target, attrId)), attrFactory.valueType(attr))
-    factIndex.handlers(targetAttr) :::
+    factIndex.handlers(attr) ::: factIndex.handlers(targetAttr) :::
     CoHandler(SetValue(demandedWrapType, attr)){
       (obj: Obj, innerObj : InnerObj[DemandedNode], value: Value)⇒
       val demanded = innerObj.data

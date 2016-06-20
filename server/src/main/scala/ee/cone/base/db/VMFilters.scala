@@ -4,7 +4,7 @@ import ee.cone.base.connection_api._
 import ee.cone.base.util.Never
 
 
-class FilterAttrs(
+class FilterAttributes(
   attr: AttrFactory,
   label: LabelFactory,
   asObjId: AttrValueType[ObjId]
@@ -14,7 +14,7 @@ class FilterAttrs(
 )
 
 class FilterObjFactoryImpl(
-  at: FilterAttrs,
+  at: FilterAttributes,
   nodeAttrs: NodeAttrs,
   handlerLists: CoHandlerLists,
   factIndex: FactIndex,
@@ -33,9 +33,7 @@ class FilterObjFactoryImpl(
   def handlers =
     CoHandler(AttrCaption(at.asFilter))("View Model") ::
       CoHandler(AttrCaption(at.filterFullKey))("Key") ::
-      List(at.asFilter, at.filterFullKey).flatMap{ attr⇒
-        factIndex.handlers(attr) ::: alien.update(attr)
-      } :::
+      List(at.asFilter, at.filterFullKey).flatMap(alien.update(_)) :::
       searchIndex.handlers(filterByFullKey)
 }
 

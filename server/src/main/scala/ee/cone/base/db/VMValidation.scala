@@ -10,15 +10,14 @@ trait ObjValidation {
   def get[Value](attr: Attr[Value]): List[ValidationState]
 }
 
-class ValidationAttributes(
+class ValidationAttributesImpl(
   attr: AttrFactory,
   asObjValidation: AttrValueType[ObjValidation]
 )(
   val validation: Attr[ObjValidation] = attr("b6b7ef56-a0e2-4c1b-982e-76254c42df9b",asObjValidation)
-)
+) extends ValidationAttributes
 
 class ValidationWrapType extends WrapType[ObjValidation]
-
 
 class ValidationFactoryImpl(
   at: ValidationAttributes,

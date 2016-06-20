@@ -23,7 +23,6 @@ class ItemListOrderingFactoryImpl(
   at: ItemListOrderingAttributes,
   uIStringAttributes: UIStringAttributes,
   attrFactory: AttrFactory,
-  factIndex: FactIndex,
   alien: Alien,
   orderingFactory:  ObjOrderingFactory
 ) extends ItemListOrderingFactory with CoHandlerProvider {
@@ -57,7 +56,5 @@ class ItemListOrderingFactoryImpl(
   }
   def handlers = List(
     at.orderByAttrValueTypeId, at.orderByAttrId, at.orderDirection
-  ).flatMap{ attr ⇒
-    factIndex.handlers(attr) ::: alien.update(attr)
-  }
+  ).flatMap(alien.update(_))
 }

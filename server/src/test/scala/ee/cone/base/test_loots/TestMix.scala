@@ -31,59 +31,41 @@ class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
 }
 
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
-
-
   lazy val logAttributes = new BoatLogEntryAttributes(
     attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()
   lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl, tags)
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
-  lazy val asObjIdSet = AttrValueType[Set[ObjId]](objIdFactory.toObjId("ca3fd9c9-870f-4604-8fe2-a6ae98b37c29"))
-  lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
-  lazy val listedWrapType = new ListedWrapType
-  lazy val filterAttrs = new FilterAttrs(attrFactory, labelFactory, asBoolean, asDBObjId, asObjIdSet, asInstant)()
-  lazy val filters = new Filters(filterAttrs,nodeAttrs,findAttrs,alienAttrs,handlerLists,attrFactory,findNodes,mainTx,alien,listedWrapType,factIndex,searchIndex,transient,objIdFactory)()
   lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
 
-  lazy val asObjValidation = AttrValueType[ObjValidation](objIdFactory.toObjId("f3ef68d8-60d3-4811-9db1-d187228feb89"))
-  lazy val validationAttributes = new ValidationAttributes(attrFactory,asObjValidation)()
-  lazy val validationWrapType = new ValidationWrapType
-  lazy val validationFactory = new ValidationFactory(validationAttributes,nodeAttrs,attrFactory,dbWrapType,validationWrapType,uiStrings)()
-
-  lazy val objOrderingFactory = new ObjOrderingFactory(handlerLists, attrFactory)
-  lazy val objOrderingForAttrValueTypes = new ObjOrderingForAttrValueTypes(objOrderingFactory, asBoolean, asString, asDBObj, asInstant, asLocalTime, asBigDecimal, uiStrings)
-  lazy val orderingAttributes = new ItemListOrderingAttributes(attrFactory, asBoolean, asDBObjId)()
-  lazy val itemListOrderingFactory = new ItemListOrderingFactory(orderingAttributes, uiStringAttributes, attrFactory, factIndex, alien, objOrderingFactory)
-
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
-  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, filters, uiStrings, itemListOrderingFactory)()
-  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration, asBigDecimal)()
+  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, uiStrings, itemListOrderingFactory)()
+
+  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration, asBigDecimal, asDBObjId)()
   lazy val fuelingItems = new FuelingItems(
-    fuelingAttrs, findAttrs, alienAttrs, filterAttrs, nodeAttrs,
-    factIndex, searchIndex, alien, filters, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings
+    fuelingAttrs, findAttrs, alienAttrs, nodeAttrs,
+    factIndex, searchIndex, alien, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings, lazyObjFactory
   )()
 
   lazy val errorAttrs=new ErrorAttributes(attrFactory,labelFactory,asDBObj,asString,asBoolean)()
-  lazy val errors = new Errors(errorAttrs,factIndex,searchIndex,alien,users,findNodes,filters)()
+  lazy val errors = new Errors(errorAttrs,searchIndex,alien,users,findNodes,itemListFactory)()
   //
 
   lazy val testComponent = new TestComponent(
-    nodeAttrs, findAttrs, filterAttrs, logAttributes, userAttrs,
+    nodeAttrs, findAttrs, itemListAttributes, logAttributes, userAttrs,
     fuelingAttrs, alienAttrs, validationAttributes,
     handlerLists,
     attrFactory,
     findNodes, mainTx, alien, onUpdate,
     tags, materialTags, flexTags, currentView, dtTablesState,
-    searchIndex, factIndex, filters, htmlTableWithControl, users, fuelingItems,
+    searchIndex, factIndex, htmlTableWithControl, users, fuelingItems,
     objIdFactory, validationFactory,
     asDuration, asInstant, asLocalTime,asBigDecimal, asDBObj, asString, asUUID,
     uiStrings, mandatory, zoneIds, itemListOrderingFactory, objOrderingFactory,
-    errorAttrs, errors
+    errorAttrs, errors, itemListFactory, filterObjFactory, editing
   )()
 }
-
-class ListedWrapType extends WrapType[InnerItemList]
 
 class TestSessionConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle

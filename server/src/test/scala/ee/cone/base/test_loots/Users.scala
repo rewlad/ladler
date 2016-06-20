@@ -34,7 +34,7 @@ class Users(
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
   alien: Alien, transient: Transient, mandatory: Mandatory, unique: Unique,
-  onUpdate: OnUpdate, filters: Filters, captions: UIStrings,
+  onUpdate: OnUpdate, captions: UIStrings,
   orderingFactory: ItemListOrderingFactory
 )(
   val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asUser, at.location),
@@ -93,9 +93,7 @@ class Users(
       CoHandler(AttrCaption(at.encryptedPassword))("Encrypted Password") ::
       List(findAll,findAllActive,findActiveByName).flatMap(searchIndex.handlers(_)) :::
       List(at.unEncryptedPassword, at.unEncryptedPasswordAgain).flatMap(transient.update) :::
-      List(at.asUser,at.fullName,at.username,at.encryptedPassword,at.authenticatedUser,at.location).flatMap{ attr⇒
-        factIndex.handlers(attr) ::: alien.update(attr)
-      } :::
+      List(at.asUser,at.fullName,at.username,at.encryptedPassword,at.authenticatedUser,at.location).flatMap(alien.update(_)) :::
       List(at.asActiveUser).flatMap(factIndex.handlers) :::
       mandatory(at.location, at.username, mutual = false) :::
       mandatory(at.location, at.fullName, mutual = false) :::

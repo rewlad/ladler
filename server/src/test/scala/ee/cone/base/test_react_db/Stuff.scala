@@ -138,9 +138,7 @@ class TestComponent(
     mandatory(at.asTestTask,at.comments, mutual = true) :::
     searchIndex.handlers(testTaskByState) :::
     factIndex.handlers(at.testState) :::
-    List(at.comments).flatMap{ attr⇒
-      factIndex.handlers(attr) ::: alien.update(attr)
-    } :::
+    List(at.comments).flatMap(alien.update(_)) :::
     CoHandler(ApplyEvent(at.taskCreated))(taskCreated) ::
     CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
     CoHandler(ViewPath(""))(emptyView) ::

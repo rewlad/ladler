@@ -116,24 +116,21 @@ class ErrorAttributes(
 )
 
 class Errors(
-  at: ErrorAttributes,
-  factIndex: FactIndex, searchIndex: SearchIndex, alien: Alien,
-  users: Users, findNodes: FindNodes, filters: Filters
+  at: ErrorAttributes, searchIndex: SearchIndex, alien: Alien,
+  users: Users, findNodes: FindNodes, itemListFactory: ItemListFactory
 )(
   val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asError, at.realm)
 ) extends CoHandlerProvider{
   def lastError: Obj = { // todo replace
     //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
-    val itemList = filters.itemList(findAll,users.world,findNodes.noNode,Nil,editable = false)
+    val itemList = itemListFactory.create(findAll,users.world,findNodes.noNode,Nil,editable = false)
     itemList.list.lastOption.getOrElse(findNodes.noNode)
   }
   def handlers =
     CoHandler(AttrCaption(at.realm))("Error") ::
     CoHandler(AttrCaption(at.show))("Show") ::
     List(findAll).flatMap(searchIndex.handlers):::
-      List(at.asError,at.errorMsg,at.realm,at.show).flatMap{ attr⇒
-        factIndex.handlers(attr) ::: alien.update(attr)
-      }
+      List(at.asError,at.errorMsg,at.realm,at.show).flatMap(alien.update(_))
 }
 
 ///////
@@ -141,7 +138,7 @@ class Errors(
 class TestComponent(
   nodeAttrs: NodeAttrs,
   findAttrs: FindAttrs,
-  filterAttrs: FilterAttrs,
+  listAttrs: ItemListAttributes,
   logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
@@ -160,7 +157,6 @@ class TestComponent(
   dtTablesState: DataTablesState,
   searchIndex: SearchIndex,
   factIndex: FactIndex,
-  filters: Filters,
   htmlTable: HtmlTable,
   users: Users,
   fuelingItems: FuelingItems,
@@ -179,7 +175,10 @@ class TestComponent(
   itemListOrderingFactory: ItemListOrderingFactory,
   objOrderingFactory: ObjOrderingFactory,
   errorAttributes: ErrorAttributes,
-  errors: Errors
+  errors: Errors,
+  itemListFactory: ItemListFactory,
+  filterObjFactory: FilterObjFactory,
+  editing: Editing
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -425,14 +424,14 @@ class TestComponent(
     withMargin(key, 10, paper("paper")( withPadding(key, 10, child:_*)))
 
   def toggledSelectedRow(item: Obj) = List(
-    Toggled(item(filterAttrs.isExpanded))(Some(()=> if(!item(filterAttrs.isExpanded)){
-      filters.editing = findNodes.noNode
-      item(filterAttrs.isExpanded) = true
+    Toggled(item(listAttrs.isExpanded))(Some(()=> if(!item(listAttrs.isExpanded)){
+      editing.reset()
+      item(listAttrs.isExpanded) = true
     })),
-    IsSelected(item(filterAttrs.isSelected))
+    IsSelected(item(listAttrs.isSelected))
   )
   def toggledRow(filterObj: Obj, id: ObjId) =
-    Toggled(filterObj(filterAttrs.expandedItem)==id)(Some(()=>filterObj(filterAttrs.expandedItem)=id))
+    Toggled(filterObj(listAttrs.expandedItem)==id)(Some(()=>filterObj(listAttrs.expandedItem)=id))
 
   private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
@@ -459,10 +458,10 @@ class TestComponent(
 
   def selectAllCheckBox(itemList: ItemList) = List(
     checkBox("1","",
-      itemList.filter(filterAttrs.selectedItems).nonEmpty,
+      itemList.filter(listAttrs.selectedItems).nonEmpty,
       on ⇒
         if(on) itemList.selectAllListed()
-        else itemList.filter(filterAttrs.selectedItems)=Set[ObjId]()
+        else itemList.filter(listAttrs.selectedItems)=Set[ObjId]()
     )
   )
 
@@ -489,7 +488,7 @@ class TestComponent(
     addRemoveControlViewBase(itemList: ItemList){ ()⇒
       val item = itemList.add()
       item(alienAttrs.isEditing) = true
-      item(filterAttrs.isExpanded) = true
+      item(listAttrs.isExpanded) = true
     }
 
 
@@ -501,18 +500,18 @@ class TestComponent(
   private def selectAllGroup(itemList: ItemList) =
     iconCellGroup("selected")(_⇒selectAllCheckBox(itemList))
   private def selectRowGroup(item: Obj) =
-    iconCellGroup("selected")(_⇒booleanField(item, filterAttrs.isSelected, editableOpt = Some(true)))
+    iconCellGroup("selected")(_⇒booleanField(item, listAttrs.isSelected, editableOpt = Some(true)))
   private def editAllGroup() = iconCellGroup("edit")(_⇒Nil)
   private def editRowGroupBase(on: Boolean)(action: ()⇒Unit) =
     iconCellGroup("edit")(_⇒if(on) List(btnModeEdit("btnCreate",action)) else Nil)
   private def editRowGroup(itemList: ItemList, item: Obj) =
     editRowGroupBase(itemList.isEditable){ () ⇒
       item(alienAttrs.isEditing) = !item(alienAttrs.isEditing)
-      item(filterAttrs.isExpanded) = true
+      item(listAttrs.isExpanded) = true
     }
 
   private def creationTimeOrdering =
-    objOrderingFactory.ordering(filterAttrs.createdAt, reverse = true).get
+    objOrderingFactory.ordering(listAttrs.createdAt, reverse = true).get
 
 
 
@@ -525,7 +524,7 @@ class TestComponent(
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
-    val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asEntry)))
+    val filterObj = filterObjFactory.create(List(attrFactory.attrId(logAt.asEntry)))
     val filterList: List[Obj⇒Boolean] = {
       val value = filterObj(logAt.boat)(nodeAttrs.objId)
       if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.boat)(nodeAttrs.objId)==value) else Nil
@@ -541,7 +540,7 @@ class TestComponent(
     }
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
-    val itemList = filters.itemList(findEntry,users.world,filterObj,filterList,editable)
+    val itemList = itemListFactory.create(findEntry,users.world,filterObj,filterList,editable)
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
@@ -606,7 +605,7 @@ class TestComponent(
 
   private def boatSelectView(obj: Obj) =
     objField(obj,logAt.boat,showLabel = true)(()⇒
-      filters.itemList(findBoat, users.world, findNodes.noNode, Nil, editable=false).list
+      itemListFactory.create(findBoat, users.world, findNodes.noNode, Nil, editable=false).list
     )
 
   private def entryEditView(pf: String) = wrapDBView { () =>
@@ -682,7 +681,7 @@ class TestComponent(
 
   def entryEditFuelScheduleView(entry: Obj, validationStates: List[ValidationState]): ChildPair[OfDiv] = {
     //val entryIdStr = entry(alien.objIdStr)
-    val filterObj = filters.filterObj(List(entry(nodeAttrs.objId)))
+    val filterObj = filterObjFactory.create(List(entry(nodeAttrs.objId)))
     val deferSend = validationStates.size > 2
     val validationContext = validationFactory.context(validationStates)
 
@@ -735,8 +734,8 @@ class TestComponent(
 
   def entryEditWorkListView(entry: Obj): ChildPair[OfDiv] = {
     val entryIdStr = entry(alien.objIdStr)
-    val filterObj = filters.filterObj(List(entry(nodeAttrs.objId),attrFactory.attrId(logAt.asWork)))
-    val workList = filters.itemList(findWorkByEntry,entry,filterObj,Nil,entry(alienAttrs.isEditing))
+    val filterObj = filterObjFactory.create(List(entry(nodeAttrs.objId),attrFactory.attrId(logAt.asWork)))
+    val workList = itemListFactory.create(findWorkByEntry,entry,filterObj,Nil,entry(alienAttrs.isEditing))
     paperTable("dtTableEdit2")(
       controlPanel(inset = false)(Nil,addRemoveControlView(workList)),
       List(
@@ -778,8 +777,8 @@ class TestComponent(
   }
 
   private def errorListView(pf: String) = wrapDBView{ () => //todo: replace with actual errors
-    val filterObj = filters.filterObj(List(attrFactory.attrId(errorAttributes.asError)))
-    val itemList = filters.itemList[Obj](errors.findAll, users.world, filterObj, Nil, editable=true) //todo roles
+    val filterObj = filterObjFactory.create(List(attrFactory.attrId(errorAttributes.asError)))
+    val itemList = itemListFactory.create[Obj](errors.findAll, users.world, filterObj, Nil, editable=true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     //println(itemList.list.length)
     List(
@@ -815,8 +814,8 @@ class TestComponent(
   }
 
   private def boatListView(pf: String) = wrapDBView { () =>
-    val filterObj = filters.filterObj(List(attrFactory.attrId(logAt.asBoat)))
-    val itemList = filters.itemList[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
+    val filterObj = filterObjFactory.create(List(attrFactory.attrId(logAt.asBoat)))
+    val itemList = itemListFactory.create[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     List(
       helmet("Boats"),
@@ -873,7 +872,7 @@ class TestComponent(
   private def loginView() = {
     val showLabel = true
 
-    val dialog = filters.filterObj(List(attrFactory.attrId(userAttrs.asActiveUser)))
+    val dialog = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asActiveUser)))
     List(
       helmet("Login"),
       withMaxWidth("1",400,paperWithMargin("login",
@@ -887,8 +886,8 @@ class TestComponent(
 
 
   private def userListView(pf: String) = wrapDBView { () =>
-    val filterObj = filters.filterObj(List(attrFactory.attrId(userAttrs.asUser)))
-    val userList = filters.itemList(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
+    val filterObj = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asUser)))
+    val userList = itemListFactory.create(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(
@@ -1064,9 +1063,7 @@ class TestComponent(
       logAt.asWork, logAt.entryOfWork,
       logAt.workStart, logAt.workStop, logAt.workComment,
       logAt.asBoat, logAt.boatName, logAt.locationOfBoat
-    ).flatMap{ attr⇒
-      factIndex.handlers(attr) ::: alien.update(attr)
-    } :::
+    ).flatMap(alien.update(_)) :::
     uiStrings.captions(logAt.asEntry, Nil)(_⇒"") :::
     uiStrings.captions(logAt.asWork, Nil)(_⇒"") :::
     uiStrings.captions(logAt.asBoat, logAt.boatName::Nil)(_(logAt.boatName)) :::
@@ -1111,7 +1108,8 @@ class FuelingAttrs(
   objIdFactory: ObjIdFactory,
   asString: AttrValueType[String],
   asDuration: AttrValueType[Option[Duration]],
-  asBigDecimal: AttrValueType[Option[BigDecimal]]
+  asBigDecimal: AttrValueType[Option[BigDecimal]],
+  asObjId: AttrValueType[ObjId]
 )(
   // 00 08 RF 24
   val asFueling: Attr[Obj] = label("8fc310bc-0ae7-4ad7-90f1-2dacdc6811ad"),
@@ -1124,26 +1122,26 @@ class FuelingAttrs(
   val time: Attr[String] = attr("df695468-c2bd-486c-9e58-f83da9566940", asString),
   val time00: ObjId = objIdFactory.toObjId("2b4c0bbf-fd24-4df8-b57a-29c26af11b23"),
   val time08: ObjId = objIdFactory.toObjId("a281aafc-b32d-4cf0-8599-eee8448c937d"),
-  val time24: ObjId = objIdFactory.toObjId("f6bdcef8-179e-4da3-8c3d-ec7f51716ee6")
+  val time24: ObjId = objIdFactory.toObjId("f6bdcef8-179e-4da3-8c3d-ec7f51716ee6"),
+  val fullKey: Attr[ObjId] = attr("37b8c873-e897-49b2-9802-5c4d87f5a272",asObjId)
 )
 
 class FuelingItems(
   at: FuelingAttrs,
   findAttrs: FindAttrs,
   alienAttrs: AlienAccessAttrs,
-  filterAttrs: FilterAttrs,
   nodeAttrs: NodeAttrs,
   factIndex: FactIndex,
   searchIndex: SearchIndex,
   alien: Alien,
-  filters: Filters,
   onUpdate: OnUpdate,
   attrFactory: AttrFactory,
   dbWrapType: WrapType[ObjId],
   validationFactory: ValidationFactory,
-  uiStrings: UIStrings
+  uiStrings: UIStrings,
+  lazyObjFactory: LazyObjFactory
 )(
-  val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,filterAttrs.filterFullKey),
+  val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,at.fullKey),
   val times: List[ObjId] = List(at.time00,at.time08,at.time24)
 ) extends CoHandlerProvider {
   def handlers =
@@ -1163,9 +1161,7 @@ class FuelingItems(
     //List(at.meHours).flatMap{ attr ⇒ factIndex.handlers(attr) } :::
     List(
       at.asFueling, at.meHours/*Str*/, at.fuel, at.comment, at.engineer, at.master
-    ).flatMap{ attr ⇒
-      factIndex.handlers(attr) ::: alien.update(attr)
-    }/* :::
+    ).flatMap(alien.update(_))/* :::
     onUpdate.handlers(List(at.asFueling,at.meHoursStr).map(attrFactory.attrId(_)), {
       (on: Boolean, fueling: Obj)⇒
       fueling(at.meHours) = if(!on) None else {
@@ -1182,7 +1178,7 @@ else if(!fuelingItems.meHoursIsInc(entry)){
                       }
 * */
   def fueling(entry: Obj, time: ObjId, wrapForEdit: Boolean) =
-    filters.lazyLinkingObj(fuelingByFullKey,List(entry(nodeAttrs.objId),time),wrapForEdit)
+    lazyObjFactory.create(fuelingByFullKey,List(entry(nodeAttrs.objId),time),wrapForEdit)
   def validation(entry: Obj): List[ValidationState] = {
     val fuelingList = times.map(time⇒fueling(entry, time, wrapForEdit = false))
     fuelingList.flatMap { obj ⇒
