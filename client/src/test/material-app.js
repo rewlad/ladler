@@ -8,45 +8,52 @@ import VDomMix       from "../main/vdom-mix"
 import React             from 'react'
 import ReactDOM          from 'react-dom'
 
-import Paper             from 'material-ui/lib/paper'
-import Table             from 'material-ui/lib/table/table'
+import Paper             from 'material-ui/Paper'
+import baseTheme from 'material-ui/styles/baseThemes/lightBaseTheme'
+
+/*
+import Table             from 'material-ui/table/table'
 import TableHeader       from 'material-ui/lib/table/table-header'
 import TableBody         from 'material-ui/lib/table/table-body'
 import TableHeaderColumn from 'material-ui/lib/table/table-header-column'
 import TableRow          from 'material-ui/lib/table/table-row'
 import TableRowColumn    from 'material-ui/lib/table/table-row-column'
-import RaisedButton      from 'material-ui/lib/raised-button'
-import IconButton        from 'material-ui/lib/icon-button'
-import IconEditorModeEdit from 'material-ui/lib/svg-icons/editor/mode-edit'
-import IconContentAdd    from 'material-ui/lib/svg-icons/content/add'
-import IconContentClear  from 'material-ui/lib/svg-icons/content/clear'
-import IconNavigationClose from 'material-ui/lib/svg-icons/navigation/close'
-import IconContentSave  from 'material-ui/lib/svg-icons/content/save'
-import IconActionDelete  from 'material-ui/lib/svg-icons/action/delete'
-import IconActionRestore from 'material-ui/lib/svg-icons/action/restore'
-import IconActionLock from 'material-ui/lib/svg-icons/action/lock'
-import IconActionDateRange from 'material-ui/lib/svg-icons/action/date-range'
-import IconActionSchedule from 'material-ui/lib/svg-icons/action/schedule'
-import IconContentFilterList from 'material-ui/lib/svg-icons/content/filter-list'
-import IconContentRemove from 'material-ui/lib/svg-icons/content/remove'
-import IconSocialPerson  from 'material-ui/lib/svg-icons/social/person'
-import IconMenu          from 'material-ui/lib/menus/icon-menu'
-import MenuItem          from 'material-ui/lib/menus/menu-item'
-import IconNavigationMenu from 'material-ui/lib/svg-icons/navigation/menu'
-import IconNavigationDropDown from 'material-ui/lib/svg-icons/navigation/arrow-drop-down'
-import IconNavigationDropUp from 'material-ui/lib/svg-icons/navigation/arrow-drop-up'
-import IconNavigationExpandMore from 'material-ui/lib/svg-icons/navigation/expand-more'
-import IconNavigationExpandLess from 'material-ui/lib/svg-icons/navigation/expand-less'
-import TextField         from 'material-ui/lib/TextField/TextField'
-import DatePicker        from 'material-ui/lib/date-picker/date-picker'
-import Checkbox          from 'material-ui/lib/checkbox'
-import TimePicker        from 'material-ui/lib/time-picker/time-picker'
+*/
+import RaisedButton      from 'material-ui/RaisedButton'
+import IconButton        from 'material-ui/IconButton'
+import IconEditorModeEdit from 'material-ui/svg-icons/editor/mode-edit'
+import IconContentAdd    from 'material-ui/svg-icons/content/add'
+import IconContentClear  from 'material-ui/svg-icons/content/clear'
+import IconNavigationClose from 'material-ui/svg-icons/navigation/close'
+import IconContentSave  from 'material-ui/svg-icons/content/save'
+import IconActionDelete  from 'material-ui/svg-icons/action/delete'
+import IconActionRestore from 'material-ui/svg-icons/action/restore'
+import IconActionLock from 'material-ui/svg-icons/action/lock'
+import IconActionDateRange from 'material-ui/svg-icons/action/date-range'
+import IconActionSchedule from 'material-ui/svg-icons/action/schedule'
+import IconContentFilterList from 'material-ui/svg-icons/content/filter-list'
+import IconContentRemove from 'material-ui/svg-icons/content/remove'
+import IconSocialPerson  from 'material-ui/svg-icons/social/person'
+//import IconMenu          from 'material-ui/menus/icon-menu'
+//import MenuItem          from 'material-ui/menus/menu-item'
+import IconNavigationMenu from 'material-ui/svg-icons/navigation/menu'
+import IconNavigationDropDown from 'material-ui/svg-icons/navigation/arrow-drop-down'
+import IconNavigationDropUp from 'material-ui/svg-icons/navigation/arrow-drop-up'
+import IconNavigationExpandMore from 'material-ui/svg-icons/navigation/expand-more'
+import IconNavigationExpandLess from 'material-ui/svg-icons/navigation/expand-less'
+import TextField         from 'material-ui/TextField/TextField'
+//import DatePicker        from 'material-ui/DatePicker/DatePicker'
+import Checkbox          from 'material-ui/Checkbox'
+//import TimePicker        from 'material-ui/time-picker/time-picker'
 import MaterialChip      from '../main/material-chip'
-import Calendar          from 'material-ui/lib/date-picker/calendar'
-import Clock             from 'material-ui/lib/time-picker/clock'
+import Calendar          from 'material-ui/DatePicker/Calendar'
+import Clock             from 'material-ui/TimePicker/Clock'
 import injectTapEventPlugin from "react-tap-event-plugin"
 import Helmet            from 'react-helmet'
-import SnackBar          from 'material-ui/lib/snackbar'
+import SnackBar          from 'material-ui/Snackbar'
+
+import getMuiTheme from 'material-ui/styles/getMuiTheme'
+
 injectTapEventPlugin()
 function fixOnScrollBug(){
     document.body.style.overflowY="scroll"
@@ -99,7 +106,7 @@ const TimeInput = React.createClass({
             this.props.onChange({target:{value: h+":"+m}})
         }
         //console.log(this.props.style)
-        return React.createElement(TimePicker,{key:"1",floatingLabelText:this.props.floatingLabelText,
+        return React.createElement(TimePicker,{key:"timeInput",floatingLabelText:this.props.floatingLabelText,
         underlineStyle: this.props.underlineStyle,inputStyle:this.props.style,
             format:"24hr",defaultTime:value,onChange:onChange,textFieldStyle:{width:"100%"}},null)
     }
@@ -136,9 +143,9 @@ class FlexGridItemWidthSync extends React.Component{
     }
     render(){
         const tStyle={
-            width:this.props.width||"100%",
-            top:this.props.y||"0px",
-            left:this.props.x||"0px",
+            width:this.props.width+"px"||"100%",
+            top:this.props.y+"px"||"0px",
+            left:this.props.x+"px"||"0px",
             transition:"all 300ms ease-out",
              position:"absolute"
         }
@@ -147,7 +154,7 @@ class FlexGridItemWidthSync extends React.Component{
         Object.assign(tStyle,this.props.style||{})
         const ref = el => this.props.flexReg(true,el)
 
-        return React.createElement("div",{key:this.props.key,style:tStyle,ref},this.props.children)
+        return React.createElement("div",{key:"flexGridItemWithSync",style:tStyle,ref},this.props.children)
     }
 }
 
@@ -173,13 +180,13 @@ class DataTableRow extends React.Component{
     render(){
         const pStyle={
             border:"0px solid black",
-            fontSize:13,
+            fontSize:"13px",
             fontWeight:400,
             color:"rgba(0,0,0,0.87)",
             backgroundColor:this.props.selected?"#F5F5F5":this.state.mouseOver?"#eeeeee":"transparent"
         }
 
-        return React.createElement("div",{key:this.props.key,style:pStyle,onMouseEnter:this.handleMouseEnter,
+        return React.createElement("div",{key:"dataTableRow",style:pStyle,onMouseEnter:this.handleMouseEnter,
                         onMouseLeave:this.handleMouseLeave,onClick:this.props.onClick},this.props.children)
     }
 }
@@ -280,7 +287,7 @@ class IconButtonEx extends React.Component{
     handleMouseLeave(){this.setState({zIndex:"auto"})}
     render(){
         const props={
-            key:this.props.key,
+            key:"iconButtonEx",
             onClick:this.props.onClick,
             tooltip:this.props.tooltip,
             style:Object.assign({zIndex:this.state.zIndex},this.props.style),
@@ -313,7 +320,7 @@ class CursorOver extends React.Component{
             backgroundColor:this.state.mouseOver?this.props.hoverColor:"transparent"
         }
 
-        return React.createElement("div",{key:this.props.key,style:pStyle,onMouseEnter:this.handleMouseEnter,
+        return React.createElement("div",{key:"cursorOver",style:pStyle,onMouseEnter:this.handleMouseEnter,
                         onMouseLeave:this.handleMouseLeave},this.props.children)
     }
 }
@@ -339,7 +346,7 @@ class CrazyCalendar extends React.Component{
         }
 
         const propsCalender={
-            key:"dialog",
+            key:"calendar",
             container:"dialog",
             ref:"calender",
             DateTimeFormat: global.Intl.DateTimeFormat,
@@ -385,6 +392,7 @@ class CrazyClock extends React.Component{
         }
         const format="24hr"
         const propsClock={
+            key: "clock",
             ref: 'clock',
             format,
             initialTime,
@@ -466,7 +474,7 @@ class SnackBarEx extends React.Component{
 
     render(){
         const props={
-            key:this.props.key,
+            key:"snackbar",
             onKeyDown:this.handleKeyDown,
             open:this.props.open,
             message:this.props.message,
@@ -476,7 +484,6 @@ class SnackBarEx extends React.Component{
         return React.createElement(SnackBar,props)
     }
 }
-
 class KeyboardReceiver extends React.Component{
     constructor(props){
         super(props)
@@ -500,9 +507,23 @@ class KeyboardReceiver extends React.Component{
     }
 }
 
+class MuiThemeParent extends React.Component{
+    getChildContext(){
+        return { muiTheme: getMuiTheme(baseTheme)}
+    }
+
+    render(){
+        return React.createElement("div",{key:"muiTheme"},this.props.children)
+    }
+}
+MuiThemeParent.childContextTypes = {
+    muiTheme: React.PropTypes.object.isRequired
+}
+
+
 const tp = ({
     Paper,
-    Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
+    //Table,TableHeader,TableBody,TableHeaderColumn,TableRow,TableRowColumn,
     RaisedButton,
     IconButtonEx, IconEditorModeEdit,MaterialChip,
     IconContentAdd,IconContentClear,IconContentFilterList,IconContentRemove,IconActionDelete,
@@ -511,7 +532,8 @@ const tp = ({
     IconActionRestore,IconContentSave,CrazyCalendar,CrazyClock,
     /*IconMenuButton,MenuItem,*/IconNavigationMenu,CursorOver,
     IconNavigationDropDown,IconNavigationDropUp,IconActionDateRange,IconNavigationExpandMore,IconNavigationExpandLess,
-    IconActionSchedule, IconNavigationClose, Helmet, SnackBarEx,KeyboardReceiver
+    IconActionSchedule, IconNavigationClose, Helmet, SnackBarEx,KeyboardReceiver,
+    MuiThemeParent
     // DecimalInput
 })
 

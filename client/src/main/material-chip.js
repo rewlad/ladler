@@ -1,5 +1,5 @@
 import React from 'react'
-import IconNavigationClose from 'material-ui/lib/svg-icons/navigation/close'
+import IconNavigationClose from 'material-ui/svg-icons/navigation/close'
 export default class MaterialChip extends React.Component{
 	constructor(props){
 		super(props);

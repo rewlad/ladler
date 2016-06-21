@@ -295,10 +295,10 @@ class TestComponent(
     )
 
     val popup = if (!isOpened) Nil
-    else withMinWidth("minWidth", 320, calendarDialog("calendar", value /*may be not 'value' later*/ , Some { newVal =>
+    else calendarDialog("calendar", value /*may be not 'value' later*/ , Some { newVal =>
       obj(attr) = uiStrings.converter(asString, valueType)(newVal)
       popupToggle()
-    }) :: controlGrp :: Nil) :: Nil
+    }) :: controlGrp :: Nil
     btnInputPopup(btn, input, popup)
 
   }
@@ -411,13 +411,13 @@ class TestComponent(
 
   private def wrapDBView(view: ()=>List[ChildPair[OfDiv]]): VDomValue =
     eventSource.incrementalApplyAndView { () ⇒
-      root(withMinWidth("minWidth320",320,if(users.needToLogIn) loginView() else {
+      root(muiTheme(withMinWidth("minWidth320",320,if(users.needToLogIn) loginView() else {
         val startTime = System.currentTimeMillis
         val res = view()
         val endTime = System.currentTimeMillis
         currentVDom.until(endTime + (endTime - startTime) * 10)
         res
-      })::Nil)
+      }))::Nil)
     }
 
   private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]*) =

@@ -17,7 +17,7 @@ const FlexGrid = React.createClass({
             margin:"0px auto"
         }
         const ref = el => this.props.flexReg(false,el)
-        return React.createElement("div",{ key:this.props.key, style, ref }, this.props.children)
+        return React.createElement("div",{ key:"flexGrid", style, ref }, this.props.children)
     }
 })
 
@@ -33,7 +33,7 @@ const FlexGridShItem = React.createClass({
             height:(this.props.height||0)+"px"
         }
         const ref = el => this.props.flexReg(false,el)
-        return React.createElement("div",{ key:this.props.key, style, ref }, this.props.children)
+        return React.createElement("div",{ key:"flexGridShItem", style, ref }, this.props.children)
     }
 })
 
@@ -44,12 +44,12 @@ const FlexGridItem = React.createClass({
     render(){
         const style={
             position:"absolute",
-            top:this.props.y||"0",
-            left:this.props.x||"0",
+            top:this.props.y+"px"||"0",
+            left:this.props.x+"px"||"0",
             transition:this.props.noanim?"all 50ms ease-out":"all 300ms ease-out",
             boxSizing:"border-box",
             border:"0px solid black",
-            width:(this.props.width||0)+"px",
+            width:(this.props.width||"0")+"px",
             //height:this.props.height||"",
             textAlign:this.props.align||"left",
         }
@@ -59,7 +59,7 @@ const FlexGridItem = React.createClass({
             res(ref,this.props.childOfGrid||null,this.props.gridName||null)*/
         //?[this.props.children[0]]
         const ref = el => this.props.flexReg(true,el)
-        return React.createElement("div",{ key: this.props.key, style, ref }, this.props.children) 
+        return React.createElement("div",{ key: "flexGridItem", style, ref }, this.props.children)
     }
 })
 
