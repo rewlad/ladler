@@ -44,8 +44,8 @@ const FlexGridItem = React.createClass({
     render(){
         const style={
             position:"absolute",
-            top:this.props.y+"px"||"0",
-            left:this.props.x+"px"||"0",
+            top:(this.props.y||"0")+"px",
+            left:(this.props.x||"0")+"px",
             transition:this.props.noanim?"all 50ms ease-out":"all 300ms ease-out",
             boxSizing:"border-box",
             border:"0px solid black",

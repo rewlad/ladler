@@ -13,21 +13,15 @@ import scala.collection.mutable
 trait AttrOfHtmlElement
 trait ChildOfTable
 trait ChildOfTableRow
-case object DefaultAttr extends AttrOfHtmlElement
 
-trait SimpleHtmlTable{
+trait HtmlTable{
   type TableElement
   type CellContentVariant = Boolean
-  def table(key: VDomKey, attr:AttrOfHtmlElement*)(tableElement:(TableElement with ChildOfTable)*):List[ChildPair[OfDiv]]
-  def table(key: VDomKey, attr:List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTable]):List[ChildPair[OfDiv]]
-  def row(key: VDomKey, attr: AttrOfHtmlElement*)(tableElement:(TableElement with ChildOfTableRow)*):TableElement with ChildOfTable
+  def table(key: VDomKey, attr: List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTable]):List[ChildPair[OfDiv]]
   def row(key: VDomKey, attr: List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTableRow]):TableElement with ChildOfTable
   def group(key:VDomKey, attr: AttrOfHtmlElement*):TableElement with ChildOfTableRow
-  def group(key:VDomKey, attr: List[AttrOfHtmlElement]):TableElement with ChildOfTableRow
-  def cell(key:VDomKey, attr:AttrOfHtmlElement*)(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
-  def cell(key:VDomKey, attr:List[AttrOfHtmlElement])(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
+  def cell(key:VDomKey, attr: AttrOfHtmlElement*)(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
 }
-trait HtmlTable extends SimpleHtmlTable
 
 case class Width(value:Float) extends AttrOfHtmlElement
 case class MaxWidth(value:Int) extends AttrOfHtmlElement
@@ -49,15 +43,10 @@ case object IsHeader extends AttrOfHtmlElement
 
 class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
   type TableElement=FlexDataTableElement
-  def table(key: VDomKey,attr: AttrOfHtmlElement*)(tableElement: (TableElement with ChildOfTable)*)={
-    table(key,attr.toList)(tableElement.toList)
-  }
   def table(key: VDomKey,attr: List[AttrOfHtmlElement])(tableElement: List[TableElement with ChildOfTable])={
     val tableWidth=Single.option[Float](attr.collect{case Width(x)=>x})
     FlexDataTable(tableWidth,flexTags,tableElement.toIndexedSeq).genView()
   }
-  def row(key: VDomKey, attr:AttrOfHtmlElement*)(tableElement:(TableElement with ChildOfTableRow)*) =
-    row(key,attr.toList)(tableElement.toList)
   def row(key: VDomKey, attr:List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTableRow])={
     val maxVisibleLines=Single.option[Int](attr.collect({case MaxVisibleLines(x)=>x})).getOrElse(1)
     val toggled=Single.option[Toggled](attr.collect({case x:Toggled=>x})).getOrElse(Toggled(value = false)(None))
@@ -66,7 +55,7 @@ class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
     FlexDataTableRow(key,isHeader,maxVisibleLines,toggled.value,isSelected,flexTags,tableElement.toIndexedSeq)(toggled.toggleHandle)
   }
   def group(key:VDomKey,attr: AttrOfHtmlElement*)=group(key, attr.toList)
-  def group(key:VDomKey,attr: List[AttrOfHtmlElement])={
+  private def group(key:VDomKey,attr: List[AttrOfHtmlElement])={
     val basisWidth = Single[Int](attr.collect{case MinWidth(x)=>x})
     val maxWidth = Single.option[Int](attr.collect{case MaxWidth(x)=>x})
     val textAlign = Single.option[String](attr.collect{case x:TextAlign=>x}.map(x=> x match {
@@ -84,7 +73,7 @@ class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
     FlexDataTableColGroup(key, basisWidth,maxWidth, textAlign,verticalAlign, priority.getOrElse(1), caption,flexTags)
   }
   def cell(key:VDomKey, attr: AttrOfHtmlElement*)(children:(CellContentVariant)=> List[ChildPair[OfDiv]])= cell(key,attr.toList)(children)
-  def cell(key:VDomKey, attr: List[AttrOfHtmlElement])(children:(CellContentVariant)=> List[ChildPair[OfDiv]])={
+  private def cell(key:VDomKey, attr: List[AttrOfHtmlElement])(children:(CellContentVariant)=> List[ChildPair[OfDiv]])={
     val basisWidth = Single[Int](attr.collect{case MinWidth(x)=>x})
     val maxWidth = Single.option[Int](attr.collect{case MaxWidth(x)=>x})
     val textAlign = Single.option[String](attr.collect{case x:TextAlign=>x}.map(x=> x match {

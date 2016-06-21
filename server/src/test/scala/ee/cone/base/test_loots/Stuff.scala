@@ -4,39 +4,12 @@ package ee.cone.base.test_loots
 import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
 import java.util.UUID
 
-import com.sun.javafx.binding.SelectBinding.AsBoolean
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom._
-
-/*
-object TimeZoneOffsetProvider{
-  val defaultTimeZoneID="Europe/Tallinn" //EST
-  def getZoneId=ZoneId.of(defaultTimeZoneID)
-  def getZoneOffset={
-    ZonedDateTime.now(ZoneId.of(defaultTimeZoneID)).getOffset
-  }
-}
-*/
-//  println(work(logAt.workStart))
-/*
-val workDuration=
- if(work(logAt.workStart).isEmpty||work(logAt.workStop).isEmpty)
-   None
- else
-    Some(Duration.between(
-      work(logAt.workStart).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId),
-      work(logAt.workStop).getOrElse(Instant.now()).atZone(TimeZoneOffsetProvider.getZoneId)
-    ))
-work.update(logAt.workDuration,workDuration)
-val totalDuration=
-      if(workList(entry).nonEmpty)
-        Some(workList(entry).map{w:Obj=>w(logAt.workDuration).getOrElse(Duration.ZERO)}.reduce((a,b)=>a plus b))
-      else None
-*/
 
 class FailOfConnection(
   sender: SenderOfConnection
@@ -131,6 +104,12 @@ class Errors(
     CoHandler(AttrCaption(at.show))("Show") ::
     List(findAll).flatMap(searchIndex.handlers):::
       List(at.asError,at.errorMsg,at.realm,at.show).flatMap(alien.update(_))
+}
+
+///////
+
+class MaterialFields {
+  
 }
 
 ///////
@@ -430,8 +409,9 @@ class TestComponent(
     })),
     IsSelected(item(listAttrs.isSelected))
   )
-  def toggledRow(filterObj: Obj, id: ObjId) =
+  def toggledRow(filterObj: Obj, id: ObjId) = List(
     Toggled(filterObj(listAttrs.expandedItem)==id)(Some(()=>filterObj(listAttrs.expandedItem)=id))
+  )
 
   private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
     cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
@@ -450,7 +430,7 @@ class TestComponent(
       flexGrid("flexGrid",
         flexGridItemWidthSync("widthSync",w⇒tableWidth.value=w.toFloat,
           controls:::
-          table("1",Width(tableWidth.value))(tableElements:_*)
+          table("1",List(Width(tableWidth.value)))(tableElements)
         )
       )
     )
@@ -548,7 +528,7 @@ class TestComponent(
     List( //class LootsBoatLogList
       helmet("Entry List"),
       toolbar("Entry List"),
-      withMaxWidth("1",2056,List(paperTable("dtTableList2")(
+      withMaxWidth("1",2056,List(paperTable("table")(
         controlPanel(inset = true)(
           List(flexGrid("controlGrid1",List(
             flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
@@ -690,7 +670,7 @@ class TestComponent(
         if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
       )
       val timeStr = if(isRF) "RF" else findNodes.whereObjId(time)(fuelingAttrs.time)
-      row(timeStr,toggledRow(filterObj,time))(
+      row(timeStr,toggledRow(filterObj,time))(List(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
           else List(labeledText("1",if(showLabel) "Time" else "",timeStr,alignRight = true))
@@ -714,17 +694,17 @@ class TestComponent(
           if(isRF) Nil
           else strField(fueling, fuelingAttrs.master, showLabel, deferSend=deferSend)
         )
-      )
+      ))
     }
     paperTable("dtTableEdit1")(Nil,List(
-      row("row",IsHeader)(
+      row("row",List(IsHeader))(List(
         mCell("1",100,3)(_=>List(text("1","Time"))),
         mCell("2",150,1)(_=>List(text("1",caption(fuelingAttrs.meHours)))),
         mCell("3",100,1)(_=>List(text("1",caption(fuelingAttrs.fuel)))),
         mCell("4",250,3)(_=>List(text("1",caption(fuelingAttrs.comment)))),
         mCell("5",150,2)(_=>List(text("1",caption(fuelingAttrs.engineer)))),
         mCell("6",150,2)(_=>List(text("1",caption(fuelingAttrs.master))))
-      ),
+      )),
       fuelingRowView(fuelingAttrs.time00,isRF = false),
       fuelingRowView(fuelingAttrs.time08,isRF = false),
       fuelingRowView(objIdFactory.noObjId,isRF = true),
@@ -946,16 +926,16 @@ class TestComponent(
       helmet("Event List"),
       toolbar("Events"),
       paperTable("table")(Nil,
-        row("head", IsHeader)(
+        row("head", List(IsHeader))(List(
           mCell("1",250)(_⇒List(text("text", "Event"))),
           mCell("2",250)(_⇒Nil)
-        ) ::
+        )) ::
         eventSource.unmergedEvents.map(alien.wrapForEdit).map { ev =>
           val srcId = ev(alien.objIdStr)
-          row(srcId)(
+          row(srcId,Nil)(List(
             mCell("1",250)(_⇒List(text("text", ev(alienAttrs.comment)))),
             mCell("2",250)(_⇒List(btnRemove("btn", () => eventSource.addUndo(ev))))
-          )
+          ))
         }
       )
     )
@@ -1158,25 +1138,9 @@ class FuelingItems(
     CoHandler(AttrCaption(at.engineer))("Engineer") ::
     CoHandler(AttrCaption(at.master))("Master") ::
     searchIndex.handlers(fuelingByFullKey) :::
-    //List(at.meHours).flatMap{ attr ⇒ factIndex.handlers(attr) } :::
     List(
-      at.asFueling, at.meHours/*Str*/, at.fuel, at.comment, at.engineer, at.master
-    ).flatMap(alien.update(_))/* :::
-    onUpdate.handlers(List(at.asFueling,at.meHoursStr).map(attrFactory.attrId(_)), {
-      (on: Boolean, fueling: Obj)⇒
-      fueling(at.meHours) = if(!on) None else {
-        val Time = """(\d+)\:(\d+)""".r
-        fueling(at.meHoursStr) match {
-          case Time(h,m) ⇒ Some(Duration.ofMinutes(Integer.parseUnsignedInt(h)*60+Integer.parseUnsignedInt(m)))
-          case _ ⇒ None
-        }
-      }
-    })*/
-/*
-else if(!fuelingItems.meHoursIsInc(entry)){
-                        List(text("1",s"ME times shold increase"))
-                      }
-* */
+      at.asFueling, at.meHours, at.fuel, at.comment, at.engineer, at.master
+    ).flatMap(alien.update(_))
   def fueling(entry: Obj, time: ObjId, wrapForEdit: Boolean) =
     lazyObjFactory.create(fuelingByFullKey,List(entry(nodeAttrs.objId),time),wrapForEdit)
   def validation(entry: Obj): List[ValidationState] = {
