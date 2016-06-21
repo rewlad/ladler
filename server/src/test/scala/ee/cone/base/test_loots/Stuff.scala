@@ -3,7 +3,6 @@ package ee.cone.base.test_loots
 
 import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
 import java.util.UUID
-import javax.swing.text.FieldView
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
