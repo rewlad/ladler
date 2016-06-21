@@ -25,7 +25,7 @@ class UIStringsImpl(
 ) extends UIStrings with CoHandlerProvider {
   def handlers = factIndex.handlers(at.caption) :::
     List(
-      CoHandler(ObjIdCaption(objIdFactory.noObjId))("Empty"),
+      CoHandler(ObjIdCaption(objIdFactory.noObjId))("(None)"),
       CoHandler(ToUIStringConverter(asDBObj,asString))(objToUIString),
       CoHandler(ToUIStringConverter(asObjId,asString))(objIdToUIString)
     )

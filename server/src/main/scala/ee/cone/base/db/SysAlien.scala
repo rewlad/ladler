@@ -84,9 +84,10 @@ class Alien(
       },
       CoHandler(GetValue(alienWrapType, at.isEditing)){ (obj, innerObj)⇒ true }
     ) :::
-    attrFactory.handlers(objIdStr)( (obj, objId) ⇒
-      objIdFactory.toUUIDString(obj(nodeAttrs.objId))
-    ) :::
+    attrFactory.handlers(objIdStr) { (obj, objId) ⇒
+      val theObjId = obj(nodeAttrs.objId)
+      if(theObjId.nonEmpty) objIdFactory.toUUIDString(theObjId) else "none"
+    } :::
     attrFactory.handlers(at.isEditing)( (obj, objId) ⇒ false ) :::
     factIndex.handlers(at.targetObj) ::: transient.update(at.comment)
 }
