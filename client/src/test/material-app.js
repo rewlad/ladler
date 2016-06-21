@@ -130,7 +130,7 @@ class FlexGridItemWidthSync extends React.Component{
     componentDidMount(){
         const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
         this.props.onResize({width:drect.width,height:drect.height})
-        console.log("dMounted");
+        //console.log("dMounted");
     }
     componentWillReceiveProps(nextProps){
 
@@ -143,9 +143,9 @@ class FlexGridItemWidthSync extends React.Component{
     }
     render(){
         const tStyle={
-            width:this.props.width+"px"||"100%",
-            top:this.props.y+"px"||"0px",
-            left:this.props.x+"px"||"0px",
+            width: this.props.width ? this.props.width+"px" : "100%",
+            top:(this.props.y||"0")+"px",
+            left:(this.props.x||"0")+"px",
             transition:"all 300ms ease-out",
              position:"absolute"
         }
