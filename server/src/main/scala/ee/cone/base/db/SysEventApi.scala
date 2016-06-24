@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import java.util.UUID
 
-import ee.cone.base.connection_api.{Obj, Attr, EventKey, BaseCoHandler}
+import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
 
 trait SessionState {

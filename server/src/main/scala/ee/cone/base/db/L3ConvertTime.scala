@@ -3,7 +3,7 @@ package ee.cone.base.db
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, _}
 
-import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider}
+import ee.cone.base.connection_api._
 import ee.cone.base.util.Never
 
 abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValue] with CoHandlerProvider {
@@ -14,8 +14,8 @@ abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValu
   def fromUIString(value: String): Value
   def handlers = List(
     CoHandler(ToRawValueConverter(valueType))(this),
-    CoHandler(ToUIStringConverter(valueType,asString))(toUIString),
-    CoHandler(ToUIStringConverter(asString,valueType))(fromUIString)
+    CoHandler(ConverterKey(valueType,asString))(toUIString),
+    CoHandler(ConverterKey(asString,valueType))(fromUIString)
   )
   protected def zeroPad2(x: String) = x.length match {
     case 0 ⇒ "00"

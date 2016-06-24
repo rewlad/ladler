@@ -1,5 +1,7 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.ObjId
+
 class LazyObjFactoryImpl(
   objIdFactory: ObjIdFactory,
   attrFactory: AttrFactory,

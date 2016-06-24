@@ -3,6 +3,7 @@ package ee.cone.base.db
 
 import java.nio.charset.StandardCharsets.UTF_8
 
+import ee.cone.base.connection_api.ObjId
 import ee.cone.base.util._
 import ee.cone.base.db.Types._
 

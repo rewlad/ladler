@@ -37,8 +37,6 @@ trait AttrFactory {
   def handlers[Value](attr: Attr[Value])(get: (Obj,ObjId)⇒Value): List[BaseCoHandler]
 }
 
-case class AttrValueType[Value](id: ObjId)
-
 trait FactIndex {
   def switchReason(node: Obj): Unit
   def execute(obj: Obj)(feed: ObjId⇒Boolean): Unit

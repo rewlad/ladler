@@ -1,10 +1,6 @@
 package ee.cone.base.db
 
-trait ObjId {
-  def hi: Long
-  def lo: Long
-  def nonEmpty: Boolean
-}
+import ee.cone.base.connection_api.ObjId
 
 trait RawConverter {
   def toBytes(preId: ObjId, finId: ObjId): Array[Byte]

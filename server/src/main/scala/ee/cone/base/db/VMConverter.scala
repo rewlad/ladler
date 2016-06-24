@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import ee.cone.base.connection_api.{AttrValueType, ObjId}
 import ee.cone.base.util.Never
 
 class ObjIdSetValueConverter(

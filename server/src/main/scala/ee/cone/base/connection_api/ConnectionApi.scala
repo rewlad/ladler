@@ -53,16 +53,6 @@ trait AppMixBase extends CanStart {
 
 ////////////////////////////////
 
-class WrapType[WrapData]
-trait Obj {
-  def apply[Value](attr: Attr[Value]): Value
-  def update[Value](attr: Attr[Value], value: Value): Unit
-  def wrap[FWrapData](wrapType: WrapType[FWrapData], wrapData: FWrapData): Obj
-}
-trait Attr[Value]
-
-////////////////////////////////
-
 // subscribe to implement iteration of connection
 case object ActivateReceiver extends EventKey[()=>Unit]
 // subscribe to failures (fatal) of connection

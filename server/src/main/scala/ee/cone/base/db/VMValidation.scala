@@ -2,13 +2,7 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api._
 
-case class ValidationState(objId: ObjId, attrId: ObjId, isError: Boolean, text: String)
-
 trait ValidationContext { def wrap(obj: Obj): Obj }
-
-trait ObjValidation {
-  def get[Value](attr: Attr[Value]): List[ValidationState]
-}
 
 class ValidationAttributesImpl(
   attr: AttrFactory,

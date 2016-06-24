@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider, Obj, WrapType}
+import ee.cone.base.connection_api._
 
 class EditingImpl(
   nodeAttrs: NodeAttrs,

@@ -1,12 +1,8 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Attr, BaseCoHandler, EventKey, Obj}
+import ee.cone.base.connection_api._
 
-case class AttrCaption(attr: Attr[_]) extends EventKey[String]
 case class ObjIdCaption(objId: ObjId) extends EventKey[String]
-
-case class ToUIStringConverter[From,To](from: AttrValueType[From], to: AttrValueType[To])
-  extends EventKey[From⇒To]
 
 trait UIStrings {
   def caption(attr: Attr[_]): String

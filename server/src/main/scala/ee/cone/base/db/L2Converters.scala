@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{CoHandlerProvider, Attr, CoHandler}
+import ee.cone.base.connection_api._
 import ee.cone.base.db.Types._
 import ee.cone.base.util.Never
 

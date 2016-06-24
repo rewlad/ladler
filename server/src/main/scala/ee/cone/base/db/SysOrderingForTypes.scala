@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import java.time.{Instant, LocalTime}
 
-import ee.cone.base.connection_api.{CoHandlerProvider, Obj}
+import ee.cone.base.connection_api.{AttrValueType, CoHandlerProvider, Obj}
 
 class ObjOrderingForAttrValueTypes(
   objOrderingFactory: ObjOrderingFactory,

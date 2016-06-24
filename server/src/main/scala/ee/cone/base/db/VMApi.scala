@@ -2,7 +2,7 @@ package ee.cone.base.db
 
 import java.time.Instant
 
-import ee.cone.base.connection_api.{Attr, Obj}
+import ee.cone.base.connection_api._
 
 trait ItemListOrdering {
   def compose(defaultOrdering: Ordering[Obj]): Ordering[Obj]

@@ -26,9 +26,11 @@ class UIStringsImpl(
   def handlers = factIndex.handlers(at.caption) :::
     List(
       CoHandler(ObjIdCaption(objIdFactory.noObjId))("(None)"),
-      CoHandler(ToUIStringConverter(asDBObj,asString))(objToUIString),
-      CoHandler(ToUIStringConverter(asObjId,asString))(objIdToUIString)
+      CoHandler(ConverterKey(asDBObj,asString))(objToUIString),
+      CoHandler(ConverterKey(asObjId,asString))(objIdToUIString),
+      CoHandler(ConverterKey(asString,asDBObj))(stringToObj),
     )
+  private def stringToObj(value: String) = if(value.isEmpty) findNodes.noNode else Never()
   private def objIdToUIString(value: ObjId) = objToUIString(findNodes.whereObjId(value))
   private def objToUIString(obj: Obj): String = {
     val res = obj(at.caption)
@@ -51,7 +53,5 @@ class UIStringsImpl(
     handlerLists.single(AttrCaption(attr), ()⇒attrFactory.attrId(attr).toString)
 
   def converter[From,To](from: AttrValueType[From], to: AttrValueType[To]) =
-    handlerLists.single(ToUIStringConverter(from,to),
-      ()⇒(v:From)⇒if(to==asString) v.toString.asInstanceOf[To] else Never()
-    )
+    handlerLists.single(ConverterKey(from,to), ()⇒Never())
 }

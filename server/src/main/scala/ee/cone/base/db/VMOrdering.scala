@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Attr, CoHandlerProvider, Obj}
+import ee.cone.base.connection_api._
 
 final class CompositeOrdering[T](ordA: Ordering[T], ordB: Ordering[T]) extends Ordering[T] {
   def compare(a: T, b: T) = {

@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Attr, CoHandler, BaseCoHandler}
+import ee.cone.base.connection_api.{Attr, BaseCoHandler, CoHandler, ObjId}
 
 class MandatoryImpl(
   attrFactory: AttrFactory, factIndex: FactIndex,

@@ -3,7 +3,7 @@ package ee.cone.base.db
 import java.nio.ByteBuffer
 import java.util.UUID
 
-import ee.cone.base.connection_api.Attr
+import ee.cone.base.connection_api.{Attr, AttrValueType, ObjId}
 import ee.cone.base.util.Never
 
 case object NoObjId extends ObjId {

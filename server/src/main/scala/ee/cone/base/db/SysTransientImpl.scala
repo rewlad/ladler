@@ -1,6 +1,6 @@
 package ee.cone.base.db
 
-import ee.cone.base.connection_api.{Attr, CoHandler, CoHandlerLists, WrapType}
+import ee.cone.base.connection_api._
 
 class TransientImpl(handlerLists: CoHandlerLists, attrFactory: AttrFactory, dbWrapType: WrapType[ObjId]) extends Transient {
   def update[R](attr: Attr[R]) = {
