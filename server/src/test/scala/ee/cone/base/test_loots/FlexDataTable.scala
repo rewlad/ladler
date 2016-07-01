@@ -10,52 +10,44 @@ import scala.collection.mutable
 /**
   * Created by wregs on 5/3/2016.
   */
-trait AttrOfHtmlElement
+
 trait ChildOfTable
 trait ChildOfTableRow
 
-trait HtmlTable{
-  type TableElement
+trait TableTags {
   type CellContentVariant = Boolean
-  def table(key: VDomKey, attr: List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTable]):List[ChildPair[OfDiv]]
-  def row(key: VDomKey, attr: List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTableRow]):TableElement with ChildOfTable
-  def group(key:VDomKey, attr: AttrOfHtmlElement*):TableElement with ChildOfTableRow
-  def cell(key:VDomKey, attr: AttrOfHtmlElement*)(children:CellContentVariant=>List[ChildPair[OfDiv]]):TableElement with ChildOfTableRow
+  def table(key: VDomKey, attr: List[TagAttr])(children:List[ChildOfTable]):List[ChildPair[OfDiv]]
+  def row(key: VDomKey, attr: List[TagAttr])(children:List[ChildOfTableRow]):ChildOfTable
+  def group(key:VDomKey, attr: TagAttr*):ChildOfTableRow
+  def cell(key:VDomKey, attr: TagAttr*)(children:CellContentVariant=>List[ChildPair[OfDiv]]):ChildOfTableRow
 }
 
-case class Width(value:Float) extends AttrOfHtmlElement
-case class MaxWidth(value:Int) extends AttrOfHtmlElement
-case class Priority(value:Int) extends AttrOfHtmlElement
-trait TextAlign extends AttrOfHtmlElement
-case object TextAlignLeft extends TextAlign
-case object TextAlignCenter extends TextAlign
-case object TextAlignRight extends TextAlign
-trait VerticalAlign extends AttrOfHtmlElement
-case object VerticalAlignTop extends VerticalAlign
-case object VerticalAlignMiddle extends VerticalAlign
-case object VerticalAlignBottom extends VerticalAlign
-case class MinWidth(value:Int) extends AttrOfHtmlElement
-case class Caption(value:String) extends AttrOfHtmlElement
-case class MaxVisibleLines(value:Int) extends AttrOfHtmlElement
-case class Toggled(value:Boolean)(val toggleHandle:Option[()=>Unit]) extends AttrOfHtmlElement
-case class IsSelected(value:Boolean) extends AttrOfHtmlElement
-case object IsHeader extends AttrOfHtmlElement
+case class MaxWidth(value:Int) extends TagAttr
+case class MinWidth(value:Int) extends TagAttr
 
-class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
-  type TableElement=FlexDataTableElement
-  def table(key: VDomKey,attr: List[AttrOfHtmlElement])(tableElement: List[TableElement with ChildOfTable])={
+case class Width(value:Float) extends TagAttr
+case class Priority(value:Int) extends TagAttr
+case class Caption(value:String) extends TagAttr //no
+case class MaxVisibleLines(value:Int) extends TagAttr
+case class Toggled(value:Boolean)(val toggleHandle:Option[()=>Unit]) extends TagAttr
+case class IsSelected(value:Boolean) extends TagAttr
+case object IsHeader extends TagAttr
+
+class FlexDataTableTagsImpl(flexTags: FlexTags) extends TableTags{
+  //type TableElement=FlexDataTableElement
+  def table(key: VDomKey,attr: List[TagAttr])(children: List[ChildOfTable])={
     val tableWidth=Single.option[Float](attr.collect{case Width(x)=>x})
-    FlexDataTable(tableWidth,flexTags,tableElement.toIndexedSeq).genView()
+    FlexDataTable(tableWidth,flexTags,children.toIndexedSeq.asInstanceOf[List[FlexDataTableElement]]).genView()
   }
-  def row(key: VDomKey, attr:List[AttrOfHtmlElement])(tableElement:List[TableElement with ChildOfTableRow])={
+  def row(key: VDomKey, attr:List[TagAttr])(tableElement:List[ChildOfTableRow])={
     val maxVisibleLines=Single.option[Int](attr.collect({case MaxVisibleLines(x)=>x})).getOrElse(1)
     val toggled=Single.option[Toggled](attr.collect({case x:Toggled=>x})).getOrElse(Toggled(value = false)(None))
     val isSelected=Single.option[Boolean](attr.collect({case IsSelected(x)=>x})).getOrElse(false)
     val isHeader=Single.option[Boolean](attr.collect({case IsHeader=>true})).getOrElse(false)
-    FlexDataTableRow(key,isHeader,maxVisibleLines,toggled.value,isSelected,flexTags,tableElement.toIndexedSeq)(toggled.toggleHandle)
+    FlexDataTableRow(key,isHeader,maxVisibleLines,toggled.value,isSelected,flexTags,tableElement.toIndexedSeq.asInstanceOf[List[FlexDataTableElement]])(toggled.toggleHandle)
   }
-  def group(key:VDomKey,attr: AttrOfHtmlElement*)=group(key, attr.toList)
-  private def group(key:VDomKey,attr: List[AttrOfHtmlElement])={
+  def group(key:VDomKey,attr: TagAttr*)=group(key, attr.toList)
+  private def group(key:VDomKey,attr: List[TagAttr])={
     val basisWidth = Single[Int](attr.collect{case MinWidth(x)=>x})
     val maxWidth = Single.option[Int](attr.collect{case MaxWidth(x)=>x})
     val textAlign = Single.option[String](attr.collect{case x:TextAlign=>x}.map(x=> x match {
@@ -72,8 +64,8 @@ class FlexDataTableImpl(flexTags: FlexTags) extends HtmlTable{
     val caption = Single.option[String](attr.collect{case Caption(x)=>x})
     FlexDataTableColGroup(key, basisWidth,maxWidth, textAlign,verticalAlign, priority.getOrElse(1), caption,flexTags)
   }
-  def cell(key:VDomKey, attr: AttrOfHtmlElement*)(children:(CellContentVariant)=> List[ChildPair[OfDiv]])= cell(key,attr.toList)(children)
-  private def cell(key:VDomKey, attr: List[AttrOfHtmlElement])(children:(CellContentVariant)=> List[ChildPair[OfDiv]])={
+  def cell(key:VDomKey, attr: TagAttr*)(children:(CellContentVariant)=> List[ChildPair[OfDiv]])= cell(key,attr.toList)(children)
+  private def cell(key:VDomKey, attr: List[TagAttr])(children:(CellContentVariant)=> List[ChildPair[OfDiv]])={
     val basisWidth = Single[Int](attr.collect{case MinWidth(x)=>x})
     val maxWidth = Single.option[Int](attr.collect{case MaxWidth(x)=>x})
     val textAlign = Single.option[String](attr.collect{case x:TextAlign=>x}.map(x=> x match {
@@ -115,31 +107,33 @@ trait FlexDataTableElement{
   }
 }
 
-case class FlexDataTableHeader(flexTags: FlexTags,flexDataTableElements: Seq[FlexDataTableElement])
-  extends FlexDataTableElement{
+case class FlexDataTableHeader(
+  flexDataTableElements: Seq[FlexDataTableElement]
+)(divTags: DivTags) extends FlexDataTableElement{
   _flexDataTableElements=flexDataTableElements
   inHeader=true
-  def genView()={
-    flexTags.divWrapper("tableHeader",None,None,None,None,None,None,
-      flexDataTableElements.flatMap(x=>x.genView()).toList
-    )::Nil
-  }
-
+  import divTags._
+  def genView() =
+    List(div("tableHeader")(flexDataTableElements.flatMap(x=>x.genView()).toList))
 }
 
-case class FlexDataTableBody(flexTags: FlexTags,flexDataTableElements: Seq[FlexDataTableElement])
-  extends FlexDataTableElement{
+case class FlexDataTableBody(
+  flexDataTableElements: Seq[FlexDataTableElement]
+)(divTags: DivTags) extends FlexDataTableElement{
   _flexDataTableElements=flexDataTableElements
-  def genView()={
-    flexTags.divWrapper("tableBody",None,None,None,None,None,None,
-      _flexDataTableElements.flatMap(x=>x.genView()).toList
-    )::Nil
-  }
+  import divTags._
+  def genView() =
+    List(div("tableBody")(_flexDataTableElements.flatMap(x=>x.genView()).toList))
 }
 
-case class FlexDataTableRow(key:VDomKey,isHeader: Boolean,maxVisibleLines: Int,toggled:Boolean,selected:Boolean,flexTags: FlexTags,
-                            flexDataTableElements: Seq[FlexDataTableElement])(toggleHandle:Option[()=>Unit])
-  extends FlexDataTableElement with ChildOfTable{
+case class FlexDataTableRow(
+  key:VDomKey, isHeader: Boolean, maxVisibleLines: Int, toggled:Boolean,
+  selected:Boolean, flexDataTableElements: Seq[FlexDataTableElement]
+)(
+  divTags: DivTags, style: TagStyles, flexTags: FlexTags,
+  toggleHandle:Option[()=>Unit]
+) extends FlexDataTableElement with ChildOfTable{
+  import divTags._
   _flexDataTableElements=flexDataTableElements
   inHeader=isHeader
   private def calcRow={
@@ -193,9 +187,9 @@ case class FlexDataTableRow(key:VDomKey,isHeader: Boolean,maxVisibleLines: Int,t
         var innerKeys = 1
         hiddenColGroups.flatMap(c => {
         innerKeys = innerKeys + 4
-        flexTags.divFlexWrapper((innerKeys - 3).toString, None, displayFlex = true, flexWrap = false, None, None, None, None, borderRight = false,
+        div((innerKeys - 3).toString, style.displayFlex)(
           c.genAltView()) ::
-          flexTags.divFlexWrapper((innerKeys - 1).toString, None, displayFlex = true, flexWrap = true, None, None, None, None, borderRight = false,
+          div((innerKeys - 1).toString, style.displayFlex, style.flexWrap)(
             c._flexDataTableElements.flatMap(x=>{x.setAttr(Map("showLabel"->1));x.genView()}).toList
             ) ::
           Nil
@@ -215,9 +209,8 @@ case class FlexDataTableRow(key:VDomKey,isHeader: Boolean,maxVisibleLines: Int,t
     else
       flexTags.materialTags.divider(key+"_div")::
         flexTags.dataTableRecordRow(key,selected,toggleHandle,
-          flexTags.divWrapper(key,Some("flex"),None,None,None,None,None,
-            visibleColGroups.flatMap(x=>x.genView())
-          )::hiddenColGroupsCells
+          div(key,style.displayFlex)(visibleColGroups.flatMap(x=>x.genView()))
+            ::hiddenColGroupsCells
         )::Nil
   }
   def genView()={
@@ -226,11 +219,13 @@ case class FlexDataTableRow(key:VDomKey,isHeader: Boolean,maxVisibleLines: Int,t
   }
 }
 
-case class FlexDataTableColGroup(key:VDomKey,override val basisWidth:Int,override val maxWidth:Option[Int],
-                                 textAlign:Option[String],verticalAlign:Option[String],
-                                 override val priority:Int, caption:Option[String],
-                                 flexTags: FlexTags, flexDataTableElements: Seq[FlexDataTableElement]=Nil)
-                                  extends FlexDataTableElement with ChildOfTableRow{
+case class FlexDataTableColGroup(
+  key:VDomKey, override val basisWidth:Int, override val maxWidth:Option[Int],
+  textAlign:Option[String], verticalAlign:Option[String],
+  override val priority:Int, caption:Option[String],
+  flexDataTableElements: Seq[FlexDataTableElement]=Nil
+)(divTags: DivTags, flexTags: FlexTags, style: TagStyles) extends FlexDataTableElement with ChildOfTableRow{
+  import divTags._
   _flexDataTableElements=flexDataTableElements
   var maxVisibleLines=1
   var showAllRecords=0
@@ -245,8 +240,7 @@ case class FlexDataTableColGroup(key:VDomKey,override val basisWidth:Int,overrid
   override def genAltView()= { //todo: possible error due to no divflexwrapper on caption=None
     caption match {
       case Some(x)=>
-        flexTags.divFlexWrapper (key, Some (basisWidth), displayFlex = false, flexWrap = false, None, maxWidth,
-          Some (defaultRowHeight), None, borderRight = false,
+        div (key, flexTags.flexBasis(basisWidth), flexTags.maxWidth(maxWidth), style.height(defaultRowHeight))(
           caption match {
             case Some (c) => wrap (textAlign, verticalAlign, flexTags.tags.text (key, c) :: Nil)
             case _ => Nil
@@ -261,12 +255,12 @@ case class FlexDataTableColGroup(key:VDomKey,override val basisWidth:Int,overrid
     val wrappedLinesToShow=FlexDataTableLayout.getWrapPositions(elementWidth,sortedCells)
 
     if(inHeader)
-      flexTags.divFlexWrapper(key, Some(basisWidth),displayFlex = false,flexWrap = false,None,maxWidth,None,None,borderRight = false,
+      div(key, flexTags.flexBasis(basisWidth), flexTags.maxWidth(maxWidth))(
         {
           val headersToShow=wrappedLinesToShow.take(maxVisibleLines)
           headersToShow.flatMap{case (i,rowHeaders)=>
             val visibleRowCells=cells.intersect(sortedCells.slice(rowHeaders.head,rowHeaders.last+1))
-            List(flexTags.divFlexWrapper(i.toString,None,displayFlex = true,flexWrap = false,None,None,None,None,borderRight = false,
+            List(div(i.toString, style.displayFlex)(
               visibleRowCells.flatMap(x => x.genView()).toList))
           }.toList
         }
@@ -276,18 +270,18 @@ case class FlexDataTableColGroup(key:VDomKey,override val basisWidth:Int,overrid
       val hiddenRecords=if(showAllRecords>0) wrappedLinesToShow--recordsToShow.keySet else Nil
       val hiddenRowRecords=
         if(showAllRecords>0)
-          List(flexTags.divFlexWrapper(key+"_hidden",None,displayFlex = true,flexWrap = true,None,None,None,None,borderRight = false,{
+          List(div(key+"_hidden", style.displayFlex, style.flexWrap)({
             hiddenRecords.flatMap{case (i,rowHeaders)=>
               val hiddenRowRecords=cells.intersect(sortedCells.slice(rowHeaders.head,rowHeaders.last+1))
               hiddenRowRecords.flatMap(x =>{x.setAttr(Map("showLabel"->1));x.genView()})
             }}.toList
           ))
         else Nil
-      flexTags.divFlexWrapper(key, Some(basisWidth),displayFlex = false,flexWrap = false,None,maxWidth,None,None,borderRight = false,
+      div(key, flexTags.flexBasis(basisWidth), flexTags.maxWidth(maxWidth))(
         {
           recordsToShow.flatMap{case (i,rowHeaders)=>
             val visibleRowRecords=cells.intersect(sortedCells.slice(rowHeaders.head,rowHeaders.last+1))
-            List(flexTags.divFlexWrapper(i.toString,None,displayFlex = true,flexWrap = false,None,None,None,None,borderRight = false,
+            List(div(i.toString, style.displayFlex)(
               visibleRowRecords.flatMap(x => x.genView()).toList))
           }.toList:::hiddenRowRecords
         }
@@ -300,10 +294,15 @@ case class FlexDataTableColGroup(key:VDomKey,override val basisWidth:Int,overrid
   }
 }
 
-case class FlexDataTableCell(key:VDomKey, override val basisWidth:Int, override val maxWidth:Option[Int],
-                             textAlign:Option[String], verticalAlign:Option[String],
-                             override val priority:Int, flexTags: FlexTags,
-                             children: (Boolean)=>List[ChildPair[OfDiv]]) extends FlexDataTableElement with ChildOfTableRow{
+case class FlexDataTableCell(
+  key:VDomKey, override val basisWidth:Int, override val maxWidth:Option[Int],
+  textAlign:Option[String], verticalAlign:Option[String],
+  override val priority:Int,
+  children: (Boolean)=>List[ChildPair[OfDiv]]
+)(
+  divTags: DivTags, flexTags: FlexTags, style: TagStyles
+) extends FlexDataTableElement with ChildOfTableRow{
+  import divTags._
   var showLabel:Boolean=false
   private def wrap(textAlign:Option[String],verticalAlign:Option[String],children:List[ChildPair[OfDiv]])=
     if (textAlign.nonEmpty || verticalAlign.nonEmpty) {
@@ -315,8 +314,11 @@ case class FlexDataTableCell(key:VDomKey, override val basisWidth:Int, override 
       children
 
   def genView()= {
-    flexTags.divFlexWrapper(key, Some(basisWidth), displayFlex = false, flexWrap = false, None, maxWidth,
-      if(showLabel) None else Some(defaultRowHeight), None, borderRight = false,wrap(textAlign,verticalAlign,children(showLabel))
+    div(key,
+      flexTags.flexBasis(basisWidth), flexTags.maxWidth(maxWidth),
+      if(showLabel) style.none else style.height(defaultRowHeight)
+    )(
+      wrap(textAlign,verticalAlign,children(showLabel))
     ) :: Nil
   }
   override def setAttr(x:Map[String,Int])={
@@ -324,18 +326,20 @@ case class FlexDataTableCell(key:VDomKey, override val basisWidth:Int, override 
   }
 }
 
-case class FlexDataTable(tableWidth:Option[Float], flexTags: FlexTags,flexDataTableElements: Seq[FlexDataTableElement]) extends FlexDataTableElement{
+case class FlexDataTable(
+  tableWidth: Option[Float], flexTags: FlexTags,flexDataTableElements: Seq[FlexDataTableElement]
+)(divTags: DivTags) extends FlexDataTableElement{
   _flexDataTableElements=flexDataTableElements
   defaultRowHeight=48
 
   private def header= {
     val headerRow=_flexDataTableElements.filter(x => x.isInstanceOf[FlexDataTableRow] && x.inHeader)
-    val flexDataTableHeaderRow=FlexDataTableHeader(flexTags,headerRow)
+    val flexDataTableHeaderRow=FlexDataTableHeader(headerRow)(divTags)
     flexDataTableHeaderRow.genView()
   }
   private def body= {
     val bodyRow = _flexDataTableElements.filter(x => x.isInstanceOf[FlexDataTableRow] && !x.inHeader)
-    val flexDataTableBodyRow=FlexDataTableBody(flexTags,bodyRow)
+    val flexDataTableBodyRow=FlexDataTableBody(bodyRow)(divTags)
     flexDataTableBodyRow.genView()
   }
   def genView()= {

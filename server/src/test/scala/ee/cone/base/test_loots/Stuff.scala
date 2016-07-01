@@ -1,24 +1,12 @@
 package ee.cone.base.test_loots
 
-
 import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
 import java.util.UUID
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
-import ee.cone.base.server.SenderOfConnection
-import ee.cone.base.util.Never
-import ee.cone.base.vdom.Types._
+import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
-
-class FailOfConnection(
-  sender: SenderOfConnection
-) extends CoHandlerProvider {
-  def handlers = CoHandler(FailEventKey){ e =>
-    println(s"error: ${e.toString}")
-    sender.sendToAlien("fail",e.toString) //todo
-  } :: Nil
-}
 
 class BoatLogEntryAttributes(
   attr: AttrFactory,
@@ -57,70 +45,6 @@ class BoatLogEntryAttributes(
   val locationOfBoat: Attr[Obj] = attr("0924571d-e8c6-4d62-ac50-2c4404e7fc6e",asObj)
 )
 
-
-trait Ref[T] {
-  def value: T
-  def value_=(value: T): Unit
-}
-
-class DataTablesState(currentVDom: CurrentVDom){
-  private val widthOfTables = collection.mutable.Map[VDomKey,Float]()
-  def widthOfTable(id: VDomKey) = new Ref[Float] {
-    def value = widthOfTables.getOrElse(id,0.0f)
-    def value_=(value: Float) = {
-      widthOfTables(id) = value
-      currentVDom.until(System.currentTimeMillis+200)
-    }
-  }
-}
-
-
-class ErrorAttributes(
-   attr: AttrFactory,
-   label: LabelFactory,
-   asObj: AttrValueType[Obj],
-   asString: AttrValueType[String],
-   asBoolean: AttrValueType[Boolean]
-)(
-  val asError: Attr[Obj] = label("40eed80a-f249-4e59-9193-2b27dffd8d6e"),
-  val errorMsg: Attr[String] = attr("946913bd-e644-4ff0-8aa1-75ff95e6e7d9", asString),
-  val realm: Attr[Obj] = attr("9dbb1e0f-523f-4e7b-b524-6dfd7a12a681", asObj),
-  val show: Attr[Boolean] = attr("1626b864-21ae-4517-8006-c3d104852488", asBoolean)
-)
-
-class Errors(
-  at: ErrorAttributes, searchIndex: SearchIndex, alien: Alien,
-  users: Users, findNodes: FindNodes, itemListFactory: ItemListFactory
-)(
-  val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asError, at.realm)
-) extends CoHandlerProvider{
-  def lastError: Obj = { // todo replace
-    //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
-    val itemList = itemListFactory.create(findAll,users.world,findNodes.noNode,Nil,editable = false)
-    itemList.list.lastOption.getOrElse(findNodes.noNode)
-  }
-  def handlers =
-    CoHandler(AttrCaption(at.realm))("Error") ::
-    CoHandler(AttrCaption(at.show))("Show") ::
-    List(findAll).flatMap(searchIndex.handlers):::
-      List(at.asError,at.errorMsg,at.realm,at.show).flatMap(alien.update(_))
-}
-
-///////
-
-class FieldAttributesImpl(
-  findAttrs: FindAttrs,
-  validationAttrs: ValidationAttributes,
-  alienAttrs: AlienAccessAttrs
-) extends FieldAttributes {
-  def aNonEmpty: Attr[Boolean] = findAttrs.nonEmpty
-  def aValidation: Attr[ObjValidation] = validationAttrs.validation
-  def aIsEditing: Attr[Boolean] = alienAttrs.isEditing
-  def aObjIdStr: Attr[String] = alienAttrs.objIdStr
-}
-
-///////
-
 class TestComponent(
   nodeAttrs: NodeAttrs,
   findAttrs: FindAttrs,
@@ -136,14 +60,14 @@ class TestComponent(
   mainTx: CurrentTx[MainEnvKey],
   alien: Alien,
   onUpdate: OnUpdate,
-  tags: Tags,
+  divTags: DivTags,
   materialTags: MaterialTags,
   flexTags:FlexTags,
   currentVDom: CurrentVDom,
   dtTablesState: DataTablesState,
   searchIndex: SearchIndex,
   factIndex: FactIndex,
-  htmlTable: HtmlTable,
+  htmlTable: TableTags,
   users: Users,
   fuelingItems: FuelingItems,
   objIdFactory: ObjIdFactory,
@@ -165,144 +89,33 @@ class TestComponent(
   itemListFactory: ItemListFactory,
   filterObjFactory: FilterObjFactory,
   editing: Editing,
-  popupState: Popup
+  popupState: Popup,
+  materialIconTags: MaterialIconTags,
+  appUtils: AppUtils,
+  inheritAttrRule: InheritAttrRule,
+  tableUtils: MaterialDataTableUtils,
+  fields: Fields,
+  style: TagStyles
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
   val findBoat: SearchByLabelProp[Obj] = searchIndex.create(logAt.asBoat, logAt.locationOfBoat)
 ) extends CoHandlerProvider {
-  import tags._
+  import divTags._
   import materialTags._
+  import materialIconTags._
   import flexTags._
   import htmlTable._
   import findAttrs.nonEmpty
   import uiStrings.caption
+  import appUtils._
+  import tableUtils._
+  import fields.field
 
-
-  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-
-  def field[Value](obj: Obj, attr: Attr[Value], showLabel: Boolean, options: FieldOption*): List[ChildPair[OfDiv]] =
-    handlerLists.single(ViewField(attrFactory.valueType(attr)), ()⇒Never())(obj,attr,showLabel,options)
-  def options(items: List[Obj]): FieldOption = ???
-
-  ////
-
-  private def emptyView(pf: String) =
-    tags.root(List(tags.text("text", "Loading...")))
-
-  private def wrapDBView(view: ()=>List[ChildPair[OfDiv]]): VDomValue =
-    eventSource.incrementalApplyAndView { () ⇒
-      root(muiTheme(withMinWidth("minWidth320",320,if(users.needToLogIn) loginView() else {
-        val startTime = System.currentTimeMillis
-        val res = view()
-        val endTime = System.currentTimeMillis
-        currentVDom.until(endTime + (endTime - startTime) * 10)
-        res
-      }))::Nil)
-    }
-
-  private def paperWithMargin(key: VDomKey, child: ChildPair[OfDiv]*) =
-    withMargin(key, 10, paper("paper")( withPadding(key, 10, child:_*)))
-
-  def toggledSelectedRow(item: Obj) = List(
-    Toggled(item(listAttrs.isExpanded))(Some(()=> if(!item(listAttrs.isExpanded)){
-      editing.reset()
-      item(listAttrs.isExpanded) = true
-    })),
-    IsSelected(item(listAttrs.isSelected))
-  )
-  def toggledRow(filterObj: Obj, id: ObjId) = List(
-    Toggled(filterObj(listAttrs.expandedItem)==id)(Some(()=>filterObj(listAttrs.expandedItem)=id))
-  )
-
-  private def mCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
-    cell(key,MinWidth(minWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
-  private def mmCell(key:VDomKey,minWidth: Int,maxWidth:Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
-    cell(key,MinWidth(minWidth),MaxWidth(maxWidth),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
-  private def mCell(key:VDomKey,minWidth: Int,priority: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
-    cell(key,MinWidth(minWidth),Priority(priority),VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
-  private def mcCell(key:VDomKey,minWidth: Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
-    cell(key,MinWidth(minWidth),TextAlignCenter,VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
-  private def mcCell(key:VDomKey,minWidth: Int, priority:Int)(handle:(Boolean)=>List[ChildPair[OfDiv]])=
-    cell(key,MinWidth(minWidth),Priority(priority),TextAlignCenter,VerticalAlignMiddle)(showLabel=>withSideMargin("1",10,handle(showLabel))::Nil)
-
-  def paperTable(key: VDomKey)(controls:List[ChildPair[OfDiv]],tableElements: List[TableElement with ChildOfTable]): ChildPair[OfDiv] = {
-    val tableWidth = dtTablesState.widthOfTable(key)
-    paperWithMargin(key,
-      flexGrid("flexGrid",
-        flexGridItemWidthSync("widthSync",w⇒tableWidth.value=w.toFloat,
-          controls:::
-          table("1",List(Width(tableWidth.value)))(tableElements)
-        )
-      )
-    )
-  }
-
-  def selectAllCheckBox(itemList: ItemList) = List(
-    checkBox("1","",
-      itemList.filter(listAttrs.selectedItems).nonEmpty,
-      on ⇒
-        if(on) itemList.selectAllListed()
-        else itemList.filter(listAttrs.selectedItems)=Set[ObjId]()
-    )
-  )
-
-  def header(attr: Attr[_]):List[ChildPair[OfDiv]] = List(text("1",caption(attr)))
-  def sortingHeader(itemListOrdering: ItemListOrdering, attr: Attr[_]):List[ChildPair[OfDiv]] = {
-    val (action,reversed) = itemListOrdering.action(attr)
-    if(action.isEmpty) header(attr) else {
-      val icon = reversed match {
-        case None ⇒ List()
-        case Some(false) ⇒ iconArrowDown()::Nil
-        case Some(true) ⇒ iconArrowUp()::Nil
-      }
-      List(divClickable("1",action,icon:::header(attr):_*))
-    }
-  }
-
-  private def removeControlView(itemList: ItemList) =
-    if(itemList.isEditable) List(btnDelete("btnDelete", itemList.removeSelected)) else Nil
-
-  private def addRemoveControlViewBase(itemList: ItemList)(add: ()⇒Unit) =
-    if(itemList.isEditable) List(btnDelete("btnDelete", itemList.removeSelected),btnAdd("btnAdd", add))
-    else Nil
-  private def addRemoveControlView(itemList: ItemList) =
-    addRemoveControlViewBase(itemList: ItemList){ ()⇒
-      val item = itemList.add()
-      item(alienAttrs.isEditing) = true
-      item(listAttrs.isExpanded) = true
-    }
-
-
-  private def iconCellGroup(key: VDomKey)(content: Boolean⇒List[ChildPair[OfDiv]]) = List(
-    group(s"${key}_grp", MinWidth(50), MaxWidth(50), Priority(1), TextAlignCenter),
-    mCell(key, 50)(content)
-  )
-
-  private def selectAllGroup(itemList: ItemList) =
-    iconCellGroup("selected")(_⇒selectAllCheckBox(itemList))
-  private def selectRowGroup(item: Obj) =
-    iconCellGroup("selected")(_⇒field(item, listAttrs.isSelected, showLabel=false, EditableFieldOption(true)))
-  private def editAllGroup() = iconCellGroup("edit")(_⇒Nil)
-  private def editRowGroupBase(on: Boolean)(action: ()⇒Unit) =
-    iconCellGroup("edit")(_⇒if(on) List(btnModeEdit("btnCreate",action)) else Nil)
-  private def editRowGroup(itemList: ItemList, item: Obj) =
-    editRowGroupBase(itemList.isEditable){ () ⇒
-      item(alienAttrs.isEditing) = !item(alienAttrs.isEditing)
-      item(listAttrs.isExpanded) = true
-    }
-
-  private def creationTimeOrdering =
-    objOrderingFactory.ordering(listAttrs.createdAt, reverse = true).get
-
-
-
-  private def errorNotification = {
-    val err = errors.lastError
-    val show = err(errorAttributes.show)
-    val msg = notification(err(errorAttributes.errorMsg), "", show)(()=>{}) :: Nil
-    if(show) keyboardReceiver(EscKeyCode)(()=>err(errorAttributes.show)=false) :: msg else msg
-  }
+  private def mCell(key: VDomKey, minWidth: Int)(children: CellContentVariant ⇒ List[ChildPair[OfDiv]]) =
+    cell(key, MinWidth(minWidth))(children)
+  private def mCell(key: VDomKey, minWidth: Int, priority: Int)(children: CellContentVariant ⇒ List[ChildPair[OfDiv]]) =
+    cell(key, MinWidth(minWidth), Priority(priority))(children)
 
   private def entryListView(pf: String) = wrapDBView{ ()=>{
     val editable = true //todo roles
@@ -326,27 +139,32 @@ class TestComponent(
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
 
-    errorNotification:::
+
     List( //class LootsBoatLogList
-      helmet("Entry List"),
       toolbar("Entry List"),
-      withMaxWidth("1",2056,List(paperTable("table")(
-        controlPanel(inset = true)(
+      div("1",style.maxWidth(2056))(List(paperTable("table")(
+        List(inset("controlPanel",controlPanel(
           List(flexGrid("controlGrid1",List(
-            flexGridItem("1a",150,Some(200), boatSelectView(filterObj)),
+            flexGridItem("1a",150,Some(200), field(filterObj, logAt.boat, showLabel = true)),
             flexGridItem("2a",150,Some(200), field(filterObj, logAt.dateFrom, showLabel = true)),
             flexGridItem("3a",150,Some(200), field(filterObj, logAt.dateTo, showLabel = true)),
-            flexGridItem("4a",150,Some(200), divHeightWrapper("1",72,
-              divAlignWrapper("1","","bottom",withMargin("1",10,field(filterObj, logAt.hideConfirmed, showLabel = true))::Nil)
-            )::Nil)
+            flexGridItem("4a",150,Some(200), List(
+              div("1",style.height(72))(List(
+                divAlignWrapper("1","","bottom",List(
+                  div("1",style.margin(10))(
+                    field(filterObj, logAt.hideConfirmed, showLabel = true)
+                  )
+                ))
+              ))
+            ))
           ))),
           addRemoveControlViewBase(itemList)(() ⇒ go(itemList.add()))
-        ),
+        ))),
         List(
           row("row",List(MaxVisibleLines(2),IsHeader))(
             selectAllGroup(itemList) :::
             List(
-              group("2_grp",MinWidth(150),Priority(3),TextAlignCenter),
+              group("2_grp",MinWidth(150),Priority(3),style.alignCenter),
               mCell("2",100)(_=>sortingHeader(itemListOrdering,logAt.boat)),
               mCell("3",150)(_=>sortingHeader(itemListOrdering,logAt.date)),
               mCell("4",180)(_=>sortingHeader(itemListOrdering,logAt.durationTotal)),
@@ -362,7 +180,7 @@ class TestComponent(
           row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry))(
             selectRowGroup(entry) :::
             List(
-              group("2_grp", MinWidth(150),Priority(3), TextAlignCenter),
+              group("2_grp", MinWidth(150), Priority(3), style.alignCenter),
               mCell("2",100)(showLabel=>field(entry, logAt.boat, showLabel)),
               mCell("3",150)(showLabel=>field(entry, logAt.date, showLabel)),
               mCell("4",180)(showLabel=>field(entry, logAt.durationTotal, showLabel)),
@@ -383,12 +201,9 @@ class TestComponent(
       )))
     )
   }}
-  // currentVDom.invalidate() ?
 
-  private def boatSelectView(obj: Obj) =
-    field(obj,logAt.boat,showLabel = true, options(
-      itemListFactory.create(findBoat, users.world, findNodes.noNode, Nil, editable=false).list
-    ))
+  private def boatOptions(obj: Obj) =
+    itemListFactory.create(findBoat, users.world, findNodes.noNode, Nil, editable=false).list
 
   private def entryEditView(pf: String) = wrapDBView { () =>
     val entryObj = findNodes.whereObjId(objIdFactory.toObjId(pf.tail))(logAt.asEntry)
@@ -402,14 +217,13 @@ class TestComponent(
     val entryIdStr = entry(alien.objIdStr)
 
     List(
-      helmet("Entry Edit"),
       toolbar("Entry Edit"),
-      withMaxWidth("1",1200,List(
+      div("1",style.maxWidth(1200))(List(
       paperWithMargin(s"$entryIdStr-1",
         flexGrid("flexGridEdit1",List(
           flexGridItem("1",500,None,List(
             flexGrid("FlexGridEdit11",List(
-              flexGridItem("boat1",100,None,boatSelectView(entry)),
+              flexGridItem("boat1",100,None,field(entry,logAt.boat, showLabel = true)),
               flexGridItem("date",150,None,field(entry, logAt.date, showLabel = true)),
               flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
                 field(entry,logAt.durationTotal, showLabel = true, EditableFieldOption(false))
@@ -424,7 +238,7 @@ class TestComponent(
               )) :::
               List(
                 flexGridItem("conf_do",150,None,List(
-                  divHeightWrapper("1",72,
+                  div("1",style.height(72))(List(
                     divAlignWrapper("1","right","bottom",
                       if(isConfirmed) {
                         val entry = alien.wrapForEdit(entryObj)
@@ -447,7 +261,8 @@ class TestComponent(
                           entry(logAt.confirmedBy) = user
                         })
                       }
-                    ))
+                    )
+                  ))
                 ))
               )
             )
@@ -455,8 +270,12 @@ class TestComponent(
         )
       ))),
 
-      withMaxWidth("2",1200,List(entryEditFuelScheduleView(entry, validationStates))),
-      withMaxWidth("3",1200,List(entryEditWorkListView(entry)))
+      div("2",style.maxWidth(1200))(List(
+        entryEditFuelScheduleView(entry, validationStates)
+      )),
+      div("3",style.maxWidth(1200))(List(
+        entryEditWorkListView(entry)
+      ))
     )
   }
 
@@ -475,7 +294,7 @@ class TestComponent(
       row(timeStr,toggledRow(filterObj,time))(List(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
-          else List(labeledText("1",if(showLabel) "Time" else "",timeStr,alignRight = true))
+          else field(findNodes.whereObjId(time), fuelingAttrs.time, showLabel, EditableFieldOption(false))
         ),
         mCell("2",150,1)(showLabel=>
           if(isRF) List(text("1","Received Fuel"))
@@ -519,7 +338,7 @@ class TestComponent(
     val filterObj = filterObjFactory.create(List(entry(nodeAttrs.objId),attrFactory.attrId(logAt.asWork)))
     val workList = itemListFactory.create(findWorkByEntry,entry,filterObj,Nil,entry(alienAttrs.isEditing))
     paperTable("dtTableEdit2")(
-      controlPanel(inset = false)(Nil,addRemoveControlView(workList)),
+      controlPanel(Nil,addRemoveControlView(workList)),
       List(
         row("row",List(IsHeader))(
           selectAllGroup(workList) :::
@@ -558,53 +377,14 @@ class TestComponent(
     )
   }
 
-  private def errorListView(pf: String) = wrapDBView{ () => //todo: replace with actual errors
-    val filterObj = filterObjFactory.create(List(attrFactory.attrId(errorAttributes.asError)))
-    val itemList = itemListFactory.create[Obj](errors.findAll, users.world, filterObj, Nil, editable=true) //todo roles
-    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
-    //println(itemList.list.length)
-    List(
-      helmet("Errors"),
-      toolbar("Errors"),
-      withMaxWidth("maxWidth",800,
-        paperTable("table")(
-          controlPanel(inset = false)(Nil, addRemoveControlView(itemList)),
-          List(
-            row("head",List(IsHeader))(
-              selectAllGroup(itemList) :::
-              List(
-                group("2_group",MinWidth(50)),
-                mCell("1",250)(_⇒sortingHeader(itemListOrdering,errorAttributes.realm)), //todo: sortingHeader for errors
-                mCell("2",250)(_⇒sortingHeader(itemListOrdering,errorAttributes.show)) //todo: sortingHeader for errors
-              ):::
-                editAllGroup()
-            )
-          ) :::
-            itemList.list.map{error ⇒
-              val srcId = error(alien.objIdStr)
-              row(srcId,toggledSelectedRow(error))(
-                selectRowGroup(error) :::
-                List(
-                  group("2_group",MinWidth(50)),
-                  mCell("1",250)(showLabel⇒field(error, errorAttributes.errorMsg, showLabel = false)),
-                  mCell("2",250)(showLabel⇒field(error, errorAttributes.show, showLabel = false))
-                )::: editRowGroup(itemList, error)
-              )
-            }
-        )::Nil)
-    )
-  }
-
   private def boatListView(pf: String) = wrapDBView { () =>
     val filterObj = filterObjFactory.create(List(attrFactory.attrId(logAt.asBoat)))
     val itemList = itemListFactory.create[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     List(
-      helmet("Boats"),
       toolbar("Boats"),
-      withMaxWidth("maxWidth",600,
-      paperTable("table")(
-        controlPanel(inset = false)(Nil, addRemoveControlView(itemList)),
+      div("maxWidth",style.maxWidth(600))(List(paperTable("table")(
+        controlPanel(Nil, addRemoveControlView(itemList)),
         List(
           row("head",List(IsHeader))(
             selectAllGroup(itemList) :::
@@ -626,129 +406,9 @@ class TestComponent(
             editRowGroup(itemList, boat)
           )
         }
-      )::Nil)
+      )))
     )
   }
-  private def controlPanel(inset:Boolean)(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]])={
-    val _content=withPadding("1",5,withSidePadding("1",8,
-      divWrapper("1",Some("inline-block"),Some("1px"),Some("1px"),None,None,None,withMinHeight("1",48,List():_*)::Nil)::
-        divWrapper("2",Some("inline-block"),Some("60%"),Some("60%"),None,None,None,chld1)::
-        divWrapper("3",None,None,None,None,Some("right"),None,chld2)::Nil
-    ))
-    if(inset) divSimpleWrapper("tableControl",paper("1",inset)(_content))::Nil
-    else divSimpleWrapper("tableControl",_content)::Nil
-  }
-  //// users
-
-  private def usernameField(obj: Obj, showLabel: Boolean) = {
-    val theField = field(obj, userAttrs.username, showLabel)
-    if(!showLabel) theField
-    else if(theField.nonEmpty) List(iconInput("1","IconSocialPerson")(theField))
-    else Nil
-  }
-  private def passwordField(obj: Obj, attr: Attr[String], showLabel: Boolean) = {
-    val theField = field(obj, attr, showLabel, DeferSendFieldOption(false), IsPasswordFieldOption)
-    if(!showLabel) theField else if(theField.nonEmpty) List(iconInput("1","IconActionLock")(theField)) else Nil
-  }
-
-  private def loginView() = {
-    val showLabel = true
-
-    val dialog = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asActiveUser)))
-    List(
-      helmet("Login"),
-      withMaxWidth("1",400,paperWithMargin("login",
-      divSimpleWrapper("1",usernameField(dialog, showLabel):_*),
-      divSimpleWrapper("2",passwordField(dialog, userAttrs.unEncryptedPassword, showLabel):_*),
-      divSimpleWrapper("3", divAlignWrapper("1","right","top",users.loginAction(dialog).map(btnRaised("login","LOGIN")(_)).toList))
-      )::Nil)
-    )
-  }
-
-
-
-  private def userListView(pf: String) = wrapDBView { () =>
-    val filterObj = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asUser)))
-    val userList = itemListFactory.create(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
-    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
-    val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
-    List(
-      helmet("Users List"),
-      toolbar("Users"),
-      paperTable("table")(
-        controlPanel(inset = false)(Nil, addRemoveControlView(userList)),
-        row("head",List(IsHeader))(
-          selectAllGroup(userList) :::
-          List(
-            group("2_grp", MinWidth(300)),
-            mCell("1",250)(_⇒sortingHeader(itemListOrdering,userAttrs.fullName)),
-            mCell("2",250)(_⇒sortingHeader(itemListOrdering,userAttrs.username)),
-            mmCell("3",100,150)(_⇒sortingHeader(itemListOrdering,userAttrs.asActiveUser))
-          ) :::
-          (if(showPasswordCols) List(
-            group("3_grp",MinWidth(150)),
-            mCell("4",150)(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPassword)),
-            mCell("5",150)(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPasswordAgain)),
-            mCell("6",150)(_⇒Nil)
-          ) else Nil) :::
-          editAllGroup()
-        ) ::
-        userList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{ user ⇒
-          val srcId = user(alien.objIdStr)
-          row(srcId,toggledSelectedRow(user))(
-            selectRowGroup(user) :::
-            List(
-              group("2_grp", MinWidth(300)),
-              mCell("1",250)(showLabel⇒field(user, userAttrs.fullName, showLabel)),
-              mCell("2",250)(showLabel⇒usernameField(user, showLabel)),
-              mmCell("3",100,150)(showLabel⇒
-                if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")(None)) else Nil
-              )
-            ) :::
-            (if(showPasswordCols) List(
-              group("3_grp",MinWidth(150)),
-              mCell("4",150)(showLabel⇒passwordField(user, userAttrs.unEncryptedPassword, showLabel)),
-              mCell("5",150)(showLabel⇒passwordField(user, userAttrs.unEncryptedPasswordAgain, showLabel)),
-              mCell("6",150) { _ =>
-                users.changePasswordAction(user).map(
-                  btnRaised("doChange", "Change Password")(_)
-                ).toList
-              }
-            ) else Nil) :::
-            editRowGroup(userList, user)
-          )
-        }
-      )
-    )
-  }
-
-  //// events
-  private def eventListView(pf: String) = wrapDBView { () =>
-    List(
-      helmet("Event List"),
-      toolbar("Events"),
-      paperTable("table")(Nil,
-        row("head", List(IsHeader))(List(
-          mCell("1",250)(_⇒List(text("text", "Event"))),
-          mCell("2",250)(_⇒Nil)
-        )) ::
-        eventSource.unmergedEvents.map(alien.wrapForEdit).map { ev =>
-          val srcId = ev(alien.objIdStr)
-          row(srcId,Nil)(List(
-            mCell("1",250)(_⇒List(text("text", ev(alienAttrs.comment)))),
-            mCell("2",250)(_⇒List(btnRemove("btn", () => eventSource.addUndo(ev))))
-          ))
-        }
-      )
-    )
-  }
-
-  private def eventToolbarButtons() = if (eventSource.unmergedEvents.isEmpty) Nil
-    else List(
-      btnRestore("events", () ⇒ currentVDom.relocate("/eventList")),
-      btnSave("save", ()⇒eventSource.addRequest())
-    )
-  private def eventListHandlers = CoHandler(ViewPath("/eventList"))(eventListView) :: Nil
 
   //// calculations
 
@@ -782,63 +442,21 @@ class TestComponent(
     entry(logAt.asConfirmed) = if(on) entry else findNodes.noNode
   }
 
-  private def inheritAttr[Value](fromAttr: Attr[Value], toAttr: Attr[Value], byIndex: SearchByLabelProp[Obj]): List[BaseCoHandler] = {
-    def copy(fromObj: Obj, toObj: Obj): Unit = toObj(toAttr) = fromObj(fromAttr)
-    CoHandler(AfterUpdate(attrFactory.attrId(fromAttr)))(fromObj ⇒
-      findNodes.where(mainTx(), byIndex, fromObj, Nil).foreach(toObj⇒
-        copy(fromObj,toObj)
-      )
-    ) ::
-    CoHandler(AfterUpdate(byIndex.propId)){ toObj ⇒
-      val byAttr = attrFactory.toAttr(byIndex.propId, byIndex.propType)
-      val fromObj = toObj(byAttr)
-      copy(fromObj, toObj)
-    } :: Nil
-  }
-
   private def calcHandlers() =
-    inheritAttr(logAt.date, logAt.workDate, findWorkByEntry) :::
+    inheritAttrRule(logAt.date, logAt.workDate, findWorkByEntry) :::
     onUpdate.handlers(List(logAt.asWork,logAt.workStart,logAt.workStop,logAt.workDate), Nil)(calcWorkDuration) :::
     onUpdate.handlers(List(logAt.asWork,logAt.workDuration,logAt.entryOfWork), Nil)(calcEntryDuration) :::
     onUpdate.handlers(List(logAt.asEntry,logAt.confirmedOn,logAt.confirmedBy), Nil)(calcConfirmed)
 
   ////
 
-  private def menuItem(key: VDomKey, caption: String)(activate: ()⇒Unit) =
-    divNoWrap(key, divClickable(caption, Some{ ()⇒
-      activate()
-      popupState.opened = ""
-    }, withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,text("1",caption))))))
-
-  private def toolbar(title:String): ChildPair[OfDiv] = {
-    val popupKey = "navMenu"
-    paperWithMargin("toolbar", divWrapper("toolbar",None,Some("200px"),None,None,None,None,List(
-      divWrapper("menu",None,None,None,None,Some("left"),None,
-        fieldPopupBox("menu",
-          List(btnMenu("menu",()⇒ popupState.opened = if(popupState.opened == popupKey) "" else popupKey)),
-          if(popupState.opened != popupKey) Nil else List(
-            menuItem("users","Users")(()⇒currentVDom.relocate("/userList")),
-            menuItem("boats","Boats")(()⇒currentVDom.relocate("/boatList")),
-            menuItem("entries","Entries")(()⇒currentVDom.relocate("/entryList")),
-            menuItem("errors","Errors")(()⇒currentVDom.relocate("/errorList"))
-          )
-        ) ::Nil
-      ),
-      divWrapper("1",Some("inline-block"),None,None,Some("50px"),None,None,
-        withSidePadding("1",10,
-          divAlignWrapper("1","left","middle",withSideMargin("1",10,text("title",title))::Nil))::Nil
-      ),
-      divWrapper("2",None,None,None,None,Some("right"),None,
-        eventToolbarButtons()
-      )
-    )))
-  }
-
-
-
   def handlers =
-    CoHandler(ConverterKey(asUUID,asString))(_⇒"...") ::
-    List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers(_)) :::
+    CoHandler(MenuItems)(()⇒List(
+      option("boats","Boats")(()⇒currentVDom.relocate("/boatList")),
+      option("entries","Entries")(()⇒currentVDom.relocate("/entryList"))
+    )) ::
+    CoHandler(AttrValueOptions(logAt.boat))(boatOptions) ::
+    List(findEntry,findWorkByEntry,findBoat).flatMap(searchIndex.handlers) :::
     List(
       logAt.durationTotal, logAt.asConfirmed, logAt.workDuration, logAt.workDate
     ).flatMap(factIndex.handlers(_)) :::
@@ -872,100 +490,13 @@ class TestComponent(
     CoHandler(AttrCaption(logAt.dateFrom))("Date From") ::
     CoHandler(AttrCaption(logAt.dateTo))("Date To") ::
     CoHandler(AttrCaption(logAt.hideConfirmed))("Hide Confirmed") ::
-    CoHandler(ViewPath(""))(emptyView) ::
-    CoHandler(ViewPath("/userList"))(userListView) ::
     CoHandler(ViewPath("/boatList"))(boatListView) ::
     CoHandler(ViewPath("/entryList"))(entryListView) ::
     CoHandler(ViewPath("/entryEdit"))(entryEditView) ::
-    CoHandler(ViewPath("/errorList"))(errorListView) ::
-    eventListHandlers :::
     calcHandlers :::
-    CoHandler(SessionInstantAdded)(currentVDom.invalidate) ::
-    CoHandler(TransientChanged)(currentVDom.invalidate) ::
-    //todo: ?mandatory(logAt.asEntry, logAt.asConfirmed, mutual = true)
     mandatory(logAt.locationOfBoat, logAt.boatName, mutual = true) :::
     mandatory(logAt.entryOfWork, logAt.workDuration, mutual = true)
 }
-
-class FuelingAttrs(
-  attr: AttrFactory,
-  label: LabelFactory,
-  objIdFactory: ObjIdFactory,
-  asString: AttrValueType[String],
-  asDuration: AttrValueType[Option[Duration]],
-  asBigDecimal: AttrValueType[Option[BigDecimal]],
-  asObjId: AttrValueType[ObjId]
-)(
-  // 00 08 RF 24
-  val asFueling: Attr[Obj] = label("8fc310bc-0ae7-4ad7-90f1-2dacdc6811ad"),
-  //val meHoursStr: Attr[String] = attr("5415aa5e-efec-4f05-95fa-4954fee2dd2e", asString),
-  val meHours: Attr[Option[Duration]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asDuration),
-  val fuel: Attr[Option[BigDecimal]] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asBigDecimal),
-  val comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
-  val engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
-  val master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString),
-  val time: Attr[String] = attr("df695468-c2bd-486c-9e58-f83da9566940", asString),
-  val time00: ObjId = objIdFactory.toObjId("2b4c0bbf-fd24-4df8-b57a-29c26af11b23"),
-  val time08: ObjId = objIdFactory.toObjId("a281aafc-b32d-4cf0-8599-eee8448c937d"),
-  val time24: ObjId = objIdFactory.toObjId("f6bdcef8-179e-4da3-8c3d-ec7f51716ee6"),
-  val fullKey: Attr[ObjId] = attr("37b8c873-e897-49b2-9802-5c4d87f5a272",asObjId)
-)
-
-class FuelingItems(
-  at: FuelingAttrs,
-  findAttrs: FindAttrs,
-  alienAttrs: AlienAccessAttrs,
-  nodeAttrs: NodeAttrs,
-  factIndex: FactIndex,
-  searchIndex: SearchIndex,
-  alien: Alien,
-  onUpdate: OnUpdate,
-  attrFactory: AttrFactory,
-  dbWrapType: WrapType[ObjId],
-  validationFactory: ValidationFactory,
-  uiStrings: UIStrings,
-  lazyObjFactory: LazyObjFactory
-)(
-  val fuelingByFullKey: SearchByLabelProp[ObjId] = searchIndex.create(at.asFueling,at.fullKey),
-  val times: List[ObjId] = List(at.time00,at.time08,at.time24)
-) extends CoHandlerProvider {
-  def handlers =
-    attrFactory.handlers(at.time)((obj,objId)⇒
-      if(objId == at.time00) "00:00" else
-      if(objId == at.time08) "08:00" else
-      if(objId == at.time24) "24:00" else throw new Exception(s"? $objId")
-    ) :::
-    uiStrings.captions(at.asFueling, Nil)(_⇒"") :::
-    CoHandler(AttrCaption(at.asFueling))("Fueling") ::
-    CoHandler(AttrCaption(at.meHours))("ME Hours.Min") ::
-    CoHandler(AttrCaption(at.fuel))("Fuel rest/quantity") ::
-    CoHandler(AttrCaption(at.comment))("Comment") ::
-    CoHandler(AttrCaption(at.engineer))("Engineer") ::
-    CoHandler(AttrCaption(at.master))("Master") ::
-    searchIndex.handlers(fuelingByFullKey) :::
-    List(
-      at.asFueling, at.meHours, at.fuel, at.comment, at.engineer, at.master
-    ).flatMap(alien.update(_))
-  def fueling(entry: Obj, time: ObjId, wrapForEdit: Boolean) =
-    lazyObjFactory.create(fuelingByFullKey,List(entry(nodeAttrs.objId),time),wrapForEdit)
-  def validation(entry: Obj): List[ValidationState] = {
-    val fuelingList = times.map(time⇒fueling(entry, time, wrapForEdit = false))
-    fuelingList.flatMap { obj ⇒
-      validationFactory.need[Option[BigDecimal]](obj,at.fuel,v⇒if(v.isEmpty) Some("") else None) :::
-      validationFactory.need[String](obj,at.engineer,v⇒if(v.isEmpty) Some("") else None) :::
-      validationFactory.need[String](obj,at.master,v⇒if(v.isEmpty) Some("") else None)
-    } :::
-    fuelingList.sliding(2).toList.flatMap{ fuelingPair ⇒ fuelingPair.map(_(at.meHours)) match {
-      case Some(a) :: Some(b) :: Nil if a.compareTo(b) <= 0 ⇒ Nil
-      case _ ⇒ fuelingPair.flatMap(fueling⇒
-        validationFactory.need[Option[Duration]](fueling,at.meHours,v⇒Some("to increase"))
-      )
-    }}
-  }
-}
-
-
-
 
 /*
 case class RegItem[R](index: Int)(create: ()⇒R){

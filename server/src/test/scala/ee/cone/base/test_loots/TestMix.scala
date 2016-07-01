@@ -34,10 +34,11 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val logAttributes = new BoatLogEntryAttributes(
     attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()
-  lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl, tags)
+  lazy val materialIconTags = new MaterialIconTags(childPairFactory)
+  lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl, tags, popup)
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
-  lazy val htmlTableWithControl = new FlexDataTableImpl(flexTags)
+  lazy val htmlTableWithControl = new FlexDataTableTagsImpl(flexTags)
 
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
   lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, uiStrings, itemListOrderingFactory)()
@@ -52,6 +53,27 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
   lazy val errors = new Errors(errorAttrs,searchIndex,alien,users,findNodes,itemListFactory)()
   //
 
+  lazy val popup = new Popup
+
+  lazy val fieldAttributes = new FieldAttributesImpl(findAttrs,validationAttributes,alienAttrs)
+
+  lazy val materialFields = new MaterialFields(
+    fieldAttributes,
+    handlerLists,
+    tags,
+    materialTags,
+    materialIconTags,
+    flexTags,
+    popup,
+    asDuration,
+    asInstant,
+    asLocalTime,
+    asBigDecimal,
+    asDBObj,
+    asString,
+    asBoolean
+  )
+
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, itemListAttributes, logAttributes, userAttrs,
     fuelingAttrs, alienAttrs, validationAttributes,
@@ -63,7 +85,8 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     objIdFactory, validationFactory,
     asDuration, asInstant, asLocalTime,asBigDecimal, asDBObj, asString, asUUID,
     uiStrings, mandatory, zoneIds, itemListOrderingFactory, objOrderingFactory,
-    errorAttrs, errors, itemListFactory, filterObjFactory, editing
+    errorAttrs, errors, itemListFactory, filterObjFactory, editing, popup,
+    materialIconTags
   )()
 }
 

@@ -4,6 +4,7 @@ import java.time.{Duration, Instant, LocalTime}
 
 import ee.cone.base.connection_api._
 import ee.cone.base.util.Never
+import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom.{ChildPair, OfDiv, Tags}
 
 case class ViewField[Value](asType: AttrValueType[Value])
@@ -12,6 +13,7 @@ trait FieldOption
 case class EditableFieldOption(on: Boolean) extends FieldOption
 case class DeferSendFieldOption(on: Boolean) extends FieldOption
 case object IsPasswordFieldOption extends FieldOption
+case object IsPersonFieldOption extends FieldOption
 
 case class AttrValueOptions(attr: Attr[Obj]) extends EventKey[Obj⇒List[Obj]]
 
@@ -31,7 +33,9 @@ class MaterialFields(
   fieldAttributes: FieldAttributes,
   handlerLists: CoHandlerLists,
   tags: Tags,
-  materialTags: MaterialTags,
+  style: TagStyles,
+  divTags: DivTags,
+  materialIconTags: MaterialIconTags,
   flexTags: FlexTags,
   popupState: Popup,
   asDuration: AttrValueType[Option[Duration]],
@@ -43,8 +47,9 @@ class MaterialFields(
   asBoolean: AttrValueType[Boolean]
 ) extends CoHandlerProvider {
   import fieldAttributes._
-  import materialTags._
-  import flexTags.divAlignWrapper
+  import divTags._
+  import materialIconTags._
+  //import flexTags.divAlignWrapper
 
   private def caption(attr: Attr[_]): String =
     handlerLists.single(AttrCaption(attr), ()⇒"???")
@@ -77,12 +82,7 @@ class MaterialFields(
     )
     val popup = (if(isOpened) items else Nil)
       .map(item⇒(item,objCaption(item))).sortBy(_._2)
-      .map{ case(item,caption) ⇒
-        divClickable(item(aObjIdStr),Some{ ()⇒
-          obj(attr) = item
-          popupToggle()
-        },divNoWrap("1",withDivMargin("1",5,divBgColorHover("1",MenuItemHoverColor,withPadding("1",10,tags.text("1",caption))))))
-      }
+      .map{ case(item,caption) ⇒ option(item(aObjIdStr),caption)(() ⇒ obj(attr) = item) }
     val btn = if(popup.nonEmpty) btnExpandLess("less",popupToggle)
     else btnExpandMore("more",popupToggle)
     btnInputPopup(btn, input, popup)
@@ -104,13 +104,20 @@ class MaterialFields(
     val visibleLabel = if(showLabel) caption(attr) else ""
     val value = obj(attr)
     val isPassword = options.contains(IsPasswordFieldOption)
-    if(editable) List(inputField(
-      "1", visibleLabel, value, obj(attr) = _,
-      deferSend(options), alignRight=false, getValidationKey(obj,attr),
-      isPassword
-    ))
-    else if(value.nonEmpty && !isPassword) List(labeledText("1", visibleLabel, value))
-    else Nil
+    val theField =
+      if(editable) List(inputField(
+        "1", visibleLabel, value, obj(attr) = _,
+        deferSend(options), alignRight=false, getValidationKey(obj,attr),
+        isPassword
+      ))
+      else if(value.nonEmpty && !isPassword) List(labeledText("1", visibleLabel, value))
+      else Nil
+    if(!showLabel || theField.isEmpty) theField
+    else if(isPassword)
+      List(iconInput("1","IconSocialPerson")(theField))
+    else if(options.contains(IsPersonFieldOption))
+      List(iconInput("1","IconActionLock")(theField))
+    else theField
   }
 
   private def durationField(
@@ -132,14 +139,20 @@ class MaterialFields(
       deferSend=true, alignRight=true, getValidationKey(obj,attr)
     )
 
-    val popup = if(!isOpened) Nil
-    else  withMinWidth("minWidth",280,clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
-      obj(attr) = converter(asString,valueType)(newVal)
-      popupToggle()
-    })::Nil)::Nil
+    val popup = if(!isOpened) Nil else List(
+      div("popup",style.minWidth(280))(List(
+        clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
+          obj(attr) = converter(asString,valueType)(newVal)
+          popupToggle()
+        })
+      ))
+    )
     btnInputPopup(btn,input,popup)
     //input::Nil
   }
+
+  private def controlGroup(children: List[ChildPair[OfDiv]]) =
+    div("control",style.padding(10),style.alignRight)(children)
 
   private def dateField(
     obj: Obj, attr: Attr[Option[Instant]], showLabel: Boolean, options: Seq[FieldOption]
@@ -153,10 +166,14 @@ class MaterialFields(
     //val key = popupKey(obj,attr)
     val (isOpened, popupToggle) = popupAction[Option[Instant]](obj, attr)
     val btn = btnDateRange("btnCalendar", popupToggle)
-    val controlGrp = divSimpleWrapper("1", withPadding("1", 10, divAlignWrapper("1", "right", "", btnRaised("1", "Today")(() => {
-      obj(attr) = Option(Instant.now())
-      popupToggle()
-    }) :: Nil)))
+    val controlGrp = controlGroup(List(
+      btnRaised("1", "Today")(() => {
+        obj(attr) = Option(Instant.now())
+        popupToggle()
+      })
+    ))
+
+
 
     val input = inputField(
       "1", visibleLabel, value, v ⇒ obj(attr) = converter(asString, valueType)(v),
@@ -188,15 +205,21 @@ class MaterialFields(
       "1", visibleLabel, value, v ⇒ obj(attr) = converter(asString,valueType)(v),
       deferSend=true, alignRight=true, getValidationKey(obj,attr)
     )
-    val controlGrp = divSimpleWrapper("1", withPadding("1", 10, divAlignWrapper("1", "right", "", btnRaised("1", "Now")(() => {
-      obj(attr) = Option(LocalTime.now())
-      popupToggle()
-    }) :: Nil)))
-    val popup = if(!isOpened) Nil
-    else withMinWidth("minWidth",280,clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
-      obj(attr) = converter(asString,valueType)(newVal)
-      popupToggle()
-    })::controlGrp::Nil)::Nil
+    val controlGrp = controlGroup(List(
+      btnRaised("1", "Now")(() => {
+        obj(attr) = Option(LocalTime.now())
+        popupToggle()
+      })
+    ))
+    val popup = if(!isOpened) Nil else List(
+      div("popup",style.minWidth(280))(List(
+        clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
+          obj(attr) = converter(asString,valueType)(newVal)
+          popupToggle()
+        }),
+        controlGrp
+      ))
+    )
     btnInputPopup(btn,input,popup)
   }
 
@@ -214,8 +237,6 @@ class MaterialFields(
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value,alignRight=true))
     else Nil
   }
-
-
 
   private def getValidationKey[Value](obj: Obj, attr: Attr[Value]): ValidationKey = {
     val states = obj(aValidation).get(attr)

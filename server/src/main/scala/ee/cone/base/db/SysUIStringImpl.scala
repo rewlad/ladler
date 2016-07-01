@@ -1,5 +1,7 @@
 package ee.cone.base.db
 
+import java.util.UUID
+
 import ee.cone.base.connection_api._
 import ee.cone.base.util.Never
 
@@ -21,7 +23,8 @@ class UIStringsImpl(
   findNodes: FindNodes,
   asDBObj: AttrValueType[Obj],
   asObjId: AttrValueType[ObjId],
-  asString: AttrValueType[String]
+  asString: AttrValueType[String],
+  asUUID: AttrValueType[Option[UUID]]
 ) extends UIStrings with CoHandlerProvider {
   def handlers = factIndex.handlers(at.caption) :::
     List(
@@ -29,6 +32,7 @@ class UIStringsImpl(
       CoHandler(ConverterKey(asDBObj,asString))(objToUIString),
       CoHandler(ConverterKey(asObjId,asString))(objIdToUIString),
       CoHandler(ConverterKey(asString,asDBObj))(stringToObj),
+      CoHandler(ConverterKey(asUUID,asString))(_⇒"...")
     )
   private def stringToObj(value: String) = if(value.isEmpty) findNodes.noNode else Never()
   private def objIdToUIString(value: ObjId) = objToUIString(findNodes.whereObjId(value))

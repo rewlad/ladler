@@ -49,14 +49,16 @@ case class DataTableColGroupRow() extends VDomValue{
   def elementType="div"
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        builder.append("display").append("flex")
+    builder.append("tp").append("div")
+    builder.append("style"); {
+      builder.startObject()
+      builder.append("display").append("flex")
       //  builder.append("fontFamily").append("Roboto,sans serif")
-        builder.append("fontSize").append("13px")
-        builder.append("fontWeight").append("500")
-        builder.append("color").append("rgba(0,0,0,0.54)")
+      builder.append("fontSize").append("13px")
+      builder.append("fontWeight").append("500")
+      builder.append("color").append("rgba(0,0,0,0.54)")
       builder.end()
+    }
     builder.end()
   }
 
@@ -73,90 +75,16 @@ case class DataTableRecordRow(selected:Boolean)(val onClick:Option[()=>Unit]) ex
 case class DataTableHeaderRow() extends VDomValue{
   def appendJson(builder: JsonBuilder)={
     builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        builder.append("display").append("flex")
-        //builder.append("fontFamily").append("Roboto,sans serif")
-        builder.append("fontSize").append("12px")
-        builder.append("fontWeight").append("500")
-        builder.append("color").append("rgba(0,0,0,0.54)")
+    builder.append("tp").append("div")
+    builder.append("style"); {
+      builder.startObject()
+      builder.append("display").append("flex")
+      //builder.append("fontFamily").append("Roboto,sans serif")
+      builder.append("fontSize").append("12px")
+      builder.append("fontWeight").append("500")
+      builder.append("color").append("rgba(0,0,0,0.54)")
       builder.end()
-    builder.end()
-  }
-}
-case class DivFlexWrapper(flexBasis:Option[Int],
-                          displayFlex:Boolean,
-                          flexWrap:Boolean,
-                          minWidth:Option[Int],
-                          maxWidth:Option[Int],
-                          height:Option[Int],
-                          textAlign:Option[String],
-                          borderRight:Boolean
-                         ) extends VDomValue{
-
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        flexBasis.foreach(x=>builder.append("flex").append(s"1 1 ${x}px"))
-        if(displayFlex) builder.append("display").append("flex")
-        if(flexWrap) builder.append("flexWrap").append("wrap")
-        minWidth.foreach(x=>builder.append("minWidth").append(s"${x}px"))
-        maxWidth.foreach(x=>builder.append("maxWidth").append(s"${x}px"))
-        height.foreach(x=>builder.append("height").append(s"${x}px"))
-        textAlign.foreach(x=>builder.append("textAlign").append(x))
-        if(borderRight) builder.append("borderRight").append("1px solid red")
-      builder.end()
-    builder.end()
-  }
-}
-case class DivWrapper(display:Option[String] = None,
-                      minWidth:Option[String] = None,
-                      maxWidth:Option[String] = None,
-                      height:Option[String] = None,
-                      float:Option[String] = None,
-                      position:Option[String] = None) extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        display.foreach(x=>builder.append("display").append(x))
-        minWidth.foreach(x=>builder.append("minWidth").append(x))
-        maxWidth.foreach(x=>builder.append("maxWidth").append(x))
-        height.foreach(x=>builder.append("height").append(x))
-        float.foreach(x=>builder.append("float").append(x))
-        position.foreach(x=>builder.append("position").append(x))
-      builder.end()
-    builder.end()
-  }
-}
-
-
-
-case class DivTableCell(width:String,align:String,verticalAlign:String) extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        builder.append("display").append("table-cell")
-        builder.append("width").append(width)
-        builder.append("height").append("100%")
-        builder.append("textAlign").append(align)
-        builder.append("verticalAlign").append(verticalAlign)
-      builder.end()
-    builder.end()
-  }
-}
-
-case class DivAlignWrapper() extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("div")
-      builder.append("style").startObject()
-        builder.append("display").append("table")
-        builder.append("height").append("100%")
-        builder.append("width").append("100%")
-      builder.end()
+    }
     builder.end()
   }
 }
@@ -164,40 +92,22 @@ case class DivAlignWrapper() extends VDomValue{
 trait OfFlexGrid extends OfDiv
 trait OfFlexDataTable extends OfDiv
 
-class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialTags) {
+case class FlexBasisTagStyle(value: Int) extends TagStyle {
+  def appendStyle(builder: JsonBuilder) =
+    builder.append("flex").append(s"1 1 ${value}px")
+}
+
+class FlexTags(child: ChildPairFactory,val tags:Tags,val materialTags: MaterialTags, divTags: DivTags, style: TagStyles) {
+  import divTags._
+
+  def flexBasis = FlexBasisTagStyle
+  def maxWidth(value: Option[Int]) = value.map(style.maxWidth).getOrElse(style.none)
 
   def divAlignWrapper(key:VDomKey,align:String,verticalAlign:String,children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivAlignWrapper(),
-      child[OfDiv](key,DivTableCell("100%",align,verticalAlign),children)::Nil
-    )
-  def divFlexWrapper(key:VDomKey,
-                     flexBasis:Option[Int],
-                     displayFlex:Boolean,
-                     flexWrap:Boolean,
-                     minWidth:Option[Int],
-                     maxWidth:Option[Int],
-                     height:Option[Int],
-                     textAlign:Option[String],
-                     borderRight:Boolean,
-                     children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivFlexWrapper(flexBasis,displayFlex,flexWrap,minWidth,maxWidth,height,textAlign,borderRight),children)
-  def divWrapper(key:VDomKey,
-                 display:Option[String],
-                 minWidth:Option[String],
-                 maxWidth:Option[String],
-                 height:Option[String],
-                 float:Option[String],
-                 position:Option[String],
-                 children: List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivWrapper(display,minWidth,maxWidth,height,float,position),children)
-  /*
-  def divPositionWrapper(key:VDomKey,
-                         display:Option[String],
-                         position:Option[String],
-                         top:Option[String],
-                         transform:Option[String],
-                         children:List[ChildPair[OfDiv]])=
-    child[OfDiv](key,DivPositionWrapper(display,position,top,transform),children)*/
+    div(key,style.displayTable,style.widthAll,style.heightAll)(List(
+      div("1",style.displayCell,style.widthAll,style.heightAll,align,verticalAlign)(children)::Nil
+    ))
+
   def flexGrid(key: VDomKey, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key,FlexGrid(),children)
   def flexGridItem(key: VDomKey, flexBasisWidth: Int, maxWidth: Option[Int], children: List[ChildPair[OfDiv]]) =
