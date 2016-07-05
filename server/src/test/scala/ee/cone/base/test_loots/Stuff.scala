@@ -51,12 +51,10 @@ class BoatLogEntryAttributes(
 
 class TestComponent(
   nodeAttrs: NodeAttrs,
-  findAttrs: FindAttrs,
   listAttrs: ItemListAttributes,
   logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
-  alienAttrs: AlienAttributes,
   validationAttrs: ValidationAttributes,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
@@ -110,11 +108,10 @@ class TestComponent(
   import buttonTags._
   import flexTags._
   import htmlTable._
-  import findAttrs.nonEmpty
   import uiStrings.caption
   import tableUtils._
   import fields.field
-  import fieldAttributes.aObjIdStr
+  import fieldAttributes._
   import optionTags._
 
   def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
@@ -142,7 +139,7 @@ class TestComponent(
       if(value.nonEmpty) List((obj:Obj) ⇒ obj(logAt.date).forall((v:Instant) ⇒ v==value.get || v.isBefore(value.get))) else Nil
     } ::: {
       val value = filterObj(logAt.hideConfirmed)
-      if(value) List((obj:Obj) ⇒ !obj(logAt.asConfirmed)(nonEmpty) ) else Nil
+      if(value) List((obj:Obj) ⇒ !obj(logAt.asConfirmed)(aNonEmpty) ) else Nil
     }
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
 
@@ -194,7 +191,7 @@ class TestComponent(
               mCell("5",100)(_=>
                {
                   val confirmed = entry(logAt.asConfirmed)
-                  if(confirmed(nonEmpty))
+                  if(confirmed(aNonEmpty))
                     List(materialChip("1","CONFIRMED")(None))
                   else Nil
                }
@@ -214,13 +211,13 @@ class TestComponent(
 
   private def entryEditView(pf: String) = wrap { () =>
     val entryObj = findNodes.whereObjId(objIdFactory.toObjId(pf.tail))(logAt.asEntry)
-    val isConfirmed = entryObj(logAt.asConfirmed)(nonEmpty)
+    val isConfirmed = entryObj(logAt.asConfirmed)(aNonEmpty)
     val validationStates = if(isConfirmed) Nil else
       fuelingItems.validation(entryObj) :::
-      validationFactory.need[Obj](entryObj,logAt.boat,v⇒if(!v(nonEmpty)) Some("") else None) :::
+      validationFactory.need[Obj](entryObj,logAt.boat,v⇒if(!v(aNonEmpty)) Some("") else None) :::
       validationFactory.need[Option[Instant]](entryObj,logAt.date,v⇒if(v.isEmpty) Some("") else None)
     val validationContext = validationFactory.context(validationStates)
-    val entry = if(isConfirmed) entryObj else validationContext.wrap(alien.wrapForEdit(entryObj)) /*todo roles*/
+    val entry = if(isConfirmed) entryObj else validationContext.wrap(alien.wrapForUpdate(entryObj)) /*todo roles*/
     val entryIdStr = entry(aObjIdStr)
 
     List(
@@ -247,7 +244,7 @@ class TestComponent(
                 flexItem("conf_do",150,None)(List(
                   divAlignWrapper("1",style.height(72))(style.alignRight,style.alignBottom)(
                     if(isConfirmed) {
-                      val entry = alien.wrapForEdit(entryObj)
+                      val entry = alien.wrapForUpdate(entryObj)
                       List(
                         raisedButton("reopen", "Reopen") { () ⇒
                           entry(logAt.confirmedOn) = None
@@ -261,7 +258,7 @@ class TestComponent(
                     }
                     else {
                       val user = eventSource.mainSession(userAttrs.authenticatedUser)
-                      if(!user(nonEmpty)) List(alert("1",s"User required"))
+                      if(!user(aNonEmpty)) List(alert("1",s"User required"))
                       else List(raisedButton("confirm","Confirm"){()⇒
                         entry(logAt.confirmedOn) = Option(Instant.now())
                         entry(logAt.confirmedBy) = user
@@ -296,7 +293,7 @@ class TestComponent(
 
     def fuelingRowView(time: ObjId, isRF: Boolean) = {
       val fueling = validationContext.wrap(
-        if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
+        if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(aIsEditing))
       )
       val timeStr = if(isRF) "RF" else findNodes.whereObjId(time)(fuelingAttrs.time)
       row(timeStr,toggledRow(filterObj,time):_*)(List(
@@ -344,7 +341,7 @@ class TestComponent(
   def entryEditWorkListView(entry: Obj): ChildPair[OfDiv] = {
     val entryIdStr = entry(aObjIdStr)
     val filterObj = filterObjFactory.create(List(entry(nodeAttrs.objId),attrFactory.attrId(logAt.asWork)))
-    val workList = itemListFactory.create(findWorkByEntry,entry,filterObj,Nil,entry(alienAttrs.isEditing))
+    val workList = itemListFactory.create(findWorkByEntry,entry,filterObj,Nil,entry(aIsEditing))
     paperTable("dtTableEdit2")(
       controlPanel(Nil,addRemoveControlView(workList)),
       List(

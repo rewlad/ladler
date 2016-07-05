@@ -30,7 +30,7 @@ class UserAttrs(
 )
 
 class Users(
-  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAttributes,
+  at: UserAttrs, nodeAttrs: NodeAttrs, fieldAttributes: FieldAttributes,
   handlerLists: CoHandlerLists,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
@@ -56,7 +56,7 @@ class Users(
       user(at.encryptedPassword) = Some(encryptPassword(userId,username,pw))
       user(at.unEncryptedPassword) = ""
       user(at.unEncryptedPasswordAgain) = ""
-      user(alienAttrs.isEditing) = false
+      user(fieldAttributes.aIsEditing) = false
     }
     else None
   }
@@ -66,7 +66,7 @@ class Users(
     if(username.isEmpty || pw.isEmpty) None else {
       val user = findNodes.single(findNodes.where(mainTx(), findActiveByName, dialog(at.username), Nil))
       val userId = user(nodeAttrs.objId)
-      val mainSession = alien.wrapForEdit(eventSource.mainSession)
+      val mainSession = alien.wrapForUpdate(eventSource.mainSession)
       val encryptedPassword = if(userId.nonEmpty) user(at.encryptedPassword) else None
       Some{ () ⇒
         if(encryptedPassword.contains(encryptPassword(userId, username, pw)))
@@ -77,7 +77,7 @@ class Users(
   }
   def world: Obj = findNodes.whereObjId(at.world)
   def needToLogIn: Boolean =
-    !eventSource.mainSession(at.authenticatedUser)(at.asUser)(findAttrs.nonEmpty) &&
+    !eventSource.mainSession(at.authenticatedUser)(at.asUser)(fieldAttributes.aNonEmpty) &&
       findNodes.where(mainTx(), findAllActive, world, FindFirstOnly::Nil).nonEmpty
   private def calcCanLogin(on: Boolean, user: Obj) =
     user(at.asActiveUser) = if(on) user else findNodes.noNode

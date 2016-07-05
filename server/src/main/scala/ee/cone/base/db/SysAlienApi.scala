@@ -11,6 +11,6 @@ trait AlienAttributes {
 
 trait Alien {
   def update[Value](attr: Attr[Value]): List[BaseCoHandler]
-  def wrapForEdit(obj: Obj): Obj
+  def wrapForUpdate(obj: Obj): Obj
   def demanded(setup: Obj⇒Unit): Obj
 }

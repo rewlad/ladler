@@ -70,9 +70,9 @@ class AlienImpl(
       event(at.comment) = description
     } :: Nil
   }
-  def wrapForEdit(obj: Obj): Obj = obj.wrap(alienWrapType, ())
+  def wrapForUpdate(obj: Obj): Obj = obj.wrap(alienWrapType, ())
   def demanded(setup: Obj⇒Unit): Obj = {
-    wrapForEdit(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
+    wrapForUpdate(findNodes.noNode).wrap(demandedWrapType, new DemandedNode(objIdFactory.noObjId,setup))
   }
   def handlers =
     List(

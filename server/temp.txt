@@ -15,3 +15,45 @@ tbl utils:
         isEditable
         removeSelected
         add
+
+
+isEditable to util wrapper
+need editing.wrap
+selectAllListed to util wrapper
+need at.selectedItems
+need nodeAttrs.objId
+removeSelected to util wrapper
+need convertEmpty
+
+ItemList:
+    NodeAttrs.objId
+    ObjIdFactory.noObjId
+    AttrFactory
+        toAttr
+        converter(valueType
+    FindNodes
+        where(CurrentTx/MainEnvKey
+        whereObjId
+    Alien
+        demanded
+        wrapForEdit
+        update
+    Transient.update
+    Editing.wrap
+Editing (keep in db)
+    NodeAttrs.objId
+    ObjIdFactory.noObjId
+    alienAttrs.isEditing
+    alien.wrapForEdit
+    dbWrapType
+
+error/user view:
+    attrFactory.attrId
+    filterObjFactory.create
+    itemListFactory.create
+    itemListOrderingFactory.itemList
+    itemList.list
+event view:
+    alien.wrapForEdit
+    alienAttrs.comment
+    SessionEventSource

@@ -2,14 +2,12 @@
 package ee.cone.base.test_loots // to app
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider, FieldAttributes}
-import ee.cone.base.db.{ItemListFactory, ItemListOrderingFactory, _}
+import ee.cone.base.db.{AttrFactory,FilterObjFactory,ItemListFactory,ItemListOrderingFactory}
 import ee.cone.base.material._
 import ee.cone.base.vdom._
 
 class UserListView(
   attrFactory: AttrFactory,
-  findAttrs: FindAttrs,
-  alienAttrs: AlienAttributes,
   filterObjFactory: FilterObjFactory,
   itemListFactory: ItemListFactory,
   itemListOrderingFactory: ItemListOrderingFactory,
@@ -32,7 +30,7 @@ class UserListView(
   import tableUtils._
   import fields.field
   import divTags._
-  import fieldAttributes.aObjIdStr
+  import fieldAttributes._
 
 
   def loginView(): List[ChildPair[OfDiv]] = {
@@ -56,7 +54,7 @@ class UserListView(
     val filterObj = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asUser)))
     val userList = itemListFactory.create(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
-    val showPasswordCols = userList.list.exists(user=>user(alienAttrs.isEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
+    val showPasswordCols = userList.list.exists(user=>user(aIsEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(
       toolbar("Users"),
       paperTable("table")(
@@ -85,9 +83,9 @@ class UserListView(
                   group("2_grp", MinWidth(300))(Nil),
                   cell("1",MinWidth(250))(showLabel⇒field(user, userAttrs.fullName, showLabel)),
                   cell("2",MinWidth(250))(showLabel⇒field(user, userAttrs.username, showLabel, IsPersonFieldOption)),
-                  cell("3",MinWidth(100),MaxWidth(150))(showLabel⇒
-                    if(user(userAttrs.asActiveUser)(findAttrs.nonEmpty)) List(materialChip("0","Active")(None)) else Nil
-                  )
+                  cell("3",MinWidth(100),MaxWidth(150)) { showLabel ⇒
+                    if (user(userAttrs.asActiveUser)(aNonEmpty)) List(materialChip("0", "Active")(None)) else Nil
+                  }
                 ) :::
                 (if(showPasswordCols) List(
                   group("3_grp",MinWidth(150))(Nil),

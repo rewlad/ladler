@@ -27,10 +27,10 @@ class ItemListAttributesImpl(
 ) extends ItemListAttributes
 
 class ItemListFactoryImpl(
-  at: ItemListAttributes, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAttributes,
+  at: ItemListAttributes, nodeAttrs: NodeAttrs,
   attrFactory: AttrFactory, findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
-  alien: Alien, listedWrapType: WrapType[InnerItemList], factIndex: FactIndex,
-  transient: Transient, objIdFactory: ObjIdFactory, lazyObjFactory: LazyObjFactory,
+  alien: Alien, listedWrapType: WrapType[InnerItemList],
+  transient: Transient, objIdFactory: ObjIdFactory,
   editing: Editing
 ) extends ItemListFactory with CoHandlerProvider {
   def create[Value](
@@ -75,7 +75,7 @@ class ItemListFactoryImpl(
       def add() = Setup(newItem)(_(parentAttr) = parentValue)
       def removeSelected() = {
         val empty = attrFactory.converter(attrFactory.valueType(parentAttr)).convertEmpty()
-        selectedSet.map(findNodes.whereObjId).map(alien.wrapForEdit)
+        selectedSet.map(findNodes.whereObjId).map(alien.wrapForUpdate)
           .foreach(obj⇒obj(parentAttr) = empty)
         filter(at.selectedItems) = Set[ObjId]()
       }

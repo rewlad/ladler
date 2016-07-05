@@ -12,7 +12,7 @@ class EditingImpl(
   var editingId: ObjId = objIdFactory.noObjId
 ) extends Editing with CoHandlerProvider {
   def wrap(obj: Obj) =
-    if(obj(nodeAttrs.objId) == editingId) alien.wrapForEdit(obj) else obj
+    if(obj(nodeAttrs.objId) == editingId) alien.wrapForUpdate(obj) else obj
   def reset() = editingId = objIdFactory.noObjId
   def handlers = CoHandler(SetValue(dbWrapType,alienAttrs.isEditing)){ (obj,innerObj,value)⇒
     if(value) editingId = innerObj.data else if(obj(alienAttrs.isEditing)) reset()

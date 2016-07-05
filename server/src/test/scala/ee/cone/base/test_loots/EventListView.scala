@@ -10,7 +10,6 @@ import ee.cone.base.vdom._
 class EventListView(
   handlerLists: CoHandlerLists,
   alienAttrs: AlienAttributes,
-  alien: Alien,
   currentVDom: CurrentView,
   tags: Tags,
   htmlTable: TableTags,
@@ -37,7 +36,7 @@ class EventListView(
           cell("1",MinWidth(250))(_⇒List(text("text", "Event"))),
           cell("2",MinWidth(250))(_⇒Nil)
         )) ::
-          eventSource.unmergedEvents.map(alien.wrapForEdit).map { ev =>
+          eventSource.unmergedEvents.map { ev =>
             val srcId = ev(fieldAttributes.aObjIdStr)
             row(srcId)(List(
               cell("1",MinWidth(250))(_⇒List(text("text", ev(alienAttrs.comment)))),

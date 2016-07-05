@@ -74,7 +74,7 @@ class TestComponent(
       val startTime = System.currentTimeMillis
       val tasks = findNodes.where(mainTx(), testTaskByState, "A", Nil)
       val taskLines = tasks.map { obj =>
-        val task = alien.wrapForEdit(obj)
+        val task = alien.wrapForUpdate(obj)
         val objIdStr = task(aObjIdStr)
         tags.div(
           objIdStr,
