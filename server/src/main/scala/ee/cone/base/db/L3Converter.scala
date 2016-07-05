@@ -44,7 +44,7 @@ class UUIDValueConverter(
 
 class DBObjValueConverter(
   val valueType: AttrValueType[Obj],
-  inner: DBObjIdValueConverter,
+  inner: RawValueConverter[ObjId],
   findNodes: FindNodes,
   nodeAttributes: NodeAttrs
 ) extends RawValueConverter[Obj] with CoHandlerProvider {

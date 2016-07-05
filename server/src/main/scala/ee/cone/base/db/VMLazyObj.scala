@@ -19,7 +19,7 @@ class LazyObjFactoryImpl(
     val obj = findNodes.single(findNodes.where(mainTx(), index, key, Nil))
     if(!wrapForEdit) obj
     else if(obj(findAttrs.nonEmpty)) alien.wrapForEdit(obj)
-    else alien.demandedNode { obj ⇒
+    else alien.demanded { obj ⇒
       obj(attrFactory.toAttr(index.labelId, index.labelType)) = obj
       obj(attrFactory.toAttr(index.propId, index.propType)) = key
     }

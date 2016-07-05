@@ -6,8 +6,8 @@ import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, UTF8String}
 import ee.cone.base.vdom.Types._
 
-object InputAttributesImpl extends InputAttributes {
-  def appendJson(builder: JsonBuilder, value: String, deferSend: Boolean): Unit = {
+object TagJsonUtilsImpl extends TagJsonUtils {
+  def appendInputAttributes(builder: JsonBuilder, value: String, deferSend: Boolean): Unit = {
     builder.append("value").append(value)
     if(deferSend){
       builder.append("onChange").append("local")
@@ -19,9 +19,6 @@ object InputAttributesImpl extends InputAttributes {
 object WasNoValueImpl extends WasNoVDomValue {
   def appendJson(builder: JsonBuilder): Unit = Never()
 }
-
-
-
 
 /*
 def apply(path: List[String], message: Message): Option[Message] = {

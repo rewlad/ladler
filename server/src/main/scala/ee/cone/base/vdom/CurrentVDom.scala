@@ -9,7 +9,8 @@ class CurrentVDom(
   handlerLists: CoHandlerLists,
   diff: Diff,
   jsonToString: JsonToString,
-  wasNoValue: WasNoVDomValue
+  wasNoValue: WasNoVDomValue,
+  child: ChildPairFactory
 ) extends CurrentView with CoHandlerProvider {
   def invalidate() = vDom = wasNoValue
   def until(value: Long) = if(value < until) until = value
@@ -49,7 +50,8 @@ class CurrentVDom(
     if(until <= System.currentTimeMillis) invalidate()
     if(vDom != wasNoValue) Nil else {
       until = Long.MaxValue
-      vDom = view(hashForView,"")
+      vDom =
+        child("root", RootElement(rootAttributes), view(hashForView,"")).value
       diff.diff(vDom).map(d=>("showDiff", jsonToString(d))).toList :::
         (if(hashFromAlien==hashForView) Nil else ("relocateHash",hashForView) :: Nil)
     }
@@ -67,12 +69,28 @@ class CurrentVDom(
     List("ackMessage"→List("ackMessage",message.value("X-r-connection"),message.value("X-r-index")))
 
   private lazy val PathSplit = """(.*)(/[^/]*)""".r
-  private def view(pathPrefix: String, pathPostfix: String): VDomValue =
+  private def view(pathPrefix: String, pathPostfix: String): List[ChildPair[_]] =
     Single.option(handlerLists.list(ViewPath(pathPrefix))).map(_(pathPostfix))
       .getOrElse(pathPrefix match {
         case PathSplit(nextPrefix,nextPostfix) =>
           view(nextPrefix,s"$nextPostfix$pathPostfix")
       })
+
+
+}
+
+case class RootElement(conf: List[(String,List[String])]) extends VDomValue {
+  def appendJson(builder: JsonBuilder) = {
+    builder.startObject()
+    builder.append("tp").append("span")
+    conf.foreach{ case (k,v) ⇒
+      builder.append(k)
+      builder.startArray()
+      v.foreach(builder.append)
+      builder.end()
+    }
+    builder.end()
+  }
 }
 
 object ResolveValue {

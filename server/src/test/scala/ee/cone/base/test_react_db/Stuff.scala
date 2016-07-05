@@ -49,7 +49,7 @@ class TestAttrs(
 
 class TestComponent(
   at: TestAttrs,
-  alienAccessAttrs: AlienAccessAttrs,
+  alienAccessAttrs: AlienAttributes,
   handlerLists: CoHandlerLists,
   findNodes: FindNodes,
   mainTx: CurrentTx[MainEnvKey],
@@ -59,11 +59,13 @@ class TestComponent(
   searchIndex: SearchIndex,
   mandatory: Mandatory,
   alien: Alien,
-  factIndex: FactIndex
+  factIndex: FactIndex,
+  fieldAttributes: FieldAttributes
 )(
   val testTaskByState: SearchByLabelProp[String] = searchIndex.create(at.asTestTask, at.testState)
 ) extends CoHandlerProvider {
   import rTags._
+  import fieldAttributes._
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   private def emptyView(pf: String) =
     root(List(text("text", "Loading...")))
@@ -73,7 +75,7 @@ class TestComponent(
       val tasks = findNodes.where(mainTx(), testTaskByState, "A", Nil)
       val taskLines = tasks.map { obj =>
         val task = alien.wrapForEdit(obj)
-        val objIdStr = task(alien.objIdStr)
+        val objIdStr = task(aObjIdStr)
         tags.div(
           objIdStr,
           tags.input("comments", task(at.comments), task(at.comments)=_) ::
@@ -84,7 +86,7 @@ class TestComponent(
         )
       }
       val eventLines = eventSource.unmergedEvents.map { ev =>
-        val objIdStr = ev(alien.objIdStr)
+        val objIdStr = ev(aObjIdStr)
         tags.div(
           objIdStr,
           text("text", ev(alienAccessAttrs.comment)) ::
@@ -119,7 +121,7 @@ class TestComponent(
     task(at.asTestTask) = findNodes.noNode
     task(at.comments) = ""
     task(at.testState) = ""
-    alien.describeEvent(ev, "task was removed")
+    ev(alienAccessAttrs.comment) = "task was removed"
   }
   private def createTaskAction()() = eventSource.addEvent{ ev =>
     ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
@@ -130,7 +132,7 @@ class TestComponent(
     val task = ev(alienAccessAttrs.targetObj)
     task(at.asTestTask) = task
     task(at.testState) = "A"
-    alien.describeEvent(ev, "task was created")
+    ev(alienAccessAttrs.comment) = "task was created"
   }
 
   def handlers =

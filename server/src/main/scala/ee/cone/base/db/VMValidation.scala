@@ -2,8 +2,6 @@ package ee.cone.base.db
 
 import ee.cone.base.connection_api._
 
-trait ValidationContext { def wrap(obj: Obj): Obj }
-
 class ValidationAttributesImpl(
   attr: AttrFactory,
   asObjValidation: AttrValueType[ObjValidation]

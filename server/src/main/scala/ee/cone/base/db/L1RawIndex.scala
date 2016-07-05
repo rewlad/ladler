@@ -14,10 +14,13 @@ class EmptyUnmergedIndex(merged: RawIndex) extends RawIndex {
   def seekNext() = ()
 }
 
-class NonEmptyUnmergedIndex(pass: RawKey=>RawValue) extends RawIndex {
+class NonEmptyUnmergedIndex(pass: RawKey=>RawValue, ordering: Ordering[Array[Byte]]) extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
-  var data = SortedMap[RawKey, RawValue]()(UnsignedBytesOrdering)
-  private var iterator: Iterator[(RawKey, RawValue)] = VoidKeyIterator
+  var data = SortedMap[RawKey, RawValue]()(ordering)
+  private var iterator: Iterator[(RawKey, RawValue)] = new Iterator[(RawKey, RawValue)] {
+    def hasNext = false
+    def next() = Never()
+  }
   def set(key: RawKey, value: RawValue) = data = data + (key -> value)
   def get(key: RawKey) = data.getOrElse(key,pass(key))
   def seek(from: RawKey) = {
@@ -31,20 +34,20 @@ class NonEmptyUnmergedIndex(pass: RawKey=>RawValue) extends RawIndex {
   }
 }
 
-class MuxUnmergedIndex(var unmerged: RawIndex, val merged: RawIndex) extends RawIndex {
+class MuxUnmergedIndex(var unmerged: RawIndex, val merged: RawIndex, ordering: Ordering[Array[Byte]]) extends RawIndex {
   var peek: SeekStatus = NotFoundStatus
   def get(key: RawKey): RawValue = unmerged.get(key)
   def set(key: RawKey, value: RawValue): Unit = {
     unmerged match {
       case tx: NonEmptyUnmergedIndex ⇒ ()
-      case _ ⇒ unmerged = new NonEmptyUnmergedIndex(merged.get)
+      case _ ⇒ unmerged = new NonEmptyUnmergedIndex(merged.get, ordering)
     }
     unmerged.set(key, value)
   }
   private def compare(a: SeekStatus, b: SeekStatus): Int = {
     if(a eq b){ return 0 }
     val d = java.lang.Boolean.compare(!a.isInstanceOf[KeyStatus], !b.isInstanceOf[KeyStatus])
-    if(d==0) UnsignedBytesOrdering.compare(a.key, b.key) else d
+    if(d==0) ordering.compare(a.key, b.key) else d
   }
   private def skipSame(tx: RawIndex) = tx.peek match {
     case p: KeyStatus if compare(peek, p)==0 ⇒ tx.seekNext()
@@ -69,12 +72,7 @@ class MuxUnmergedIndex(var unmerged: RawIndex, val merged: RawIndex) extends Raw
   }
 }
 
-object VoidKeyIterator extends Iterator[(RawKey, RawValue)] {
-  def hasNext = false
-  def next() = Never()
-}
-
-object UnsignedBytesOrdering extends math.Ordering[Array[Byte]] {
+class UnsignedBytesOrdering extends math.Ordering[Array[Byte]] {
   def compare(a: Array[Byte], b: Array[Byte]): Int = {
     val default = java.lang.Integer.compare(a.length,b.length)
     val len = Math.min(a.length,b.length)
@@ -88,7 +86,7 @@ object UnsignedBytesOrdering extends math.Ordering[Array[Byte]] {
   }
 }
 
-class MuxFactoryImpl extends MuxFactory {
+class MuxFactoryImpl(ordering: Ordering[Array[Byte]]) extends MuxFactory {
   override def wrap(rawIndex: RawIndex): RawIndex =
-    new MuxUnmergedIndex(new EmptyUnmergedIndex(rawIndex),rawIndex)
+    new MuxUnmergedIndex(new EmptyUnmergedIndex(rawIndex),rawIndex,ordering)
 }

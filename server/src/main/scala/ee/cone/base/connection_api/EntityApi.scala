@@ -22,3 +22,10 @@ case class ValidationState(objId: ObjId, attrId: ObjId, isError: Boolean, text: 
 trait ObjValidation {
   def get[Value](attr: Attr[Value]): List[ValidationState]
 }
+
+trait FieldAttributes {
+  def aNonEmpty: Attr[Boolean]
+  def aValidation: Attr[ObjValidation]
+  def aIsEditing: Attr[Boolean]
+  def aObjIdStr: Attr[String]
+}

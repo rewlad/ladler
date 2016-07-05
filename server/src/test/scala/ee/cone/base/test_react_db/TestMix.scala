@@ -34,9 +34,9 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     asUUID,
     asString
   )()
-  lazy val testTags = new TestTags(childPairFactory, InputAttributesImpl)
+  lazy val testTags = new TestTags(childPairFactory, TagJsonUtilsImpl)
   lazy val testComponent = new TestComponent(
-    testAttrs, alienAttrs, handlerLists, findNodes, mainTx,
+    testAttrs, alienAttributes, handlerLists, findNodes, mainTx,
     tags, testTags, currentView, searchIndex, mandatory, alien, factIndex
   )()
 }

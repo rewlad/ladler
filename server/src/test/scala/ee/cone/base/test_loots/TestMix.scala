@@ -1,4 +1,5 @@
-package ee.cone.base.test_loots
+
+package ee.cone.base.test_loots // demo
 
 import java.nio.file.Paths
 import java.time.{LocalTime, Duration, Instant}
@@ -8,7 +9,7 @@ import ee.cone.base.db._
 import ee.cone.base.lifecycle.{BaseConnectionMix,BaseAppMix}
 import ee.cone.base.lmdb.LightningDBAppMix
 import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
-import ee.cone.base.vdom.{InputAttributesImpl,VDomConnectionMix}
+import ee.cone.base.vdom.{TagJsonUtilsImpl,VDomConnectionMix}
 
 object TestApp extends App {
   val app = new TestAppMix
@@ -35,17 +36,17 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
   )()
   lazy val materialIconTags = new MaterialIconTags(childPairFactory)
-  lazy val materialTags = new MaterialTags(childPairFactory, InputAttributesImpl, tags, popup)
+  lazy val materialTags = new MaterialTags(childPairFactory, TagJsonUtilsImpl, tags, popup)
   lazy val flexTags = new FlexTags(childPairFactory,tags,materialTags)
   lazy val dtTablesState=new DataTablesState(currentView)
   lazy val htmlTableWithControl = new FlexDataTableTagsImpl(flexTags)
 
   lazy val userAttrs = new UserAttrs(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
-  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttrs, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, uiStrings, itemListOrderingFactory)()
+  lazy val users = new Users(userAttrs, nodeAttrs, findAttrs, alienAttributes, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, uiStrings, itemListOrderingFactory)()
 
   lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration, asBigDecimal, asDBObjId)()
   lazy val fuelingItems = new FuelingItems(
-    fuelingAttrs, findAttrs, alienAttrs, nodeAttrs,
+    fuelingAttrs, findAttrs, alienAttributes, nodeAttrs,
     factIndex, searchIndex, alien, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings, lazyObjFactory
   )()
 
@@ -55,7 +56,7 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
 
   lazy val popup = new Popup
 
-  lazy val fieldAttributes = new FieldAttributesImpl(findAttrs,validationAttributes,alienAttrs)
+  lazy val fieldAttributes = new FieldAttributesImpl(findAttrs,validationAttributes,alienAttributes)
 
   lazy val materialFields = new MaterialFields(
     fieldAttributes,
@@ -74,9 +75,12 @@ trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDom
     asBoolean
   )
 
+  FieldsImpl
+  WrapDBViewImpl
+
   lazy val testComponent = new TestComponent(
     nodeAttrs, findAttrs, itemListAttributes, logAttributes, userAttrs,
-    fuelingAttrs, alienAttrs, validationAttributes,
+    fuelingAttrs, alienAttributes, validationAttributes,
     handlerLists,
     attrFactory,
     findNodes, mainTx, alien, onUpdate,

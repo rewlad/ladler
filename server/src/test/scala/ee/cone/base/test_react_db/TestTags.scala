@@ -1,7 +1,5 @@
 package ee.cone.base.test_react_db
 
-import ee.cone.base.connection_api.DictMessage
-import ee.cone.base.util.Never
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types.VDomKey
 
@@ -40,17 +38,17 @@ case class ButtonElement(caption: String)(
 }
 
 case class InputTextElement(value: String, deferSend: Boolean)(
-  input: InputAttributes, val onChange: Option[String⇒Unit]
+  input: TagJsonUtils, val onChange: Option[String⇒Unit]
 ) extends ElementValue with OnChangeReceiver {
   def elementType = "input"
   def appendJsonAttributes(builder: JsonBuilder) = {
     builder.append("type").append("text")
-    input.appendJson(builder, value, deferSend)
+    input.appendInputAttributes(builder, value, deferSend)
   }
 }
 
 class TestTags(
-  child: ChildPairFactory, inputAttributes: InputAttributes
+  child: ChildPairFactory, inputAttributes: TagJsonUtils
 ) {
   def span(key: VDomKey, children: List[ChildPair[OfDiv]]) =
     child[OfDiv](key, SpanElement, children)

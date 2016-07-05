@@ -13,6 +13,7 @@ trait ItemListOrderingFactory {
   def itemList(filterObj: Obj): ItemListOrdering
 }
 
+trait ValidationContext { def wrap(obj: Obj): Obj }
 trait ValidationAttributes {
   def validation: Attr[ObjValidation]
 }

@@ -1,10 +1,14 @@
-package ee.cone.base.test_loots
+
+package ee.cone.base.test_loots // demo
 
 import java.time.{Duration, Instant, LocalTime, ZonedDateTime}
 import java.util.UUID
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
+import ee.cone.base.flexlayout.{FlexTags, MaxVisibleLines, Priority}
+import ee.cone.base.material._
+import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
@@ -52,7 +56,7 @@ class TestComponent(
   logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
-  alienAttrs: AlienAccessAttrs,
+  alienAttrs: AlienAttributes,
   validationAttrs: ValidationAttributes,
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
@@ -60,9 +64,7 @@ class TestComponent(
   mainTx: CurrentTx[MainEnvKey],
   alien: Alien,
   onUpdate: OnUpdate,
-  divTags: DivTags,
-  materialTags: MaterialTags,
-  flexTags:FlexTags,
+  divTags: Tags,
   currentVDom: CurrentVDom,
   dtTablesState: DataTablesState,
   searchIndex: SearchIndex,
@@ -89,13 +91,15 @@ class TestComponent(
   itemListFactory: ItemListFactory,
   filterObjFactory: FilterObjFactory,
   editing: Editing,
-  popupState: Popup,
-  materialIconTags: MaterialIconTags,
-  appUtils: AppUtils,
   inheritAttrRule: InheritAttrRule,
   tableUtils: MaterialDataTableUtils,
   fields: Fields,
-  style: TagStyles
+  fieldAttributes: FieldAttributes,
+  style: TagStyles,
+  materialTags: MaterialTags,
+  flexTags: FlexTags,
+  optionTags: OptionTags,
+  buttonTags: ButtonTags
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -103,21 +107,28 @@ class TestComponent(
 ) extends CoHandlerProvider {
   import divTags._
   import materialTags._
-  import materialIconTags._
+  import buttonTags._
   import flexTags._
   import htmlTable._
   import findAttrs.nonEmpty
   import uiStrings.caption
-  import appUtils._
   import tableUtils._
   import fields.field
+  import fieldAttributes.aObjIdStr
+  import optionTags._
+
+  def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
   private def mCell(key: VDomKey, minWidth: Int)(children: CellContentVariant ⇒ List[ChildPair[OfDiv]]) =
     cell(key, MinWidth(minWidth))(children)
   private def mCell(key: VDomKey, minWidth: Int, priority: Int)(children: CellContentVariant ⇒ List[ChildPair[OfDiv]]) =
     cell(key, MinWidth(minWidth), Priority(priority))(children)
+  private def divAlignWrapper(key:VDomKey, outerStyles: TagStyle*)(innerStyles: TagStyle*)(children:List[ChildPair[OfDiv]])=
+    div(key,Seq(style.displayTable,style.widthAll)++outerStyles:_*)(List(
+      div("1",Seq(style.displayCell,style.widthAll,style.heightAll)++innerStyles:_*)(children)
+    ))
 
-  private def entryListView(pf: String) = wrapDBView{ ()=>{
+  private def entryListView(pf: String) = wrap{ ()=>{
     val editable = true //todo roles
     val filterObj = filterObjFactory.create(List(attrFactory.attrId(logAt.asEntry)))
     val filterList: List[Obj⇒Boolean] = {
@@ -137,34 +148,30 @@ class TestComponent(
 
     val itemList = itemListFactory.create(findEntry,users.world,filterObj,filterList,editable)
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
-    def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(alien.objIdStr)}")
+    def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(aObjIdStr)}")
 
 
     List( //class LootsBoatLogList
       toolbar("Entry List"),
-      div("1",style.maxWidth(2056))(List(paperTable("table")(
+      div("1", style.maxWidth(2056), style.marginLeftAuto, style.marginRightAuto)(List(paperTable("table")(
         List(inset("controlPanel",controlPanel(
-          List(flexGrid("controlGrid1",List(
-            flexGridItem("1a",150,Some(200), field(filterObj, logAt.boat, showLabel = true)),
-            flexGridItem("2a",150,Some(200), field(filterObj, logAt.dateFrom, showLabel = true)),
-            flexGridItem("3a",150,Some(200), field(filterObj, logAt.dateTo, showLabel = true)),
-            flexGridItem("4a",150,Some(200), List(
-              div("1",style.height(72))(List(
-                divAlignWrapper("1","","bottom",List(
-                  div("1",style.margin(10))(
-                    field(filterObj, logAt.hideConfirmed, showLabel = true)
-                  )
-                ))
-              ))
+          List(flexGrid("controlGrid1")(List(
+            flexItem("1a",150,Some(200))(field(filterObj, logAt.boat, showLabel = true)),
+            flexItem("2a",150,Some(200))(field(filterObj, logAt.dateFrom, showLabel = true)),
+            flexItem("3a",150,Some(200))(field(filterObj, logAt.dateTo, showLabel = true)),
+            flexItem("4a",150,Some(200))(List(
+              divAlignWrapper("1",style.height(72))(style.alignBottom,style.padding(10))(
+                field(filterObj, logAt.hideConfirmed, showLabel = true)
+              )
             ))
           ))),
           addRemoveControlViewBase(itemList)(() ⇒ go(itemList.add()))
         ))),
         List(
-          row("row",List(MaxVisibleLines(2),IsHeader))(
+          row("row",MaxVisibleLines(2),IsHeader)(
             selectAllGroup(itemList) :::
             List(
-              group("2_grp",MinWidth(150),Priority(3),style.alignCenter),
+              group("2_grp",MinWidth(150),Priority(3),style.alignCenter)(Nil),
               mCell("2",100)(_=>sortingHeader(itemListOrdering,logAt.boat)),
               mCell("3",150)(_=>sortingHeader(itemListOrdering,logAt.date)),
               mCell("4",180)(_=>sortingHeader(itemListOrdering,logAt.durationTotal)),
@@ -176,11 +183,11 @@ class TestComponent(
           )
         ) :::
         itemList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{ (entry:Obj)=>
-          val entrySrcId = entry(alien.objIdStr)
-          row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry))(
+          val entrySrcId = entry(aObjIdStr)
+          row(entrySrcId, MaxVisibleLines(2) :: toggledSelectedRow(entry):_*)(
             selectRowGroup(entry) :::
             List(
-              group("2_grp", MinWidth(150), Priority(3), style.alignCenter),
+              group("2_grp", MinWidth(150), Priority(3), style.alignCenter)(Nil),
               mCell("2",100)(showLabel=>field(entry, logAt.boat, showLabel)),
               mCell("3",150)(showLabel=>field(entry, logAt.date, showLabel)),
               mCell("4",180)(showLabel=>field(entry, logAt.durationTotal, showLabel)),
@@ -205,7 +212,7 @@ class TestComponent(
   private def boatOptions(obj: Obj) =
     itemListFactory.create(findBoat, users.world, findNodes.noNode, Nil, editable=false).list
 
-  private def entryEditView(pf: String) = wrapDBView { () =>
+  private def entryEditView(pf: String) = wrap { () =>
     val entryObj = findNodes.whereObjId(objIdFactory.toObjId(pf.tail))(logAt.asEntry)
     val isConfirmed = entryObj(logAt.asConfirmed)(nonEmpty)
     val validationStates = if(isConfirmed) Nil else
@@ -214,55 +221,53 @@ class TestComponent(
       validationFactory.need[Option[Instant]](entryObj,logAt.date,v⇒if(v.isEmpty) Some("") else None)
     val validationContext = validationFactory.context(validationStates)
     val entry = if(isConfirmed) entryObj else validationContext.wrap(alien.wrapForEdit(entryObj)) /*todo roles*/
-    val entryIdStr = entry(alien.objIdStr)
+    val entryIdStr = entry(aObjIdStr)
 
     List(
       toolbar("Entry Edit"),
-      div("1",style.maxWidth(1200))(List(
+      div("1",style.maxWidth(1200), style.marginLeftAuto, style.marginRightAuto)(List(
       paperWithMargin(s"$entryIdStr-1",
-        flexGrid("flexGridEdit1",List(
-          flexGridItem("1",500,None,List(
-            flexGrid("FlexGridEdit11",List(
-              flexGridItem("boat1",100,None,field(entry,logAt.boat, showLabel = true)),
-              flexGridItem("date",150,None,field(entry, logAt.date, showLabel = true)),
-              flexGridItem("dur",170,None,List(divAlignWrapper("1","left","middle",
+        flexGrid("flexGridEdit1")(List(
+          flexItem("1",500,None)(List(
+            flexGrid("FlexGridEdit11")(List(
+              flexItem("boat1",100,None)(field(entry,logAt.boat, showLabel = true)),
+              flexItem("date",150,None)(field(entry, logAt.date, showLabel = true)),
+              flexItem("dur",170,None)(List(divAlignWrapper("1",style.heightAll)(style.alignLeft,style.alignMiddle)(
                 field(entry,logAt.durationTotal, showLabel = true, EditableFieldOption(false))
               )))
             ))
           )),
-          flexGridItem("2",500,None,List(
-            flexGrid("flexGridEdit12",
+          flexItem("2",500,None)(List(
+            flexGrid("flexGridEdit12")(
               (if(!isConfirmed) Nil else List(
-                flexGridItem("conf_by",150,None,field(entry, logAt.confirmedBy, showLabel = true)),
-                flexGridItem("conf_on",150,None,field(entry, logAt.confirmedOn, showLabel = true))
+                flexItem("conf_by",150,None)(field(entry, logAt.confirmedBy, showLabel = true)),
+                flexItem("conf_on",150,None)(field(entry, logAt.confirmedOn, showLabel = true))
               )) :::
               List(
-                flexGridItem("conf_do",150,None,List(
-                  div("1",style.height(72))(List(
-                    divAlignWrapper("1","right","bottom",
-                      if(isConfirmed) {
-                        val entry = alien.wrapForEdit(entryObj)
-                        List(
-                          btnRaised("reopen", "Reopen") { () ⇒
-                            entry(logAt.confirmedOn) = None
-                            entry(logAt.confirmedBy) = findNodes.noNode
-                          }
-                        )
-                      }
-                      else if(validationStates.nonEmpty){
-                        val state = validationStates.head
-                        List(alert("1",state.text))
-                      }
-                      else {
-                        val user = eventSource.mainSession(userAttrs.authenticatedUser)
-                        if(!user(nonEmpty)) List(alert("1",s"User required"))
-                        else List(btnRaised("confirm","Confirm"){()⇒
-                          entry(logAt.confirmedOn) = Option(Instant.now())
-                          entry(logAt.confirmedBy) = user
-                        })
-                      }
-                    )
-                  ))
+                flexItem("conf_do",150,None)(List(
+                  divAlignWrapper("1",style.height(72))(style.alignRight,style.alignBottom)(
+                    if(isConfirmed) {
+                      val entry = alien.wrapForEdit(entryObj)
+                      List(
+                        raisedButton("reopen", "Reopen") { () ⇒
+                          entry(logAt.confirmedOn) = None
+                          entry(logAt.confirmedBy) = findNodes.noNode
+                        }
+                      )
+                    }
+                    else if(validationStates.nonEmpty){
+                      val state = validationStates.head
+                      List(alert("1",state.text))
+                    }
+                    else {
+                      val user = eventSource.mainSession(userAttrs.authenticatedUser)
+                      if(!user(nonEmpty)) List(alert("1",s"User required"))
+                      else List(raisedButton("confirm","Confirm"){()⇒
+                        entry(logAt.confirmedOn) = Option(Instant.now())
+                        entry(logAt.confirmedBy) = user
+                      })
+                    }
+                  )
                 ))
               )
             )
@@ -270,12 +275,15 @@ class TestComponent(
         )
       ))),
 
-      div("2",style.maxWidth(1200))(List(
+      div("2",style.maxWidth(1200), style.marginLeftAuto, style.marginRightAuto)(List(
         entryEditFuelScheduleView(entry, validationStates)
       )),
-      div("3",style.maxWidth(1200))(List(
+      div("3",style.maxWidth(1200), style.marginLeftAuto, style.marginRightAuto)(List(
         entryEditWorkListView(entry)
       ))
+
+
+
     )
   }
 
@@ -291,7 +299,7 @@ class TestComponent(
         if(isRF) entry else fuelingItems.fueling(entry, time, wrapForEdit=entry(alienAttrs.isEditing))
       )
       val timeStr = if(isRF) "RF" else findNodes.whereObjId(time)(fuelingAttrs.time)
-      row(timeStr,toggledRow(filterObj,time))(List(
+      row(timeStr,toggledRow(filterObj,time):_*)(List(
         mCell("1",100,3)(showLabel=>
           if(isRF) List(text("1","Passed"))
           else field(findNodes.whereObjId(time), fuelingAttrs.time, showLabel, EditableFieldOption(false))
@@ -318,7 +326,7 @@ class TestComponent(
       ))
     }
     paperTable("dtTableEdit1")(Nil,List(
-      row("row",List(IsHeader))(List(
+      row("row",IsHeader)(List(
         mCell("1",100,3)(_=>List(text("1","Time"))),
         mCell("2",150,1)(_=>List(text("1",caption(fuelingAttrs.meHours)))),
         mCell("3",100,1)(_=>List(text("1",caption(fuelingAttrs.fuel)))),
@@ -334,16 +342,16 @@ class TestComponent(
   }
 
   def entryEditWorkListView(entry: Obj): ChildPair[OfDiv] = {
-    val entryIdStr = entry(alien.objIdStr)
+    val entryIdStr = entry(aObjIdStr)
     val filterObj = filterObjFactory.create(List(entry(nodeAttrs.objId),attrFactory.attrId(logAt.asWork)))
     val workList = itemListFactory.create(findWorkByEntry,entry,filterObj,Nil,entry(alienAttrs.isEditing))
     paperTable("dtTableEdit2")(
       controlPanel(Nil,addRemoveControlView(workList)),
       List(
-        row("row",List(IsHeader))(
+        row("row",IsHeader)(
           selectAllGroup(workList) :::
           List(
-            group("2_group",MinWidth(150)),
+            group("2_group",MinWidth(150))(Nil),
             mCell("2",100)(_=>header(logAt.workStart)),
             mCell("3",100)(_=>header(logAt.workStop)),
             mCell("4",150)(_=>header(logAt.workDuration)),
@@ -353,11 +361,11 @@ class TestComponent(
         )
       ) :::
       workList.list.sorted(creationTimeOrdering.reverse).map { (work: Obj) =>
-        val workSrcId = work(alien.objIdStr)
-        row(workSrcId, toggledSelectedRow(work))(
+        val workSrcId = work(aObjIdStr)
+        row(workSrcId, toggledSelectedRow(work):_*)(
           selectRowGroup(work) :::
           List(
-            group("2_group",MinWidth(150)),
+            group("2_group",MinWidth(150))(Nil),
             mCell("2",100)(showLabel=>
               field(work, logAt.workStart, showLabel)
             ),
@@ -377,30 +385,30 @@ class TestComponent(
     )
   }
 
-  private def boatListView(pf: String) = wrapDBView { () =>
+  private def boatListView(pf: String) = wrap { () =>
     val filterObj = filterObjFactory.create(List(attrFactory.attrId(logAt.asBoat)))
     val itemList = itemListFactory.create[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     List(
       toolbar("Boats"),
-      div("maxWidth",style.maxWidth(600))(List(paperTable("table")(
+      div("maxWidth", style.maxWidth(600), style.marginLeftAuto, style.marginRightAuto)(List(paperTable("table")(
         controlPanel(Nil, addRemoveControlView(itemList)),
         List(
-          row("head",List(IsHeader))(
+          row("head",IsHeader)(
             selectAllGroup(itemList) :::
             List(
-              group("2_group",MinWidth(50)),
+              group("2_group",MinWidth(50))(Nil),
               mCell("1",250)(_⇒sortingHeader(itemListOrdering,logAt.boatName))
             ) :::
             editAllGroup()
           )
         ) :::
         itemList.list.sorted(itemListOrdering.compose(creationTimeOrdering)).map{boat ⇒
-          val srcId = boat(alien.objIdStr)
-          row(srcId,toggledSelectedRow(boat))(
+          val srcId = boat(aObjIdStr)
+          row(srcId,toggledSelectedRow(boat):_*)(
             selectRowGroup(boat) :::
             List(
-              group("2_group",MinWidth(50)),
+              group("2_group",MinWidth(50))(Nil),
               mCell("1",250)(showLabel⇒field(boat, logAt.boatName, showLabel))
             ) :::
             editRowGroup(itemList, boat)

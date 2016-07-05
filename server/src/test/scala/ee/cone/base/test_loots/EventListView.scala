@@ -1,40 +1,47 @@
-package ee.cone.base.test_loots
 
-import ee.cone.base.connection_api.{CoHandler, CoHandlerLists, CoHandlerProvider}
-import ee.cone.base.db.{Alien, AlienAccessAttrs}
-import ee.cone.base.vdom.{CurrentView, Tags, ViewPath}
+package ee.cone.base.test_loots // to app
+
+import ee.cone.base.connection_api.{CoHandler, CoHandlerLists, CoHandlerProvider, FieldAttributes}
+import ee.cone.base.db.{Alien, AlienAttributes, SessionEventSource}
+import ee.cone.base.material._
+import ee.cone.base.util.Never
+import ee.cone.base.vdom._
 
 class EventListView(
   handlerLists: CoHandlerLists,
-  alienAttrs: AlienAccessAttrs,
+  alienAttrs: AlienAttributes,
   alien: Alien,
   currentVDom: CurrentView,
   tags: Tags,
   htmlTable: TableTags,
+  buttonTags: ButtonTags,
   materialTags: MaterialTags,
-  materialIconTags: MaterialIconTags,
-  appUtils: AppUtils,
-  tableUtils: MaterialDataTableUtils
+  eventIconTags: EventIconTags,
+  tableUtils: MaterialDataTableUtils,
+  fieldAttributes: FieldAttributes
 ) extends CoHandlerProvider {
+  import tags._
   import htmlTable._
+  import buttonTags.iconButton
   import materialTags._
-  import materialIconTags._
-  import appUtils._
+  import eventIconTags._
   import tableUtils._
 
-  private def view(pf: String) = wrapDBView { () =>
+  def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
+
+  private def view(pf: String) = wrap { () =>
     List(
       toolbar("Events"),
       paperTable("table")(Nil,
-        row("head", List(IsHeader))(List(
+        row("head", IsHeader)(List(
           cell("1",MinWidth(250))(_⇒List(text("text", "Event"))),
           cell("2",MinWidth(250))(_⇒Nil)
         )) ::
           eventSource.unmergedEvents.map(alien.wrapForEdit).map { ev =>
-            val srcId = ev(alien.objIdStr)
-            row(srcId,Nil)(List(
+            val srcId = ev(fieldAttributes.aObjIdStr)
+            row(srcId)(List(
               cell("1",MinWidth(250))(_⇒List(text("text", ev(alienAttrs.comment)))),
-              cell("2",MinWidth(250))(_⇒List(btnRemove("btn", () => eventSource.addUndo(ev))))
+              cell("2",MinWidth(250))(_⇒List(iconButton("btn", "restore",iconRemove)(() => eventSource.addUndo(ev))))
             ))
           }
       )
@@ -44,8 +51,8 @@ class EventListView(
   private def eventToolbarButtons() =
     if (eventSource.unmergedEvents.isEmpty) Nil
     else List(
-      btnRestore("events", () ⇒ currentVDom.relocate("/eventList")),
-      btnSave("save", () ⇒ eventSource.addRequest())
+      iconButton("events","events",iconEvents)(() ⇒ currentVDom.relocate("/eventList")),
+      iconButton("save","save",iconSave)(() ⇒ eventSource.addRequest())
     )
 
   def handlers = List(

@@ -1,4 +1,5 @@
-package ee.cone.base.test_loots
+
+package ee.cone.base.test_loots // to app
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
@@ -15,17 +16,18 @@ class FailOfConnection(
   } :: Nil
 }
 
-class Fields(
+class FieldsImpl(
   handlerLists: CoHandlerLists,
   attrFactory: AttrFactory
-) {
-  def field[Value](obj: Obj, attr: Attr[Value], showLabel: Boolean, options: FieldOption*): List[ChildPair[OfDiv]] =
+) extends Fields {
+  def field[Value](obj: Obj, attr: Attr[Value], showLabel: Boolean, options: FieldOption*) =
     handlerLists.single(ViewField(attrFactory.valueType(attr)), ()⇒Never())(obj,attr,showLabel,options)
 }
+
 class FieldAttributesImpl(
   findAttrs: FindAttrs,
   validationAttrs: ValidationAttributes,
-  alienAttrs: AlienAccessAttrs
+  alienAttrs: AlienAttributes
 ) extends FieldAttributes {
   def aNonEmpty: Attr[Boolean] = findAttrs.nonEmpty
   def aValidation: Attr[ObjValidation] = validationAttrs.validation
@@ -33,34 +35,27 @@ class FieldAttributesImpl(
   def aObjIdStr: Attr[String] = alienAttrs.objIdStr
 }
 
-class AppUtils(
+class DBRootWrapImpl(
   handlerLists: CoHandlerLists,
   errorListView: ErrorListView,
   userListView: UserListView,
   currentVDom: CurrentView,
-  materialTags: MaterialTags
-) extends CoHandlerProvider {
-  import materialTags._
-
-  def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
-
+  tags: Tags,
+  measure: Measure
+) extends DBRootWrap with CoHandlerProvider {
+  private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   private def emptyView(pf: String) =
-    root(List(text("text", "Loading...")))
-  def wrapDBView(view: ()=>List[ChildPair[OfDiv]]): VDomValue =
-    root(eventSource.incrementalApplyAndView { () ⇒
+    List(tags.text("text", "Loading..."))
+  def wrap(view: ()=>List[ChildPair[OfDiv]]) =
+    eventSource.incrementalApplyAndView { () ⇒
       errorListView.errorNotification ::: {
         val dialog = userListView.loginView()
-        if(dialog.nonEmpty) dialog else withAdaptiveInvalidationPeriod(view)
+        if(dialog.nonEmpty) dialog else measure(view)(
+          (startTime: Long, endTime: Long) ⇒
+            currentVDom.until(endTime + (endTime - startTime) * 10)
+        )
       }
-    })
-
-  def withAdaptiveInvalidationPeriod(view: ()=>List[ChildPair[OfDiv]]) = {
-    val startTime = System.currentTimeMillis
-    val res = view()
-    val endTime = System.currentTimeMillis
-    currentVDom.until(endTime + (endTime - startTime) * 10)
-    res
-  }
+    }
 
   def handlers = List(
     CoHandler(ViewPath(""))(emptyView),

@@ -27,7 +27,7 @@ class ItemListAttributesImpl(
 ) extends ItemListAttributes
 
 class ItemListFactoryImpl(
-  at: ItemListAttributes, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAccessAttrs,
+  at: ItemListAttributes, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAttributes,
   attrFactory: AttrFactory, findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
   alien: Alien, listedWrapType: WrapType[InnerItemList], factIndex: FactIndex,
   transient: Transient, objIdFactory: ObjIdFactory, lazyObjFactory: LazyObjFactory,
@@ -68,7 +68,7 @@ class ItemListFactoryImpl(
       obj(asType) = obj
       obj(at.createdAt) = Option(Instant.now())
     }
-    val newItem = alien.demandedNode(setupNew).wrap(listedWrapType,inner)
+    val newItem = alien.demanded(setupNew).wrap(listedWrapType,inner)
     new ItemList {
       def filter = filterObj
       def list = items

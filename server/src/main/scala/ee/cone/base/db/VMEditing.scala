@@ -5,7 +5,7 @@ import ee.cone.base.connection_api._
 class EditingImpl(
   nodeAttrs: NodeAttrs,
   objIdFactory: ObjIdFactory,
-  alienAttrs: AlienAccessAttrs,
+  alienAttrs: AlienAttributes,
   alien: Alien,
   dbWrapType: WrapType[ObjId]
 )(

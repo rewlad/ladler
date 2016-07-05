@@ -21,7 +21,6 @@ class ItemListOrderingAttributes(
 
 class ItemListOrderingFactoryImpl(
   at: ItemListOrderingAttributes,
-  uIStringAttributes: UIStringAttributes,
   attrFactory: AttrFactory,
   alien: Alien,
   orderingFactory:  ObjOrderingFactory

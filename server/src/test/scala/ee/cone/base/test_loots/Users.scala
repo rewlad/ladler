@@ -1,4 +1,5 @@
-package ee.cone.base.test_loots
+
+package ee.cone.base.test_loots // to app
 
 import java.nio.ByteBuffer
 import java.util.UUID
@@ -29,7 +30,7 @@ class UserAttrs(
 )
 
 class Users(
-  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAccessAttrs,
+  at: UserAttrs, nodeAttrs: NodeAttrs, findAttrs: FindAttrs, alienAttrs: AlienAttributes,
   handlerLists: CoHandlerLists,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],

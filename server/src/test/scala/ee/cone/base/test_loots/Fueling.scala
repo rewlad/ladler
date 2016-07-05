@@ -1,4 +1,5 @@
-package ee.cone.base.test_loots
+
+package ee.cone.base.test_loots //demo
 
 import java.time.Duration
 
@@ -32,7 +33,7 @@ class FuelingAttrs(
 class FuelingItems(
   at: FuelingAttrs,
   findAttrs: FindAttrs,
-  alienAttrs: AlienAccessAttrs,
+  alienAttrs: AlienAttributes,
   nodeAttrs: NodeAttrs,
   factIndex: FactIndex,
   searchIndex: SearchIndex,
