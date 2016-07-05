@@ -1,0 +1,17 @@
+tbl utils:
+    ItemListOrdering.action,
+    ObjOrderingFactory.ordering,
+    UIStrings.caption,
+    ItemListAttributes
+        isExpanded
+        isSelected
+        expandedItem
+        selectedItems
+        createdAt
+    Editing.reset
+    ItemList
+        filter
+        selectAllListed
+        isEditable
+        removeSelected
+        add
