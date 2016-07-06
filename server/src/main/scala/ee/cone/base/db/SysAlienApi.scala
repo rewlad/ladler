@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import java.time.Instant
 import ee.cone.base.connection_api.{Attr, BaseCoHandler, Obj}
 
 trait AlienAttributes {
@@ -7,6 +8,7 @@ trait AlienAttributes {
   def isEditing: Attr[Boolean]
   def targetObj: Attr[Obj]
   def comment: Attr[String]
+  def createdAt: Attr[Option[Instant]]
 }
 
 trait Alien {

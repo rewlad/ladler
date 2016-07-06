@@ -9,7 +9,7 @@ import ee.cone.base.vdom._
 class ErrorListView(
   attrFactory: AttrFactory,
   filterObjFactory: FilterObjFactory,
-  itemListFactory: ItemListFactory,
+  listedFactory: IndexedObjCollectionFactory,
   itemListOrderingFactory: ItemListOrderingFactory,
   errorAttributes: ErrorAttributes,
   errors: Errors,
@@ -38,8 +38,9 @@ class ErrorListView(
 
   private def view(pf: String) = wrap{ () => //todo: replace with actual errors
     val filterObj = filterObjFactory.create(List(attrFactory.attrId(errorAttributes.asError)))
-    val itemList = itemListFactory.create[Obj](errors.findAll, users.world, filterObj, Nil, editable=true) //todo roles
-  val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
+    val listed = listedFactory.create(errors.findAll, users.world)
+    val itemList = createItemList[Obj](listed, filterObj, Nil, editable=true) //todo roles
+    val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     //println(itemList.list.length)
     List(
       toolbar("Errors"),

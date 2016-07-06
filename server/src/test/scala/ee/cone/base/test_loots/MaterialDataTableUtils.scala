@@ -2,9 +2,10 @@
 package ee.cone.base.test_loots // to app
 
 import ee.cone.base.connection_api.{Attr, FieldAttributes, Obj, ObjId}
-import ee.cone.base.db.{ItemListOrdering,ObjOrderingFactory,UIStrings,ItemListAttributes,Editing,ItemList}
+import ee.cone.base.db._
 import ee.cone.base.flexlayout._
 import ee.cone.base.material._
+import ee.cone.base.util.Setup
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
 
@@ -32,12 +33,20 @@ case object MaterialFont extends TagStyle {
   }
 }
 
+class ItemList(
+    val listed: ObjCollection, val list: List[Obj], val selection: ObjSelection,
+    val isEditable: Boolean
+)
+
 
 class MaterialDataTableUtils(
   objOrderingFactory: ObjOrderingFactory,
   uiStrings: UIStrings,
-  listAttrs: ItemListAttributes,
+  listAttrs: ObjSelectionAttributes,
   editing: Editing,
+  selectedFactory: ObjSelectionFactory,
+  alien: Alien,
+  alienAttributes: AlienAttributes,
 
   fieldAttributes: FieldAttributes,
   style: TagStyles,
@@ -58,6 +67,20 @@ class MaterialDataTableUtils(
   import uiStrings.caption
   import fieldAttributes.aIsEditing
   import buttonTags._
+
+  def createItemList[Value](
+      theListed: ObjCollection,
+      filterObj: Obj,
+      filters: List[Obj⇒Boolean],
+      editable: Boolean
+  ) = {
+    val selection = selectedFactory.create(filterObj)
+    val items = theListed.toList
+      .filter(obj⇒filters.forall(_(obj)))
+      .map(selection.wrap)
+      .map(obj⇒if(editable) editing.wrap(obj) else obj)
+    new ItemList(theListed, items, selection, editable)
+  }
 
   def toggledSelectedRow(item: Obj) = List(
     Toggled(item(listAttrs.isExpanded))(Some(()=> if(!item(listAttrs.isExpanded)){
@@ -84,14 +107,17 @@ class MaterialDataTableUtils(
     )
   }
 
-  def selectAllCheckBox(itemList: ItemList) = List(
-    checkBox("1","",
-      itemList.filter(listAttrs.selectedItems).nonEmpty,
-      on ⇒
-        if(on) itemList.selectAllListed()
-        else itemList.filter(listAttrs.selectedItems)=Set[ObjId]()
+  def selectAllCheckBox(itemList: ItemList) = {
+    val selected = itemList.selection.collection.toList
+    List(
+      checkBox("1","",
+        selected.nonEmpty,
+        on ⇒
+          if(on) itemList.selection.collection.add(itemList.list)
+          else itemList.selection.collection.remove(selected)
+      )
     )
-  )
+  }
 
   def header(attr: Attr[_]):List[ChildPair[OfDiv]] = List(text("1",caption(attr)))
   def sortingHeader(itemListOrdering: ItemListOrdering, attr: Attr[_]):List[ChildPair[OfDiv]] = {
@@ -106,18 +132,26 @@ class MaterialDataTableUtils(
     }
   }
 
-  private def removeControlView(itemList: ItemList) =
-    if(itemList.isEditable) List(iconButton("btnDelete", "delete", iconDelete)(itemList.removeSelected)) else Nil
+  def removeControlView(itemList: ItemList) =
+    if(!itemList.isEditable) Nil else
+      List(iconButton("btnDelete", "delete", iconDelete){ ()⇒
+        val selected = itemList.selection.collection.toList.map(alien.wrapForUpdate)
+        itemList.listed.remove(selected)
+        itemList.selection.collection.remove(selected)
+      })
 
-  def addRemoveControlViewBase(itemList: ItemList)(add: ()⇒Unit) =
-    if(itemList.isEditable) List(
-      iconButton("btnDelete", "delete", iconDelete)(itemList.removeSelected),
-      iconButton("btnAdd", "add", iconAdd)(add)
-    )
-    else Nil
+  def addRemoveControlViewBase(itemList: ItemList)(add: Obj⇒Unit) =
+    removeControlView(itemList) ::: (if(!itemList.isEditable) Nil else {
+      val newItem = alien.demanded(_⇒())
+      List(iconButton("btnAdd", "add", iconAdd){ () ⇒
+        itemList.listed.add(List(newItem))
+        add(newItem)
+      })
+    })
+
   def addRemoveControlView(itemList: ItemList) =
-    addRemoveControlViewBase(itemList: ItemList){ ()⇒
-      val item = itemList.add()
+    addRemoveControlViewBase(itemList: ItemList){ obj ⇒
+      val item = itemList.selection.wrap(obj)
       item(aIsEditing) = true
       item(listAttrs.isExpanded) = true
     }
@@ -142,7 +176,7 @@ class MaterialDataTableUtils(
     }
 
   def creationTimeOrdering =
-    objOrderingFactory.ordering(listAttrs.createdAt, reverse = true).get
+    objOrderingFactory.ordering(alienAttributes.createdAt, reverse = true).get
 
   def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]]): List[ChildPair[OfDiv]] =
     List(div("tableControl",style.padding(5))(List(div("1",paddingSide(8))(List(

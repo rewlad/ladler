@@ -2,14 +2,14 @@
 package ee.cone.base.test_loots // to app
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider, FieldAttributes}
-import ee.cone.base.db.{AttrFactory,FilterObjFactory,ItemListFactory,ItemListOrderingFactory}
+import ee.cone.base.db._
 import ee.cone.base.material._
 import ee.cone.base.vdom._
 
 class UserListView(
   attrFactory: AttrFactory,
   filterObjFactory: FilterObjFactory,
-  itemListFactory: ItemListFactory,
+  listedFactory: IndexedObjCollectionFactory,
   itemListOrderingFactory: ItemListOrderingFactory,
   userAttrs: UserAttrs,
   users: Users,
@@ -52,7 +52,8 @@ class UserListView(
 
   private def view(pf: String) = wrap { () =>
     val filterObj = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asUser)))
-    val userList = itemListFactory.create(users.findAll, users.world, filterObj, Nil, editable = true) //todo roles
+    val listed = listedFactory.create(users.findAll, users.world)
+    val userList = createItemList(listed, filterObj, Nil, editable = true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     val showPasswordCols = userList.list.exists(user=>user(aIsEditing))//filters.editing(userAttrs.asUser)(nonEmpty) //todo: fix editing bug!!!
     List(

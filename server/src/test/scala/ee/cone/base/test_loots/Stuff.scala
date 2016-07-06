@@ -51,7 +51,7 @@ class BoatLogEntryAttributes(
 
 class TestComponent(
   nodeAttrs: NodeAttrs,
-  listAttrs: ItemListAttributes,
+  listAttrs: ObjSelectionAttributes,
   logAt: BoatLogEntryAttributes,
   userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
@@ -86,7 +86,7 @@ class TestComponent(
   objOrderingFactory: ObjOrderingFactory,
   errorAttributes: ErrorAttributes,
   errors: Errors,
-  itemListFactory: ItemListFactory,
+  listedFactory: IndexedObjCollectionFactory,
   filterObjFactory: FilterObjFactory,
   editing: Editing,
   inheritAttrRule: InheritAttrRule,
@@ -142,8 +142,8 @@ class TestComponent(
       if(value) List((obj:Obj) ⇒ !obj(logAt.asConfirmed)(aNonEmpty) ) else Nil
     }
 //logAt.dateFrom, logAt.dateTo, logAt.hideConfirmed,
-
-    val itemList = itemListFactory.create(findEntry,users.world,filterObj,filterList,editable)
+    val listed = listedFactory.create(findEntry,users.world)
+    val itemList = createItemList(listed,filterObj,filterList,editable)
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     def go(entry: Obj) = currentVDom.relocate(s"/entryEdit/${entry(aObjIdStr)}")
 
@@ -162,7 +162,7 @@ class TestComponent(
               )
             ))
           ))),
-          addRemoveControlViewBase(itemList)(() ⇒ go(itemList.add()))
+          addRemoveControlViewBase(itemList)(go)
         ))),
         List(
           row("row",MaxVisibleLines(2),IsHeader)(
@@ -207,7 +207,7 @@ class TestComponent(
   }}
 
   private def boatOptions(obj: Obj) =
-    itemListFactory.create(findBoat, users.world, findNodes.noNode, Nil, editable=false).list
+    listedFactory.create(findBoat, users.world).toList
 
   private def entryEditView(pf: String) = wrap { () =>
     val entryObj = findNodes.whereObjId(objIdFactory.toObjId(pf.tail))(logAt.asEntry)
@@ -341,7 +341,8 @@ class TestComponent(
   def entryEditWorkListView(entry: Obj): ChildPair[OfDiv] = {
     val entryIdStr = entry(aObjIdStr)
     val filterObj = filterObjFactory.create(List(entry(nodeAttrs.objId),attrFactory.attrId(logAt.asWork)))
-    val workList = itemListFactory.create(findWorkByEntry,entry,filterObj,Nil,entry(aIsEditing))
+    val listed = listedFactory.create(findWorkByEntry,entry)
+    val workList = createItemList(listed,filterObj,Nil,entry(aIsEditing))
     paperTable("dtTableEdit2")(
       controlPanel(Nil,addRemoveControlView(workList)),
       List(
@@ -384,7 +385,8 @@ class TestComponent(
 
   private def boatListView(pf: String) = wrap { () =>
     val filterObj = filterObjFactory.create(List(attrFactory.attrId(logAt.asBoat)))
-    val itemList = itemListFactory.create[Obj](findBoat, users.world, filterObj, Nil, editable=true) //todo roles
+    val listed = listedFactory.create(findBoat, users.world)
+    val itemList = createItemList[Obj](listed, filterObj, Nil, editable=true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
     List(
       toolbar("Boats"),

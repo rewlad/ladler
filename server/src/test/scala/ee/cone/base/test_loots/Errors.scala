@@ -1,7 +1,7 @@
 package ee.cone.base.test_loots
 
 import ee.cone.base.connection_api.{AttrCaption, _}
-import ee.cone.base.db.{ItemListFactory, SearchByLabelProp, _}
+import ee.cone.base.db._
 
 class ErrorAttributes(
   attr: AttrFactory,
@@ -18,14 +18,15 @@ class ErrorAttributes(
 
 class Errors(
   at: ErrorAttributes, searchIndex: SearchIndex, alien: Alien,
-  users: Users, findNodes: FindNodes, itemListFactory: ItemListFactory
+  users: Users, findNodes: FindNodes,
+  listedFactory: IndexedObjCollectionFactory
 )(
   val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asError, at.realm)
 ) extends CoHandlerProvider{
   def lastError: Obj = { // todo replace
-  //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
-  val itemList = itemListFactory.create(findAll,users.world,findNodes.noNode,Nil,editable = false)
-    itemList.list.lastOption.getOrElse(findNodes.noNode)
+    //val itemList2 = findNodes.where(mainTx(),errors.findByView,view,Nil)
+    val listed = listedFactory.create(findAll,users.world)
+    listed.toList.lastOption.getOrElse(findNodes.noNode) //order?
   }
   def handlers =
     CoHandler(AttrCaption(at.realm))("Error") ::

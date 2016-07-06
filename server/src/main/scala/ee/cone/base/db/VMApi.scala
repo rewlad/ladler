@@ -35,28 +35,27 @@ trait Editing {
   def reset(): Unit
 }
 
-trait ItemListAttributes {
-  def isSelected: Attr[Boolean]
-  def isExpanded: Attr[Boolean]
-  def selectedItems: Attr[Set[ObjId]]
-  def expandedItem: Attr[ObjId]
-  def createdAt: Attr[Option[Instant]]
-}
-trait ItemList {
-  def filter: Obj
-  def add(): Obj
-  def list: List[Obj]
-  def selectAllListed(): Unit
-  def removeSelected(): Unit
-  def isEditable: Boolean
-}
-trait ItemListFactory {
-  def create[Value](
-    index: SearchByLabelProp[Value],
-    parentValue: Value,
-    filterObj: Obj,
-    filters: List[Obj⇒Boolean],
-    editable: Boolean
-  ): ItemList
+trait ObjCollection {
+  def toList: List[Obj]
+  def add(list: List[Obj]): Unit
+  def remove(list: List[Obj]): Unit
 }
 
+trait ObjSelection {
+  def collection: ObjCollection
+  def wrap(obj: Obj): Obj
+}
+
+trait ObjSelectionAttributes {
+  def isSelected: Attr[Boolean]
+  def isExpanded: Attr[Boolean]
+  def expandedItem: Attr[ObjId]
+}
+
+trait ObjSelectionFactory {
+  def create(filterObj: Obj): ObjSelection
+}
+
+trait IndexedObjCollectionFactory {
+  def create[Value](index: SearchByLabelProp[Value], parentValue: Value): ObjCollection
+}

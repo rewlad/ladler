@@ -1,5 +1,6 @@
 package ee.cone.base.db
 
+import java.time.Instant
 import java.util.UUID
 
 import ee.cone.base.connection_api._
@@ -10,13 +11,15 @@ class AlienAttributesImpl(
   attr: AttrFactory,
   asNode: AttrValueType[Obj],
   asString: AttrValueType[String],
-  asBoolean: AttrValueType[Boolean]
+  asBoolean: AttrValueType[Boolean],
+  asInstant: AttrValueType[Option[Instant]]
 )(
   val objIdStr: Attr[String] = attr("4a7ebc6b-e3db-4d7a-ae10-eab15370d690", asString),//f
   val target: ObjId = objIdFactory.toObjId("5a7300e9-a1d9-41a6-959f-cbd2f6791deb"),
   val targetObj: Attr[Obj] = attr("0cd4abcb-c83f-4e15-aa9f-d217f2e36596", asNode),
   val isEditing: Attr[Boolean] = attr("3e7fbcd6-4707-407f-911e-7493b017afc1",asBoolean),//f
-  val comment: Attr[String] = attr("c0e6114b-bfb2-49fc-b9ef-5110ed3a9521", asString)
+  val comment: Attr[String] = attr("c0e6114b-bfb2-49fc-b9ef-5110ed3a9521", asString),
+  val createdAt: Attr[Option[Instant]] = attr("8b9fb96d-76e5-4db3-904d-1d18ff9f029d",asInstant)
 ) extends AlienAttributes
 
 class DemandedNode(var objId: ObjId, val setup: Obj⇒Unit)
@@ -46,6 +49,7 @@ class AlienImpl(
       val demanded = innerObj.data
       if(!demanded.objId.nonEmpty){
         demanded.objId = findNodes.toObjId(UUID.randomUUID)
+        obj(at.createdAt) = Option(Instant.now())
         demanded.setup(obj)
       }
       innerObj.next.set(obj, attr, value)
@@ -86,5 +90,7 @@ class AlienImpl(
       if(theObjId.nonEmpty) objIdFactory.toUUIDString(theObjId) else "none"
     } :::
     attrFactory.handlers(at.isEditing)( (obj, objId) ⇒ false ) :::
-    factIndex.handlers(at.targetObj) ::: transient.update(at.comment)
+    factIndex.handlers(at.targetObj) ::: transient.update(at.comment) :::
+    CoHandler(AttrCaption(at.createdAt))("Creation Time") ::
+    update(at.createdAt)
 }

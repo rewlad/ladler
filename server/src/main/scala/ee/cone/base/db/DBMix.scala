@@ -124,7 +124,7 @@ trait DBConnectionMix extends CoMixBase {
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
   lazy val listedWrapType = new ListedWrapType
   lazy val editing = new EditingImpl(nodeAttrs,objIdFactory,alienAttributes,alien,dbWrapType)()
-  lazy val itemListAttributes = new ItemListAttributesImpl(attrFactory, asBoolean, asDBObjId, asObjIdSet, asInstant)()
+  lazy val itemListAttributes = new ObjSelectionAttributesImpl(attrFactory, asBoolean, asDBObjId, asObjIdSet, asInstant)()
   lazy val itemListFactory = new ItemListFactoryImpl(itemListAttributes, nodeAttrs, findAttrs, alienAttributes, attrFactory, findNodes, mainTx, alien, listedWrapType, factIndex, transient, objIdFactory, lazyObjFactory, editing)
 }
 
