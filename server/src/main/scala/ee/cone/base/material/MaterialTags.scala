@@ -40,22 +40,7 @@ case class InsetPaper() extends VDomValue{
   }
 }
 
-case class DividerElement() extends VDomValue{
-  def appendJson(builder: JsonBuilder)={
-    builder.startObject()
-      builder.append("tp").append("hr")
-      builder.append("style").startObject()
-        builder.append("didFlip").append(true)
-        builder.append("margin").append("0px")
-        builder.append("marginTop").append("0px")
-        builder.append("marginLeft").append("0px")
-        builder.append("height").append("1px")
-        builder.append("border").append("none")
-        builder.append("borderBottom").append("1px solid #e0e0e0")
-      builder.end()
-    builder.end()
-  }
-}
+
 
 case class MaterialChip(text:String)(val onClick:Option[()=>Unit]) extends VDomValue with OnClickReceiver{
   def appendJson(builder: JsonBuilder)={
@@ -121,42 +106,6 @@ case class MuiTheme() extends VDomValue{
   }
 }
 
-case object MarginSideTagStyle extends TagStyle {
-  def appendStyle(builder: JsonBuilder) = {
-    builder.append("marginLeft").append(s"10px")
-    builder.append("marginRight").append(s"10px")
-  }
-}
-
-case class PaddingSideTagStyle(value:Int) extends TagStyle { //?
-  def appendStyle(builder: JsonBuilder) = {
-    builder.append("paddingLeft").append(s"${value}px")
-    builder.append("paddingRight").append(s"${value}px")
-    builder.append("height").append("100%")
-  }
-}
-
-class MaterialTableTags(
-  wrapped: TableTags, style: TagStyles, tags: Tags
-) extends TableTags {
-  def table(key: VDomKey, attr: TagAttr*)(children: List[ChildOfTable]) =
-    wrapped.table(key,attr:_*)(children)
-  def row(key: VDomKey, attr: TagAttr*)(children: List[ChildOfTableRow]) =
-    wrapped.row(key,Divider(DividerElement()) :: attr.toList:_*)(children)
-
-  private def align(textAlign: TagStyle)(children:List[ChildPair[OfDiv]]) =
-    List(tags.div("1",style.displayTable,style.widthAll,style.heightAll)(List(
-      tags.div("1",style.displayCell,style.widthAll,style.heightAll,style.alignMiddle,MarginSideTagStyle,textAlign)(children)
-    )))
-
-  def group(key: VDomKey, attr: TagAttr*)(children:List[ChildPair[OfDiv]]) =
-    wrapped.group(key, attr:_*)(
-      if(children.isEmpty) Nil else align(style.alignCenter)(children)
-    )
-  def cell(key: VDomKey, attr: TagAttr*)(children: CellContentVariant ⇒ List[ChildPair[OfDiv]]) =
-    wrapped.cell(key, attr:_*)(showLabel⇒align(style.none)(children(showLabel)))
-}
-
 case object AlertTextColor extends Color { def value="#f44336" }
 
 case object IconNavigationMenu extends TagName("IconNavigationMenu")
@@ -164,12 +113,13 @@ case object IconNavigationMenu extends TagName("IconNavigationMenu")
 class MaterialTags(
   handlerLists: CoHandlerLists, dbRootWrap: DBRootWrap,
   child: ChildPairFactory, tags: Tags, style: TagStyles,
-  optionTags: OptionTags, buttonTags: ButtonTags
+  optionTags: OptionTags, buttonTags: ButtonTags, materialStyles: MaterialStyles
 ) extends ThemeRootWrap {
   import tags._
   import optionTags._
   import buttonTags._
-  def paddingSide = PaddingSideTagStyle //tbl
+  import materialStyles._
+
   def materialChip(key:VDomKey,text:String)(action:Option[()=>Unit],children:List[ChildPair[OfDiv]]=Nil) = //cust
     child[OfDiv](key,MaterialChip(text)(action),children)
   def inset(key:VDomKey, children: List[ChildPair[OfDiv]]) = //cust
@@ -198,8 +148,8 @@ class MaterialTags(
               if(!isOpened) Nil else handlerLists.list(MenuItems).flatMap(_())
             )
           )),
-          div("title", style.displayCell, style.widthAll, style.heightAll, style.alignLeft, style.alignMiddle, PaddingSideTagStyle(10))(List(
-            div("1",MarginSideTagStyle)(List(
+          div("title", style.displayCell, style.widthAll, style.heightAll, style.alignLeft, style.alignMiddle, paddingSide(10))(List(
+            div("1",marginSide)(List(
               text("1",title)
             ))
           )),

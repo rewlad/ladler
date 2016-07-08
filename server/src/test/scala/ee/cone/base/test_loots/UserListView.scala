@@ -22,7 +22,8 @@ class UserListView(
   materialTags: MaterialTags,
   tableUtils: MaterialDataTableUtils,
   fields: Fields,
-  fieldAttributes: FieldAttributes
+  fieldAttributes: FieldAttributes,
+  tableUtilTags: TableUtilTags
 ) extends CoHandlerProvider {
   import htmlTable._
   import materialTags._
@@ -31,7 +32,7 @@ class UserListView(
   import fields.field
   import divTags._
   import fieldAttributes._
-
+  import tableUtilTags._
 
   def loginView(): List[ChildPair[OfDiv]] = {
     if(!users.needToLogIn) return Nil

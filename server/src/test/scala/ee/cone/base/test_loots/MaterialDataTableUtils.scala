@@ -5,33 +5,8 @@ import ee.cone.base.connection_api.{Attr, FieldAttributes, Obj, ObjId}
 import ee.cone.base.db._
 import ee.cone.base.flexlayout._
 import ee.cone.base.material._
-import ee.cone.base.util.Setup
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
-
-trait Ref[T] {
-  def value: T
-  def value_=(value: T): Unit
-}
-
-class DataTablesState(currentVDom: CurrentVDom){
-  private val widthOfTables = collection.mutable.Map[VDomKey,Float]()
-  def widthOfTable(id: VDomKey) = new Ref[Float] {
-    def value = widthOfTables.getOrElse(id,0.0f)
-    def value_=(value: Float) = {
-      widthOfTables(id) = value
-      currentVDom.until(System.currentTimeMillis+200)
-    }
-  }
-}
-
-case object MaterialFont extends TagStyle {
-  def appendStyle(builder: JsonBuilder) = {
-    //builder.append("fontSize").append(if(isHeader) "12px" else "13px")
-    builder.append("fontWeight").append("500")
-    builder.append("color").append("rgba(0,0,0,0.54)")
-  }
-}
 
 class ItemList(
     val listed: ObjCollection, val list: List[Obj], val selection: ObjSelection,
@@ -54,7 +29,6 @@ class MaterialDataTableUtils(
   buttonTags: ButtonTags,
   materialTags: MaterialTags,
   flexTags: FlexTags,
-  dtTablesState: DataTablesState,
   htmlTable: TableTags,
   tableIconTags: TableIconTags,
   fields: Fields
@@ -64,10 +38,13 @@ class MaterialDataTableUtils(
   import flexTags._
   import htmlTable._
   import tableIconTags._
-  import uiStrings.caption
   import fieldAttributes.aIsEditing
   import buttonTags._
 
+  //listAttrs, editing.reset, alien.demanded, alien.wrapForUpdate
+  def caption = uiStrings.caption(_)
+  def creationTimeOrdering =
+    objOrderingFactory.ordering(alienAttributes.createdAt, reverse = true).get
   def createItemList[Value](
       theListed: ObjCollection,
       filterObj: Obj,
@@ -94,14 +71,10 @@ class MaterialDataTableUtils(
   )
 
   def paperTable(key: VDomKey)(controls:List[ChildPair[OfDiv]],tableElements: List[ChildOfTable]): ChildPair[OfDiv] = {
-    val tableWidth = dtTablesState.widthOfTable(key)
     paperWithMargin(key,
       flexGrid("flexGrid")(List(
-        flexItem("widthSync",1000/*temp*/,None,onResize=Some(w⇒tableWidth.value=w.toFloat))(
-          controls :::
-          List(div("table",MaterialFont)(
-            table("1",Width(tableWidth.value))(tableElements)
-          ))
+        flexItem("widthSync",1000/*temp*/,None)((widthAttr:List[TagAttr])⇒
+          controls ::: table("1",widthAttr:_*)(tableElements)
         )
       ))
     )
@@ -174,26 +147,4 @@ class MaterialDataTableUtils(
       item(aIsEditing) = !item(aIsEditing)
       item(listAttrs.isExpanded) = true
     }
-
-  def creationTimeOrdering =
-    objOrderingFactory.ordering(alienAttributes.createdAt, reverse = true).get
-
-  def controlPanel(chld1:List[ChildPair[OfDiv]],chld2:List[ChildPair[OfDiv]]): List[ChildPair[OfDiv]] =
-    List(div("tableControl",style.padding(5))(List(div("1",paddingSide(8))(List(
-      div("1",style.displayInlineBlock,style.minWidth(1),style.maxWidth(1),style.minHeight(48))(Nil),
-      div("2",style.displayInlineBlock,OnlyWidthPercentTagStyle(60))(chld1),
-      div("3",RightFloatTagStyle)(chld2)
-    )))))
-}
-
-case class OnlyWidthPercentTagStyle(value: Int) extends TagStyle {
-  def appendStyle(builder: JsonBuilder) = {
-    builder.append("minWidth").append(s"$value%")
-    builder.append("maxWidth").append(s"$value%")
-  }
-}
-
-case object RightFloatTagStyle extends TagStyle {
-  def appendStyle(builder: JsonBuilder) =
-    builder.append("float").append("right")
 }

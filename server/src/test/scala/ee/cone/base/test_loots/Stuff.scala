@@ -64,7 +64,6 @@ class TestComponent(
   onUpdate: OnUpdate,
   divTags: Tags,
   currentVDom: CurrentVDom,
-  dtTablesState: DataTablesState,
   searchIndex: SearchIndex,
   factIndex: FactIndex,
   htmlTable: TableTags,
@@ -97,7 +96,8 @@ class TestComponent(
   materialTags: MaterialTags,
   flexTags: FlexTags,
   optionTags: OptionTags,
-  buttonTags: ButtonTags
+  buttonTags: ButtonTags,
+  tableUtilTags: TableUtilTags
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),
@@ -113,6 +113,7 @@ class TestComponent(
   import fields.field
   import fieldAttributes._
   import optionTags._
+  import tableUtilTags._
 
   def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
 
@@ -153,10 +154,10 @@ class TestComponent(
       div("1", style.maxWidth(2056), style.marginLeftAuto, style.marginRightAuto)(List(paperTable("table")(
         List(inset("controlPanel",controlPanel(
           List(flexGrid("controlGrid1")(List(
-            flexItem("1a",150,Some(200))(field(filterObj, logAt.boat, showLabel = true)),
-            flexItem("2a",150,Some(200))(field(filterObj, logAt.dateFrom, showLabel = true)),
-            flexItem("3a",150,Some(200))(field(filterObj, logAt.dateTo, showLabel = true)),
-            flexItem("4a",150,Some(200))(List(
+            flexItem("1a",150,Some(200))(_⇒field(filterObj, logAt.boat, showLabel = true)),
+            flexItem("2a",150,Some(200))(_⇒field(filterObj, logAt.dateFrom, showLabel = true)),
+            flexItem("3a",150,Some(200))(_⇒field(filterObj, logAt.dateTo, showLabel = true)),
+            flexItem("4a",150,Some(200))(_⇒List(
               divAlignWrapper("1",style.height(72))(style.alignBottom,style.padding(10))(
                 field(filterObj, logAt.hideConfirmed, showLabel = true)
               )
@@ -225,23 +226,23 @@ class TestComponent(
       div("1",style.maxWidth(1200), style.marginLeftAuto, style.marginRightAuto)(List(
       paperWithMargin(s"$entryIdStr-1",
         flexGrid("flexGridEdit1")(List(
-          flexItem("1",500,None)(List(
+          flexItem("1",500,None)(_⇒List(
             flexGrid("FlexGridEdit11")(List(
-              flexItem("boat1",100,None)(field(entry,logAt.boat, showLabel = true)),
-              flexItem("date",150,None)(field(entry, logAt.date, showLabel = true)),
-              flexItem("dur",170,None)(List(divAlignWrapper("1",style.heightAll)(style.alignLeft,style.alignMiddle)(
+              flexItem("boat1",100,None)(_⇒field(entry,logAt.boat, showLabel = true)),
+              flexItem("date",150,None)(_⇒field(entry, logAt.date, showLabel = true)),
+              flexItem("dur",170,None)(_⇒List(divAlignWrapper("1",style.heightAll)(style.alignLeft,style.alignMiddle)(
                 field(entry,logAt.durationTotal, showLabel = true, EditableFieldOption(false))
               )))
             ))
           )),
-          flexItem("2",500,None)(List(
+          flexItem("2",500,None)(_⇒List(
             flexGrid("flexGridEdit12")(
               (if(!isConfirmed) Nil else List(
-                flexItem("conf_by",150,None)(field(entry, logAt.confirmedBy, showLabel = true)),
-                flexItem("conf_on",150,None)(field(entry, logAt.confirmedOn, showLabel = true))
+                flexItem("conf_by",150,None)(_⇒field(entry, logAt.confirmedBy, showLabel = true)),
+                flexItem("conf_on",150,None)(_⇒field(entry, logAt.confirmedOn, showLabel = true))
               )) :::
               List(
-                flexItem("conf_do",150,None)(List(
+                flexItem("conf_do",150,None)(_⇒List(
                   divAlignWrapper("1",style.height(72))(style.alignRight,style.alignBottom)(
                     if(isConfirmed) {
                       val entry = alien.wrapForUpdate(entryObj)

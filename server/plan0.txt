@@ -1,0 +1,59 @@
+
+split qms:
+  split qms, .impl?
+  create mix manual
+  compile
+  -
+  merge js split
+  debug
+  -
+  make deploy to cone3
+  git tag
+
+arch usability:
+  deps control (sbt-dep|sbt-mods|ADE|CDA+pl|pl)
+    sk 1d explore studio101
+  di (macwire)
+    delegate:80% 2d (replace check, compare speeds)
+dev usability (breaking API):
+  static attr check
+  shorter reg
+  meta attr
+    3up -- sk 1d to start
+dev usability on demand:
+  relations, live
+    delegate:40%?
+  uuid debug
+    delegate:80%
+  lazy dep calculations
+    sk 1d to start
+functional on demand:
+  suggest for select/date
+    delegate:40%?
+  long lists
+    delegate:80%
+  grants
+    delegate:80%
+efficiency on demand:
+  db level filters
+  skip byte converters for in-memory index <-> persist indexes
+  scaling (kafka), (m. b. offline bonus)
+    3up -- sk
+robustness
+  fix lazy obj-s
+    sk 1d
+  lmdb safe shutdown <-> scaling
+    sk 0.5d to start
+  service lifecycle
+    sk+eu talk
+project svg (server+view+db)
+  show normal and merge errors
+    sk 2d
+  access db from http get
+    sk 1d
+project TOS (server+view)
+  see TOS
+    sk+igor talk
+  webpack canvas
+  integrate vdom/entities
+  explore neo4j serializable/optimistic

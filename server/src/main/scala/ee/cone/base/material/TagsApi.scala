@@ -1,6 +1,6 @@
 package ee.cone.base.material
 
-import ee.cone.base.vdom.{ChildPair, OfDiv, PopupState, TagName}
+import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types.VDomKey
 
 trait ButtonTags {
@@ -13,4 +13,9 @@ trait OptionTags {
   def option(key:VDomKey, caption: String)(activate: ()⇒Unit): ChildPair[OfDiv]
   def popupBox(key: VDomKey, fieldChildren: List[ChildPair[OfDiv]], popupChildren: List[ChildPair[OfDiv]]): ChildPair[OfDiv]
   def popupAction[Value](key: PopupState): (Boolean,()=>Unit)
+}
+
+trait MaterialStyles {
+  def paddingSide: Int⇒TagStyle
+  def marginSide: TagStyle
 }

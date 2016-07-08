@@ -42,14 +42,36 @@ case class FlexGridItemWidthSync()(val onResize:Option[(String)=>Unit])
   }
 }
 
-class FlexTagsImpl(child: ChildPairFactory) extends FlexTags {
-  def flexGrid(key: VDomKey)(children: List[ChildPair[OfDiv]]) =
+trait Ref[T] {
+  def value: T
+  def value_=(value: T): Unit
+}
+
+class DataTablesState(currentVDom: CurrentVDom){
+  private val widthOfTables = collection.mutable.Map[VDomKey,Float]()
+  def widthOfTable(id: VDomKey) = new Ref[Float] {
+    def value = widthOfTables.getOrElse(id,0.0f)
+    def value_=(value: Float) = {
+      widthOfTables(id) = value
+      currentVDom.until(System.currentTimeMillis+200)
+    }
+  }
+}
+
+class FlexTagsImpl(child: ChildPairFactory, dtTablesState: DataTablesState) extends FlexTags {
+  def flexGrid(key: VDomKey)(children: List[ChildPair[OfFlexGrid]]) =
     child[OfDiv](key,FlexGrid(),children)
-  def flexItem(key: VDomKey, flexBasisWidth: Int, maxWidth: Option[Int], onResize: Option[String=>Unit]=None)(children: List[ChildPair[OfDiv]]) =
-    child[OfDiv](key,
-      FlexGridShItem(flexBasisWidth, maxWidth),
-      List(
-        child(key, onResize.map(f⇒FlexGridItemWidthSync()(Some(f))).getOrElse(FlexGridItem()), children)
+
+  def flexItem(key: VDomKey, flexBasisWidth: Int, maxWidth: Option[Int], sync: Boolean=false)(
+    children: List[TagAttr]⇒List[ChildPair[OfDiv]]
+  ) = {
+    val item = if(!sync) child(key, FlexGridItem(), children(Nil)) else {
+      val tableWidth = dtTablesState.widthOfTable(key)
+      child(key,
+        FlexGridItemWidthSync()(Some(w⇒tableWidth.value=w.toFloat)),
+        children(List(Width(tableWidth.value)))
       )
-    )
+    }
+    child[OfFlexGrid](key, FlexGridShItem(flexBasisWidth, maxWidth), List(item))
+  }
 }
