@@ -1,5 +1,5 @@
 
-package ee.cone.base.test_loots // to app
+package ee.cone.base.framework
 
 import ee.cone.base.connection_api.{Attr, FieldAttributes, Obj, ObjId}
 import ee.cone.base.db._
@@ -40,9 +40,9 @@ class MaterialDataTableUtils(
   import tableIconTags._
   import fieldAttributes.aIsEditing
   import buttonTags._
+  import uiStrings.caption
 
   //listAttrs, editing.reset, alien.demanded, alien.wrapForUpdate
-  def caption = uiStrings.caption(_)
   def creationTimeOrdering =
     objOrderingFactory.ordering(alienAttributes.createdAt, reverse = true).get
   def createItemList[Value](

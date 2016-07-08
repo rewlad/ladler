@@ -1,5 +1,5 @@
 
-package ee.cone.base.test_loots // to app
+package ee.cone.base.framework
 
 import java.nio.ByteBuffer
 import java.util.UUID

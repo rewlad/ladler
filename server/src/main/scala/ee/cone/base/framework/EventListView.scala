@@ -1,8 +1,9 @@
 
-package ee.cone.base.test_loots // to app
+package ee.cone.base.framework
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerLists, CoHandlerProvider, FieldAttributes}
 import ee.cone.base.db.{Alien, AlienAttributes, SessionEventSource}
+import ee.cone.base.framework.MaterialDataTableUtils
 import ee.cone.base.material._
 import ee.cone.base.util.Never
 import ee.cone.base.vdom._

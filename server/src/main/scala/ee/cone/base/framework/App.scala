@@ -1,5 +1,5 @@
 
-package ee.cone.base.test_loots // to app
+package ee.cone.base.framework
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._

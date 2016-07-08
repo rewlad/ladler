@@ -1,5 +1,5 @@
 
-package ee.cone.base.test_loots // to app
+package ee.cone.base.framework
 
 class MeasureImpl extends Measure {
   def apply[T](activity: ()=>T)(handlePeriod: (Long,Long)⇒Unit) = {
