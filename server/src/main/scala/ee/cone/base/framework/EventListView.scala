@@ -3,7 +3,7 @@ package ee.cone.base.framework
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerLists, CoHandlerProvider, FieldAttributes}
 import ee.cone.base.db.{Alien, AlienAttributes, SessionEventSource}
-import ee.cone.base.framework.MaterialDataTableUtils
+import ee.cone.base.framework.DataTableUtils
 import ee.cone.base.material._
 import ee.cone.base.util.Never
 import ee.cone.base.vdom._
@@ -17,7 +17,7 @@ class EventListView(
   buttonTags: ButtonTags,
   materialTags: MaterialTags,
   eventIconTags: EventIconTags,
-  tableUtils: MaterialDataTableUtils,
+  tableUtils: DataTableUtils,
   fieldAttributes: FieldAttributes
 ) extends CoHandlerProvider {
   import tags._

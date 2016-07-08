@@ -8,13 +8,7 @@ import ee.cone.base.material._
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
 
-class ItemList(
-    val listed: ObjCollection, val list: List[Obj], val selection: ObjSelection,
-    val isEditable: Boolean
-)
-
-
-class MaterialDataTableUtils(
+class DataTableUtilsImpl(
   objOrderingFactory: ObjOrderingFactory,
   uiStrings: UIStrings,
   listAttrs: ObjSelectionAttributes,
@@ -32,7 +26,7 @@ class MaterialDataTableUtils(
   htmlTable: TableTags,
   tableIconTags: TableIconTags,
   fields: Fields
-) {
+) extends DataTableUtils {
   import divTags._
   import materialTags._
   import flexTags._
@@ -80,7 +74,7 @@ class MaterialDataTableUtils(
     )
   }
 
-  def selectAllCheckBox(itemList: ItemList) = {
+  private def selectAllCheckBox(itemList: ItemList) = {
     val selected = itemList.selection.collection.toList
     List(
       checkBox("1","",
@@ -105,22 +99,21 @@ class MaterialDataTableUtils(
     }
   }
 
-  def removeControlView(itemList: ItemList) =
-    if(!itemList.isEditable) Nil else
-      List(iconButton("btnDelete", "delete", iconDelete){ ()⇒
-        val selected = itemList.selection.collection.toList.map(alien.wrapForUpdate)
-        itemList.listed.remove(selected)
-        itemList.selection.collection.remove(selected)
-      })
-
   def addRemoveControlViewBase(itemList: ItemList)(add: Obj⇒Unit) =
-    removeControlView(itemList) ::: (if(!itemList.isEditable) Nil else {
+    if(!itemList.isEditable) Nil else {
       val newItem = alien.demanded(_⇒())
-      List(iconButton("btnAdd", "add", iconAdd){ () ⇒
-        itemList.listed.add(List(newItem))
-        add(newItem)
-      })
-    })
+      List(
+        iconButton("btnDelete", "delete", iconDelete){ ()⇒
+          val selected = itemList.selection.collection.toList.map(alien.wrapForUpdate)
+          itemList.listed.remove(selected)
+          itemList.selection.collection.remove(selected)
+        },
+        iconButton("btnAdd", "add", iconAdd){ () ⇒
+          itemList.listed.add(List(newItem))
+          add(newItem)
+        }
+      )
+    }
 
   def addRemoveControlView(itemList: ItemList) =
     addRemoveControlViewBase(itemList: ItemList){ obj ⇒

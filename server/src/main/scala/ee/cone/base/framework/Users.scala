@@ -8,8 +8,7 @@ import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.util.{Bytes, Never}
 
-
-class UserAttrs(
+class UserAttributesImpl(
   attr: AttrFactory,
   label: LabelFactory,
   objIdFactory: ObjIdFactory,
@@ -20,17 +19,17 @@ class UserAttrs(
   val asUser: Attr[Obj] = label("f8c8d6da-0942-40aa-9005-261e63498973"),
   val fullName: Attr[String] = attr("a4260856-0904-40c4-a18a-6d925abe5044",asString),
   val username: Attr[String] = attr("4f0d01f8-a1a3-4551-9d07-4324d4d0e633",asString),
-  val encryptedPassword: Attr[Option[UUID]] = attr("3a345f93-18ab-4137-bdde-f0df77161b5f",asUUID),
+  val encryptedPassword: Attr[Option[UUID]] = attr("3a345f93-18ab-4137-bdde-f0df77161b5f",asUUID),//
   val unEncryptedPassword: Attr[String] = attr("7d12edd9-a162-4305-8a0c-31ef3f2e3300",asString),
   val unEncryptedPasswordAgain: Attr[String] = attr("24517821-c606-4f6c-8e93-4f01c2490747",asString),
   val asActiveUser: Attr[Obj] = label("eac3b82c-5bf0-4278-8e0a-e1e0e3a95ffc"),
   val authenticatedUser: Attr[Obj] = attr("47ee2460-b170-4213-9d56-a8fe0f7bc1f5",asDBObj), //of session
   val world: ObjId = objIdFactory.toObjId("4c766f02-5a76-47c3-aec7-2315caa5828b"),
-  val location: Attr[Obj] = attr("98e4646e-e5ba-4ac3-a2e2-4f79dde3886e",asDBObj)
-)
+  val location: Attr[Obj] = attr("98e4646e-e5ba-4ac3-a2e2-4f79dde3886e",asDBObj)//
+) extends UserAttributes
 
-class Users(
-  at: UserAttrs, nodeAttrs: NodeAttrs, fieldAttributes: FieldAttributes,
+class UsersImpl(
+  at: UserAttributesImpl, nodeAttrs: NodeAttrs, fieldAttributes: FieldAttributes,
   handlerLists: CoHandlerLists,
   factIndex: FactIndex, searchIndex: SearchIndex,
   findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey],
@@ -41,7 +40,7 @@ class Users(
   val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asUser, at.location),
   val findAllActive: SearchByLabelProp[Obj] = searchIndex.create(at.asActiveUser, at.location),
   val findActiveByName: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, at.username)
-) extends CoHandlerProvider {
+) extends Users with CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   private def encryptPassword(objId: ObjId, username: String, pw: String): UUID = {
     val buffer = ByteBuffer.allocate(256)

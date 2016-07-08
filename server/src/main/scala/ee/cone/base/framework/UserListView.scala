@@ -3,16 +3,16 @@ package ee.cone.base.framework
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider, FieldAttributes}
 import ee.cone.base.db._
-import ee.cone.base.framework.MaterialDataTableUtils
+import ee.cone.base.framework.DataTableUtils
 import ee.cone.base.material._
 import ee.cone.base.vdom._
 
-class UserListView(
+class UserListViewImpl(
   attrFactory: AttrFactory,
   filterObjFactory: FilterObjFactory,
   listedFactory: IndexedObjCollectionFactory,
   itemListOrderingFactory: ItemListOrderingFactory,
-  userAttrs: UserAttrs,
+  userAttrs: UserAttributes,
   users: Users,
   currentVDom: CurrentView,
   style: TagStyles,
@@ -21,11 +21,11 @@ class UserListView(
   optionTags: OptionTags,
   buttonTags: ButtonTags,
   materialTags: MaterialTags,
-  tableUtils: MaterialDataTableUtils,
+  tableUtils: DataTableUtils,
   fields: Fields,
   fieldAttributes: FieldAttributes,
   tableUtilTags: TableUtilTags
-) extends CoHandlerProvider {
+) extends UserListView with CoHandlerProvider {
   import htmlTable._
   import materialTags._
   import buttonTags._
@@ -35,7 +35,7 @@ class UserListView(
   import fieldAttributes._
   import tableUtilTags._
 
-  def loginView(): List[ChildPair[OfDiv]] = {
+  def loginView: List[ChildPair[OfDiv]] = {
     if(!users.needToLogIn) return Nil
     val showLabel = true
 

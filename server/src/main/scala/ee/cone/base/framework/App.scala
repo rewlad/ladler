@@ -49,7 +49,7 @@ class DBRootWrapImpl(
   def wrap(view: ()=>List[ChildPair[OfDiv]]) =
     eventSource.incrementalApplyAndView { () ⇒
       errorListView.errorNotification ::: {
-        val dialog = userListView.loginView()
+        val dialog = userListView.loginView
         if(dialog.nonEmpty) dialog else measure(view)(
           (startTime: Long, endTime: Long) ⇒
             currentVDom.until(endTime + (endTime - startTime) * 10)
