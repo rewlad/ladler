@@ -4,7 +4,7 @@ import ee.cone.base.connection_api.{AttrValueType, CoHandler, CoHandlerProvider,
 import ee.cone.base.util.Never
 
 class ObjIdSetValueConverter(
-  val valueType: AttrValueType[Set[ObjId]], inner: RawConverter, objIdFactory: ObjIdFactory
+  val valueType: AttrValueType[Set[ObjId]], inner: RawConverter, objIdFactory: ObjIdFactoryI
 ) extends RawValueConverter[Set[ObjId]] with CoHandlerProvider {
   private def splitter = " "
   def convertEmpty() = Set()

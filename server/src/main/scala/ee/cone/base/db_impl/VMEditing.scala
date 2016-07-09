@@ -1,10 +1,11 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.{Editing, NodeAttrs, AlienAttributes, Alien}
 
 class EditingImpl(
   nodeAttrs: NodeAttrs,
-  objIdFactory: ObjIdFactory,
+  objIdFactory: ObjIdFactoryI,
   alienAttrs: AlienAttributes,
   alien: Alien,
   dbWrapType: WrapType[ObjId]

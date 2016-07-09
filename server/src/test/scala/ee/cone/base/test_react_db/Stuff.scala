@@ -3,10 +3,9 @@ package ee.cone.base.test_react_db
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.{Never, Single}
 import ee.cone.base.vdom.Types.VDomKey
-import ee.cone.base.vdom.{Tags, CurrentVDom, ViewPath}
+import ee.cone.base.vdom.{Tags, ViewPath}
 import ee.cone.base.db._
 
 class FailOfConnection(

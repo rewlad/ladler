@@ -3,10 +3,11 @@ package ee.cone.base.db_impl
 import java.util.UUID
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db._
 import ee.cone.base.util.{Never,Single}
 
 class FindAttrsImpl(
-  attr: AttrFactory,
+  attr: AttrFactoryI,
   asDefined: AttrValueType[Boolean]
 )(
   val nonEmpty: Attr[Boolean] = attr("1cc81826-a1c0-4045-ab2a-e2501b4a71fc", asDefined)
@@ -16,11 +17,11 @@ class FindNodesImpl(
   at: FindAttrs,
   handlerLists: CoHandlerLists,
   nodeAttrs: NodeAttrs, noObj: Obj,
-  attrFactory: AttrFactory, objIdFactory: ObjIdFactory,
+  attrFactory: AttrFactoryI, objIdFactory: ObjIdFactoryI,
   dBObjValueConverter: RawValueConverter[ObjId], dbWrapType: WrapType[ObjId]
 )(
   val noNode: Obj = noObj.wrap(dbWrapType, objIdFactory.noObjId)
-) extends FindNodes  with CoHandlerProvider {
+) extends FindNodesI  with CoHandlerProvider {
   def whereObjId(objId: ObjId): Obj = noObj.wrap(dbWrapType, objId)
   def zeroNode = whereObjId(dBObjValueConverter.convert(0L,0L))
   def nextNode(obj: Obj) = {
@@ -52,7 +53,7 @@ class FindNodesImpl(
     val handler = handlerLists.single(searchKey, ()⇒throw new Exception(s"$searchKey not indexed"))
     //val feed = new NodeListFeedImpl(needSameValue, upTo, limit, nodeFactory)
     var result: List[Obj] = Nil
-    val request = new SearchRequest[Value](tx, value, needSameValue, from, objId ⇒
+    val request = new SearchRequestI[Value](tx, value, needSameValue, from, objId ⇒
       if(upTo.nonEmpty && (objId.hi > upTo.hi || objId.hi == upTo.hi && objId.lo > upTo.lo)) false else {
         result = whereObjId(objId) :: result
         limit -= 1L

@@ -13,7 +13,7 @@ class UserListViewImpl(
   listedFactory: IndexedObjCollectionFactory,
   itemListOrderingFactory: ItemListOrderingFactory,
   userAttrs: UserAttributes,
-  users: Users,
+  users: UsersI,
   currentVDom: CurrentView,
   style: TagStyles,
   divTags: Tags,

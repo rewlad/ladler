@@ -3,10 +3,11 @@ package ee.cone.base.db_impl
 import java.util.UUID
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.{ObjIdCaption, UIStrings, OnUpdate, NodeAttrs}
 import ee.cone.base.util.Never
 
 class UIStringAttributes(
-  attr: AttrFactory,
+  attr: AttrFactoryI,
   asString: AttrValueType[String]
 )(
   val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", asString)
@@ -16,11 +17,11 @@ class UIStringsImpl(
   at: UIStringAttributes,
   nodeAttrs: NodeAttrs,
   handlerLists: CoHandlerLists,
-  objIdFactory: ObjIdFactory,
-  attrFactory: AttrFactory,
-  factIndex: FactIndex,
+  objIdFactory: ObjIdFactoryI,
+  attrFactory: AttrFactoryI,
+  factIndex: FactIndexI,
   onUpdate: OnUpdate,
-  findNodes: FindNodes,
+  findNodes: FindNodesI,
   asDBObj: AttrValueType[Obj],
   asObjId: AttrValueType[ObjId],
   asString: AttrValueType[String],
@@ -53,9 +54,6 @@ class UIStringsImpl(
       }
     )
 
-  def caption(attr: Attr[_]) =
+  private def caption(attr: Attr[_]) =
     handlerLists.single(AttrCaption(attr), ()⇒attrFactory.attrId(attr).toString)
-
-  def converter[From,To](from: AttrValueType[From], to: AttrValueType[To]) =
-    handlerLists.single(ConverterKey(from,to), ()⇒Never())
 }

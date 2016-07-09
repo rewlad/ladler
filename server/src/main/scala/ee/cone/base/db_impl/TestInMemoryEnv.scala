@@ -1,6 +1,7 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.db._
 import ee.cone.base.db.Types._
 import ee.cone.base.util.{Never, Setup}
 

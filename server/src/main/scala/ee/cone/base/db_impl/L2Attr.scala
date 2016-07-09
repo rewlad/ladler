@@ -8,9 +8,9 @@ import ee.cone.base.util.Never
 
 class AttrFactoryImpl(
   handlerLists: CoHandlerLists,
-  objIdFactory: ObjIdFactory,
+  objIdFactory: ObjIdFactoryI,
   dbWrapType: WrapType[ObjId]
-) extends AttrFactory {
+) extends AttrFactoryI {
   def apply[V](uuid: String, valueType: AttrValueType[V]): Attr[V] =
     define(objIdFactory.toObjId(uuid), valueType)
   def define[V](attrId: ObjId, valueType: AttrValueType[V]): Attr[V] =

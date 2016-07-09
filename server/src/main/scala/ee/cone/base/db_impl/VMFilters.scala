@@ -1,11 +1,12 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db._
 import ee.cone.base.util.Never
 
 
 class FilterAttributes(
-  attr: AttrFactory,
+  attr: AttrFactoryI,
   label: LabelFactory,
   asObjId: AttrValueType[ObjId]
 )(
@@ -17,7 +18,7 @@ class FilterObjFactoryImpl(
   at: FilterAttributes,
   nodeAttrs: NodeAttrs,
   handlerLists: CoHandlerLists,
-  factIndex: FactIndex,
+  factIndex: FactIndexI,
   searchIndex: SearchIndex,
   alien: Alien,
   lazyObjFactory: LazyObjFactory

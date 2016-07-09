@@ -40,7 +40,7 @@ case object ClosedPopupState extends PopupState
 
 class OptionTagsImpl(
   child: ChildPairFactory, tags: Tags, style: TagStyles
-) extends OptionTags {
+) extends OptionTagsI {
   import tags._
   private var opened: PopupState = ClosedPopupState
   private def divBgColorHover(key:VDomKey,color:Color)(children: List[ChildPair[OfDiv]])=

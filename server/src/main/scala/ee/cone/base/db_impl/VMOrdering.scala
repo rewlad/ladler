@@ -1,6 +1,7 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.{ItemListOrderingFactory, ItemListOrdering, Alien}
 
 final class CompositeOrdering[T](ordA: Ordering[T], ordB: Ordering[T]) extends Ordering[T] {
   def compare(a: T, b: T) = {
@@ -10,7 +11,7 @@ final class CompositeOrdering[T](ordA: Ordering[T], ordB: Ordering[T]) extends O
 }
 
 class ItemListOrderingAttributes(
-  attr: AttrFactory,
+  attr: AttrFactoryI,
   asBoolean: AttrValueType[Boolean],
   asObjId: AttrValueType[ObjId]
 )(
@@ -21,9 +22,9 @@ class ItemListOrderingAttributes(
 
 class ItemListOrderingFactoryImpl(
   at: ItemListOrderingAttributes,
-  attrFactory: AttrFactory,
+  attrFactory: AttrFactoryI,
   alien: Alien,
-  orderingFactory:  ObjOrderingFactory
+  orderingFactory:  ObjOrderingFactoryI
 ) extends ItemListOrderingFactory with CoHandlerProvider {
   def itemList(filterObj: Obj) = {
     val orderByAttrValueTypeId = filterObj(at.orderByAttrValueTypeId)

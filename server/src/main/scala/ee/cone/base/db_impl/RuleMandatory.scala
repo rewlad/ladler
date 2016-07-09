@@ -1,9 +1,10 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api.{Attr, BaseCoHandler, CoHandler, ObjId}
+import ee.cone.base.db.Mandatory
 
 class MandatoryImpl(
-  attrFactory: AttrFactory, factIndex: FactIndex,
+  attrFactory: AttrFactoryI, factIndex: FactIndexI,
   preCommitCheck: PreCommitCheckAllOfConnection
   //attrs: ListByDBNode
 ) extends Mandatory {

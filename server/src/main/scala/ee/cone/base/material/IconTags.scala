@@ -1,4 +1,4 @@
-package ee.cone.base.material_impl
+package ee.cone.base.material
 
 import ee.cone.base.vdom.TagName
 
@@ -9,6 +9,7 @@ trait TableIconTags {
   def iconModeEdit: TagName
   def iconDelete: TagName
 }
+
 trait EventIconTags {
   def iconSave: TagName
   def iconEvents: TagName

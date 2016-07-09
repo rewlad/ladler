@@ -1,10 +1,11 @@
 package ee.cone.base.material_impl
 
+import ee.cone.base.material.TableUtilTags
 import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom._
 
 class MaterialTableTags(
-  wrapped: TableTags, style: TagStyles, tags: Tags, materialStyles: MaterialStyles
+  wrapped: TableTags, tags: Tags, style: TagStyles, materialStyles: MaterialStyles
 ) extends TableTags {
   import tags._
   import materialStyles._
@@ -28,11 +29,11 @@ class MaterialTableTags(
     wrapped.cell(key, attr:_*)(showLabel⇒align(style.none)(children(showLabel)))
 }
 
-class TableUtilTags(
-  style: TagStyles,
+class TableUtilTagsImpl(
   tags: Tags,
+  style: TagStyles,
   materialStyles: MaterialStyles
-) {
+) extends TableUtilTags {
   import tags._
   def controlPanel(left: List[ChildPair[OfDiv]], right: List[ChildPair[OfDiv]]): List[ChildPair[OfDiv]] =
     List(div("tableControl",style.padding(5))(List(div("1",materialStyles.paddingSide(8))(List(

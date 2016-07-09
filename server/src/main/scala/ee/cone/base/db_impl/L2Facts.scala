@@ -2,6 +2,7 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.NodeAttrs
 import ee.cone.base.db.Types._
 import ee.cone.base.util.{Hex, Never}
 
@@ -13,12 +14,12 @@ class FactIndexImpl(
   rawVisitor: RawVisitor,
   calcLists: CoHandlerLists,
   nodeAttributes: NodeAttrs,
-  attrFactory: AttrFactory,
-  objIdFactory: ObjIdFactory,
+  attrFactory: AttrFactoryI,
+  objIdFactory: ObjIdFactoryI,
   zeroObjId: ObjId,
   asDefined: AttrValueType[Boolean],
   dbWrapType: WrapType[ObjId]
-) extends FactIndex {
+) extends FactIndexI {
   private var srcObjId = zeroObjId
   def switchReason(node: Obj): Unit = {
     val dbNode = node(nodeAttributes.objId)

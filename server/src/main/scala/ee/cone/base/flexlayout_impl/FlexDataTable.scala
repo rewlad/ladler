@@ -1,6 +1,7 @@
 
 package ee.cone.base.flexlayout_impl
 
+import ee.cone.base.flexlayout.{MaxVisibleLines, Toggled, IsSelected, Priority}
 import ee.cone.base.util.Single
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._

@@ -1,6 +1,7 @@
 
 package ee.cone.base.material_impl
 
+import ee.cone.base.material.{TableIconTags, EventIconTags}
 import ee.cone.base.vdom.TagName
 
 case object IconContentSave extends TagName("IconContentSave")

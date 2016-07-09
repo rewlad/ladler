@@ -2,6 +2,7 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db._
 import ee.cone.base.util.{Hex, HexDebug, Never}
 
 // minKey/merge -> filterRemoved -> takeWhile -> toId
@@ -11,14 +12,15 @@ class SearchIndexImpl(
   rawConverter: RawConverter,
   nodeValueConverter: RawValueConverter[ObjId],
   rawVisitor: RawVisitor,
-  attrFactory: AttrFactory,
+  attrFactory: AttrFactoryI,
   nodeAttributes: NodeAttrs,
-  objIdFactory: ObjIdFactory,
+  objIdFactory: ObjIdFactoryI,
   onUpdate: OnUpdateImpl
 ) extends SearchIndex {
   private type GetConverter[Value] = ()⇒(Value,ObjId)⇒Array[Byte]
   private def txSelector = handlerLists.single(TxSelectorKey, ()⇒Never())
-  private def execute[Value](attrId: ObjId, getConverter: GetConverter[Value])(in: SearchRequest[Value]) = {
+  private def execute[Value](attrId: ObjId, getConverter: GetConverter[Value])(inU: SearchRequest[Value]) = {
+    val in = inU.asInstanceOf[SearchRequestI[Value]]
     //println("SS",attr)
     val valueConverter = getConverter()
     val fromKey = valueConverter(in.value, in.objId)
@@ -60,7 +62,7 @@ class SearchIndexImpl(
   }
 }
 
-class OnUpdateImpl(attrFactory: AttrFactory, factIndex: FactIndex) extends OnUpdate {
+class OnUpdateImpl(attrFactory: AttrFactoryI, factIndex: FactIndexI) extends OnUpdate {
   def handlers(need: List[Attr[_]], optional: List[Attr[_]])(invoke: (Boolean,Obj) ⇒ Unit) =
     handlersInner(need.map(attrFactory.attrId(_)), optional.map(attrFactory.attrId(_)), invoke)
   def handlersInner(needAttrIds: List[ObjId], optionalAttrIds: List[ObjId], invoke: (Boolean,Obj) ⇒ Unit) = {

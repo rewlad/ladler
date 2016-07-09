@@ -1,6 +1,7 @@
 
 package ee.cone.base.flexlayout_impl
 
+import ee.cone.base.flexlayout.{OfFlexGrid, FlexTags}
 import ee.cone.base.vdom.Types.VDomKey
 import ee.cone.base.vdom._
 
@@ -47,7 +48,7 @@ trait Ref[T] {
   def value_=(value: T): Unit
 }
 
-class DataTablesState(currentVDom: CurrentView){
+class FlexTablesState(currentVDom: CurrentView){
   private val widthOfTables = collection.mutable.Map[VDomKey,Float]()
   def widthOfTable(id: VDomKey) = new Ref[Float] {
     def value = widthOfTables.getOrElse(id,0.0f)
@@ -58,7 +59,7 @@ class DataTablesState(currentVDom: CurrentView){
   }
 }
 
-class FlexTagsImpl(child: ChildPairFactory, dtTablesState: DataTablesState) extends FlexTags {
+class FlexTagsImpl(child: ChildPairFactory, dtTablesState: FlexTablesState) extends FlexTags {
   def flexGrid(key: VDomKey)(children: List[ChildPair[OfFlexGrid]]) =
     child[OfDiv](key,FlexGrid(),children)
 

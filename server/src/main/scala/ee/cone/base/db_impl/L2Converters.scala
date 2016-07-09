@@ -7,7 +7,7 @@ import ee.cone.base.util.Never
 class DBObjIdValueConverter(
   val valueType: AttrValueType[ObjId],
   inner: RawConverter,
-  objIdFactory: ObjIdFactory
+  objIdFactory: ObjIdFactoryI
 ) extends RawValueConverter[ObjId] with CoHandlerProvider {
   def convertEmpty() = objIdFactory.noObjId
   def convert(valueA: Long, valueB: Long) = objIdFactory.toObjId(valueA,valueB)

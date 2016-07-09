@@ -4,11 +4,12 @@ import java.time.Instant
 import java.util.UUID
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db._
 import ee.cone.base.util.{Never, Single}
 
 class AlienAttributesImpl(
-  objIdFactory: ObjIdFactory,
-  attr: AttrFactory,
+  objIdFactory: ObjIdFactoryI,
+  attr: AttrFactoryI,
   asNode: AttrValueType[Obj],
   asString: AttrValueType[String],
   asBoolean: AttrValueType[Boolean],
@@ -29,17 +30,20 @@ class DemandedWrapType extends WrapType[DemandedNode]
 
 class AlienImpl(
   at: AlienAttributesImpl, nodeAttrs: NodeAttrs,
-  attrFactory: AttrFactory,
+  attrFactory: AttrFactoryI,
   handlerLists: CoHandlerLists,
-  findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey], factIndex: FactIndex,
+  findNodes: FindNodesI, mainTx: CurrentTx[MainEnvKey], factIndex: FactIndexI,
   alienWrapType: WrapType[Unit], demandedWrapType: WrapType[DemandedNode],
-  objIdFactory: ObjIdFactory,
-  uiStrings: UIStrings,
+  objIdFactory: ObjIdFactoryI,
   asDBObj: AttrValueType[Obj],
   asString:   AttrValueType[String],
   transient: Transient
 ) extends Alien with CoHandlerProvider {
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
+  private def converter[From,To](from: AttrValueType[From], to: AttrValueType[To]) =
+    handlerLists.single(ConverterKey(from,to), ()⇒Never())
+  private def caption(attr: Attr[_]) =
+    handlerLists.single(AttrCaption(attr), ()⇒attrFactory.attrId(attr).toString)
   def update[Value](attr: Attr[Value]) = {
     val attrId = attrFactory.attrId(attr)
     val targetAttr = attrFactory.define(objIdFactory.compose(List(at.target, attrId)), attrFactory.valueType(attr))
@@ -65,9 +69,9 @@ class AlienImpl(
     CoHandler(ApplyEvent(attrId)){ event =>
       val obj = event(at.targetObj)
       val value = event(targetAttr)
-      val attrStr = uiStrings.caption(attr)
-      val objStr = uiStrings.converter(asDBObj,asString)(obj)
-      val valStr = uiStrings.converter(attrFactory.valueType(attr),asString)(value)
+      val attrStr = caption(attr)
+      val objStr = converter(asDBObj,asString)(obj)
+      val valStr = converter(attrFactory.valueType(attr),asString)(value)
       obj(attr) = value
       val description = if(objStr == valStr) s"'$objStr' became '$attrStr'"
         else s"'$attrStr' of '$objStr' was changed to '$valStr'"

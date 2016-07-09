@@ -7,6 +7,7 @@ import java.util.UUID
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.flexlayout.{FlexTags, MaxVisibleLines, Priority}
+import ee.cone.base.framework.{DataTableUtils, Users}
 import ee.cone.base.material._
 import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types.VDomKey
@@ -50,20 +51,17 @@ class BoatLogEntryAttributes(
 )
 
 class TestComponent(
+  handlerLists: CoHandlerLists,
   nodeAttrs: NodeAttrs,
-  listAttrs: ObjSelectionAttributes,
   logAt: BoatLogEntryAttributes,
-  userAttrs: UserAttrs,
   fuelingAttrs: FuelingAttrs,
   validationAttrs: ValidationAttributes,
-  handlerLists: CoHandlerLists,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
-  mainTx: CurrentTx[MainEnvKey],
   alien: Alien,
   onUpdate: OnUpdate,
   divTags: Tags,
-  currentVDom: CurrentVDom,
+  currentVDom: CurrentView,
   searchIndex: SearchIndex,
   factIndex: FactIndex,
   htmlTable: TableTags,
@@ -71,25 +69,15 @@ class TestComponent(
   fuelingItems: FuelingItems,
   objIdFactory: ObjIdFactory,
   validationFactory: ValidationFactory,
-  asDuration: AttrValueType[Option[Duration]],
-  asInstant: AttrValueType[Option[Instant]],
-  asLocalTime: AttrValueType[Option[LocalTime]],
-  asBigDecimal: AttrValueType[Option[BigDecimal]],
-  asDBObj: AttrValueType[Obj],
-  asString: AttrValueType[String],
-  asUUID: AttrValueType[Option[UUID]],
   uiStrings: UIStrings,
   mandatory: Mandatory,
   zoneIds: ZoneIds,
   itemListOrderingFactory: ItemListOrderingFactory,
-  objOrderingFactory: ObjOrderingFactory,
-  errorAttributes: ErrorAttributes,
-  errors: Errors,
   listedFactory: IndexedObjCollectionFactory,
   filterObjFactory: FilterObjFactory,
-  editing: Editing,
   inheritAttrRule: InheritAttrRule,
-  tableUtils: MaterialDataTableUtils,
+
+  tableUtils: DataTableUtils,
   fields: Fields,
   fieldAttributes: FieldAttributes,
   style: TagStyles,
@@ -108,7 +96,6 @@ class TestComponent(
   import buttonTags._
   import flexTags._
   import htmlTable._
-  import uiStrings.caption
   import tableUtils._
   import fields.field
   import fieldAttributes._
@@ -116,6 +103,8 @@ class TestComponent(
   import tableUtilTags._
 
   def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
+  private def caption(attr: Attr[_]) =
+    handlerLists.single(AttrCaption(attr), ()⇒"???")
 
   private def mCell(key: VDomKey, minWidth: Int)(children: CellContentVariant ⇒ List[ChildPair[OfDiv]]) =
     cell(key, MinWidth(minWidth))(children)
@@ -258,7 +247,7 @@ class TestComponent(
                       List(alert("1",state.text))
                     }
                     else {
-                      val user = eventSource.mainSession(userAttrs.authenticatedUser)
+                      val user = eventSource.mainSession(users.aAuthenticatedUser)
                       if(!user(aNonEmpty)) List(alert("1",s"User required"))
                       else List(raisedButton("confirm","Confirm"){()⇒
                         entry(logAt.confirmedOn) = Option(Instant.now())

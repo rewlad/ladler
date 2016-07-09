@@ -2,7 +2,7 @@
 package ee.cone.base.framework_impl
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerLists, CoHandlerProvider, FieldAttributes}
-import ee.cone.base.db.{Alien, AlienAttributes, SessionEventSource}
+import ee.cone.base.db.{AlienAttributes, SessionEventSource}
 import ee.cone.base.framework.DataTableUtils
 import ee.cone.base.material._
 import ee.cone.base.util.Never

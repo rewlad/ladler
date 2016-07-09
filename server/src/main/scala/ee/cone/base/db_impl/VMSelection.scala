@@ -2,6 +2,7 @@ package ee.cone.base.db_impl
 
 import java.time.Instant
 import ee.cone.base.connection_api._
+import ee.cone.base.db._
 
 class ListedWrapType extends WrapType[InnerItemList]
 
@@ -11,7 +12,7 @@ trait InnerItemList {
 }
 
 class ObjSelectionAttributesImpl(
-    attr: AttrFactory,
+    attr: AttrFactoryI,
     asBoolean: AttrValueType[Boolean],
     asObjId: AttrValueType[ObjId],
     asObjIdSet: AttrValueType[Set[ObjId]],
@@ -24,8 +25,8 @@ class ObjSelectionAttributesImpl(
 ) extends ObjSelectionAttributes
 
 class ObjSelectionFactoryImpl(
-    at: ObjSelectionAttributesImpl, nodeAttrs: NodeAttrs, objIdFactory: ObjIdFactory,
-    findNodes: FindNodes, transient: Transient, alien: Alien,
+    at: ObjSelectionAttributesImpl, nodeAttrs: NodeAttrs, objIdFactory: ObjIdFactoryI,
+    findNodes: FindNodesI, transient: Transient, alien: Alien,
     listedWrapType: WrapType[InnerItemList]
 ) extends ObjSelectionFactory with CoHandlerProvider {
   def create(filterObj: Obj) = {

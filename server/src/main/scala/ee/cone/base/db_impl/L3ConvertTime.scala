@@ -4,6 +4,7 @@ import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, _}
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.ZoneIds
 import ee.cone.base.util.Never
 
 abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValue] with CoHandlerProvider {
@@ -65,7 +66,7 @@ class InstantValueConverter(
   }
 }
 
-class ZoneIds {
+class ZoneIdsImpl extends ZoneIds {
   def zoneId = ZoneId.of("Europe/Tallinn")
 }
 

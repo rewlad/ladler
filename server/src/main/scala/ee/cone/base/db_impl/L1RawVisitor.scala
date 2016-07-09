@@ -1,5 +1,6 @@
 package ee.cone.base.db_impl
 
+import ee.cone.base.db.{KeyStatus, RawIndex}
 import ee.cone.base.db.Types._
 
 class RawVisitorImpl extends RawVisitor {

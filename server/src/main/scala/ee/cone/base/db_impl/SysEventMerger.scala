@@ -3,6 +3,7 @@ package ee.cone.base.db_impl
 import java.util.concurrent.Future
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.{MainEnvKey, NodeAttrs}
 
 // lifetime of mergerCurrentRequest should be longer than merger's one
 // ObjId is here, because Obj can not live longer than connection, it is bound to handlers
@@ -10,11 +11,11 @@ class CurrentRequest(var objId: ObjId)
 
 class MergerEventSourceOperationsImpl(
   ops: ForMergerEventSourceOperations,
-  objIdFactory: ObjIdFactory,
+  objIdFactory: ObjIdFactoryI,
   nodeAttrs: NodeAttrs,
   instantTxManager: DefaultTxManager[InstantEnvKey],
   mainTxManager: DefaultTxManager[MainEnvKey],
-  findNodes: FindNodes, currentRequest: CurrentRequest
+  findNodes: FindNodesI, currentRequest: CurrentRequest
 ) extends CoHandlerProvider {
   def handlers = CoHandler(ActivateReceiver){ ()=>
     if(currentRequest.objId.nonEmpty){

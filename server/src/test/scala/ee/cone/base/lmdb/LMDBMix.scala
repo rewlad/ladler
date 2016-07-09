@@ -1,8 +1,8 @@
 package ee.cone.base.lmdb
 
 import ee.cone.base.connection_api.LifeCycle
-import ee.cone.base.db.{InstantEnvKey, DBAppMix}
-import ee.cone.base.lifecycle.BaseConnectionMix
+import ee.cone.base.db_impl.{InstantEnvKey, DBAppMix}
+import ee.cone.base.lifecycle_impl.BaseConnectionMix
 
 trait LightningDBAppMix extends DBAppMix {
   lazy val instantDB =

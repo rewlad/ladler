@@ -1,6 +1,7 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api.Obj
+import ee.cone.base.db.BoundToTx
 import ee.cone.base.util.Setup
 
 import scala.collection.mutable

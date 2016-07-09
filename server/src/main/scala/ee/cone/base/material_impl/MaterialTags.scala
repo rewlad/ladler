@@ -4,12 +4,10 @@ package ee.cone.base.material_impl
 // to mat
 
 import ee.cone.base.connection_api.{CoHandlerLists, EventKey}
+import ee.cone.base.material.{ToolbarButtons, MenuItems, MaterialTags,
+ButtonTags}
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
-
-//api
-case object ToolbarButtons extends EventKey[()⇒List[ChildPair[OfDiv]]]
-case object MenuItems extends EventKey[()⇒List[ChildPair[OfDiv]]]
 
 //material
 sealed trait KeyboardKeyCode
@@ -110,11 +108,11 @@ case object AlertTextColor extends Color { def value="#f44336" }
 
 case object IconNavigationMenu extends TagName("IconNavigationMenu")
 
-class MaterialTags(
+class MaterialTagsImpl(
   handlerLists: CoHandlerLists, dbRootWrap: DBRootWrap,
   child: ChildPairFactory, tags: Tags, style: TagStyles,
-  optionTags: OptionTags, buttonTags: ButtonTags, materialStyles: MaterialStyles
-) extends ThemeRootWrap {
+  optionTags: OptionTagsI, buttonTags: ButtonTags, materialStyles: MaterialStyles
+) extends MaterialTags {
   import tags._
   import optionTags._
   import buttonTags._

@@ -1,11 +1,10 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api.Obj
-
-
+import ee.cone.base.db._
 
 class IndexedObjCollectionFactoryImpl(
-    attrFactory: AttrFactory, findNodes: FindNodes, mainTx: CurrentTx[MainEnvKey]
+    attrFactory: AttrFactoryI, findNodes: FindNodesI, mainTx: CurrentTx[MainEnvKey]
 ) extends IndexedObjCollectionFactory {
   def create[Value](index: SearchByLabelProp[Value], parentValue: Value) = {
     val parentAttr = attrFactory.toAttr(index.propId, index.propType)

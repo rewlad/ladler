@@ -3,9 +3,9 @@ package ee.cone.base.test_layout
 import java.nio.file.Paths
 
 import ee.cone.base.connection_api.LifeCycle
-import ee.cone.base.lifecycle.{BaseConnectionMix, BaseAppMix}
-import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
-import ee.cone.base.vdom.VDomConnectionMix
+import ee.cone.base.lifecycle_impl.{BaseAppMix, BaseConnectionMix}
+import ee.cone.base.server_impl.{ServerAppMix, ServerConnectionMix}
+import ee.cone.base.vdom_impl.VDomConnectionMix
 
 object TestApp extends App {
   val app = new TestAppMix

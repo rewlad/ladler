@@ -4,7 +4,7 @@ import java.util.{Base64, UUID}
 
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, UTF8String}
-import ee.cone.base.vdom.JsonBuilder
+import ee.cone.base.vdom.{TagJsonUtils, JsonBuilder}
 import ee.cone.base.vdom.Types._
 
 object TagJsonUtilsImpl extends TagJsonUtils {

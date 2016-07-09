@@ -3,6 +3,7 @@ package ee.cone.base.db_impl
 import java.util.UUID
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.NodeAttrs
 import ee.cone.base.db.Types._
 import ee.cone.base.util.Never
 
@@ -45,7 +46,7 @@ class UUIDValueConverter(
 class DBObjValueConverter(
   val valueType: AttrValueType[Obj],
   inner: RawValueConverter[ObjId],
-  findNodes: FindNodes,
+  findNodes: FindNodesI,
   nodeAttributes: NodeAttrs
 ) extends RawValueConverter[Obj] with CoHandlerProvider {
   def convertEmpty() = findNodes.noNode

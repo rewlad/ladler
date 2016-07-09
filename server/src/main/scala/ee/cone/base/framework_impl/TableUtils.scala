@@ -1,14 +1,16 @@
 
 package ee.cone.base.framework_impl
 
-import ee.cone.base.connection_api.{Attr, FieldAttributes, Obj, ObjId}
+import ee.cone.base.connection_api._
 import ee.cone.base.db._
 import ee.cone.base.flexlayout._
+import ee.cone.base.framework.{ItemList, DataTableUtils}
 import ee.cone.base.material._
 import ee.cone.base.vdom._
 import ee.cone.base.vdom.Types._
 
 class DataTableUtilsImpl(
+  handlerLists: CoHandlerLists,
   objOrderingFactory: ObjOrderingFactory,
   uiStrings: UIStrings,
   listAttrs: ObjSelectionAttributes,
@@ -34,7 +36,6 @@ class DataTableUtilsImpl(
   import tableIconTags._
   import fieldAttributes.aIsEditing
   import buttonTags._
-  import uiStrings.caption
 
   //listAttrs, editing.reset, alien.demanded, alien.wrapForUpdate
   def creationTimeOrdering =
@@ -86,6 +87,8 @@ class DataTableUtilsImpl(
     )
   }
 
+  private def caption(attr: Attr[_]) =
+    handlerLists.single(AttrCaption(attr), ()⇒"???")
   def header(attr: Attr[_]):List[ChildPair[OfDiv]] = List(text("1",caption(attr)))
   def sortingHeader(itemListOrdering: ItemListOrdering, attr: Attr[_]):List[ChildPair[OfDiv]] = {
     val (action,reversed) = itemListOrdering.action(attr)

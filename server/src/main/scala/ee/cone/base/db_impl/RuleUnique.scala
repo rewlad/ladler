@@ -2,14 +2,15 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api.{Obj, Attr, CoHandler}
+import ee.cone.base.db.{Unique, SearchIndex}
 
 class UniqueImpl(
-  attrFactory: AttrFactory,
-  factIndex: FactIndex,
+  attrFactory: AttrFactoryI,
+  factIndex: FactIndexI,
   txSelector: TxSelector,
   preCommitCheck: PreCommitCheckAllOfConnection,
   searchIndex: SearchIndex,
-  findNodes: FindNodes
+  findNodes: FindNodesI
 ) extends Unique {
   def apply[Value](label: Attr[Obj], uniqueAttr: Attr[Value]) = {
     val attrIds = (label :: uniqueAttr :: Nil).map(attrFactory.attrId(_))

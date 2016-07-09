@@ -3,6 +3,7 @@ package ee.cone.base.db_impl
 import java.util.UUID
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db.{SearchByLabelProp, SessionEventSourceOperations}
 import ee.cone.base.db.Types._
 
 trait SessionState {
@@ -13,7 +14,7 @@ trait SessionState {
 
 case class ApplyEvent(attrId: ObjId) extends EventKey[Obj=>Unit]
 
-case object SessionInstantAdded extends EventKey[()=>Unit]
+
 
 /*
 trait Ref[Value] {
@@ -38,18 +39,6 @@ trait ForMergerEventSourceOperations extends EventSourceOperations {
   def addCommit(req: Obj): Unit
   def applyRequestedEvents(req: Obj): Unit
   def nextRequest(): Obj
-}
-
-case object SessionEventSource extends EventKey[SessionEventSourceOperations]
-
-trait SessionEventSourceOperations {
-  var decoupled: Boolean
-  def incrementalApplyAndView[R](view: ()=>R): R
-  def unmergedEvents: List[Obj]
-  def addEvent(setup: Obj=>ObjId): Unit
-  def addRequest(): Unit
-  def addUndo(event: Obj): Unit
-  def mainSession: Obj
 }
 
 trait SessionEventSourceAttrs {

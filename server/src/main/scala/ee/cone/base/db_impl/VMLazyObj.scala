@@ -1,11 +1,12 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api.ObjId
+import ee.cone.base.db._
 
 class LazyObjFactoryImpl(
-  objIdFactory: ObjIdFactory,
-  attrFactory: AttrFactory,
-  findNodes: FindNodes,
+  objIdFactory: ObjIdFactoryI,
+  attrFactory: AttrFactoryI,
+  findNodes: FindNodesI,
   findAttrs: FindAttrs,
   mainTx: CurrentTx[MainEnvKey],
   alien: Alien

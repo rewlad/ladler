@@ -1,6 +1,4 @@
-package ee.cone.base.db_impl
-
-import java.time.Instant
+package ee.cone.base.db
 
 import ee.cone.base.connection_api._
 
@@ -13,10 +11,12 @@ trait ItemListOrderingFactory {
   def itemList(filterObj: Obj): ItemListOrdering
 }
 
-trait ValidationContext { def wrap(obj: Obj): Obj }
 trait ValidationAttributes {
   def validation: Attr[ObjValidation]
 }
+
+trait ValidationContext { def wrap(obj: Obj): Obj }
+
 trait ValidationFactory {
   def context(stateList: List[ValidationState]): ValidationContext
   def need[Value](obj: Obj, attr: Attr[Value], check: Value⇒Option[String]): List[ValidationState]

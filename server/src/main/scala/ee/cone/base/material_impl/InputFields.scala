@@ -4,6 +4,7 @@ package ee.cone.base.material_impl
 import java.time.{Duration, Instant, LocalTime}
 
 import ee.cone.base.connection_api._
+import ee.cone.base.material._
 import ee.cone.base.util.Never
 import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom._
@@ -13,12 +14,6 @@ case object RequiredValidationKey extends ValidationKey
 case object ErrorValidationKey extends ValidationKey
 case object DefaultValidationKey extends ValidationKey
 
-case class EditableFieldOption(on: Boolean) extends FieldOption
-case class DeferSendFieldOption(on: Boolean) extends FieldOption
-case object IsPasswordFieldOption extends FieldOption
-case object IsPersonFieldOption extends FieldOption
-
-case class AttrValueOptions(attr: Attr[Obj]) extends EventKey[Obj⇒List[Obj]]
 case class FieldPopupState[Value](objIdStr: String, attr: Attr[Value]) extends PopupState
 
 class MaterialFields(
@@ -28,7 +23,7 @@ class MaterialFields(
   utils: TagJsonUtils,
   tags: Tags,
   style: TagStyles,
-  optionTags: OptionTags,
+  optionTags: OptionTagsI,
   buttonTags: ButtonTags,
   asDuration: AttrValueType[Option[Duration]],
   asInstant: AttrValueType[Option[Instant]],

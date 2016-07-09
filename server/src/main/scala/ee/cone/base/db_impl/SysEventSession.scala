@@ -2,6 +2,7 @@ package ee.cone.base.db_impl
 
 import java.util.UUID
 import ee.cone.base.connection_api._
+import ee.cone.base.db._
 import ee.cone.base.db.Types._
 import ee.cone.base.util.{Setup, Never, Single}
 
@@ -10,7 +11,7 @@ class SessionEventSourceOperationsImpl(
   at: SessionEventSourceAttrs, nodeAttrs: NodeAttrs, sysAttrs: FindAttrs,
   handlerLists: CoHandlerLists,
   instantTxManager: DefaultTxManager[InstantEnvKey], mainTxManager: SessionMainTxManager,
-  findNodes: FindNodes
+  findNodes: FindNodesI
 )(
     var lastStatus: Obj = findNodes.noNode
 ) extends SessionEventSourceOperations with CoHandlerProvider {

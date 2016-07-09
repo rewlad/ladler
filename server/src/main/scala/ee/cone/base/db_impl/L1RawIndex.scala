@@ -1,6 +1,7 @@
 
 package ee.cone.base.db_impl
 
+import ee.cone.base.db.{KeyStatus, SeekStatus, NotFoundStatus, RawIndex}
 import ee.cone.base.util.{UInt, Never}
 import ee.cone.base.db.Types._
 

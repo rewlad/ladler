@@ -40,7 +40,8 @@ class UsersImpl(
   val findAll: SearchByLabelProp[Obj] = searchIndex.create(at.asUser, at.location),
   val findAllActive: SearchByLabelProp[Obj] = searchIndex.create(at.asActiveUser, at.location),
   val findActiveByName: SearchByLabelProp[String] = searchIndex.create(at.asActiveUser, at.username)
-) extends Users with CoHandlerProvider {
+) extends UsersI with CoHandlerProvider {
+  def aAuthenticatedUser: Attr[Obj] = at.authenticatedUser
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   private def encryptPassword(objId: ObjId, username: String, pw: String): UUID = {
     val buffer = ByteBuffer.allocate(256)

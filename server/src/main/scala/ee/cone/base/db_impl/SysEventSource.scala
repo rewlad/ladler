@@ -3,6 +3,7 @@ package ee.cone.base.db_impl
 import java.util.UUID
 
 import ee.cone.base.connection_api._
+import ee.cone.base.db._
 import ee.cone.base.util.{Never, Single}
 
 //! lost calc-s
@@ -12,8 +13,8 @@ import ee.cone.base.util.{Never, Single}
 // apply handling, notify
 
 class EventSourceAttrsImpl(
-  objIdFactory: ObjIdFactory,
-  attr: AttrFactory,
+  objIdFactory: ObjIdFactoryI,
+  attr: AttrFactoryI,
   label: LabelFactory,
   asObj: AttrValueType[Obj],
   asDBObjId:  AttrValueType[ObjId],
@@ -44,9 +45,9 @@ class EventSourceOperationsImpl(
   at: EventSourceAttrsImpl,
   nodeAttrs: NodeAttrs,
   sysAttrs: FindAttrs,
-  factIndex: FactIndex, //u
+  factIndex: FactIndexI, //u
   nodeHandlerLists: CoHandlerLists, //u
-  findNodes: FindNodes,
+  findNodes: FindNodesI,
   instantTx: CurrentTx[InstantEnvKey], //u
   mainTx: CurrentTx[MainEnvKey], //u
   searchIndex: SearchIndex,

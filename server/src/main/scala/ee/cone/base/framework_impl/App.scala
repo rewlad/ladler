@@ -3,7 +3,6 @@ package ee.cone.base.framework_impl
 
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
-import ee.cone.base.server.SenderOfConnection
 import ee.cone.base.util.Never
 import ee.cone.base.vdom._
 

@@ -6,8 +6,8 @@ case class OrderByAttrValueType[Value](asType: AttrValueType[Value]) extends Eve
 
 class ObjOrderingFactoryImpl(
   handlerLists: CoHandlerLists,
-  attrFactory: AttrFactory
-) extends ObjOrderingFactory {
+  attrFactory: AttrFactoryI
+) extends ObjOrderingFactoryI {
   def ordering[Value](attr: Attr[Value], reverse: Boolean) = {
     val orderingForType = ordering(attrFactory.valueType(attr))
     orderingForType.map(ord⇒Ordering.by[Obj,Value](_(attr))(ord))

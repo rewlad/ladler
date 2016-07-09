@@ -1,12 +1,14 @@
 package ee.cone.base.db_impl
 
 import ee.cone.base.connection_api.{Attr, BaseCoHandler, CoHandler, Obj}
+import ee.cone.base.db.{InheritAttrRule, MainEnvKey, CurrentTx,
+SearchByLabelProp}
 
-class InheritAttrRule(
-  attrFactory: AttrFactory,
-  findNodes: FindNodes,
+class InheritAttrRuleImpl(
+  attrFactory: AttrFactoryI,
+  findNodes: FindNodesI,
   mainTx: CurrentTx[MainEnvKey]
-) {
+) extends InheritAttrRule {
   def apply[Value](fromAttr: Attr[Value], toAttr: Attr[Value], byIndex: SearchByLabelProp[Obj]): List[BaseCoHandler] = {
     def copy(fromObj: Obj, toObj: Obj): Unit = toObj(toAttr) = fromObj(fromAttr)
     CoHandler(AfterUpdate(attrFactory.attrId(fromAttr)))(fromObj ⇒

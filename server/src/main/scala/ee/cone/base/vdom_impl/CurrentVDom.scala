@@ -4,7 +4,7 @@ import java.util.{Base64, UUID}
 
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, Single, UTF8String}
-import ee.cone.base.vdom.{ChildPair, ChildPairFactory, JsonBuilder, VDomValue}
+import ee.cone.base.vdom._
 
 class CurrentVDom(
   handlerLists: CoHandlerLists,
@@ -52,7 +52,7 @@ class CurrentVDom(
     if(vDom != wasNoValue) Nil else {
       until = Long.MaxValue
       vDom =
-        child("root", RootElement(rootAttributes), view(hashForView,"")).value
+        child("root", RootElement(rootAttributes), view(hashForView,"")).asInstanceOf[VPair].value
       diff.diff(vDom).map(d=>("showDiff", jsonToString(d))).toList :::
         (if(hashFromAlien==hashForView) Nil else ("relocateHash",hashForView) :: Nil)
     }

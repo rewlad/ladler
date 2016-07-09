@@ -9,4 +9,5 @@ trait VDomConnectionMix extends CoMixBase {
     new CurrentVDom(handlerLists,diff,JsonToStringImpl,WasNoValueImpl,childPairFactory)
   lazy val tagJsonUtils = TagJsonUtilsImpl
   lazy val tags = new TagsImpl(childPairFactory,tagJsonUtils)
+  lazy val tagStyles = new TagStylesImpl
 }

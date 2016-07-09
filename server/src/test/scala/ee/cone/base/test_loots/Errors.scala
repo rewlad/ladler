@@ -2,6 +2,7 @@ package ee.cone.base.test_loots
 
 import ee.cone.base.connection_api.{AttrCaption, _}
 import ee.cone.base.db._
+import ee.cone.base.framework.Users
 
 class ErrorAttributes(
   attr: AttrFactory,

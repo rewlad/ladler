@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 import java.util.UUID
 
 import ee.cone.base.connection_api.{Attr, AttrValueType, ObjId}
+import ee.cone.base.db.NodeAttrs
 import ee.cone.base.util.Never
 
 case object NoObjId extends ObjId {
@@ -15,7 +16,7 @@ case class ObjIdImpl(hi: Long, lo: Long) extends ObjId {
   def nonEmpty = true
   override def toString = if(hi==0) super.toString else new UUID(hi,lo).toString
 }
-class ObjIdFactoryImpl extends ObjIdFactory {
+class ObjIdFactoryImpl extends ObjIdFactoryI {
   def noObjId = NoObjId
   def toObjId(hiObjId: Long, loObjId: Long) = new ObjIdImpl(hiObjId, loObjId)
   def toObjId(uuid: UUID): ObjId =
@@ -29,6 +30,6 @@ class ObjIdFactoryImpl extends ObjIdFactory {
   def toUUIDString(objId: ObjId) = new UUID(objId.hi,objId.lo).toString
 }
 
-class NodeAttrsImpl(attr: AttrFactory, asDBNode: AttrValueType[ObjId])(
+class NodeAttrsImpl(attr: AttrFactoryI, asDBNode: AttrValueType[ObjId])(
   val objId: Attr[ObjId] = attr("848ca1e3-e36b-4f9b-a39d-bd6b1d9bad98", asDBNode)
 ) extends NodeAttrs

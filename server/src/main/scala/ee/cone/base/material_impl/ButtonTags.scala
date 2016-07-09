@@ -1,5 +1,6 @@
 package ee.cone.base.material_impl
 
+import ee.cone.base.material.ButtonTags
 import ee.cone.base.vdom.Types._
 import ee.cone.base.vdom.{TagName, _}
 

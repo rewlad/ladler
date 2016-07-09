@@ -3,10 +3,11 @@ package ee.cone.base.test_loots // to app
 
 import ee.cone.base.connection_api.{CoHandler, CoHandlerProvider, FieldAttributes, Obj}
 import ee.cone.base.db._
+import ee.cone.base.framework.{ErrorListView, DataTableUtils, Users}
 import ee.cone.base.material.{MaterialTags, MenuItems, OptionTags, TableUtilTags}
 import ee.cone.base.vdom._
 
-class ErrorListView(
+class ErrorListViewImpl(
   attrFactory: AttrFactory,
   filterObjFactory: FilterObjFactory,
   listedFactory: IndexedObjCollectionFactory,
@@ -18,14 +19,14 @@ class ErrorListView(
   divTags: Tags,
   style: TagStyles,
   htmlTable: TableTags,
-  tableUtils: MaterialDataTableUtils,
+  tableUtils: DataTableUtils,
   fields: Fields,
   fieldAttributes: FieldAttributes,
 
   optionTags: OptionTags,
   materialTags: MaterialTags,
   tableUtilTags: TableUtilTags
-) extends CoHandlerProvider {
+) extends ErrorListView with CoHandlerProvider {
   import divTags._
   import htmlTable._
   import materialTags._

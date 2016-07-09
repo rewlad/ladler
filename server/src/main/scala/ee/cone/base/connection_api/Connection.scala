@@ -60,6 +60,10 @@ case object FailEventKey extends EventKey[Exception=>Unit]
 
 case object SwitchSession extends EventKey[UUID=>Unit]
 
+trait SenderOfConnection {
+  def sendToAlien(event: String, data: String): Unit
+}
+
 // exchange with alien (user agent)
 case object FromAlienDictMessage extends EventKey[DictMessage=>Unit]
 case class DictMessage(value: Map[String,String])

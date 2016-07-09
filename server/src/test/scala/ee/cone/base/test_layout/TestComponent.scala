@@ -12,16 +12,16 @@ class TestComponent(
   import flexTags._
   import materialTags._
   private def emptyView(pf: String) =
-    root(text("text", "Loading...") :: Nil)
+    List(text("text", "Loading..."))
   private def testView(pf: String) =
-    root(
+    List(
       paper("1",
         flexGrid("1",
           flexItem("2", 200, Some(300), paper("1", text("1", "content:ahaha1") :: Nil) :: Nil) ::
           flexItem("3", 900, Some(1000), paper("1", text("1", "content:ahaha2") :: Nil) :: Nil) ::
           Nil
         ) :: Nil
-      ) :: Nil
+      )
     )
 
 

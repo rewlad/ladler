@@ -1,7 +1,7 @@
 
 package ee.cone.base.vdom
 
-import ee.cone.base.connection_api.EventKey
+//import ee.cone.base.connection_api.EventKey
 import ee.cone.base.vdom.Types._
 
 trait ToJson {
@@ -46,10 +46,7 @@ trait Color {
   def value: String
 }
 
-trait OfDiv
-
 ////
-case class ViewPath(path: String) extends EventKey[String=>List[ChildPair[_]]]
 
 trait CurrentView {
   def invalidate(): Unit
