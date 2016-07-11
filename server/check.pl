@@ -11,7 +11,7 @@ my $check = sub{
         my $def_place = @def == 1 ? $def[0] : die $symbol, @def+0;
         for my $use_place(sort keys %{$$in{$symbol}{'use'}||next}){
             $def_place eq $use_place and next;
-            $def_place=~/(Api|_api|\butil)/ || $use_place=~/(Mix|_mix)/ and next;
+            #$def_place=~/(Api|_api|\butil)/ || $use_place=~/(Mix|_mix)/ and next;
             print "$symbol: $def_place -> $use_place\n";
         }
     }
@@ -27,18 +27,34 @@ for my $pkg_dir(sort <$src_prefix*>){
         close SRC or die;
 
         my $src_abbr = $src_path=~/(\w+)\.scala$/ ? $1 : die;
-        $content=~s{\b(class|object|trait)\s+(\w+)}{
-            $locals{$2}{def}{$src_abbr}++;
-            ""
-        }egs;
-        $locals{$_}{'use'}{$src_abbr}++ for $content=~/(\w+)/g;
+        my $pf = $src_abbr=~/(I|Mix)$/ ? $1 : "";
 
-        $globals{$pkg_abbr}{def}{$pkg_abbr}++;
-        $content=~s{\bimport\s+io\.github\.rewlad\.ladler\.(\w+)}{
-            $globals{$1}{'use'}{$pkg_abbr}++;
+        if($pkg_abbr=~/_impl$/){
+
+            if($pf ne "I"){
+                $content=~s{\b(class|object|trait)\s+(\w+)}{
+                    $locals{$2}{def}{$src_abbr}++;
+                    ""
+                }egs;
+            }
+            if($pf ne "Mix"){
+                $locals{$_}{'use'}{$src_abbr}++ for $content=~/(\w+)/g;
+            }
+        }
+
+        $content=~s{\bimport\s+ee\.cone\.base\.(\w+)}{
+            my $c = $1;
+            $c eq $pkg_abbr ||
+            "$c\_impl" eq $pkg_abbr ||
+            $globals{"$1 in $pkg_abbr$pf"}++;
             ""
         }egs;
     }
     &$check(\%locals);
 }
-&$check(\%globals);
+for(sort keys %globals){
+    print "$_\n"
+}
+
+
+#&$check(\%globals);
