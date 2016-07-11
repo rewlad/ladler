@@ -12,8 +12,10 @@ class UserListViewImpl(
   filterObjFactory: FilterObjFactory,
   listedFactory: IndexedObjCollectionFactory,
   itemListOrderingFactory: ItemListOrderingFactory,
-  userAttrs: UserAttributes,
+
+  at: UserAttributes,
   users: UsersI,
+
   currentVDom: CurrentView,
   style: TagStyles,
   divTags: Tags,
@@ -39,13 +41,13 @@ class UserListViewImpl(
     if(!users.needToLogIn) return Nil
     val showLabel = true
 
-    val dialog = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asActiveUser)))
+    val dialog = filterObjFactory.create(List(attrFactory.attrId(at.asActiveUser)))
     List(
       helmet("Login"),
       div("1", style.maxWidth(400), style.marginLeftAuto, style.marginRightAuto)(List(
         paperWithMargin("login",
-          div("1")(field(dialog, userAttrs.username, showLabel, IsPersonFieldOption)),
-          div("2")(field(dialog, userAttrs.unEncryptedPassword, showLabel, DeferSendFieldOption(false), IsPasswordFieldOption)),
+          div("1")(field(dialog, at.username, showLabel, IsPersonFieldOption)),
+          div("2")(field(dialog, at.unEncryptedPassword, showLabel, DeferSendFieldOption(false), IsPasswordFieldOption)),
           div("3",style.alignRight,style.alignTop)(users.loginAction(dialog).map(raisedButton("login","LOGIN")(_)).toList)
         )
       ))
@@ -53,7 +55,7 @@ class UserListViewImpl(
   }
 
   private def view(pf: String) = wrap { () =>
-    val filterObj = filterObjFactory.create(List(attrFactory.attrId(userAttrs.asUser)))
+    val filterObj = filterObjFactory.create(List(attrFactory.attrId(at.asUser)))
     val listed = listedFactory.create(users.findAll, users.world)
     val userList = createItemList(listed, filterObj, Nil, editable = true) //todo roles
     val itemListOrdering = itemListOrderingFactory.itemList(filterObj)
@@ -66,14 +68,14 @@ class UserListViewImpl(
           selectAllGroup(userList) :::
             List(
               group("2_grp", MinWidth(300))(Nil),
-              cell("1",MinWidth(250))(_⇒sortingHeader(itemListOrdering,userAttrs.fullName)),
-              cell("2",MinWidth(250))(_⇒sortingHeader(itemListOrdering,userAttrs.username)),
-              cell("3",MinWidth(100),MaxWidth(150))(_⇒sortingHeader(itemListOrdering,userAttrs.asActiveUser))
+              cell("1",MinWidth(250))(_⇒sortingHeader(itemListOrdering,at.fullName)),
+              cell("2",MinWidth(250))(_⇒sortingHeader(itemListOrdering,at.username)),
+              cell("3",MinWidth(100),MaxWidth(150))(_⇒sortingHeader(itemListOrdering,at.asActiveUser))
             ) :::
             (if(showPasswordCols) List(
               group("3_grp",MinWidth(150))(Nil),
-              cell("4",MinWidth(150))(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPassword)),
-              cell("5",MinWidth(150))(_⇒sortingHeader(itemListOrdering,userAttrs.unEncryptedPasswordAgain)),
+              cell("4",MinWidth(150))(_⇒sortingHeader(itemListOrdering,at.unEncryptedPassword)),
+              cell("5",MinWidth(150))(_⇒sortingHeader(itemListOrdering,at.unEncryptedPasswordAgain)),
               cell("6",MinWidth(150))(_⇒Nil)
             ) else Nil) :::
             editAllGroup()
@@ -84,16 +86,16 @@ class UserListViewImpl(
               selectRowGroup(user) :::
                 List(
                   group("2_grp", MinWidth(300))(Nil),
-                  cell("1",MinWidth(250))(showLabel⇒field(user, userAttrs.fullName, showLabel)),
-                  cell("2",MinWidth(250))(showLabel⇒field(user, userAttrs.username, showLabel, IsPersonFieldOption)),
+                  cell("1",MinWidth(250))(showLabel⇒field(user, at.fullName, showLabel)),
+                  cell("2",MinWidth(250))(showLabel⇒field(user, at.username, showLabel, IsPersonFieldOption)),
                   cell("3",MinWidth(100),MaxWidth(150)) { showLabel ⇒
-                    if (user(userAttrs.asActiveUser)(aNonEmpty)) List(materialChip("0", "Active")(None)) else Nil
+                    if (user(at.asActiveUser)(aNonEmpty)) List(materialChip("0", "Active")(None)) else Nil
                   }
                 ) :::
                 (if(showPasswordCols) List(
                   group("3_grp",MinWidth(150))(Nil),
-                  cell("4",MinWidth(150))(showLabel⇒field(user, userAttrs.unEncryptedPassword, showLabel, DeferSendFieldOption(false), IsPasswordFieldOption)),
-                  cell("5",MinWidth(150))(showLabel⇒field(user, userAttrs.unEncryptedPasswordAgain, showLabel, DeferSendFieldOption(false), IsPasswordFieldOption)),
+                  cell("4",MinWidth(150))(showLabel⇒field(user, at.unEncryptedPassword, showLabel, DeferSendFieldOption(false), IsPasswordFieldOption)),
+                  cell("5",MinWidth(150))(showLabel⇒field(user, at.unEncryptedPasswordAgain, showLabel, DeferSendFieldOption(false), IsPasswordFieldOption)),
                   cell("6",MinWidth(150)) { _ =>
                     users.changePasswordAction(user).map(
                       raisedButton("doChange", "Change Password")(_)

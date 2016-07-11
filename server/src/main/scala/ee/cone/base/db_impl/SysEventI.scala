@@ -3,24 +3,7 @@ package ee.cone.base.db_impl
 import java.util.UUID
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db.{SearchByLabelProp, SessionEventSourceOperations}
-import ee.cone.base.db.Types._
-
-trait SessionState {
-  def sessionKey: UUID
-}
-
-////
-
-case class ApplyEvent(attrId: ObjId) extends EventKey[Obj=>Unit]
-
-
-
-/*
-trait Ref[Value] {
-  def apply(): Value
-  def update(value: Value): Unit
-}*/
+import ee.cone.base.db.SearchByLabelProp
 
 trait EventSourceOperations {
   def undo(ev: Obj): Unit

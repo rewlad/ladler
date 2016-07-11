@@ -16,29 +16,27 @@ class EventSourceAttrsImpl(
   objIdFactory: ObjIdFactoryI,
   attr: AttrFactoryI,
   label: LabelFactory,
-  asObj: AttrValueType[Obj],
   asDBObjId:  AttrValueType[ObjId],
-  asUUID: AttrValueType[Option[UUID]],
-  asString: AttrValueType[String]
+  vType: BasicValueTypes
 ) (
   val mainSeqObjId: ObjId = objIdFactory.toObjId("270500fe-42f7-4498-ae56-2e836dcda159"),
-  val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", asObj),
+  val seq: Attr[Obj] = attr("a6479f10-5a99-47d1-a6e9-2c1713b44e3a", vType.asObj),
   val asInstantSession: Attr[Obj] = label("b11bfecb-d53d-4577-870d-d499fbd4d9d3"),
-  val sessionKey: Attr[Option[UUID]] = attr("f7d2a81f-ed6b-46c3-b87b-8290f5ef8942", asUUID),
+  val sessionKey: Attr[Option[UUID]] = attr("f7d2a81f-ed6b-46c3-b87b-8290f5ef8942", vType.asUUID),
   val asMainSession: Attr[Obj] = label("c4e3189a-956e-4b0c-af03-3af6889ea694"),
-  val instantSession: Attr[Obj] = attr("b68c7cb8-f703-4f80-8d40-b4cb818b3619", asObj),
-  val lastMergedEvent: Attr[Obj] = attr("50469df3-d7e6-4903-9709-7489cd9f3ecc", asObj),
+  val instantSession: Attr[Obj] = attr("b68c7cb8-f703-4f80-8d40-b4cb818b3619", vType.asObj),
+  val lastMergedEvent: Attr[Obj] = attr("50469df3-d7e6-4903-9709-7489cd9f3ecc", vType.asObj),
   val asEvent: Attr[Obj] = label("cf91649f-c7c0-40c7-bfa0-c3165308cfb3"),
-  val lastAppliedEvent: Attr[Obj] = attr("771c667e-a78d-46cd-b41d-0e4b16e7721a", asObj),
-  val statesAbout: Attr[Obj] = attr("6da732c4-d255-464b-8047-d8515da58d40", asObj),
+  val lastAppliedEvent: Attr[Obj] = attr("771c667e-a78d-46cd-b41d-0e4b16e7721a", vType.asObj),
+  val statesAbout: Attr[Obj] = attr("6da732c4-d255-464b-8047-d8515da58d40", vType.asObj),
   val asUndo: Attr[Obj] = label("d46a9cee-6d55-4d3c-aceb-6af11b8a9c0e"),
   val asCommit: Attr[Obj] = label("091ffe85-2317-47e1-91da-59bcd221a480"),
-  val lastMergedRequest: Attr[Obj] = attr("9b1e43fc-a60d-4f41-96bc-6504eb0ccb80", asObj),
+  val lastMergedRequest: Attr[Obj] = attr("9b1e43fc-a60d-4f41-96bc-6504eb0ccb80", vType.asObj),
   val requested: ObjId = objIdFactory.toObjId("55b09b31-3af4-402e-963b-522f71646e9e"),
   //0x001C
   val applyAttr: Attr[ObjId] = attr("a105c5e0-aaee-41ca-8f8a-5d4328594670", asDBObjId),
-  val mainSession: Attr[Obj] = attr("363bb985-aa39-48bf-a866-e74dd3584056", asObj),
-  val location: Attr[Obj] = attr("98f88387-b656-4e70-b9e9-371382f46673", asObj)
+  val mainSession: Attr[Obj] = attr("363bb985-aa39-48bf-a866-e74dd3584056", vType.asObj),
+  val location: Attr[Obj] = attr("98f88387-b656-4e70-b9e9-371382f46673", vType.asObj)
 ) extends SessionEventSourceAttrs
 
 class EventSourceOperationsImpl(

@@ -12,7 +12,6 @@ import ee.cone.base.vdom.Types._
 class DataTableUtilsImpl(
   handlerLists: CoHandlerLists,
   objOrderingFactory: ObjOrderingFactory,
-  uiStrings: UIStrings,
   listAttrs: ObjSelectionAttributes,
   editing: Editing,
   selectedFactory: ObjSelectionFactory,

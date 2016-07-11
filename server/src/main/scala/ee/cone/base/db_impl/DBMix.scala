@@ -63,16 +63,9 @@ trait DBConnectionMix extends CoMixBase {
   lazy val unique = new UniqueImpl(attrFactory, factIndex, txSelector, preCommitCheckCheckAll, searchIndex, findNodes)
   lazy val inheritAttrRule = new InheritAttrRuleImpl(attrFactory,findNodes,mainTx)
 
-  lazy val asString = AttrValueType[String](objIdFactory.toObjId("1e94f9bc-a34d-4fab-8a01-eb3dd98795d2"))
-  lazy val asDBObj = AttrValueType[Obj](objIdFactory.toObjId("275701ec-cb9b-4474-82e6-69f2e1f28c87"))
-  lazy val asUUID = AttrValueType[Option[UUID]](objIdFactory.toObjId("13c5769d-f120-4a1a-9fce-c56df8835f08"))
-  lazy val asBoolean = AttrValueType[Boolean](objIdFactory.toObjId("fa03f6f1-90ef-460d-a4dd-2279269a4d79"))
-  lazy val asBigDecimal = new AttrValueType[Option[BigDecimal]](objIdFactory.toObjId("4d5894bc-e913-4d90-8b7f-32bd1d3893ea"))
-  lazy val asInstant = AttrValueType[Option[Instant]](objIdFactory.toObjId("ce152d2d-d783-439f-a21b-e175663f2650"))
-  lazy val asDuration = AttrValueType[Option[Duration]](objIdFactory.toObjId("356068df-ac9d-44cf-871b-036fa0ac05ad"))
-  lazy val asLocalTime = AttrValueType[Option[LocalTime]](objIdFactory.toObjId("8489d9a9-37ec-4206-be73-89287d0282e3"))
+  lazy val basicValueTypes = new BasicValueTypesImpl(objIdFactory)()
 
-  lazy val labelFactory = new LabelFactoryImpl(attrFactory,asDBObj)
+  lazy val labelFactory = new LabelFactoryImpl(attrFactory,basicValueTypes)
 
   lazy val objOrderingFactory = new ObjOrderingFactoryImpl(handlerLists, attrFactory)
 
@@ -81,34 +74,34 @@ trait DBConnectionMix extends CoMixBase {
 
   // Sys
   lazy val eventSourceAttrs =
-    new EventSourceAttrsImpl(objIdFactory,attrFactory,labelFactory,asDBObj,asDBObjId,asUUID,asString)()
+    new EventSourceAttrsImpl(objIdFactory,attrFactory,labelFactory,asDBObjId,basicValueTypes)()
   lazy val eventSourceOperations =
     new EventSourceOperationsImpl(eventSourceAttrs,nodeAttrs,findAttrs,factIndex,handlerLists,findNodes,instantTx,mainTx,searchIndex,mandatory)()
 
   lazy val transient = new TransientImpl(handlerLists, attrFactory, dbWrapType)
 
-  lazy val alienAttributes = new AlienAttributesImpl(objIdFactory, attrFactory, asDBObj, asString, asBoolean, asInstant)()
+  lazy val alienAttributes = new AlienAttributesImpl(objIdFactory, attrFactory, basicValueTypes)()
   lazy val alienWrapType = new AlienWrapType
   lazy val demandedWrapType = new DemandedWrapType
-  lazy val alien = new AlienImpl(alienAttributes,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,objIdFactory,asDBObj,asString,transient)
+  lazy val alien = new AlienImpl(alienAttributes,nodeAttrs,attrFactory,handlerLists,findNodes,mainTx,factIndex,alienWrapType,demandedWrapType,objIdFactory,basicValueTypes,transient)
 
-  lazy val objOrderingForAttrValueTypes = new ObjOrderingForAttrValueTypes(handlerLists, objOrderingFactory, asBoolean, asString, asDBObj, asInstant, asLocalTime, asBigDecimal)
+  lazy val objOrderingForAttrValueTypes = new ObjOrderingForAttrValueTypes(handlerLists, objOrderingFactory, basicValueTypes)
 
   // converters
   lazy val definedValueConverter = new DefinedValueConverter(asDefined, rawConverter)
-  lazy val booleanValueConverter = new BooleanValueConverter(asBoolean, asString, rawConverter)
-  lazy val dbObjValueConverter = new DBObjValueConverter(asDBObj,dbObjIdValueConverter,findNodes,nodeAttrs)
-  lazy val uuidValueConverter = new UUIDValueConverter(asUUID,asString,rawConverter)
-  lazy val stringValueConverter = new StringValueConverter(asString,rawConverter)
-  lazy val bigDecimalValueConverter = new BigDecimalValueConverter(asBigDecimal,rawConverter,asString)
+  lazy val booleanValueConverter = new BooleanValueConverter(basicValueTypes, rawConverter)
+  lazy val dbObjValueConverter = new DBObjValueConverter(basicValueTypes,dbObjIdValueConverter,findNodes,nodeAttrs)
+  lazy val uuidValueConverter = new UUIDValueConverter(basicValueTypes,rawConverter)
+  lazy val stringValueConverter = new StringValueConverter(basicValueTypes,rawConverter)
+  lazy val bigDecimalValueConverter = new BigDecimalValueConverter(basicValueTypes,rawConverter)
   lazy val zoneIds = new ZoneIdsImpl
-  lazy val instantValueConverter = new InstantValueConverter(asInstant,rawConverter,asString,zoneIds)
-  lazy val durationValueConverter = new DurationValueConverter(asDuration,rawConverter,asString)
-  lazy val localTimeValueConverter = new LocalTimeValueConverter(asLocalTime,rawConverter,asString)
+  lazy val instantValueConverter = new InstantValueConverter(basicValueTypes,rawConverter,zoneIds)
+  lazy val durationValueConverter = new DurationValueConverter(basicValueTypes,rawConverter)
+  lazy val localTimeValueConverter = new LocalTimeValueConverter(basicValueTypes,rawConverter)
 
   // VM
-  lazy val uiStringAttributes = new UIStringAttributes(attrFactory, asString)()
-  lazy val uiStrings = new UIStringsImpl(uiStringAttributes, nodeAttrs, handlerLists, objIdFactory, attrFactory, factIndex, onUpdate, findNodes, asDBObj, asDBObjId, asString, asUUID)
+  lazy val uiStringAttributes = new UIStringAttributes(attrFactory, basicValueTypes)()
+  lazy val uiStrings = new UIStringsImpl(uiStringAttributes, nodeAttrs, handlerLists, objIdFactory, attrFactory, factIndex, onUpdate, findNodes, asDBObjId, basicValueTypes)
   lazy val asObjValidation = AttrValueType[ObjValidation](objIdFactory.toObjId("f3ef68d8-60d3-4811-9db1-d187228feb89"))
   lazy val validationAttributes = new ValidationAttributesImpl(attrFactory,asObjValidation)()
   lazy val validationWrapType = new ValidationWrapType
@@ -118,16 +111,21 @@ trait DBConnectionMix extends CoMixBase {
   lazy val filterAttributes = new FilterAttributes(attrFactory, labelFactory, asDBObjId)()
   lazy val filterObjFactory = new FilterObjFactoryImpl(filterAttributes, nodeAttrs, handlerLists, factIndex, searchIndex, alien, lazyObjFactory)()
 
-  lazy val orderingAttributes = new ItemListOrderingAttributes(attrFactory, asBoolean, asDBObjId)()
+  lazy val orderingAttributes = new ItemListOrderingAttributes(attrFactory, asDBObjId, basicValueTypes)()
   lazy val itemListOrderingFactory = new ItemListOrderingFactoryImpl(orderingAttributes, attrFactory, alien, objOrderingFactory)
 
   lazy val asObjIdSet = AttrValueType[Set[ObjId]](objIdFactory.toObjId("ca3fd9c9-870f-4604-8fe2-a6ae98b37c29"))
   lazy val objIdSetValueConverter = new ObjIdSetValueConverter(asObjIdSet,rawConverter,objIdFactory)
   lazy val listedWrapType = new ListedWrapType
   lazy val editing = new EditingImpl(nodeAttrs,objIdFactory,alienAttributes,alien,dbWrapType)()
-  lazy val itemListAttributes = new ObjSelectionAttributesImpl(attrFactory, asBoolean, asDBObjId, asObjIdSet, asInstant)()
+  lazy val itemListAttributes = new ObjSelectionAttributesImpl(attrFactory, asDBObjId, basicValueTypes, asObjIdSet)()
 
   lazy val indexedObjCollectionFactory = new IndexedObjCollectionFactoryImpl(attrFactory,findNodes,mainTx)
+
+  lazy val objSelectionAttributes = new ObjSelectionAttributesImpl(attrFactory,asDBObjId,basicValueTypes,asObjIdSet)()
+  lazy val objSelectionFactory = new ObjSelectionFactoryImpl(
+    objSelectionAttributes,nodeAttrs,objIdFactory,findNodes,transient,alien,listedWrapType
+  )
 }
 
 trait MergerDBConnectionMix extends DBConnectionMix {

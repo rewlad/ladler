@@ -1,4 +1,4 @@
-package ee.cone.base.vdom
+package ee.cone.base.vdom_impl
 
 object JSONTest extends App {
   val builder = new JsonBuilderImpl()

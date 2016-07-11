@@ -9,14 +9,14 @@ import ee.cone.base.util.Never
 
 abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValue] with CoHandlerProvider {
   type Value = IValue
+  def valueTypes: BasicValueTypes
   def valueType: AttrValueType[Value]
-  def asString: AttrValueType[String]
   def toUIString(value: Value): String
   def fromUIString(value: String): Value
   def handlers = List(
     CoHandler(ToRawValueConverter(valueType))(this),
-    CoHandler(ConverterKey(valueType,asString))(toUIString),
-    CoHandler(ConverterKey(asString,valueType))(fromUIString)
+    CoHandler(ConverterKey(valueType,valueTypes.asString))(toUIString),
+    CoHandler(ConverterKey(valueTypes.asString,valueType))(fromUIString)
   )
   protected def zeroPad2(x: String) = x.length match {
     case 0 ⇒ "00"
@@ -30,8 +30,9 @@ abstract class TimeRawValueConverterImpl[IValue] extends RawValueConverter[IValu
 }
 
 class DurationValueConverter(
-  val valueType: AttrValueType[Option[Duration]], inner: RawConverter, val asString: AttrValueType[String]
+  val valueTypes: BasicValueTypes, inner: RawConverter
 ) extends TimeRawValueConverterImpl[Option[Duration]] {
+  def valueType = valueTypes.asDuration
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(Duration.ofSeconds(valueA,valueB))
   def convert(value: String) = Never()
@@ -45,8 +46,9 @@ class DurationValueConverter(
 }
 
 class InstantValueConverter(
-  val valueType: AttrValueType[Option[Instant]], inner: RawConverter, val asString: AttrValueType[String], zoneIds: ZoneIds
+  val valueTypes: BasicValueTypes, inner: RawConverter, zoneIds: ZoneIds
 ) extends TimeRawValueConverterImpl[Option[Instant]] {
+  def valueType = valueTypes.asInstant
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(Instant.ofEpochSecond(valueA,valueB))
   def convert(value: String) = Never()
@@ -71,8 +73,9 @@ class ZoneIdsImpl extends ZoneIds {
 }
 
 class LocalTimeValueConverter(
-  val valueType: AttrValueType[Option[LocalTime]], inner: RawConverter, val asString: AttrValueType[String]
+  val valueTypes: BasicValueTypes, inner: RawConverter
 ) extends TimeRawValueConverterImpl[Option[LocalTime]] {
+  def valueType = valueTypes.asLocalTime
   def convertEmpty()=None
   def convert(valueA: Long, valueB: Long) = {
     if(valueB != 0L) Never()

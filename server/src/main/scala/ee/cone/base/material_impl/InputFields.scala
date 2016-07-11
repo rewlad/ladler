@@ -25,13 +25,7 @@ class MaterialFields(
   style: TagStyles,
   optionTags: OptionTagsI,
   buttonTags: ButtonTags,
-  asDuration: AttrValueType[Option[Duration]],
-  asInstant: AttrValueType[Option[Instant]],
-  asLocalTime: AttrValueType[Option[LocalTime]],
-  asBigDecimal: AttrValueType[Option[BigDecimal]],
-  asDBObj: AttrValueType[Obj],
-  asString: AttrValueType[String],
-  asBoolean: AttrValueType[Boolean]
+  valueTypes: BasicValueTypes
 ) extends CoHandlerProvider {
   import fieldAttributes._
   import tags._
@@ -44,13 +38,13 @@ class MaterialFields(
   private def converter[From,To](from: AttrValueType[From], to: AttrValueType[To]): From⇒To =
     handlerLists.single(ConverterKey(from,to), ()⇒Never())
 
-  private def objCaption(obj: Obj) = converter(asDBObj, asString)(obj)
+  private def objCaption(obj: Obj) = converter(valueTypes.asObj, valueTypes.asString)(obj)
   private def objField(
     obj: Obj, attr: Attr[Obj], showLabel: Boolean, options: Seq[FieldOption]
   ): List[ChildPair[OfDiv]] = {
     val editable = getEditable(obj,options)
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val valueType = asDBObj
+    val valueType = valueTypes.asObj
     val vObj = obj(attr)
 
     val value = if(vObj(aNonEmpty)) objCaption(vObj) else ""
@@ -61,7 +55,7 @@ class MaterialFields(
 
     def items = handlerLists.single(AttrValueOptions(attr),()⇒Never())(obj)
     val input = inputField(
-      "1", visibleLabel, value, v => if(v.isEmpty) obj(attr) = converter(asString,valueType)(v),
+      "1", visibleLabel, value, v => if(v.isEmpty) obj(attr) = converter(valueTypes.asString,valueType)(v),
       deferSend = false, alignRight = false, getValidationKey(obj,attr)
     )
     val popup = (if(isOpened) items else Nil)
@@ -110,8 +104,8 @@ class MaterialFields(
   ): List[ChildPair[OfDiv]] = {
     val editable = getEditable(obj,options)
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val valueType = asDuration
-    val value = converter(valueType, asString)(obj(attr))
+    val valueType = valueTypes.asDuration
+    val value = converter(valueType, valueTypes.asString)(obj(attr))
     if(!editable) { return List(labeledText("1",visibleLabel,value,alignRight = true))}
 
     //val key = popupKey(obj,attr)
@@ -120,14 +114,14 @@ class MaterialFields(
     val btn = iconButton("btnClock","clock",IconActionSchedule)(popupToggle)
 
     val input = inputField(
-      "1", visibleLabel, value, v ⇒ obj(attr) = converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = converter(valueTypes.asString,valueType)(v),
       deferSend=true, alignRight=true, getValidationKey(obj,attr)
     )
 
     val popup = if(!isOpened) Nil else List(
       div("popup",style.minWidth(280))(List(
         clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
-          obj(attr) = converter(asString,valueType)(newVal)
+          obj(attr) = converter(valueTypes.asString,valueType)(newVal)
           popupToggle()
         })
       ))
@@ -144,8 +138,8 @@ class MaterialFields(
   ): List[ChildPair[OfDiv]] = {
     val editable = getEditable(obj,options)
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val valueType = asInstant
-    val value = converter(valueType, asString)(obj(attr))
+    val valueType = valueTypes.asInstant
+    val value = converter(valueType, valueTypes.asString)(obj(attr))
     if(!editable) { return List(labeledText("1", visibleLabel, value,alignRight = true))}
 
     //val key = popupKey(obj,attr)
@@ -161,13 +155,13 @@ class MaterialFields(
 
 
     val input = inputField(
-      "1", visibleLabel, value, v ⇒ obj(attr) = converter(asString, valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = converter(valueTypes.asString, valueType)(v),
       deferSend = true, alignRight = true, getValidationKey(obj, attr)
     )
 
     val popup = if (!isOpened) Nil
     else calendarDialog("calendar", value /*may be not 'value' later*/ , Some { newVal =>
-      obj(attr) = converter(asString, valueType)(newVal)
+      obj(attr) = converter(valueTypes.asString, valueType)(newVal)
       popupToggle()
     }) :: controlGrp :: Nil
     btnInputPopup(btn, input, popup)
@@ -179,15 +173,15 @@ class MaterialFields(
   ): List[ChildPair[OfDiv]] = {
     val editable = getEditable(obj,options)
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val valueType = asLocalTime
-    val value = converter(valueType, asString)(obj(attr))
+    val valueType = valueTypes.asLocalTime
+    val value = converter(valueType, valueTypes.asString)(obj(attr))
 
     if(!editable) { return List(labeledText("1", visibleLabel, value,alignRight = true))}
     val (isOpened, popupToggle) = attrPopupAction[Option[LocalTime]](obj,attr)
     val btn = iconButton("btnClock","clock",IconActionSchedule)(popupToggle)
 
     val input = inputField(
-      "1", visibleLabel, value, v ⇒ obj(attr) = converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = converter(valueTypes.asString,valueType)(v),
       deferSend=true, alignRight=true, getValidationKey(obj,attr)
     )
     val controlGrp = controlGroup(List(
@@ -199,7 +193,7 @@ class MaterialFields(
     val popup = if(!isOpened) Nil else List(
       div("popup",style.minWidth(280))(List(
         clockDialog("clock",value/*may be not 'value' later*/,Some{ newVal =>
-          obj(attr) = converter(asString,valueType)(newVal)
+          obj(attr) = converter(valueTypes.asString,valueType)(newVal)
           popupToggle()
         }),
         controlGrp
@@ -213,10 +207,10 @@ class MaterialFields(
   ) = {
     val editable = getEditable(obj,options)
     val visibleLabel = if(showLabel) caption(attr) else ""
-    val valueType = asBigDecimal
-    val value = converter(valueType, asString)(obj(attr))
+    val valueType = valueTypes.asBigDecimal
+    val value = converter(valueType, valueTypes.asString)(obj(attr))
     if(editable) List(inputField(
-      "1", visibleLabel, value, v ⇒ obj(attr) = converter(asString,valueType)(v),
+      "1", visibleLabel, value, v ⇒ obj(attr) = converter(valueTypes.asString,valueType)(v),
       deferSend(options), alignRight=true, getValidationKey(obj,attr)
     ))
     else if(value.nonEmpty) List(labeledText("1", visibleLabel, value,alignRight=true))
@@ -254,13 +248,13 @@ class MaterialFields(
   }
 
   def handlers = List(
-    CoHandler(ViewField(asBoolean))(booleanField),
-    CoHandler(ViewField(asString))(strField),
-    CoHandler(ViewField(asDuration))(durationField),
-    CoHandler(ViewField(asInstant))(dateField),
-    CoHandler(ViewField(asLocalTime))(timeField),
-    CoHandler(ViewField(asBigDecimal))(decimalField),
-    CoHandler(ViewField(asDBObj))(objField)
+    CoHandler(ViewField(valueTypes.asBoolean))(booleanField),
+    CoHandler(ViewField(valueTypes.asString))(strField),
+    CoHandler(ViewField(valueTypes.asDuration))(durationField),
+    CoHandler(ViewField(valueTypes.asInstant))(dateField),
+    CoHandler(ViewField(valueTypes.asLocalTime))(timeField),
+    CoHandler(ViewField(valueTypes.asBigDecimal))(decimalField),
+    CoHandler(ViewField(valueTypes.asObj))(objField)
   )
 
   ////////////////////

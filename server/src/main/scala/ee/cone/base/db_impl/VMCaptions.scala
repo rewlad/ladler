@@ -1,16 +1,14 @@
 package ee.cone.base.db_impl
 
-import java.util.UUID
-
 import ee.cone.base.connection_api._
 import ee.cone.base.db.{ObjIdCaption, UIStrings, OnUpdate, NodeAttrs}
 import ee.cone.base.util.Never
 
 class UIStringAttributes(
   attr: AttrFactoryI,
-  asString: AttrValueType[String]
+  valueTypes: BasicValueTypes
 )(
-  val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", asString)
+  val caption: Attr[String] = attr("2aec9be5-72b4-4983-b458-4f95318bfd2a", valueTypes.asString)
 )
 
 class UIStringsImpl(
@@ -22,18 +20,16 @@ class UIStringsImpl(
   factIndex: FactIndexI,
   onUpdate: OnUpdate,
   findNodes: FindNodesI,
-  asDBObj: AttrValueType[Obj],
   asObjId: AttrValueType[ObjId],
-  asString: AttrValueType[String],
-  asUUID: AttrValueType[Option[UUID]]
+  valueTypes: BasicValueTypes
 ) extends UIStrings with CoHandlerProvider {
   def handlers = factIndex.handlers(at.caption) :::
     List(
       CoHandler(ObjIdCaption(objIdFactory.noObjId))("(None)"),
-      CoHandler(ConverterKey(asDBObj,asString))(objToUIString),
-      CoHandler(ConverterKey(asObjId,asString))(objIdToUIString),
-      CoHandler(ConverterKey(asString,asDBObj))(stringToObj),
-      CoHandler(ConverterKey(asUUID,asString))(_⇒"...")
+      CoHandler(ConverterKey(valueTypes.asObj,valueTypes.asString))(objToUIString),
+      CoHandler(ConverterKey(asObjId,valueTypes.asString))(objIdToUIString),
+      CoHandler(ConverterKey(valueTypes.asString,valueTypes.asObj))(stringToObj),
+      CoHandler(ConverterKey(valueTypes.asUUID,valueTypes.asString))(_⇒"...")
     )
   private def stringToObj(value: String) = if(value.isEmpty) findNodes.noNode else Never()
   private def objIdToUIString(value: ObjId) = objToUIString(findNodes.whereObjId(value))

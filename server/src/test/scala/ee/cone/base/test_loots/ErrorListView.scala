@@ -12,20 +12,23 @@ class ErrorListViewImpl(
   filterObjFactory: FilterObjFactory,
   listedFactory: IndexedObjCollectionFactory,
   itemListOrderingFactory: ItemListOrderingFactory,
-  errorAttributes: ErrorAttributes,
-  errors: Errors,
-  users: Users,
+
   currentVDom: CurrentView,
   divTags: Tags,
   style: TagStyles,
+
+  materialTags: MaterialTags,
+  optionTags: OptionTags,
+  tableUtilTags: TableUtilTags,
+
   htmlTable: TableTags,
   tableUtils: DataTableUtils,
-  fields: Fields,
   fieldAttributes: FieldAttributes,
+  fields: Fields,
 
-  optionTags: OptionTags,
-  materialTags: MaterialTags,
-  tableUtilTags: TableUtilTags
+  errorAttributes: ErrorAttributes,
+  errors: Errors,
+  users: Users
 ) extends ErrorListView with CoHandlerProvider {
   import divTags._
   import htmlTable._

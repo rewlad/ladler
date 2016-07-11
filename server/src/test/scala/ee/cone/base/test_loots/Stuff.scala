@@ -16,58 +16,45 @@ import ee.cone.base.vdom._
 class BoatLogEntryAttributes(
   attr: AttrFactory,
   label: LabelFactory,
-
-  asObj: AttrValueType[Obj],
-  asString: AttrValueType[String],
-  asInstant: AttrValueType[Option[Instant]],
-  asLocalTime: AttrValueType[Option[LocalTime]],
-  asDuration: AttrValueType[Option[Duration]],
-  asBoolean: AttrValueType[Boolean]
+  valueTypes: BasicValueTypes
 )(
   val asEntry: Attr[Obj] = label("21f5378d-ee29-4603-bc12-eb5040287a0d"),
-  val boat: Attr[Obj] = attr("b65d201b-8b83-41cb-85a1-c0cb2b3f8b18", asObj),
-  val date: Attr[Option[Instant]] = attr("7680a4db-0a6a-45a3-bc92-c3c60db42ef9", asInstant),
-  val durationTotal: Attr[Option[Duration]] = attr("6678a3d1-9472-4dc5-b79c-e43121d2b704", asDuration),
+  val boat: Attr[Obj] = attr("b65d201b-8b83-41cb-85a1-c0cb2b3f8b18", valueTypes.asObj),
+  val date: Attr[Option[Instant]] = attr("7680a4db-0a6a-45a3-bc92-c3c60db42ef9", valueTypes.asInstant),
+  val durationTotal: Attr[Option[Duration]] = attr("6678a3d1-9472-4dc5-b79c-e43121d2b704", valueTypes.asDuration),
   val asConfirmed: Attr[Obj] = label("c54e4fd2-0989-4555-a8a5-be57589ff79d"),
-  val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", asObj),
-  val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", asInstant), //0x6709
-  val locationOfEntry: Attr[Obj] = attr("6ccde3e9-5522-4adb-9770-a1301506afd7",asObj),
+  val confirmedBy: Attr[Obj] = attr("36c892a2-b5af-4baa-b1fc-cbdf4b926579", valueTypes.asObj),
+  val confirmedOn: Attr[Option[Instant]] = attr("b10de024-1016-416c-8b6f-0620e4cad737", valueTypes.asInstant), //0x6709
+  val locationOfEntry: Attr[Obj] = attr("6ccde3e9-5522-4adb-9770-a1301506afd7",valueTypes.asObj),
 
-  val dateFrom: Attr[Option[Instant]] = attr("6e260496-9534-4ca1-97f6-6b234ef93a55", asInstant),
-  val dateTo: Attr[Option[Instant]] = attr("7bd7e2cb-d7fd-4b0f-b88b-b1e70dd609a1", asInstant),
-  val hideConfirmed: Attr[Boolean] = attr("d49d29e0-d797-413e-afc6-2f62b06840ca", asBoolean),
+  val dateFrom: Attr[Option[Instant]] = attr("6e260496-9534-4ca1-97f6-6b234ef93a55", valueTypes.asInstant),
+  val dateTo: Attr[Option[Instant]] = attr("7bd7e2cb-d7fd-4b0f-b88b-b1e70dd609a1", valueTypes.asInstant),
+  val hideConfirmed: Attr[Boolean] = attr("d49d29e0-d797-413e-afc6-2f62b06840ca", valueTypes.asBoolean),
 
   val asWork: Attr[Obj] = label("5cce1cf2-1793-4e54-8523-c810f7e5637a"),
-  val workStart: Attr[Option[LocalTime]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", asLocalTime),
-  val workStop: Attr[Option[LocalTime]] = attr("5259ef2d-f4de-47b7-bc61-0cfe33cb58d3", asLocalTime),
-  val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", asDuration),
-  val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", asString),
-  val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", asObj),
-  val workDate: Attr[Option[Instant]] = attr("e6df8fe4-86c7-4255-b93e-86de9a5a5d25", asInstant),
+  val workStart: Attr[Option[LocalTime]] = attr("41d0cbb8-56dd-44da-96a6-16dcc352ce99", valueTypes.asLocalTime),
+  val workStop: Attr[Option[LocalTime]] = attr("5259ef2d-f4de-47b7-bc61-0cfe33cb58d3", valueTypes.asLocalTime),
+  val workDuration: Attr[Option[Duration]] = attr("547917b2-7bb6-4240-9fba-06248109d3b6", valueTypes.asDuration),
+  val workComment: Attr[String] = attr("5cec443e-8396-4d7b-99c5-422a67d4b2fc", valueTypes.asString),
+  val entryOfWork: Attr[Obj] = attr("119b3788-e49a-451d-855a-420e2d49e476", valueTypes.asObj),
+  val workDate: Attr[Option[Instant]] = attr("e6df8fe4-86c7-4255-b93e-86de9a5a5d25", valueTypes.asInstant),
 
   val asBoat: Attr[Obj] = label("c6b74554-4d05-4bf7-8e8b-b06b6f64d5e2"),
-  val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", asString),
-  val locationOfBoat: Attr[Obj] = attr("0924571d-e8c6-4d62-ac50-2c4404e7fc6e",asObj)
+  val boatName: Attr[String] = attr("7cb71f3e-e8c9-4f11-bfb7-f1d0ff624f09", valueTypes.asString),
+  val locationOfBoat: Attr[Obj] = attr("0924571d-e8c6-4d62-ac50-2c4404e7fc6e",valueTypes.asObj)
 )
 
 class TestComponent(
   handlerLists: CoHandlerLists,
+
   nodeAttrs: NodeAttrs,
-  logAt: BoatLogEntryAttributes,
-  fuelingAttrs: FuelingAttrs,
-  validationAttrs: ValidationAttributes,
+  objIdFactory: ObjIdFactory,
   attrFactory: AttrFactory,
   findNodes: FindNodes,
   alien: Alien,
   onUpdate: OnUpdate,
-  divTags: Tags,
-  currentVDom: CurrentView,
   searchIndex: SearchIndex,
   factIndex: FactIndex,
-  htmlTable: TableTags,
-  users: Users,
-  fuelingItems: FuelingItems,
-  objIdFactory: ObjIdFactory,
   validationFactory: ValidationFactory,
   uiStrings: UIStrings,
   mandatory: Mandatory,
@@ -77,15 +64,25 @@ class TestComponent(
   filterObjFactory: FilterObjFactory,
   inheritAttrRule: InheritAttrRule,
 
-  tableUtils: DataTableUtils,
-  fields: Fields,
-  fieldAttributes: FieldAttributes,
+  currentVDom: CurrentView,
+  divTags: Tags,
   style: TagStyles,
-  materialTags: MaterialTags,
+
+  htmlTable: TableTags,
+  tableUtils: DataTableUtils,
+  fieldAttributes: FieldAttributes,
+  fields: Fields,
+  users: Users,
+
   flexTags: FlexTags,
+  materialTags: MaterialTags,
   optionTags: OptionTags,
   buttonTags: ButtonTags,
-  tableUtilTags: TableUtilTags
+  tableUtilTags: TableUtilTags,
+
+  logAt: BoatLogEntryAttributes,
+  fuelingAttrs: FuelingAttrs,
+  fuelingItems: FuelingItems
 )(
   val findEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asEntry, logAt.locationOfEntry),
   val findWorkByEntry: SearchByLabelProp[Obj] = searchIndex.create(logAt.asWork, logAt.entryOfWork),

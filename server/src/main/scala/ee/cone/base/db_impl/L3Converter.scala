@@ -11,18 +11,19 @@ import ee.cone.base.util.Never
 
 abstract class RawValueConverterImpl[IValue] extends RawValueConverter[IValue] with CoHandlerProvider {
   type Value = IValue
+  def valueTypes: BasicValueTypes
   def valueType: AttrValueType[Value]
-  def asString: AttrValueType[String]
   def toUIString(value: Value): String
   def handlers = List(
     CoHandler(ToRawValueConverter(valueType))(this),
-    CoHandler(ConverterKey(valueType,asString))(toUIString)
+    CoHandler(ConverterKey(valueType,valueTypes.asString))(toUIString)
   )
 }
 
 class StringValueConverter(
-  val valueType: AttrValueType[String], inner: RawConverter
+  val valueTypes: BasicValueTypes, inner: RawConverter
 ) extends RawValueConverterImpl[String] {
+  def valueType = valueTypes.asString
   def convertEmpty() = ""
   def convert(valueA: Long, valueB: Long) = Never()
   def convert(value: String) = value
@@ -33,8 +34,9 @@ class StringValueConverter(
 }
 
 class UUIDValueConverter(
-  val valueType: AttrValueType[Option[UUID]], val asString: AttrValueType[String], inner: RawConverter
+  val valueTypes: BasicValueTypes, inner: RawConverter
 ) extends RawValueConverterImpl[Option[UUID]] {
+  def valueType = valueTypes.asUUID
   def convertEmpty() = None
   def convert(valueA: Long, valueB: Long) = Option(new UUID(valueA,valueB))
   def convert(value: String) = Never()
@@ -44,11 +46,12 @@ class UUIDValueConverter(
 }
 
 class DBObjValueConverter(
-  val valueType: AttrValueType[Obj],
+  val valueTypes: BasicValueTypes,
   inner: RawValueConverter[ObjId],
   findNodes: FindNodesI,
   nodeAttributes: NodeAttrs
 ) extends RawValueConverter[Obj] with CoHandlerProvider {
+  def valueType = valueTypes.asObj
   def convertEmpty() = findNodes.noNode
   def convert(valueA: Long, valueB: Long) =
     findNodes.whereObjId(inner.convert(valueA,valueB))
@@ -59,8 +62,9 @@ class DBObjValueConverter(
 }
 
 class BooleanValueConverter(
-  val valueType: AttrValueType[Boolean], val asString: AttrValueType[String], inner: RawConverter
+  val valueTypes: BasicValueTypes, inner: RawConverter
 ) extends RawValueConverterImpl[Boolean] {
+  def valueType = valueTypes.asBoolean
   def convertEmpty() = false
   def convert(valueA: Long, valueB: Long) = true
   def convert(value: String) = Never()
@@ -70,7 +74,7 @@ class BooleanValueConverter(
 }
 
 class BigDecimalValueConverter(
-  valueType: AttrValueType[Option[BigDecimal]], inner: RawConverter, asString: AttrValueType[String]
+  val valueTypes: BasicValueTypes, inner: RawConverter
 ) extends RawValueConverter[Option[BigDecimal]] with CoHandlerProvider {
   def convertEmpty() = None
   private def storageScale = 8
@@ -94,8 +98,8 @@ class BigDecimalValueConverter(
   def fromUIString(value: String):Option[BigDecimal] =
     if(value.nonEmpty) Some(BigDecimal(value)) else None
   def handlers = List(
-    CoHandler(ToRawValueConverter(valueType))(this),
-    CoHandler(ConverterKey(valueType,asString))(toUIString),
-    CoHandler(ConverterKey(asString,valueType))(fromUIString)
+    CoHandler(ToRawValueConverter(valueTypes.asBigDecimal))(this),
+    CoHandler(ConverterKey(valueTypes.asBigDecimal,valueTypes.asString))(toUIString),
+    CoHandler(ConverterKey(valueTypes.asString,valueTypes.asBigDecimal))(fromUIString)
   )
 }

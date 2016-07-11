@@ -3,10 +3,11 @@ package ee.cone.base.test_react_db
 import java.nio.file.Paths
 
 import ee.cone.base.connection_api._
-import ee.cone.base.db._
-import ee.cone.base.lifecycle.{BaseConnectionMix, BaseAppMix}
-import ee.cone.base.server.{ServerConnectionMix, ServerAppMix}
-import ee.cone.base.vdom._
+import ee.cone.base.db.{AlienAttributes, CurrentTx}
+import ee.cone.base.lifecycle_impl.{BaseAppMix, BaseConnectionMix}
+import ee.cone.base.server_impl.{ServerAppMix, ServerConnectionMix}
+import ee.cone.base.db_impl._
+import ee.cone.base.vdom_impl._
 
 object TestApp extends App {
   val app = new TestAppMix
@@ -25,19 +26,22 @@ class TestAppMix extends BaseAppMix with ServerAppMix with InMemoryDBAppMix {
     (lifeCycle:LifeCycle) ⇒ new TestMergerConnectionMix(this, lifeCycle)
 }
 
+class FieldAttributesImpl(
+  alienAttrs: AlienAttributes
+) extends FieldAttributes {
+  def aNonEmpty = ???
+  def aValidation = ???
+  def aIsEditing = ???
+  def aObjIdStr: Attr[String] = alienAttrs.objIdStr
+}
+
 trait TestConnectionMix extends BaseConnectionMix with DBConnectionMix with VDomConnectionMix {
-  lazy val testAttrs = new TestAttrs(
-    objIdFactory,
-    attrFactory,
-    labelFactory,
-    asDBObj,
-    asUUID,
-    asString
-  )()
+  lazy val testAttrs = new TestAttrs(objIdFactory,attrFactory,labelFactory,basicValueTypes)()
   lazy val testTags = new TestTags(childPairFactory, TagJsonUtilsImpl)
+  lazy val fieldAttributes = new FieldAttributesImpl(alienAttributes)
   lazy val testComponent = new TestComponent(
-    testAttrs, alienAttributes, handlerLists, findNodes, mainTx,
-    tags, testTags, currentView, searchIndex, mandatory, alien, factIndex
+    testAttrs, alienAttributes, handlerLists, objIdFactory,findNodes, mainTx,
+    tags, testTags, currentView, searchIndex, mandatory, alien, factIndex, fieldAttributes
   )()
 }
 

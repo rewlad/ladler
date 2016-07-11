@@ -1,6 +1,5 @@
 package ee.cone.base.db_impl
 
-import java.time.Instant
 import ee.cone.base.connection_api._
 import ee.cone.base.db._
 
@@ -13,14 +12,13 @@ trait InnerItemList {
 
 class ObjSelectionAttributesImpl(
     attr: AttrFactoryI,
-    asBoolean: AttrValueType[Boolean],
     asObjId: AttrValueType[ObjId],
-    asObjIdSet: AttrValueType[Set[ObjId]],
-    asInstant: AttrValueType[Option[Instant]]
+    valueTypes: BasicValueTypes,
+    asObjIdSet: AttrValueType[Set[ObjId]]
 )(
-    val isSelected: Attr[Boolean] = attr("a5045617-279f-48b8-95a9-a42dc721d67b",asBoolean),
-    val isExpanded: Attr[Boolean] = attr("2dd74df5-0ca7-4734-bc49-f420515fd663",asBoolean),
-    val selectedItems: Attr[Set[ObjId]] = attr("32a62c43-e837-4855-985a-d79f5dc03db0",asObjIdSet),
+    val isSelected: Attr[Boolean] = attr("a5045617-279f-48b8-95a9-a42dc721d67b", valueTypes.asBoolean),
+    val isExpanded: Attr[Boolean] = attr("2dd74df5-0ca7-4734-bc49-f420515fd663", valueTypes.asBoolean),
+    val selectedItems: Attr[Set[ObjId]] = attr("32a62c43-e837-4855-985a-d79f5dc03db0", asObjIdSet),
     val expandedItem: Attr[ObjId] = attr("d0b7b274-74ac-40b0-8e51-a1e1751578af", asObjId)
 ) extends ObjSelectionAttributes
 

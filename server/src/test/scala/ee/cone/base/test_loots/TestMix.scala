@@ -2,23 +2,14 @@
 package ee.cone.base.test_loots // demo
 
 import java.nio.file.Paths
-import java.time.{LocalTime, Duration, Instant}
 
-import ee.cone.base.connection_api.{FieldAttributes, WrapType, LifeCycle}
+import ee.cone.base.connection_api.LifeCycle
 import ee.cone.base.db._
-import ee.cone.base.db_impl.{InheritAttrRuleImpl,
-IndexedObjCollectionFactoryImpl, DBConnectionMix, InMemoryEnv}
-import ee.cone.base.flexlayout_impl.{FlexConnectionMix,
-FlexDataTableTagsImpl, FlexTablesState, FlexTagsImpl}
-import ee.cone.base.framework.ErrorListView
+import ee.cone.base.db_impl._
 import ee.cone.base.framework_impl._
-import ee.cone.base.lifecycle_impl.{BaseConnectionMix,BaseAppMix}
+import ee.cone.base.lifecycle_impl.BaseAppMix
 import ee.cone.base.lmdb.LightningDBAppMix
-import ee.cone.base.material_impl._
-import ee.cone.base.server_impl.{ServerConnectionMix, ServerAppMix}
-import ee.cone.base.vdom.{TableTags, DBRootWrap}
-import ee.cone.base.vdom_impl.{TagStylesImpl, TagJsonUtilsImpl,
-VDomConnectionMix}
+import ee.cone.base.server_impl.{ServerAppMix, ServerConnectionMix}
 
 object TestApp extends App {
   val app = new TestAppMix
@@ -27,7 +18,7 @@ object TestApp extends App {
 }
 
 class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
-  lazy val mainDB = new InMemoryEnv[MainEnvKey](1L,ordering)
+  lazy val mainDB = new InMemoryEnv[MainEnvKey](1L,unsignedBytesOrdering)
   // lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
 
   lazy val httpPort = 5557
@@ -40,67 +31,39 @@ class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
     (lifeCycle:LifeCycle) ⇒ new TestMergerConnectionMix(this, lifeCycle)
 }
 
-trait TestConnectionMix
-  extends BaseConnectionMix
-    with DBConnectionMix
-    with VDomConnectionMix
-    with FlexConnectionMix
-    with MaterialConnectionMix
-{
-
-
-
-  lazy val fields = new FieldsImpl()
-  lazy val dataTableUtils = new DataTableUtilsImpl()
-  lazy val measure = new MeasureImpl
-  def errorListView: ErrorListView
-  lazy val dbRootWrap = new DBRootWrapImpl(handlerLists,errorListView,userListView,currentView,tags,measure)
-  lazy val userAttributes = new UserAttributesImpl(attrFactory, labelFactory, objIdFactory, asDBObj, asString, asUUID)()
-  lazy val users = new UsersImpl(userAttributes, nodeAttrs, findAttrs, alienAttributes, handlerLists, factIndex, searchIndex, findNodes, mainTx, alien, transient, mandatory, unique, onUpdate, uiStrings, itemListOrderingFactory)()
-  lazy val userListView = new UserListViewImpl(
-    attrFactory,filterObjFactory,indexedObjCollectionFactory,
-    itemListOrderingFactory,userAttributes,users,currentView,tags,tableTags,
-    optionTags,buttonTags,materialTags,dataTableUtils,fields,fieldAttributes,
-    tableUtilTags
-  )
-
-
-
-
-
-
-
-  lazy val logAttributes = new BoatLogEntryAttributes(
-    attrFactory,labelFactory,asDBObj,asString,asInstant,asLocalTime,asDuration,asBoolean
-  )()
-
-  lazy val fuelingAttrs = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asString, asDuration, asBigDecimal, asDBObjId)()
+trait TestConnectionMix extends FrameworkConnectionMix {
+  lazy val logAttributes = new BoatLogEntryAttributes(attrFactory,labelFactory,basicValueTypes)()
+  lazy val fuelingAttributes = new FuelingAttrs(attrFactory, labelFactory, objIdFactory, asDBObjId, basicValueTypes)()
   lazy val fuelingItems = new FuelingItems(
-    fuelingAttrs, findAttrs, alienAttributes, nodeAttrs,
+    fuelingAttributes, findAttrs, alienAttributes, nodeAttrs,
     factIndex, searchIndex, alien, onUpdate, attrFactory, dbWrapType, validationFactory, uiStrings, lazyObjFactory
   )()
 
-  lazy val errorAttrs=new ErrorAttributes(attrFactory,labelFactory,asDBObj,asString,asBoolean)()
-  lazy val errors = new Errors(errorAttrs,searchIndex,alien,users,findNodes,indexedObjCollectionFactory)()
-  lazy val errorListView = new ErrorListViewImpl()
-
-  lazy val fieldAttributes = new FieldAttributesImpl(findAttrs,validationAttributes,alienAttributes)
-
-
-
-  def tableTags = materialTableTags
+  lazy val errorAttributes = new ErrorAttributes(attrFactory,labelFactory,basicValueTypes)()
+  lazy val errors = new Errors(errorAttributes,searchIndex,alien,users,findNodes,indexedObjCollectionFactory)()
+  lazy val errorListView = new ErrorListViewImpl(
+    attrFactory,filterObjFactory,indexedObjCollectionFactory,itemListOrderingFactory,
+    currentView,tags,tagStyles,
+    materialTags,optionTags,tableUtilTags,
+    tableTags,dataTableUtils,fieldAttributes,fields,
+    errorAttributes,errors,users
+  )
 
   lazy val testComponent = new TestComponent(
-    handlerLists, nodeAttrs,logAttributes,fuelingAttrs,
-    attrFactory,
-    findNodes, alien, onUpdate,
-    tags, currentView,
-    searchIndex, factIndex, tableTags, users, fuelingItems,
-    objIdFactory, validationFactory,
-    uiStrings, mandatory, zoneIds, itemListOrderingFactory,
-    indexedObjCollectionFactory, filterObjFactory, inheritAttrRule,
-    dataTableUtils, tableUtilTags, fields, fieldAttributes, tagStyles,
-    materialTags, flexTags, optionTags, buttonTags, tableUtilTags
+    handlerLists,
+
+    nodeAttrs, objIdFactory, attrFactory, findNodes,
+    alien, onUpdate, searchIndex, factIndex,
+    validationFactory, uiStrings, mandatory, zoneIds,
+    itemListOrderingFactory, indexedObjCollectionFactory, filterObjFactory, inheritAttrRule,
+
+    currentView, tags, tagStyles,
+
+    tableTags, dataTableUtils, fieldAttributes, fields, users,
+
+    flexTags, materialTags, optionTags, buttonTags, tableUtilTags,
+
+    logAttributes,fuelingAttributes,fuelingItems
   )()
 }
 

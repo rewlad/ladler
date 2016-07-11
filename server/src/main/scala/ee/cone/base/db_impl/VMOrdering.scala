@@ -12,12 +12,12 @@ final class CompositeOrdering[T](ordA: Ordering[T], ordB: Ordering[T]) extends O
 
 class ItemListOrderingAttributes(
   attr: AttrFactoryI,
-  asBoolean: AttrValueType[Boolean],
-  asObjId: AttrValueType[ObjId]
+  asObjId: AttrValueType[ObjId],
+  valueTypes: BasicValueTypes
 )(
   val orderByAttrValueTypeId: Attr[ObjId] = attr("83461d0d-8ec1-49a3-a4db-62def37e8a69", asObjId),
   val orderByAttrId: Attr[ObjId] = attr("064f4dfd-d3df-4748-ae5b-cc03ef42a1cb", asObjId),
-  val orderDirection: Attr[Boolean] = attr("ae1bee8e-828d-42d6-a3ca-36f146549c6a", asBoolean)
+  val orderDirection: Attr[Boolean] = attr("ae1bee8e-828d-42d6-a3ca-36f146549c6a", valueTypes.asBoolean)
 )
 
 class ItemListOrderingFactoryImpl(

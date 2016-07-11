@@ -17,6 +17,7 @@ trait Transient {
 }
 
 //Sys ES
+case class ApplyEvent(attrId: ObjId) extends EventKey[Obj=>Unit]
 trait SessionEventSourceOperations {
   def incrementalApplyAndView[R](view: ()=>R): R
   def unmergedEvents: List[Obj]

@@ -10,20 +10,18 @@ class FuelingAttrs(
   attr: AttrFactory,
   label: LabelFactory,
   objIdFactory: ObjIdFactory,
-  asString: AttrValueType[String],
-  asDuration: AttrValueType[Option[Duration]],
-  asBigDecimal: AttrValueType[Option[BigDecimal]],
-  asObjId: AttrValueType[ObjId]
+  asObjId: AttrValueType[ObjId],
+  valueTypes: BasicValueTypes
 )(
   // 00 08 RF 24
   val asFueling: Attr[Obj] = label("8fc310bc-0ae7-4ad7-90f1-2dacdc6811ad"),
   //val meHoursStr: Attr[String] = attr("5415aa5e-efec-4f05-95fa-4954fee2dd2e", asString),
-  val meHours: Attr[Option[Duration]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", asDuration),
-  val fuel: Attr[Option[BigDecimal]] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", asBigDecimal),
-  val comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", asString),
-  val engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", asString),
-  val master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", asString),
-  val time: Attr[String] = attr("df695468-c2bd-486c-9e58-f83da9566940", asString),
+  val meHours: Attr[Option[Duration]] = attr("9be17c9f-6689-44ca-badf-7b55cc53a6b0", valueTypes.asDuration),
+  val fuel: Attr[Option[BigDecimal]] = attr("f29cdc8a-4a93-4212-bb23-b966047c7c4d", valueTypes.asBigDecimal),
+  val comment: Attr[String] = attr("2589cfd4-b125-4e4d-b3e9-9200690ddbc9", valueTypes.asString),
+  val engineer: Attr[String] = attr("e5fe80e5-274a-41ab-b8b8-1909310b5a17", valueTypes.asString),
+  val master: Attr[String] = attr("b85d4572-8cc5-42ad-a2f1-a3406352800a", valueTypes.asString),
+  val time: Attr[String] = attr("df695468-c2bd-486c-9e58-f83da9566940", valueTypes.asString),
   val time00: ObjId = objIdFactory.toObjId("2b4c0bbf-fd24-4df8-b57a-29c26af11b23"),
   val time08: ObjId = objIdFactory.toObjId("a281aafc-b32d-4cf0-8599-eee8448c937d"),
   val time24: ObjId = objIdFactory.toObjId("f6bdcef8-179e-4da3-8c3d-ec7f51716ee6"),

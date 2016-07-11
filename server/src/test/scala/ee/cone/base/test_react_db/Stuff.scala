@@ -5,7 +5,7 @@ import java.util.UUID
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, Single}
 import ee.cone.base.vdom.Types.VDomKey
-import ee.cone.base.vdom.{Tags, ViewPath}
+import ee.cone.base.vdom.{CurrentView, Tags, ViewPath}
 import ee.cone.base.db._
 
 class FailOfConnection(
@@ -35,13 +35,11 @@ class TestAttrs(
   objIdFactory: ObjIdFactory,
   attr: AttrFactory,
   label: LabelFactory,
-  asObj: AttrValueType[Obj],
-  asUUID: AttrValueType[Option[UUID]],
-  asString: AttrValueType[String]
+  valueTypes: BasicValueTypes
 )(
   val asTestTask: Attr[Obj] = label("690cb4c2-55e8-4fca-bf23-394fbb2c65ba"),
-  val testState: Attr[String] = attr("6e60c1f1-a0b2-4a9a-84f7-c3627ac50727", asString),
-  val comments: Attr[String] = attr("c9ab1b7a-5339-4360-aa8d-b3c47d0099cf", asString),
+  val testState: Attr[String] = attr("6e60c1f1-a0b2-4a9a-84f7-c3627ac50727", valueTypes.asString),
+  val comments: Attr[String] = attr("c9ab1b7a-5339-4360-aa8d-b3c47d0099cf", valueTypes.asString),
   val taskCreated: ObjId = objIdFactory.toObjId("8af608d3-7c5d-42dc-be26-c4aa1a073638"),
   val taskRemoved: ObjId = objIdFactory.toObjId("9e86aae3-2094-4b38-a38b-41c1e285410d")
 )
@@ -50,11 +48,12 @@ class TestComponent(
   at: TestAttrs,
   alienAccessAttrs: AlienAttributes,
   handlerLists: CoHandlerLists,
+  objIdFactory: ObjIdFactory,
   findNodes: FindNodes,
   mainTx: CurrentTx[MainEnvKey],
   rTags: Tags,
   tags: TestTags,
-  currentVDom: CurrentVDom,
+  currentVDom: CurrentView,
   searchIndex: SearchIndex,
   mandatory: Mandatory,
   alien: Alien,
@@ -67,7 +66,7 @@ class TestComponent(
   import fieldAttributes._
   private def eventSource = handlerLists.single(SessionEventSource, ()⇒Never())
   private def emptyView(pf: String) =
-    root(List(text("text", "Loading...")))
+    List(text("text", "Loading..."))
   private def testView(pf: String) = {
     eventSource.incrementalApplyAndView { () ⇒
       val startTime = System.currentTimeMillis
@@ -99,7 +98,7 @@ class TestComponent(
         tags.button("fail", "fail", failAction()),
         tags.button("dump", "dump", dumpAction())
       )
-      val res = root(List(btnList,taskLines,eventLines).flatten)
+      val res = List(btnList,taskLines,eventLines).flatten
 
       val endTime = System.currentTimeMillis
       currentVDom.until(endTime+(endTime-startTime)*10)
@@ -123,7 +122,7 @@ class TestComponent(
     ev(alienAccessAttrs.comment) = "task was removed"
   }
   private def createTaskAction()() = eventSource.addEvent{ ev =>
-    ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(findNodes.toObjId(UUID.randomUUID))
+    ev(alienAccessAttrs.targetObj) = findNodes.whereObjId(objIdFactory.toObjId(UUID.randomUUID.toString))
     at.taskCreated
   }
 

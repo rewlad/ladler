@@ -1,6 +1,6 @@
 package ee.cone.base.material_impl
 
-import ee.cone.base.connection_api.FieldAttributes
+import ee.cone.base.connection_api.{BasicValueTypes, FieldAttributes}
 import ee.cone.base.vdom.{DBRootWrap, TableTags}
 import ee.cone.base.vdom_impl.VDomConnectionMix
 
@@ -8,6 +8,7 @@ trait MaterialConnectionMix extends VDomConnectionMix {
   def dbRootWrap: DBRootWrap
   def fieldAttributes: FieldAttributes
   def wrappedByMaterialTableTags: TableTags
+  def basicValueTypes: BasicValueTypes
 
   lazy val materialStyles = new MaterialStylesImpl
   lazy val tableUtilTags = new TableUtilTagsImpl(tags,tagStyles,materialStyles)
@@ -19,9 +20,7 @@ trait MaterialConnectionMix extends VDomConnectionMix {
   )
   lazy val materialFields = new MaterialFields(
     fieldAttributes,handlerLists,childPairFactory, tagJsonUtils, tags, tagStyles,
-    optionTags, buttonTags,
-    asDuration, asInstant, asLocalTime, asBigDecimal,
-    asDBObj, asString, asBoolean
+    optionTags, buttonTags, basicValueTypes
   )
   lazy val materialTableTags = new MaterialTableTags(wrappedByMaterialTableTags,tags,tagStyles,materialStyles)
   lazy val tableIconTags = new TableIconTagsImpl
