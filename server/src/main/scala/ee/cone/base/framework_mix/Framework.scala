@@ -23,6 +23,12 @@ trait FrameworkConnectionMix extends BaseConnectionMix with DBConnectionMix with
   lazy val measure = new MeasureImpl
   def errorListView: ErrorListView
   lazy val dbRootWrap = new DBRootWrapImpl(handlerLists,errorListView,userListView,currentView,tags,measure)
+
+  lazy val eventListView = new EventListView(
+    handlerLists, alienAttributes, currentView, tags, tableTags, buttonTags,
+    materialTags, eventIconTags, dataTableUtils, fieldAttributes
+  )
+
   lazy val userAttributes = new UserAttributesImpl(attrFactory, labelFactory, objIdFactory, basicValueTypes)()
   lazy val users = new UsersImpl(
     userAttributes, nodeAttrs, fieldAttributes,

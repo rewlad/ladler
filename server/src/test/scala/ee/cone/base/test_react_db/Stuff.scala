@@ -5,7 +5,7 @@ import java.util.UUID
 import ee.cone.base.connection_api._
 import ee.cone.base.util.{Never, Single}
 import ee.cone.base.vdom.Types.VDomKey
-import ee.cone.base.vdom.{CurrentView, Tags, ViewPath}
+import ee.cone.base.vdom.{CurrentView, SwitchSession, Tags, ViewPath}
 import ee.cone.base.db._
 
 class FailOfConnection(
@@ -141,6 +141,7 @@ class TestComponent(
     List(at.comments).flatMap(alien.update(_)) :::
     CoHandler(ApplyEvent(at.taskCreated))(taskCreated) ::
     CoHandler(ApplyEvent(at.taskRemoved))(taskRemoved) ::
+    CoHandler(SwitchSession)(eventSource.handleSessionKey) ::
     CoHandler(ViewPath(""))(emptyView) ::
     CoHandler(ViewPath("/test"))(testView) ::
     CoHandler(SessionInstantAdded)(currentVDom.invalidate) ::

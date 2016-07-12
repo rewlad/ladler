@@ -79,7 +79,7 @@ class SessionEventSourceOperationsImpl(
   }
 
   def addRequest() = addEvent{ req ⇒ at.requested }
-  private def handleSessionKey(uuid: UUID): Unit = {
+  def handleSessionKey(uuid: UUID): Unit = {
     val uuidOpt = Option(uuid)
     if(sessionKeyOpt == uuidOpt){ return }
     sessionKeyOpt = uuidOpt
@@ -87,7 +87,5 @@ class SessionEventSourceOperationsImpl(
       if(findSession()(sysAttrs.nonEmpty)) false else { addSession(); true }
     }
   }
-  def handlers =
-    CoHandler(SessionEventSource)(this) ::
-    CoHandler(SwitchSession)(handleSessionKey) :: Nil
+  def handlers = CoHandler(SessionEventSource)(this) :: Nil
 }

@@ -25,5 +25,5 @@ trait MaterialConnectionMix extends VDomConnectionMix {
   )
   lazy val materialTableTags = new MaterialTableTags(wrappedByMaterialTableTags,tags,tagStyles,materialStyles)
   lazy val tableIconTags = new TableIconTagsImpl
-  lazy val eventIconTagsImpl = new EventIconTagsImpl
+  lazy val eventIconTags = new EventIconTagsImpl
 }
