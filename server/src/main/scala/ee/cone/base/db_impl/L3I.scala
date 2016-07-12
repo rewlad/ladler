@@ -27,8 +27,6 @@ trait PreCommitCheckAllOfConnection {
   def create(later: Seq[Obj]=>Seq[ValidationFailure]): Obj=>Unit
 }
 
-trait InstantEnvKey
-
 trait DefaultTxManager[DBEnvKey] {
   def roTx[R](f: () ⇒ R): R
   def rwTx[R](f: () ⇒ R): R

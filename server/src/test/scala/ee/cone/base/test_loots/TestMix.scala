@@ -5,11 +5,11 @@ import java.nio.file.Paths
 
 import ee.cone.base.connection_api.LifeCycle
 import ee.cone.base.db._
-import ee.cone.base.db_impl._
-import ee.cone.base.framework_impl._
-import ee.cone.base.lifecycle_impl.BaseAppMix
-import ee.cone.base.lmdb.LightningDBAppMix
-import ee.cone.base.server_impl.{ServerAppMix, ServerConnectionMix}
+import ee.cone.base.db_mix._
+import ee.cone.base.framework_mix._
+import ee.cone.base.lifecycle_mix.BaseAppMix
+import ee.cone.base.lmdb.InstantLightningDBAppMix
+import ee.cone.base.server_mix.{ServerAppMix, ServerConnectionMix}
 
 object TestApp extends App {
   val app = new TestAppMix
@@ -17,10 +17,11 @@ object TestApp extends App {
   println(s"SEE: http://127.0.0.1:${app.httpPort}/material-app.html#/entryList")
 }
 
-class TestAppMix extends BaseAppMix with ServerAppMix with LightningDBAppMix {
-  lazy val mainDB = new InMemoryEnv[MainEnvKey](1L,unsignedBytesOrdering)
-  // lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L)
-
+class TestAppMix extends BaseAppMix
+  with ServerAppMix
+  with InstantLightningDBAppMix
+  with MainInMemoryDBAppMix
+{
   lazy val httpPort = 5557
   lazy val staticRoot = Paths.get("../client/build/test")
   lazy val ssePort = 5556
@@ -69,12 +70,10 @@ trait TestConnectionMix extends FrameworkConnectionMix {
 
 class TestSessionConnectionMix(
   app: TestAppMix, val lifeCycle: LifeCycle
-) extends TestConnectionMix with SessionDBConnectionMix with ServerConnectionMix {
+) extends TestConnectionMix with FrameworkSessionConnectionMix {
   lazy val serverAppMix = app
   lazy val dbAppMix = app
   lazy val allowOrigin = Some("*")
-  lazy val framePeriod = 200L
-  lazy val failOfConnection = new FailOfConnection(sender)
 }
 
 class TestMergerConnectionMix(

@@ -1,5 +1,6 @@
-package ee.cone.base.lifecycle_impl
+package ee.cone.base.lifecycle_mix
 
+import ee.cone.base.lifecycle_impl._
 import ee.cone.base.connection_api.{AppMixBase, CoMixBase}
 
 trait BaseAppMix extends AppMixBase {

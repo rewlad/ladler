@@ -3,8 +3,8 @@ package ee.cone.base.test_sse
 import java.nio.file.Paths
 
 import ee.cone.base.connection_api.LifeCycle
-import ee.cone.base.lifecycle_impl.{BaseAppMix, BaseConnectionMix}
-import ee.cone.base.server_impl._
+import ee.cone.base.lifecycle_mix.{BaseAppMix, BaseConnectionMix}
+import ee.cone.base.server_mix._
 
 object TestApp extends App {
   val app = new TestAppMix

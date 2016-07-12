@@ -1,10 +1,13 @@
-package ee.cone.base.framework_impl
+package ee.cone.base.framework_mix
 
-import ee.cone.base.db_impl.DBConnectionMix
-import ee.cone.base.flexlayout_impl.FlexConnectionMix
+import ee.cone.base.connection_api.LifeCycle
+import ee.cone.base.framework_impl._
+import ee.cone.base.db_mix.{SessionDBConnectionMix, DBConnectionMix}
+import ee.cone.base.flexlayout_mix.FlexConnectionMix
 import ee.cone.base.framework.ErrorListView
-import ee.cone.base.lifecycle_impl.BaseConnectionMix
-import ee.cone.base.material_impl.MaterialConnectionMix
+import ee.cone.base.lifecycle_mix.BaseConnectionMix
+import ee.cone.base.material_mix.MaterialConnectionMix
+import ee.cone.base.server_mix.ServerConnectionMix
 
 trait FrameworkConnectionMix extends BaseConnectionMix with DBConnectionMix with MaterialConnectionMix with FlexConnectionMix {
   def wrappedByMaterialTableTags = flexTableTags
@@ -32,4 +35,9 @@ trait FrameworkConnectionMix extends BaseConnectionMix with DBConnectionMix with
     currentView, tagStyles, tags, tableTags, optionTags, buttonTags, materialTags,
     dataTableUtils, fields, fieldAttributes, tableUtilTags
   )
+}
+
+trait FrameworkSessionConnectionMix extends SessionDBConnectionMix with ServerConnectionMix {
+  lazy val framePeriod = 200L
+  lazy val failOfConnection = new FailOfConnection(sender)
 }

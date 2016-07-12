@@ -20,33 +20,30 @@ my $check = sub{
 my %globals;
 for my $pkg_dir(sort <$src_prefix*>){
     my $pkg_abbr = substr $pkg_dir, length $src_prefix;
+    my $pkg_pf = $pkg_abbr=~s/(_impl|_mix)$// ? $1 : "";
+
     my %locals;
     for my $src_path(sort <$pkg_dir/*.scala>){
         open SRC, $src_path or die;
         my $content  = join '', <SRC>;
         close SRC or die;
 
-        my $src_abbr = $src_path=~/(\w+)\.scala$/ ? $1 : die;
-        my $pf = $src_abbr=~/(I|Mix)$/ ? $1 : "";
-
-        if($pkg_abbr=~/_impl$/){
-
-            if($pf ne "I"){
+        if($pkg_pf eq "_impl"){
+            my $src_abbr = $src_path=~/(\w+)\.scala$/ ? $1 : die;
+            if($src_abbr!~/I$/){
                 $content=~s{\b(class|object|trait)\s+(\w+)}{
                     $locals{$2}{def}{$src_abbr}++;
                     ""
                 }egs;
             }
-            if($pf ne "Mix"){
-                $locals{$_}{'use'}{$src_abbr}++ for $content=~/(\w+)/g;
-            }
+            $locals{$_}{'use'}{$src_abbr}++ for $content=~/(\w+)/g;
         }
 
         $content=~s{\bimport\s+ee\.cone\.base\.(\w+)}{
             my $c = $1;
-            $c eq $pkg_abbr ||
-            "$c\_impl" eq $pkg_abbr ||
-            $globals{"$1 in $pkg_abbr$pf"}++;
+            my $pf = $c=~s/(_impl|_mix)$// ? $1 : "";
+            $pf ne '' && $pkg_pf ne '_mix' ? $globals{"ERR $c $pf in $pkg_abbr $pkg_pf"}++ :
+            $c ne $pkg_abbr ? $globals{"rel $pkg_abbr uses $c"}++ : "";
             ""
         }egs;
     }

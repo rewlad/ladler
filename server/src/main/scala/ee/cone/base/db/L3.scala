@@ -27,6 +27,7 @@ trait DBEnv[DBEnvKey] {
   def rwTx[R](txLifeCycle: LifeCycle)(f: RawIndex⇒R): R
 }
 
+trait InstantEnvKey
 trait MainEnvKey
 
 trait CurrentTx[DBEnvKey] {

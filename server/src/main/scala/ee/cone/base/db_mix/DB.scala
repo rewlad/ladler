@@ -1,11 +1,9 @@
-package ee.cone.base.db_impl
+package ee.cone.base.db_mix
 
-import java.time.{Duration, Instant, LocalTime}
-import java.util.UUID
-import java.util.concurrent.ExecutorService
-
+import ee.cone.base.db_impl._
+import ee.cone.base.db.{InstantEnvKey, DBEnv, MainEnvKey}
 import ee.cone.base.connection_api._
-import ee.cone.base.db.{DBEnv, MainEnvKey}
+
 
 trait DBAppMix extends AppMixBase {
   def mainDB: DBEnv[MainEnvKey]
@@ -17,9 +15,12 @@ trait DBAppMix extends AppMixBase {
   lazy val unsignedBytesOrdering = new UnsignedBytesOrdering
 }
 
-trait InMemoryDBAppMix extends DBAppMix {
-  lazy val mainDB = new InMemoryEnv[MainEnvKey](1L,unsignedBytesOrdering)
+trait InstantInMemoryDBAppMix extends DBAppMix {
   lazy val instantDB = new InMemoryEnv[InstantEnvKey](0L,unsignedBytesOrdering)
+}
+
+trait MainInMemoryDBAppMix extends DBAppMix {
+  lazy val mainDB = new InMemoryEnv[MainEnvKey](1L,unsignedBytesOrdering)
 }
 
 trait DBConnectionMix extends CoMixBase {

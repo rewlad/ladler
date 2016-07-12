@@ -1,5 +1,6 @@
-package ee.cone.base.vdom_impl
+package ee.cone.base.vdom_mix
 
+import ee.cone.base.vdom_impl._
 import ee.cone.base.connection_api.CoMixBase
 
 trait VDomConnectionMix extends CoMixBase {

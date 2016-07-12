@@ -1,8 +1,9 @@
-package ee.cone.base.material_impl
+package ee.cone.base.material_mix
 
+import ee.cone.base.material_impl._
 import ee.cone.base.connection_api.{BasicValueTypes, FieldAttributes}
 import ee.cone.base.vdom.{DBRootWrap, TableTags}
-import ee.cone.base.vdom_impl.VDomConnectionMix
+import ee.cone.base.vdom_mix.VDomConnectionMix
 
 trait MaterialConnectionMix extends VDomConnectionMix {
   def dbRootWrap: DBRootWrap

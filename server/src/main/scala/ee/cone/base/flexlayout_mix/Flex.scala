@@ -1,6 +1,7 @@
-package ee.cone.base.flexlayout_impl
+package ee.cone.base.flexlayout_mix
 
-import ee.cone.base.vdom_impl.VDomConnectionMix
+import ee.cone.base.flexlayout_impl._
+import ee.cone.base.vdom_mix.VDomConnectionMix
 
 trait FlexConnectionMix extends VDomConnectionMix{
   lazy val flexTags = new FlexTagsImpl(childPairFactory,flexTablesState)
