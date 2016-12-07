@@ -312,3 +312,147 @@ object Test6 {
     test(point1D, point2D)(DoubleConverter)
   }
 }
+
+
+//u can't do val
+
+object Test7 {
+  object SysInterfaces {
+    trait MetaAttr
+    trait Attr[-Label,Value]
+    trait AttrValueType[Value] {
+      def apply[Label](metaAttr: ()⇒List[MetaAttr]): Attr[Label,Value]
+    }
+    trait Obj[Label] {
+      def apply[Value](attr: Attr[Label,Value]): Value
+      def update[Value](attr: Attr[Label,Value], value: Value): Unit
+    }
+  }
+
+  object CustomComponent0 {
+    import SysInterfaces._
+    trait Point1D
+    trait Point2D extends Point1D
+    class CustomComponent(
+      doubleAttr: AttrValueType[Double],
+      attrCaption: String⇒MetaAttr
+    ) {
+      val xc = doubleAttr[Point1D](()⇒
+        attrCaption("xc")::
+        Nil
+      )
+      val yc = doubleAttr[Point2D](Nil)
+
+      def test(
+        a: Obj[Point1D],
+        b: Obj[Point2D]
+      ) = {
+        a(xc) = b(xc)
+        b(yc) = 8.0
+        b(xc) = 8.0
+      }
+
+    }
+  }
+
+  ////
+
+  object StuffStuff {
+    import SysInterfaces._
+    trait Stuff {
+      def doubleAttr: AttrValueType[Double]
+      def attrId: String ⇒ MetaAttr
+      def attrCaption: String ⇒ MetaAttr
+      def updateByEvent: MetaAttr
+      def updateByCalculation: MetaAttr
+    }
+  }
+
+  object CustomInterfaces1 {
+    import SysInterfaces._
+    trait Point1D
+    trait Point2D extends Point1D
+    trait CustomAttributes {
+      def xc: Attr[Point1D,Double]
+      def yc: Attr[Point2D,Double]
+    }
+  }
+
+  object CustomComponent1_0 {
+    import StuffStuff._
+    import SysInterfaces._
+    import CustomInterfaces1._
+    class CustomAttributesImpl(
+      stuff: Stuff
+    ) extends CustomAttributes {
+      import stuff._
+      // searchIndex, obj
+      val xc = doubleAttr(()⇒List(
+        attrId("7c120f8b-8104-4318-be6b-8b0dc421bfa9"),
+        attrCaption("xc"),
+        updateByEvent
+        //options(...), afterUpdate, getValue
+      ))
+      val yc = doubleAttr(()⇒List(
+        attrId("a9134907-58dc-4925-a481-b79d6cab1039"),
+        attrCaption("yc"),
+        updateByCalculation
+      ))
+    }
+
+  }
+
+  object CustomComponent1_1{
+    import CustomInterfaces1._
+    import SysInterfaces._
+    def test(
+      customAttributes: CustomAttributes,
+      point1D: Obj[Point1D],
+      point2D: Obj[Point2D]
+    ) {
+      import customAttributes._
+      point1D()
+      point1D(xc) = 8.0
+      // point1D(yc)
+      // point1D(yc) = 9.0
+
+
+      point2D(xc)
+      point2D(xc) = 8.0
+      point2D(yc)
+      point2D(yc) = 9.0
+    }
+  }
+}
+
+// multi allow
+// gives req life
+/*
+
+def selectFromDict[A,B](a: => = ) = attr.obj[A, B](
+  givesLifeToValue :: requiresLifeOfValue :: a
+)
+
+val bodyColor = attr.obj[Car,Color](List(
+  givesLifeToValue, requiresLifeOfValue
+))
+val seatColor = attr.obj[Car,Color](List(
+  givesLifeToValue, requiresLifeOfValue
+))
+
+val bodyColoredCars: Attr[Color,List[Obj[Car]]] = reverseAttr(bodyColor)
+
+ */
+
+//    val someParent = objAttr(List(
+//      ...
+//      takesLifeFromValue | requiresLifeOfValue
+//    ))
+// ordered chain rel (tran-s?):
+//    val someRel = objChain[SomeParent,SomeChild](attr(),attr(),attr())
+//    trait ObjChain[Parent,Child] {
+//      parent: Attr[Child,Obj[Parent]]
+//      next: Attr[Child,Child]
+//      children: Attr[Parent,Seq[Child]]
+//    }
+//

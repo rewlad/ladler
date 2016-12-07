@@ -1,10 +1,7 @@
-
 import React from 'react'
+import ReactDOM from 'react-dom'
 
 const FlexGrid = React.createClass({
-    /*componentDidMount(){
-
-    },*/
     render(){
         const style={
             display:"flex",
@@ -12,7 +9,6 @@ const FlexGrid = React.createClass({
             maxWidth:this.props.maxWidth||"100%",
             border:"0px solid black",
             justifyContent:"center",
-            //transition:"all 500ms ease",
             position:"relative",
             margin:"0px auto"
         }
@@ -29,7 +25,6 @@ const FlexGridShItem = React.createClass({
             maxWidth:(this.props.maxWidth),
             boxSizing:"border-box",
             margin:"0px 5px",
-            //transition:"all 200ms ease-out",
             height:(this.props.height||0)+"px"
         }
         const ref = el => this.props.flexReg(false,el)
@@ -38,9 +33,6 @@ const FlexGridShItem = React.createClass({
 })
 
 const FlexGridItem = React.createClass({
-    /*componentWillReceiveProps(nextProps){
-        console.log(nextProps)
-    },*/
     render(){
         const style={
             position:"absolute",
@@ -50,18 +42,42 @@ const FlexGridItem = React.createClass({
             boxSizing:"border-box",
             border:"0px solid black",
             width:(this.props.width||"0")+"px",
-            //height:this.props.height||"",
             textAlign:this.props.align||"left",
         }
-        //console.log(style)
-        /*const el=(this.props.paper||0)!=0?Paper:"div",
-            ref:(ref)=>
-            res(ref,this.props.childOfGrid||null,this.props.gridName||null)*/
-        //?[this.props.children[0]]
         const ref = el => this.props.flexReg(true,el)
         return React.createElement("div",{ key: "flexGridItem", style, ref }, this.props.children)
     }
 })
+class FlexGridItemWidthSync extends React.Component{
+    constructor(props){
+        super(props)
+    }
+    componentDidMount(){
+        const drect=ReactDOM.findDOMNode(this).getBoundingClientRect()
+        this.props.onResize({width:drect.width,height:drect.height})
+    }
+    componentWillReceiveProps(nextProps){
+      if(nextProps.height!==this.props.height||nextProps.width!==this.props.width)
+      if(typeof this.props.onResize ==="function"){
+        this.props.onResize({width:nextProps.width,height:nextProps.height})
+      }
+    }
+    render(){
+        const tStyle={
+            width:this.props.width+"px"||"100%",
+            top:this.props.y+"px"||"0px",
+            left:this.props.x+"px"||"0px",
+            transition:"all 300ms ease-out",
+             position:"absolute"
+        }
+        if(this.props.minWidth) Object.assign(tStyle,{minWidth:this.props.minWidth})
+        if(this.props.maxWidth) Object.assign(tStyle,{maxWidth:this.props.maxWidth})
+        Object.assign(tStyle,this.props.style||{})
+        const ref = el => this.props.flexReg(true,el)
+
+        return React.createElement("div",{key:"flexGridItemWithSync",style:tStyle,ref},this.props.children)
+    }
+}
 
 export default function GridWatcher(vDom, DiffPrepare){
     const ref_collection = {}
@@ -105,7 +121,7 @@ export default function GridWatcher(vDom, DiffPrepare){
     }
     setInterval(layoutIteration, 50)
     const flexReg = { "def": transformReg }
-    const tp = {FlexGrid,FlexGridItem,FlexGridShItem}
+    const tp = {FlexGrid,FlexGridItem,FlexGridShItem,FlexGridItemWidthSync}
     const transforms = {flexReg,tp}
     return ({transforms})
 }

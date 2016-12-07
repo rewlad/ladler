@@ -2,6 +2,8 @@
 package ee.cone.base.db
 
 import java.time.Instant
+import java.util.UUID
+
 import ee.cone.base.connection_api._
 
 //L1
@@ -19,6 +21,7 @@ trait Transient {
 //Sys ES
 case class ApplyEvent(attrId: ObjId) extends EventKey[Obj=>Unit]
 trait SessionEventSourceOperations {
+  def handleSessionKey(uuid: UUID): Unit
   def incrementalApplyAndView[R](view: ()=>R): R
   def unmergedEvents: List[Obj]
   def addEvent(setup: Obj=>ObjId): Unit

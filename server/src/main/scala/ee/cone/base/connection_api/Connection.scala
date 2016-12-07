@@ -58,13 +58,10 @@ case object ActivateReceiver extends EventKey[()=>Unit]
 // subscribe to failures (fatal) of connection
 case object FailEventKey extends EventKey[Exception=>Unit]
 
-case object SwitchSession extends EventKey[UUID=>Unit]
-
+// exchange with alien (user agent)
 trait SenderOfConnection {
   def sendToAlien(event: String, data: String): Unit
 }
-
-// exchange with alien (user agent)
 case object FromAlienDictMessage extends EventKey[DictMessage=>Unit]
 case class DictMessage(value: Map[String,String])
 case object ShowToAlien extends EventKey[()=>List[(String,String)]]

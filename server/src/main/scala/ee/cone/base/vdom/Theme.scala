@@ -1,7 +1,10 @@
 package ee.cone.base.vdom
 
-import ee.cone.base.connection_api.{EventKey, AttrValueType, Attr, Obj}
+import java.util.UUID
 
+import ee.cone.base.connection_api.{Attr, AttrValueType, EventKey, Obj}
+
+case object SwitchSession extends EventKey[UUID=>Unit]
 case class ViewPath(path: String) extends EventKey[String=>List[ChildPair[_]]]
 
 ////

@@ -58,6 +58,7 @@ class DBRootWrapImpl(
     }
 
   def handlers = List(
+    CoHandler(SwitchSession)(eventSource.handleSessionKey),
     CoHandler(ViewPath(""))(emptyView),
     CoHandler(SessionInstantAdded)(currentVDom.invalidate),
     CoHandler(TransientChanged)(currentVDom.invalidate)
