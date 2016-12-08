@@ -1,5 +1,8 @@
 package ee.cone.base.draft
 
+import java.util.concurrent._
+
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ArrayBuffer
 
 /*
@@ -456,3 +459,50 @@ val bodyColoredCars: Attr[Color,List[Obj[Car]]] = reverseAttr(bodyColor)
 //      children: Attr[Parent,Seq[Child]]
 //    }
 //
+
+//////////////////////////////////////////////
+
+
+// System.identityHashCode(obj)
+//private lazy val pool = Executors.newScheduledThreadPool(threadCount)
+class Cache(pool: ScheduledExecutorService) {
+  private val data = TrieMap[_,Future[_]]()
+  private def toCallable[V](f: ()⇒V) = new Callable[V]{ def call() = f() }
+  private def update[K,V](f: K⇒V, k: K): Future[V] = pool.submit(toCallable(()⇒{
+    val startTime = System.currentTimeMillis
+    val res = f(k)
+    val delay = (System.currentTimeMillis-startTime)*10
+    pool.schedule(toCallable(() ⇒ data -= k), delay, TimeUnit.MILLISECONDS)
+    res
+  }))
+  def apply[K,V](f: K⇒V)(k: K) =
+    data.getOrElseUpdate(k, update(f,k)).asInstanceOf[Future[V]]
+}
+
+case class A(b: Int)
+
+object A {
+  val theCache = new Cache(Executors.newScheduledThreadPool(threadCount))
+
+  def calc(a: Int) = a + 1
+  val calcCache: (Int) ⇒ Future[Int] = theCache(calc)
+
+  val a = calcCache(8)
+  val b = calcCache(9)
+  a.get() + b.get()
+
+}
+
+
+
+("0x5689",_.abc, _.copy(abc=_))
+
+
+
+def reduce(world, events): world = {
+
+
+  val changedAbc = makeIndex(world.abc, world.efg, nextEfg, changedEfg)
+  val nextAbc = if(changedAbc.isEmpty) world.abc else world.abc ++ changedAbc
+
+}
